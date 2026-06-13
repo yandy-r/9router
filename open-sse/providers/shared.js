@@ -46,3 +46,15 @@ export const CLAUDE_CLI_SPOOF_HEADERS = {
 
 // Shared baseUrls
 export const KIMI_CODING_BASE_URL = "https://api.kimi.com/coding/v1/messages";
+
+// Antigravity OAuth client credentials (public CLI client — duplicated in usage.js + src/lib/oauth)
+export const ANTIGRAVITY_OAUTH_CLIENT = {
+  clientId: "REDACTED_GOOGLE_OAUTH_CLIENT_ID",
+  clientSecret: "REDACTED_GOOGLE_OAUTH_CLIENT_SECRET"
+};
+
+// Gemini (Google) OAuth client credentials (public CLI client — shared by gemini, gemini-cli, src/lib/oauth)
+export const GOOGLE_OAUTH_CLIENT = {
+  clientId: "REDACTED_GOOGLE_OAUTH_CLIENT_ID",
+  clientSecret: "REDACTED_GOOGLE_OAUTH_CLIENT_SECRET"
+};

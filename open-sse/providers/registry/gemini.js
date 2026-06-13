@@ -1,11 +1,12 @@
+import { GOOGLE_OAUTH_CLIENT } from "../shared.js";
+
 export default {
   "id": "gemini",
   "alias": "gemini",
   "transport": {
     "baseUrl": "https://generativelanguage.googleapis.com/v1beta/models",
     "format": "gemini",
-    "clientId": "REDACTED_GOOGLE_OAUTH_CLIENT_ID",
-    "clientSecret": "REDACTED_GOOGLE_OAUTH_CLIENT_SECRET"
+    ...GOOGLE_OAUTH_CLIENT
   },
   "models": [
     {

@@ -2,6 +2,7 @@
  * OAuth Configuration Constants
  */
 import { platform, arch } from "os";
+import { ANTIGRAVITY_OAUTH_CLIENT, GOOGLE_OAUTH_CLIENT } from "open-sse/providers/shared.js";
 
 /**
  * Get the platform enum value based on the current OS.
@@ -42,8 +43,7 @@ export const CODEX_CONFIG = {
 
 // Gemini (Google) OAuth Configuration (Standard OAuth2)
 export const GEMINI_CONFIG = {
-  clientId: "REDACTED_GOOGLE_OAUTH_CLIENT_ID",
-  clientSecret: "REDACTED_GOOGLE_OAUTH_CLIENT_SECRET",
+  ...GOOGLE_OAUTH_CLIENT,
   authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
   tokenUrl: "https://oauth2.googleapis.com/token",
   userInfoUrl: "https://www.googleapis.com/oauth2/v1/userinfo",
@@ -94,8 +94,7 @@ export const IFLOW_CONFIG = {
 
 // Antigravity OAuth Configuration (Standard OAuth2 with Google)
 export const ANTIGRAVITY_CONFIG = {
-  clientId: "REDACTED_GOOGLE_OAUTH_CLIENT_ID",
-  clientSecret: "REDACTED_GOOGLE_OAUTH_CLIENT_SECRET",
+  ...ANTIGRAVITY_OAUTH_CLIENT,
   authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
   tokenUrl: "https://oauth2.googleapis.com/token",
   userInfoUrl: "https://www.googleapis.com/oauth2/v1/userinfo",
