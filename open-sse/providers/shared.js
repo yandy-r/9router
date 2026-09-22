@@ -1,4 +1,13 @@
 import { platform, arch } from "os";
+import {
+  CLAUDE_CLI_VERSION,
+  CLAUDE_CLI_SDK_VERSION,
+  CLAUDE_CLI_RUNTIME_VERSION,
+  CLAUDE_CLI_USER_AGENT,
+  CLAUDE_CLI_BETA_FLAGS,
+} from "../config/claudeCliFingerprint.js";
+
+export { CLAUDE_CLI_VERSION, CLAUDE_CLI_USER_AGENT };
 
 // === OS/Arch helpers (Stainless fingerprint) ===
 export function mapStainlessOs() {
@@ -22,7 +31,6 @@ export function mapStainlessArch() {
 
 // Anthropic API version (single source — reused across claude-format providers/executors)
 export const ANTHROPIC_API_VERSION = "2023-06-01";
-export const CLAUDE_CLI_VERSION = "2.1.258";
 
 // Shared Claude-compatible API headers (reused across claude-format providers)
 export const CLAUDE_API_HEADERS = {
@@ -30,35 +38,6 @@ export const CLAUDE_API_HEADERS = {
   "Anthropic-Beta": "claude-code-20250219,interleaved-thinking-2025-05-14"
 };
 
-// Full Claude CLI fingerprint — required by providers that gate on client identity (e.g. agentrouter)
-export const CLAUDE_CLI_SPOOF_HEADERS = {
-  "Anthropic-Version": ANTHROPIC_API_VERSION,
-  "Anthropic-Beta": "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,context-management-2025-06-27,prompt-caching-scope-2026-01-05,advanced-tool-use-2025-11-20,effort-2025-11-24,structured-outputs-2025-12-15,fast-mode-2026-02-01,redact-thinking-2026-02-12,token-efficient-tools-2026-03-28",
-  "Anthropic-Dangerous-Direct-Browser-Access": "true",
-  "User-Agent": `claude-cli/${CLAUDE_CLI_VERSION} (external, sdk-cli)`,
-  "X-App": "cli",
-  "X-Stainless-Helper-Method": "stream",
-  "X-Stainless-Retry-Count": "0",
-  "X-Stainless-Runtime-Version": "v24.14.0",
-  "X-Stainless-Package-Version": "0.80.0",
-  "X-Stainless-Runtime": "node",
-  "X-Stainless-Lang": "js",
-  "X-Stainless-Arch": mapStainlessArch(),
-  "X-Stainless-Os": mapStainlessOs(),
-  "X-Stainless-Timeout": "600"
-};
-
-const ANTHROPIC_BETA_BASE = [
-  "claude-code-20250219",
-  "oauth-2025-04-20",
-  "interleaved-thinking-2025-05-14",
-  "context-management-2025-06-27",
-  "prompt-caching-scope-2026-01-05",
-  "structured-outputs-2025-12-15",
-  "fast-mode-2026-02-01",
-  "redact-thinking-2026-02-12",
-  "token-efficient-tools-2026-03-28",
-];
 const ANTHROPIC_BETA_HEAVY_AGENT = ["advanced-tool-use-2025-11-20", "effort-2025-11-24"];
 
 // Heavy-agent beta flags are gated to opus/sonnet — cheaper models don't need them.
@@ -67,12 +46,39 @@ const ANTHROPIC_BETA_HEAVY_AGENT = ["advanced-tool-use-2025-11-20", "effort-2025
 // client explicitly requested with `thinking.display: "summarized"`.
 const ANTHROPIC_BETA_REDACT_THINKING = "redact-thinking-2026-02-12";
 
+/**
+ * Full Claude CLI fingerprint headers (base list + heavy-agent betas), as sent
+ * for an opus/sonnet request. Callers that know the model should override
+ * Anthropic-Beta with selectAnthropicBeta().
+ * @param {{ os?: string, arch?: string }} [host] - X-Stainless-Os/Arch; defaults to this host
+ */
+export function buildClaudeCliHeaders({ os = mapStainlessOs(), arch: cpuArch = mapStainlessArch() } = {}) {
+  return {
+    "Anthropic-Version": ANTHROPIC_API_VERSION,
+    "Anthropic-Beta": [...CLAUDE_CLI_BETA_FLAGS, ...ANTHROPIC_BETA_HEAVY_AGENT].join(","),
+    "Anthropic-Dangerous-Direct-Browser-Access": "true",
+    "User-Agent": CLAUDE_CLI_USER_AGENT,
+    "X-App": "cli",
+    "X-Stainless-Retry-Count": "0",
+    "X-Stainless-Runtime-Version": CLAUDE_CLI_RUNTIME_VERSION,
+    "X-Stainless-Package-Version": CLAUDE_CLI_SDK_VERSION,
+    "X-Stainless-Runtime": "node",
+    "X-Stainless-Lang": "js",
+    "X-Stainless-Arch": cpuArch,
+    "X-Stainless-Os": os,
+    "X-Stainless-Timeout": "600"
+  };
+}
+
+// Full Claude CLI fingerprint — required by providers that gate on client identity (e.g. agentrouter)
+export const CLAUDE_CLI_SPOOF_HEADERS = buildClaudeCliHeaders();
+
 export function wantsThinkingSummaries(body) {
   return body?.thinking?.display === "summarized";
 }
 
 export function selectAnthropicBeta(model = "", body = null) {
-  const flags = ANTHROPIC_BETA_BASE.filter((flag) => flag !== ANTHROPIC_BETA_REDACT_THINKING || !wantsThinkingSummaries(body));
+  const flags = CLAUDE_CLI_BETA_FLAGS.filter((flag) => flag !== ANTHROPIC_BETA_REDACT_THINKING || !wantsThinkingSummaries(body));
   if (/^claude-(opus|sonnet)/.test(model)) flags.push(...ANTHROPIC_BETA_HEAVY_AGENT);
   return flags.join(",");
 }

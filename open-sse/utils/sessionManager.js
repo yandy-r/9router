@@ -94,7 +94,7 @@ const MAX_CONTINUATION_SESSIONS = 5000;
 // Client headers/body fields that carry an upstream session id (priority order)
 const SESSION_HEADER_KEYS = ["x-session-id", "session-id", "session_id", "x-amp-thread-id"];
 const CLAUDE_CODE_SESSION_RE = /_session_([a-f0-9-]+)$/;
-const CLAUDE_CODE_SESSION_HEADER = "x-claude-code-session-id";
+export const CLAUDE_CODE_SESSION_HEADER = "x-claude-code-session-id";
 
 function sha16(text) {
     return crypto.createHash("sha256").update(text).digest("hex").slice(0, 16);
@@ -109,7 +109,7 @@ function normalizeSessionId(value) {
 }
 
 // Extract Claude Code session id from metadata.user_id (_session_{uuid} | JSON {session_id})
-function extractClaudeCodeSession(userId) {
+export function extractClaudeCodeSession(userId) {
     if (typeof userId !== "string" || !userId) return null;
     const m = userId.match(CLAUDE_CODE_SESSION_RE);
     if (m) return m[1];

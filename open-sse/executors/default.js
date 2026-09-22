@@ -7,6 +7,7 @@ import { buildClineHeaders } from "../shared/clineAuth.js";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { stripUnsupportedParams } from "../translator/concerns/paramSupport.js";
+import { CLAUDE_CODE_SESSION_HEADER, extractClaudeCodeSession } from "../utils/sessionManager.js";
 
 // Auth header descriptors — derived from registry transport.auth, fallback to hardcoded defaults.
 const BEARER = { combined: true, header: "Authorization", scheme: "bearer" };
@@ -167,6 +168,10 @@ export class DefaultExecutor extends BaseExecutor {
     if (model && (this.provider === "claude"
       || (this.provider?.startsWith?.("anthropic-compatible-") && isClaudeModel))) {
       headers["Anthropic-Beta"] = selectAnthropicBeta(model, body);
+      // Real Claude Code sends its session id as a header too, matching the
+      // session_id inside metadata.user_id (set by applyCloaking or the client).
+      const sessionId = extractClaudeCodeSession(body?.metadata?.user_id);
+      if (sessionId) headers[CLAUDE_CODE_SESSION_HEADER] = sessionId;
     }
 
     // Strip first-party Claude Code identity headers for non-Anthropic anthropic-compatible upstreams
@@ -184,6 +189,7 @@ export class DefaultExecutor extends BaseExecutor {
         delete headers["Anthropic-Dangerous-Direct-Browser-Access"];
         delete headers["x-app"];
         delete headers["X-App"];
+        delete headers[CLAUDE_CODE_SESSION_HEADER];
         // Strip claude-code-20250219 from Anthropic-Beta / anthropic-beta
         for (const betaKey of ["anthropic-beta", "Anthropic-Beta"]) {
           if (headers[betaKey]) {
