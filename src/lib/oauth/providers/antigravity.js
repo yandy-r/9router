@@ -1,7 +1,13 @@
 import { ANTIGRAVITY_CONFIG, getOAuthClientMetadata } from "../constants/oauth.js";
+import { assertOAuthClient } from "open-sse/providers/shared.js";
 
 const antigravity = {
   config: ANTIGRAVITY_CONFIG,
+  // Runs before both buildAuthUrl and exchangeToken (see providers/index.js).
+  prepareConfig: (config) => {
+    assertOAuthClient(config, "antigravity");
+    return config;
+  },
   flowType: "authorization_code",
   buildAuthUrl: (config, redirectUri, state) => {
     const params = new URLSearchParams({

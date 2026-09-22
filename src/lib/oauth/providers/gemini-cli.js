@@ -1,7 +1,13 @@
 import { GEMINI_CONFIG, getOAuthClientMetadata } from "../constants/oauth.js";
+import { assertOAuthClient } from "open-sse/providers/shared.js";
 
 const geminiCli = {
   config: GEMINI_CONFIG,
+  // Runs before both buildAuthUrl and exchangeToken (see providers/index.js).
+  prepareConfig: (config) => {
+    assertOAuthClient(config, "gemini");
+    return config;
+  },
   flowType: "authorization_code",
   buildAuthUrl: (config, redirectUri, state) => {
     const params = new URLSearchParams({

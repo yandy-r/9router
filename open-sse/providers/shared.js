@@ -97,14 +97,33 @@ export const ANTIGRAVITY_IDE_VERSION = "2.11.0";
 export const ANTIGRAVITY_IDE_BASE_URL = "https://daily-cloudcode-pa.googleapis.com";
 export const ANTIGRAVITY_IDE_USER_AGENT = `antigravity/ide/${ANTIGRAVITY_IDE_VERSION} darwin/arm64`;
 
-// Antigravity OAuth client credentials (public CLI client — duplicated in usage.js + src/lib/oauth)
-export const ANTIGRAVITY_OAUTH_CLIENT = {
-  clientId: "REDACTED_GOOGLE_OAUTH_CLIENT_ID",
-  clientSecret: "REDACTED_GOOGLE_OAUTH_CLIENT_SECRET"
+// Google "installed app" OAuth clients (Antigravity IDE, Gemini CLI). Kept out of
+// source control — supply them via env. When unset, OAuth login and token refresh
+// for these providers fail with an error naming the missing variables.
+const OAUTH_CLIENT_ENV = {
+  antigravity: ["ANTIGRAVITY_OAUTH_CLIENT_ID", "ANTIGRAVITY_OAUTH_CLIENT_SECRET"],
+  gemini: ["GEMINI_OAUTH_CLIENT_ID", "GEMINI_OAUTH_CLIENT_SECRET"],
 };
 
-// Gemini (Google) OAuth client credentials (public CLI client — shared by gemini, gemini-cli, src/lib/oauth)
-export const GOOGLE_OAUTH_CLIENT = {
-  clientId: "REDACTED_GOOGLE_OAUTH_CLIENT_ID",
-  clientSecret: "REDACTED_GOOGLE_OAUTH_CLIENT_SECRET"
-};
+function oauthClientFromEnv([idVar, secretVar]) {
+  return {
+    clientId: process.env[idVar]?.trim() || undefined,
+    clientSecret: process.env[secretVar]?.trim() || undefined,
+  };
+}
+
+// Antigravity OAuth client (shared by the antigravity registry, usage.js and src/lib/oauth)
+export const ANTIGRAVITY_OAUTH_CLIENT = oauthClientFromEnv(OAUTH_CLIENT_ENV.antigravity);
+
+// Gemini (Google) OAuth client (shared by gemini, gemini-cli and src/lib/oauth)
+export const GOOGLE_OAUTH_CLIENT = oauthClientFromEnv(OAUTH_CLIENT_ENV.gemini);
+
+/**
+ * Throw if a Google OAuth client was not configured via env.
+ * @param {{ clientId?: string, clientSecret?: string }} client
+ * @param {"antigravity"|"gemini"} kind
+ */
+export function assertOAuthClient({ clientId, clientSecret } = {}, kind) {
+  if (clientId && clientSecret) return;
+  throw new Error(`${kind} OAuth client not configured: set ${OAUTH_CLIENT_ENV[kind].join(" and ")}`);
+}

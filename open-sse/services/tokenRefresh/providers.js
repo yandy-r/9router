@@ -201,6 +201,10 @@ export async function refreshClaudeOAuthToken(refreshToken, log) {
 
 export async function refreshGoogleToken(refreshToken, clientId, clientSecret, log) {
   if (!refreshToken) return null;
+  if (!clientId || !clientSecret) {
+    log?.error?.("TOKEN_REFRESH", "Google OAuth client not configured: set GEMINI_OAUTH_CLIENT_ID/_SECRET (gemini, gemini-cli) or ANTIGRAVITY_OAUTH_CLIENT_ID/_SECRET (antigravity)");
+    return null;
+  }
   return dedupRefresh(`google:${clientId}`, refreshToken, async () => {
   try {
     const response = await fetch(OAUTH_ENDPOINTS.google.token, {

@@ -48,8 +48,6 @@
       "loadProjectApiUrl": "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist",
       "tokenUrl": "https://oauth2.googleapis.com/token"
     },
-    "clientId": "REDACTED_GOOGLE_OAUTH_CLIENT_ID",
-    "clientSecret": "REDACTED_GOOGLE_OAUTH_CLIENT_SECRET",
     "tokenUrl": "https://oauth2.googleapis.com/token"
   },
   "assemblyai": {
@@ -298,15 +296,11 @@
       "quotaUrl": "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota",
       "loadCodeAssistUrl": "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist"
     },
-    "clientId": "REDACTED_GOOGLE_OAUTH_CLIENT_ID",
-    "clientSecret": "REDACTED_GOOGLE_OAUTH_CLIENT_SECRET",
     "tokenUrl": "https://oauth2.googleapis.com/token"
   },
   "gemini": {
     "baseUrl": "https://generativelanguage.googleapis.com/v1beta/models",
     "format": "gemini",
-    "clientId": "REDACTED_GOOGLE_OAUTH_CLIENT_ID",
-    "clientSecret": "REDACTED_GOOGLE_OAUTH_CLIENT_SECRET",
     "auth": {
       "apiKey": {
         "header": "x-goog-api-key",
