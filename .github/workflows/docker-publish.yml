@@ -1,14 +1,15 @@
 name: Docker Image
 
-# Publishing a GitHub release builds and pushes ghcr.io/<owner>/<repo>:
-#   :<version> and :<major>.<minor> from the release tag (e.g. v1.2.3 → 1.2.3, 1.2)
-#   :latest    only when the release is the repo's "Latest release"
+# Pushing a v* tag builds and pushes ghcr.io/<owner>/<repo>:
+#   :<version> and :<major>.<minor> from the tag (e.g. v1.2.3 → 1.2.3, 1.2)
+#   :latest    only when the tag is the highest stable vX.Y.Z tag in the repo
 #   :sha-<sha>
-# Manual runs build the chosen ref without pushing unless `push` is checked.
+# Nothing runs on branch pushes. Manual runs build the chosen ref without pushing
+# unless `push` is checked.
 
 on:
-  release:
-    types: [published]
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       push:
@@ -30,23 +31,24 @@ jobs:
       contents: read
       packages: write
     env:
-      PUSH: ${{ github.event_name == 'release' || inputs.push }}
+      PUSH: ${{ github.event_name == 'push' || inputs.push }}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # all tags, to find the highest version below
 
-      # Tag :latest only when this release is what GitHub marks as "Latest release"
-      # (not a prerelease/draft, and not an older-version backport published later).
-      - name: Resolve latest release
+      # Tag :latest only when this tag is the highest stable vX.Y.Z tag, so
+      # prereleases (v1.3.0-rc.1) and older-version backports never move it.
+      - name: Resolve latest tag
         id: latest
-        if: github.event_name == 'release'
+        if: github.event_name == 'push'
         env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ github.ref_name }}
         run: |
-          latest_tag=$(gh api "repos/${GITHUB_REPOSITORY}/releases/latest" --jq .tag_name)
-          echo "GitHub latest release: ${latest_tag}; this release: ${TAG}"
-          echo "is_latest=$([ "$latest_tag" = "$TAG" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          highest=$(git tag -l 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+          echo "highest stable tag: ${highest:-none}; this tag: ${TAG}"
+          echo "is_latest=$([ "$highest" = "$TAG" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-qemu-action@v3
 

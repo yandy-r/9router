@@ -14,7 +14,7 @@ rotation, OAuth credential management and usage tracking, plus a Next.js dashboa
   can be bumped with env vars instead of a code change (see [Configuration](#configuration)).
 - **No OAuth client credentials in source.** The Gemini / Gemini CLI and Antigravity
   OAuth clients are read from env; history was rewritten to remove the committed values.
-- **Images are built from GitHub releases** and published to GHCR
+- **Images are built from `v*` tags** and published to GHCR
   (see [Releases and images](#releases-and-images)).
 
 ## Quick start (Docker)
@@ -31,7 +31,7 @@ docker run -d --name 9router \
 - Dashboard: <http://localhost:20128/dashboard> (log in with `INITIAL_PASSWORD`)
 - OpenAI-compatible API: `http://localhost:20128/v1`
 
-Or with Compose, pinned to a release:
+Or with Compose, pinned to a version:
 
 ```yaml
 services:
@@ -108,17 +108,18 @@ Without them, login fails with an error naming the missing variables.
 
 ## Releases and images
 
-Publishing a GitHub release runs [`docker-publish.yml`](.github/workflows/docker-publish.yml),
-which builds `linux/amd64` + `linux/arm64` and pushes to `ghcr.io/yandy-r/9router`:
+Pushing a `v*` tag runs [`docker-publish.yml`](.github/workflows/docker-publish.yml),
+which builds `linux/amd64` + `linux/arm64` and pushes to `ghcr.io/yandy-r/9router`.
+Branch pushes run nothing, and nothing is published to npm.
 
 | Tag | When |
 | --- | --- |
-| `:1.2.3`, `:1.2` | From the release tag `v1.2.3` |
-| `:latest` | Only when the release is the repo's **Latest release** (GitHub's label), so prereleases never move it. When publishing an older-version backport from the web UI, untick "Set as the latest release"; `gh release create` decides by date and version on its own |
+| `:1.2.3`, `:1.2` | From the git tag `v1.2.3` |
+| `:latest` | Only when the tag is the highest stable `vX.Y.Z` in the repo — prerelease tags (`v1.3.0-rc.1`) and older-version backports don't move it |
 | `:sha-<commit>` | Every build |
 
 ```bash
-gh release create v1.2.3 --generate-notes      # builds and publishes the image
+git tag v1.2.3 && git push origin v1.2.3        # builds and publishes the image
 ```
 
 The workflow can also be run manually (**Actions → Docker Image → Run workflow**) to
