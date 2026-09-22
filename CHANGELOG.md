@@ -1,3 +1,20 @@
+# v0.1.0 (2026-09-22)
+
+First release of this fork, which restarts version numbers at 0.1.0. It is based on upstream 9Router v0.5.81 and includes every change listed below that entry.
+
+## Breaking Changes
+- **Google OAuth**: `gemini`, `gemini-cli` and `antigravity` OAuth login and token refresh now need the `GEMINI_OAUTH_CLIENT_ID`/`_SECRET` and `ANTIGRAVITY_OAUTH_CLIENT_ID`/`_SECRET` env vars. These client credentials are no longer built into the source. Without the vars, login fails with an error that names the missing ones, and refresh is skipped.
+- **Updater**: removed the npm self-update, which checked for and installed upstream's `9router` package. The dashboard no longer shows an "update available" banner, `GET /api/version` and `POST /api/version/update` are gone, and the CLI no longer checks for updates at startup or offers "Update to vX". Update by pulling a newer image. The `--skip-update` flag is removed and ignored if passed, so existing autostart entries keep working.
+
+## Features
+- **Claude Code**: the client fingerprint sent on `claude` OAuth traffic can be set through `CLAUDE_CLI_VERSION`, `CLAUDE_CLI_SDK_VERSION`, `CLAUDE_CLI_RUNTIME_VERSION` and `CLAUDE_CLI_BETA_FLAGS`. Defaults now match Claude Code 2.1.280 (SDK 0.112.1, runtime v26.3.0), with an updated beta-flag list and `x-claude-code-session-id`. Malformed values fail at startup.
+- **Docker**: pushing a `v*` tag publishes multi-arch (`linux/amd64`, `linux/arm64`) images to `ghcr.io/yandy-r/9router`, tagged `:<version>`, `:<major>.<minor>` and `:sha-<sha>`. `:latest` only goes to the highest stable tag. The Dockerfile's package mirrors are now build args.
+
+## Changes
+- **Version**: the reported app version is now `0.1.0`. Cline (`User-Agent`, `X-CLIENT-VERSION`, `X-CORE-VERSION`) and Kimi (`X-Msh-Version`) upstream requests send this value in place of `0.5.81`.
+- **Windsurf**: removed the unused `firebaseApiKey`.
+- **Docs**: rewrote the README for this fork and removed the GitBook deploy workflow.
+
 # v0.5.81 (2026-09-18)
 
 ## Features
