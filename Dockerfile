@@ -2,15 +2,18 @@
 ARG NODE_IMAGE=node:22-alpine
 FROM ${NODE_IMAGE} AS base
 WORKDIR /app
-# CN mirror for apk (used by builder and runner stages)
-RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories
+# Package mirrors default to CN mirrors; CI overrides them with the upstream registries
+# (--build-arg APK_MIRROR=dl-cdn.alpinelinux.org NPM_REGISTRY=https://registry.npmjs.org).
+ARG APK_MIRROR=mirrors.aliyun.com
+RUN sed -i "s|dl-cdn.alpinelinux.org|${APK_MIRROR}|g" /etc/apk/repositories
 
 FROM base AS builder
 
 RUN apk --no-cache upgrade && apk --no-cache add python3 make g++ linux-headers
 
+ARG NPM_REGISTRY=https://registry.npmmirror.com
 COPY package.json ./
-RUN npm install --registry=https://registry.npmmirror.com
+RUN npm install --registry=${NPM_REGISTRY}
 
 COPY . ./
 ENV NEXT_TELEMETRY_DISABLED=1
