@@ -98,13 +98,42 @@ as a set. A malformed value fails startup rather than sending an impossible fing
 | `CLAUDE_CLI_BETA_FLAGS` | see `open-sse/config/claudeCliFingerprint.js` | `Anthropic-Beta` base list (comma-separated) |
 
 **Google OAuth clients** — required only for OAuth login and token refresh on these
-providers; use the public client values shipped with Gemini CLI / Antigravity IDE.
-Without them, login fails with an error naming the missing variables.
+providers. Both are installed-application clients that ship inside the product itself.
+[Google does not treat that client secret as a secret](https://developers.google.com/identity/protocols/oauth2#installed);
+this repo still does not commit the values. Put them in `.env`. Without them, login
+fails with an error naming the missing variables.
 
 | Variables | Providers |
 | --- | --- |
 | `GEMINI_OAUTH_CLIENT_ID`, `GEMINI_OAUTH_CLIENT_SECRET` | `gemini`, `gemini-cli` |
 | `ANTIGRAVITY_OAUTH_CLIENT_ID`, `ANTIGRAVITY_OAUTH_CLIENT_SECRET` | `antigravity` |
+
+**Gemini CLI** (one pair for both `gemini` and `gemini-cli`). In the
+[Gemini CLI](https://github.com/google-gemini/gemini-cli) tree, open
+[`packages/core/src/code_assist/oauth2.ts`](https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/code_assist/oauth2.ts)
+from the version you run. Copy `OAUTH_CLIENT_ID` to `GEMINI_OAUTH_CLIENT_ID` and
+`OAUTH_CLIENT_SECRET` to `GEMINI_OAUTH_CLIENT_SECRET`.
+
+**Antigravity.** The IDE embeds the client in its language server. Search that binary
+for a client id ending in `.apps.googleusercontent.com` and a secret starting with
+`GOCSPX-`.
+
+- Linux: `<install>/resources/app/extensions/antigravity/bin/language_server_linux_*`
+  (`/opt/antigravity`, `/opt/antigravity-ide`, or `~/.antigravity-server/bin/<version>/`)
+- macOS: `Antigravity.app/Contents/Resources/app/extensions/antigravity/bin/language_server_macos_arm`
+  (also `_x64` and `language_server_macos`)
+- Windows: `%LOCALAPPDATA%\Programs\Antigravity\resources\app\extensions\antigravity\bin\language_server_windows_x64.exe`
+
+```bash
+grep -a -o -E '[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com|GOCSPX-[A-Za-z0-9_-]+' \
+  /path/to/language_server_linux_x64
+```
+
+Copy the client id to `ANTIGRAVITY_OAUTH_CLIENT_ID` and the `GOCSPX-` value to
+`ANTIGRAVITY_OAUTH_CLIENT_SECRET`. If the binary prints several of each and the counts
+match, Antigravity 2 lists the secrets first: use the last `GOCSPX-` value with the
+first client id. Prefer this binary over `resources/app/out/main.js`, which can still
+hold an older pair.
 
 ## Releases and images
 
