@@ -37,6 +37,17 @@ You don't need a `DATA_DIR=$(mktemp -d)` prefix. `unit/test-data-isolation.test.
 RUN_REAL=1 npx vitest run translator/real/thinking
 ```
 
+The Antigravity prompt-cache probe also lives in `real/` and reads connections from the
+real SQLite DB through the app DB layer:
+
+```bash
+RUN_REAL=1 npx vitest run translator/real/antigravity-cache
+```
+
+It requires `ANTIGRAVITY_OAUTH_CLIENT_ID` / `_SECRET` (set them via the repo's encrypted
+env) and skips cleanly when there is no active Antigravity connection with a refresh
+token and project ID.
+
 ## Regression check
 
 The suite is not all-green on a plain checkout. Compare a run against the known failures in `__baseline__/known-fails.txt` instead of reading raw results:

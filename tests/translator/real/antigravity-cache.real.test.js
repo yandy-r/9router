@@ -1,42 +1,39 @@
-/**
- * Integration test: Antigravity (AG) prompt caching behavior.
- *
- * Verifies:
- *  1. Same sessionId + repeated long prompt → cache hit (cachedContentTokenCount > 0)
- *  2. Different sessionId (same account) → cache miss
- *  3. Cross-account cache share? (call A warmup → B same prompt/session, check hit)
- *
- * Reads real OAuth refreshToken from ~/.9router/db.json.
- * Enable with: AG_CACHE_TEST=1 npm test
- */
-
-import { describe, it, expect } from "vitest";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+// REAL integration test: Antigravity (AG) prompt caching behavior.
+//
+// Verifies:
+//  1. Same sessionId + repeated long prompt → cache hit (cachedContentTokenCount > 0)
+//  2. Different sessionId (same account) → cache still hits (content-based cache)
+//  3. Cross-account cache share? (call A warmup → B same prompt/session, check hit)
+//  4. Codex-style stable sessionId vs random sessionId on a fresh unique prompt
+//  5. Unique prompt → explore when the cache starts hitting
+//
+// Reads active Antigravity OAuth connections from the real SQLite DB
+// (<DATA_DIR>/db/data.sqlite) via the app DB layer. Gated by RUN_REAL=1 so the
+// default `vitest run` never touches the network or the real ~/.9router.
+//
+//   RUN_REAL=1 npx vitest run --config tests/vitest.config.js tests/translator/real/antigravity-cache.real.test.js
+//
+// Requires ANTIGRAVITY_OAUTH_CLIENT_ID/_SECRET (via .env.encrypted / dotenvx);
+// without them, token refresh would fail with a cryptic provider error.
+// Tests skip cleanly when no usable Antigravity connection exists.
+import { beforeAll, describe, it, expect } from "vitest";
 import crypto from "node:crypto";
-import { PROVIDERS } from "../../open-sse/config/providers.js";
-import { ANTIGRAVITY_HEADERS, INTERNAL_REQUEST_HEADER } from "../../open-sse/config/appConstants.js";
+import { PROVIDERS } from "../../../open-sse/config/providers.js";
+import { ANTIGRAVITY_HEADERS, INTERNAL_REQUEST_HEADER } from "../../../open-sse/config/appConstants.js";
+import { assertOAuthClient } from "../../../open-sse/providers/shared.js";
 
-const ENABLE = process.env.AG_CACHE_TEST === "1";
-const DB_PATH = path.join(os.homedir(), ".9router", "db.json");
+const RUN_REAL = process.env.RUN_REAL === "1";
 const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const FETCH_TIMEOUT_MS = 30000;
 const MIN_CACHE_TOKENS = 100; // AG implicit cache threshold observed ~1024-2048
 const LONG_TEXT = ("You are a careful assistant. Always follow these rules. ".repeat(300)).trim();
-
-function loadAgConnections() {
-  if (!fs.existsSync(DB_PATH)) return [];
-  const db = JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
-  return (db.providerConnections || []).filter(
-    c => c.provider === "antigravity" && c.isActive && c.refreshToken && c.projectId
-  );
-}
 
 async function refreshAccessToken(refreshToken) {
   const { clientId, clientSecret } = PROVIDERS.antigravity;
   const res = await fetch(OAUTH_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     body: new URLSearchParams({
       grant_type: "refresh_token",
       refresh_token: refreshToken,
@@ -44,8 +41,11 @@ async function refreshAccessToken(refreshToken) {
       client_secret: clientSecret
     })
   });
-  if (!res.ok) throw new Error(`refresh failed ${res.status}`);
+  if (!res.ok) throw new Error(`Antigravity OAuth token refresh failed: HTTP ${res.status}`);
   const json = await res.json();
+  if (typeof json.access_token !== "string" || !json.access_token.trim()) {
+    throw new Error("Antigravity OAuth token refresh returned no access_token");
+  }
   return json.access_token;
 }
 
@@ -72,6 +72,7 @@ async function callAg({ accessToken, projectId, sessionId, longText, userText })
       [INTERNAL_REQUEST_HEADER.name]: INTERNAL_REQUEST_HEADER.value,
       "X-Machine-Session-Id": sessionId
     },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     body: JSON.stringify(body)
   });
   const json = await res.json();
@@ -85,14 +86,25 @@ async function callAg({ accessToken, projectId, sessionId, longText, userText })
   };
 }
 
-describe.skipIf(!ENABLE)("Antigravity cache behavior (real API)", () => {
-  const conns = loadAgConnections();
+describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
+  let conns = [];
 
-  it("has at least one active AG connection with refreshToken", () => {
-    expect(conns.length).toBeGreaterThan(0);
+  // Loaded in beforeAll (not at collection time) so a skipped suite never
+  // touches the DB layer, and an empty result skips instead of crashing.
+  beforeAll(async () => {
+    const { getProviderConnections } = await import("../../../src/lib/localDb.js");
+    conns = (await getProviderConnections({ provider: "antigravity", isActive: true }))
+      .filter((c) => c.refreshToken && c.projectId);
+    if (conns.length > 0) {
+      // Fail fast with a clear message naming the missing env vars.
+      assertOAuthClient(PROVIDERS.antigravity, "antigravity");
+    }
   });
 
-  it("same sessionId → cache hit on repeated call", async () => {
+  const noConn = (ctx) => ctx.skip("No active Antigravity connection with refreshToken and projectId");
+
+  it("same sessionId → cache hit on repeated call", async (ctx) => {
+    if (conns.length === 0) return noConn(ctx);
     const [acc] = conns;
     const token = await refreshAccessToken(acc.refreshToken);
     const sessionId = `test-same-${crypto.randomUUID()}`;
@@ -107,7 +119,8 @@ describe.skipIf(!ENABLE)("Antigravity cache behavior (real API)", () => {
     expect(r2.cachedTokens).toBeGreaterThanOrEqual(MIN_CACHE_TOKENS);
   }, 60000);
 
-  it("different sessionId (same account) → cache still hits (session-independent)", async () => {
+  it("different sessionId (same account) → cache still hits (session-independent)", async (ctx) => {
+    if (conns.length === 0) return noConn(ctx);
     const [acc] = conns;
     const token = await refreshAccessToken(acc.refreshToken);
 
@@ -122,7 +135,9 @@ describe.skipIf(!ENABLE)("Antigravity cache behavior (real API)", () => {
     expect(r2.cachedTokens).toBeGreaterThanOrEqual(MIN_CACHE_TOKENS);
   }, 60000);
 
-  it.skipIf(conns.length < 2)("cross-account → cache SHARED (content-based global cache)", async () => {
+  it("cross-account → cache SHARED (content-based global cache)", async (ctx) => {
+    if (conns.length === 0) return noConn(ctx);
+    if (conns.length < 2) return ctx.skip("Requires two active Antigravity connections");
     const [accA, accB] = conns;
     const [tokenA, tokenB] = await Promise.all([
       refreshAccessToken(accA.refreshToken),
@@ -146,7 +161,8 @@ describe.skipIf(!ENABLE)("Antigravity cache behavior (real API)", () => {
   // Codex derives sessionId from hash(conversation history), keeping it
   // stable per-conversation. Test whether this strategy improves cache
   // hit rate vs random sessionId on AG with a fresh unique prompt.
-  it("codex-style sessionId vs random sessionId on unique prompt", async () => {
+  it("codex-style sessionId vs random sessionId on unique prompt", async (ctx) => {
+    if (conns.length === 0) return noConn(ctx);
     const [acc] = conns;
     const token = await refreshAccessToken(acc.refreshToken);
 
@@ -194,7 +210,8 @@ describe.skipIf(!ENABLE)("Antigravity cache behavior (real API)", () => {
     // No strict comparison — just report. AG cache is session-independent per prior tests.
   }, 180000);
 
-  it("unique prompt (never seen) → explore when cache starts hitting", async () => {
+  it("unique prompt (never seen) → explore when cache starts hitting", async (ctx) => {
+    if (conns.length === 0) return noConn(ctx);
     const [acc] = conns;
     const token = await refreshAccessToken(acc.refreshToken);
     // Unique marker to guarantee no one has cached this exact prompt before
