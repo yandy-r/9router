@@ -34,8 +34,21 @@ You don't need a `DATA_DIR=$(mktemp -d)` prefix. `unit/test-data-isolation.test.
 `vitest.config.js` splits the suite into two projects: `unit` (everything except `translator/real/**`) and `real` (`translator/real/**`). The live tests in `real` need your credentials. They skip isolation and use your real data dir only when their live gate (`RUN_REAL=1` or `RUN_E2E=1`) is set. `unit` stays isolated even then.
 
 ```bash
-RUN_REAL=1 npx vitest run translator/real/thinking
+RUN_REAL=1 npx vitest run translator/real/antigravity-cache
 ```
+
+The Antigravity prompt-cache probe also lives in `real/` and reads connections from the
+real SQLite DB through the app DB layer. The OAuth client credentials are read at module
+load, so they must be present in the environment before vitest starts — use the dotenvx
+wrapper rather than a bare `RUN_REAL=1` prefix:
+
+```bash
+RUN_REAL=1 npx dotenvx run -f ../.env.encrypted -- npx vitest run translator/real/antigravity-cache
+```
+
+It requires `ANTIGRAVITY_OAUTH_CLIENT_ID` / `_SECRET` (set them via the repo's encrypted
+env) and skips cleanly when the credential DB is unavailable or there is no active
+Antigravity connection with a refresh token and project ID.
 
 ## Regression check
 
