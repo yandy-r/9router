@@ -23,6 +23,10 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       # Bind mounts on some hosts (macOS/Windows) don't propagate fs events.
       WATCHPACK_POLLING: ${WATCHPACK_POLLING:-false}
+      CLAUDE_CLI_VERSION: 2.1.280
+      CLAUDE_CLI_SDK_VERSION: 0.112.1
+      CLAUDE_CLI_RUNTIME_VERSION: v26.3.0
+      CODEX_CLI_VERSION: 0.155.1
     volumes:
       - .:/app
       - 9router-dev-node-modules:/app/node_modules
