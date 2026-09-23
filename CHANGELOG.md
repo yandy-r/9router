@@ -532,12 +532,12 @@ First release of this fork, which restarts version numbers at 0.1.0. It is based
 ## Features
 - **Usage**: track cached tokens + correct input/output/cache cost (#2209) — hodtien
 - **Codex**: show reset credit expiry details (#2290) — Rafli Ahmad Zulfikar
-- **NVIDIA**: add new models and capabilities — decolua
+- **NVIDIA**: add new models and capabilities
 - **ClinePass**: add provider support — sternelee
 
 ## Fixes
 - **Usage**: dedupe streaming request-details log entries — Qin Li
-- **Claude**: drop foreign thinking signatures in passthrough — decolua
+- **Claude**: drop foreign thinking signatures in passthrough
 - Prevent non-SSE stream pipe crash and cross-IdP account overwrites (#2244) — KunN-21
 - **Kiro**: route IdC auth to regional CodeWhisperer surface (#2297) — Volodymyr Saakian
 - **Kiro**: add Claude Sonnet 5 model support (#2264) — Edison42
@@ -553,13 +553,13 @@ First release of this fork, which restarts version numbers at 0.1.0. It is based
 
 ## Features
 - Add Kimchi OAuth provider — Nant361
-- Refine Qwen vision/video + thinking model patterns — decolua
+- Refine Qwen vision/video + thinking model patterns
 - Opt-in Codex auto-ping quota keep-alive — Emirhan
 
 ## Fixes
 - **Responses**: handle response.done terminal events (#2142) — rifuki
 - **Headroom**: skip unsafe responses tool history (#2132) — Sutarto Jordan Chrisfivo
-- **Translator**: map mid-conversation system message to user (claude→openai) — decolua
+- **Translator**: map mid-conversation system message to user (claude→openai)
 - **Gemini**: normalize contents to prevent 400 invalid_argument (#2192) — warelik
 - **Gemini**: backfill thoughtSignature + suppress stream done sentinel — WARELIK
 - **Alicode**: preserve cache_control for DashScope providers (#2069) — Rex
@@ -568,12 +568,12 @@ First release of this fork, which restarts version numbers at 0.1.0. It is based
 - **Kiro**: strip leaked <thinking> tags from content stream (#2158) — hamsa0x7
 - **Tray**: make Windows context menu DPI-aware — Emirhan
 - **Kilocode**: expose full gateway catalog in combo model picker — jellylarper
-- **OpenCode**: fix Go GLM — decolua
+- **OpenCode**: fix Go GLM
 
 # v0.5.12 (2026-06-26)
 
 ## Features
-- Add token-saver dashboard page — decolua
+- Add token-saver dashboard page
 - Add bulk delete for provider connections — teddytkz
 - Resolve GitHub Copilot model catalog from upstream — caiqinzhou
 - Add Venice AI provider — Brokenc0de
@@ -582,7 +582,7 @@ First release of this fork, which restarts version numbers at 0.1.0. It is based
 
 ## Fixes
 - Provider thinking compatibility (DeepSeek/Gemini) — Mink Nguyen
-- Stop double-counting streaming usage at source — decolua
+- Stop double-counting streaming usage at source
 - Usage logging dedupe to reduce stats churn — Mink Nguyen
 - Prevent non-JSON SSE lines / duplicate [DONE] from breaking clients (PR #2046) — qianze
 - Resolve Gemini TTS models from catalog — nguyenha935
@@ -601,7 +601,7 @@ First release of this fork, which restarts version numbers at 0.1.0. It is based
 - Avoid stale redirects after auth changes (#2100) — Emirhan
 - Mark Claude Opus 4.7 (dashed id) as 1M context — Brokenc0de
 - Preserve reasoning effort through Codex translations — ntdung6868
-- Token-saver: full width card layout — decolua
+- Token-saver: full width card layout
 - Antigravity: retry transient upstream failures — Sutarto Jordan Chrisfivo
 - Param-support: handle strip rules without match/drop (#1960) — Joseph Yaksich
 - Translator: resolve custom provider prefix in debug endpoint (#1083) — hamsa0x7

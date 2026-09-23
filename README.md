@@ -151,17 +151,6 @@ tests fail); compare against the same run on `master` rather than expecting zero
 Architecture notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (system overview) and
 [`open-sse/AGENTS.md`](open-sse/AGENTS.md) (routing/translation engine conventions).
 
-### Pulling in upstream changes
-
-History here was rewritten, so it no longer shares commits with upstream. Bring fixes over
-with cherry-picks:
-
-```bash
-git remote add upstream https://github.com/decolua/9router.git   # once
-git fetch upstream
-git cherry-pick <upstream-commit>
-```
-
 ## License
 
-MIT — see [LICENSE](LICENSE). Copyright (c) 2024-2026 decolua and contributors.
+MIT — see [LICENSE](LICENSE).

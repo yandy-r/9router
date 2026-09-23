@@ -236,11 +236,11 @@ already tracks and requires them.
 
 **Interfaces:**
 - Consumes: verified branch commits and GitHub issue #3759.
-- Produces: a fork branch and a PR against `decolua/9router:master`.
+- Produces: a fork branch and a PR against `yandy-r/9router:master`.
 
 - [ ] **Step 1: Create or repair the GitHub fork remote**
 
-Use `gh repo fork decolua/9router --remote` if the current `fork` remote remains
+Use `gh repo fork yandy-r/9router --remote` if the current `fork` remote remains
 missing, then push `fix/opencode-go-session-header`.
 
 - [ ] **Step 2: Create the PR**

@@ -243,5 +243,5 @@ CLIで使用: premium-coding
 ## ヘルプが必要?
 
 - **ウェブサイト**: [9router.com](https://9router.com)
-- **GitHub**: [github.com/decolua/9router](https://github.com/decolua/9router)
-- **Issues**: [github.com/decolua/9router/issues](https://github.com/decolua/9router/issues)
+- **GitHub**: [github.com/yandy-r/9router](https://github.com/yandy-r/9router)
+- **Issues**: [github.com/yandy-r/9router/issues](https://github.com/yandy-r/9router/issues)
