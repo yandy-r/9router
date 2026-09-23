@@ -25,6 +25,11 @@ vi.mock("open-sse/utils/proxyFetch.js", () => ({
     if (u.includes("cloud.zed.dev/models")) {
       if (stub.mode === "error") return new Response("boom", { status: 500 });
       if (stub.mode === "empty") return Response.json({ models: [] });
+      if (stub.mode === "disabled") {
+        return Response.json({
+          models: stub.catalog.models.map((m) => ({ ...m, is_disabled: true, disabled_reason: "Requires Zed Pro." })),
+        });
+      }
       return Response.json(stub.catalog);
     }
     return stub.nativeFetch(url, options);
@@ -125,6 +130,16 @@ describe("criterion 4b — empty catalog → explicit warning", () => {
     const data = await res.json();
     expect(data.models).toEqual([]);
     expect(data.warning).toMatch(/no live models/i);
+  });
+});
+
+describe("YAN-12 — all-disabled catalog → warning carries Zed's reason", () => {
+  it("explains instead of a bare 'no live models'", async () => {
+    stub.mode = "disabled";
+    const conn = await seedZed("m5");
+    const data = await (await getModels(conn.id)).json();
+    expect(data.models).toEqual([]);
+    expect(data.warning).toBe("Zed lists 3 model(s), but all are disabled: Requires Zed Pro.");
   });
 });
 

@@ -12,6 +12,7 @@ import { resolveGrokCliModels } from "open-sse/services/grokCliModels.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { resolveCursorModels } from "open-sse/services/cursorModels.js";
 import { resolveZedModels } from "open-sse/shared/zedAuth.js";
+import { explainEmptyZedCatalog } from "open-sse/shared/zedModelDiagnostics.js";
 import { resolveClineModels, resolveClinepassModels } from "open-sse/services/clinepassModels.js";
 
 const GEMINI_CLI_MODELS_URL = "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels";
@@ -295,10 +296,11 @@ const PROVIDER_MODELS_CONFIG = {
   zed: {
     customResolver: async (connection) => {
       try {
-        const result = await resolveZedModels({
+        const credentials = {
           accessToken: connection.accessToken,
           providerSpecificData: connection.providerSpecificData || {},
-        }, { config: ZED_HOSTED_CONFIG, forceRefresh: true });
+        };
+        const result = await resolveZedModels(credentials, { config: ZED_HOSTED_CONFIG, forceRefresh: true });
         const models = (result?.models || [])
           .filter((m) => m && !m.isDisabled)
           .map((m) => ({
@@ -319,7 +321,8 @@ const PROVIDER_MODELS_CONFIG = {
             supportsParallelToolCalls: m.supportsParallelToolCalls,
           }));
         if (models.length > 0) return { models };
-        return { models: [], warning: "Zed returned no live models." };
+        const warning = await explainEmptyZedCatalog(credentials, result, { config: ZED_HOSTED_CONFIG });
+        return { models: [], warning };
       } catch (error) {
         console.log("Failed to fetch Zed models dynamically:", error.message);
         return { models: [], warning: `Failed to fetch Zed models: ${error.message}` };

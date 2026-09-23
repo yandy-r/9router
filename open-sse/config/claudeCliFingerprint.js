@@ -12,29 +12,11 @@
 // Env values are validated at module load: a malformed override throws instead
 // of silently sending a fingerprint no real client would produce.
 
+import { envString, envList } from "./envOverride.js";
+
 const SEMVER = /^\d+\.\d+\.\d+$/;
 const NODE_VERSION = /^v\d+\.\d+\.\d+$/;
 const BETA_FLAG = /^[a-z0-9]+(?:-[a-z0-9]+)*-(?:\d{8}|\d{4}-\d{2}-\d{2})$/;
-
-function envString(name, def, pattern) {
-  const raw = process.env[name]?.trim();
-  if (!raw) return def;
-  if (!pattern.test(raw)) {
-    throw new Error(`Invalid ${name}="${raw}": expected a value matching ${pattern}`);
-  }
-  return raw;
-}
-
-function envList(name, def, itemPattern) {
-  const raw = process.env[name]?.trim();
-  if (!raw) return def;
-  const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
-  const bad = items.filter((item) => !itemPattern.test(item));
-  if (items.length === 0 || bad.length) {
-    throw new Error(`Invalid ${name}: ${bad.length ? `malformed entries ${bad.join(", ")}` : "empty list"}`);
-  }
-  return items;
-}
 
 export const CLAUDE_CLI_VERSION = envString("CLAUDE_CLI_VERSION", "2.1.280", SEMVER);
 export const CLAUDE_CLI_SDK_VERSION = envString("CLAUDE_CLI_SDK_VERSION", "0.112.1", SEMVER);

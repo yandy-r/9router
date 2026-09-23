@@ -28,6 +28,7 @@ import {
   resolveZedModels,
   zedLlmFetch,
 } from "../shared/zedAuth.js";
+import { ZED_CLIENT_VERSION } from "../config/zedClientFingerprint.js";
 
 // Wire values for the `provider` field of POST /completions. These are NOT
 // display names: cloud.zed.dev matches them exactly, and an unrecognized value
@@ -263,8 +264,7 @@ class ZedExecutor extends BaseExecutor {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/x-ndjson, text/event-stream, */*",
-          "User-Agent": "9router/zed",
-          "x-zed-version": this.config?.appVersion?.toString() || "0.200.0",
+          [ZED_HEADERS.version]: ZED_CLIENT_VERSION,
           [ZED_HEADERS.clientSupportsStatus]: "true",
           [ZED_HEADERS.clientSupportsStreamEnded]: "true",
         },

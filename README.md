@@ -97,6 +97,13 @@ as a set. A malformed value fails startup rather than sending an impossible fing
 | `CLAUDE_CLI_RUNTIME_VERSION` | `v26.3.0` | `X-Stainless-Runtime-Version` |
 | `CLAUDE_CLI_BETA_FLAGS` | see `open-sse/config/claudeCliFingerprint.js` | `Anthropic-Beta` base list (comma-separated) |
 
+**Zed client version** — Zed Cloud gates clients by version. Bump this if Zed reports a
+minimum required version. A malformed value fails startup.
+
+| Variable | Default | Sent as |
+| --- | --- | --- |
+| `ZED_CLIENT_VERSION` | `1.20.2` | `User-Agent: Zed/<v> (<os>; <arch>)` on all Zed calls, `x-zed-version` on completions |
+
 **Google OAuth clients** — required only for OAuth login and token refresh on these
 providers. Both are installed-application clients that ship inside the product itself.
 [Google does not treat that client secret as a secret](https://developers.google.com/identity/protocols/oauth2#installed);
