@@ -66,6 +66,7 @@ export default function ComboDetailPage() {
   const [apiKey, setApiKey] = useState("");
   const [connections, setConnections] = useState([]);
   const [modelAliases, setModelAliases] = useState({});
+  const [origin, setOrigin] = useState("");
 
   const fetchAll = async () => {
     try {
@@ -103,6 +104,7 @@ export default function ComboDetailPage() {
   };
 
   useEffect(() => {
+    setOrigin(window.location.origin);
     fetchAll();
   }, [id]);
 
@@ -273,9 +275,10 @@ export default function ComboDetailPage() {
   const examplePath = EXAMPLE_PATHS[combo.kind];
   const exampleBody =
     combo.kind && EXAMPLE_BODIES[combo.kind] ? EXAMPLE_BODIES[combo.kind](combo.name) : null;
-  const curlExample = examplePath
-    ? `curl -X POST http://localhost:20128${examplePath} \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${apiKey || "YOUR_KEY"}" \\\n  -d '${JSON.stringify(exampleBody)}'`
-    : "";
+  const curlExample =
+    examplePath && origin
+      ? `curl -X POST ${origin}${examplePath} \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${apiKey || "YOUR_KEY"}" \\\n  -d '${JSON.stringify(exampleBody)}'`
+      : "";
   const backHref = getListingHref(combo.kind);
 
   return (

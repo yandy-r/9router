@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { UPDATER_CONFIG } from "@/shared/constants/config";
 import {
   readPresets,
   upsertPreset,
@@ -29,11 +28,12 @@ const buildOptions = ({
   cloudUrl,
   savedPresets,
   withV1,
+  localOrigin,
 }) => {
   const opts = [];
   const wrap = (url) => (withV1 ? ensureV1(url) : (url || "").replace(/\/+$/, ""));
-  if (!requiresExternalUrl) {
-    const localUrl = wrap(`http://127.0.0.1:${UPDATER_CONFIG.appPort}`);
+  if (!requiresExternalUrl && localOrigin) {
+    const localUrl = wrap(localOrigin);
     opts.push({ value: "local", label: localUrl, url: localUrl });
   }
   if (tunnelEnabled && tunnelPublicUrl) {
@@ -70,6 +70,8 @@ export default function BaseUrlSelect({
 }) {
   const [savedPresets, setSavedPresets] = useState([]);
   const [presetsLoaded, setPresetsLoaded] = useState(false);
+  // Real origin the dashboard is served on (not the 20128 default); client-only to avoid SSR mismatch
+  const [localOrigin, setLocalOrigin] = useState("");
   const [mode, setMode] = useState("");
   const [customInput, setCustomInput] = useState("");
   const initializedRef = useRef(false);
@@ -92,6 +94,7 @@ export default function BaseUrlSelect({
       });
     };
     sync();
+    setLocalOrigin(window.location.origin);
     setPresetsLoaded(true);
     return subscribePresets(sync);
   }, []);
@@ -108,8 +111,10 @@ export default function BaseUrlSelect({
         cloudUrl,
         savedPresets,
         withV1,
+        localOrigin,
       }),
     [
+      localOrigin,
       requiresExternalUrl,
       tunnelEnabled,
       tunnelPublicUrl,
