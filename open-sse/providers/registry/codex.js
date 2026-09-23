@@ -1,11 +1,5 @@
 import { withCodexReviewModels } from "../models/helpers.js";
-
-// Codex CLI version seen by OpenAI's backend — single source for the Version /
-// User-Agent identity headers. Bump when the installed codex CLI is upgraded.
-// Also sent as `client_version` to /backend-api/codex/models (live catalog), which
-// drops entries newer than the client: a stale value returns 200 with the newest
-// models silently missing (the dashboard warns when static ids go missing).
-const CODEX_CLI_VERSION = "0.154.0";
+import { CODEX_CLI_VERSION } from "../../config/codexCliFingerprint.js";
 
 export default {
   id: "codex",

@@ -101,7 +101,7 @@ export async function resolveCodex(connection) {
   const models = withStaticCodexExtras(result.models, staticModels);
   const missing = missingStaticCodexIds(result.models, staticModels);
   if (!missing.length) return { models };
-  const warning = `Codex live catalog is missing ${missing.join(", ")}. If these are current models, bump CODEX_CLI_VERSION in open-sse/providers/registry/codex.js (sent as client_version=${CODEX_CLI_VERSION}).`;
+  const warning = `Codex live catalog is missing ${missing.join(", ")}. If these are current models, set CODEX_CLI_VERSION to your installed Codex CLI version (currently sending client_version=${CODEX_CLI_VERSION}).`;
   console.warn(warning);
   return { models, warning };
 }

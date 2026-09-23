@@ -104,6 +104,14 @@ minimum required version. A malformed value fails startup.
 | -------------------- | -------- | ------------------------------------------------------------------------------------- |
 | `ZED_CLIENT_VERSION` | `1.20.2` | `User-Agent: Zed/<v> (<os>; <arch>)` on all Zed calls, `x-zed-version` on completions |
 
+**Codex CLI version** — OpenAI hides Codex models newer than the reported client, so the
+live model list can silently miss new models. Bump this with your Codex CLI
+(`codex --version`). A malformed value fails startup.
+
+| Variable            | Default   | Sent as                                                                  |
+| ------------------- | --------- | ------------------------------------------------------------------------ |
+| `CODEX_CLI_VERSION` | `0.155.1` | `User-Agent: codex_cli_rs/<v>` and `client_version` on the model catalog |
+
 **Google OAuth clients** — required only for OAuth login and token refresh on these
 providers. Both are installed-application clients that ship inside the product itself.
 [Google does not treat that client secret as a secret](https://developers.google.com/identity/protocols/oauth2#installed);
