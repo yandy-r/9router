@@ -154,6 +154,14 @@ function toGeminiThinkingLevel(cfg) {
   return effortToThinkingLevel(raw);
 }
 
+// Anthropic `output_config.effort` has no "minimal" level (the "none" clamp for
+// models that cannot disable thinking), so it maps to the lowest, "low".
+function toClaudeEffort(level) {
+  if (level === "xhigh" || level === "auto") return "high";
+  if (level === "minimal") return "low";
+  return level;
+}
+
 function toKimiReasoningEffort(cfg) {
   const level = toLevel(cfg);
   if (level === "auto") return "high";
@@ -251,8 +259,7 @@ function applyFormat(fmt, body, cfg, caps, supportedLevels, display) {
       // Permanently adaptive models such as Fable 5.1 accept effort directly.
       if (canDisable) body.thinking = { type: "adaptive", ...(display ? { display } : {}) };
       else delete body.thinking;
-      const level = toLevel(eff);
-      body.output_config = { effort: level === "xhigh" || level === "auto" ? "high" : level };
+      body.output_config = { effort: toClaudeEffort(toLevel(eff)) };
       break;
     }
     case "claude-budget": {

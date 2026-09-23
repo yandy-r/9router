@@ -57,6 +57,13 @@ describe("getCapabilitiesForModel", () => {
     });
   });
 
+  it("reports Claude Opus 5.5 as a permanent adaptive-thinking model", () => {
+    expect(getCapabilitiesForModel("claude", "claude-opus-5-5")).toMatchObject({
+      ...claudeSonnet5Expected,
+      thinkingCanDisable: false,
+    });
+  });
+
   it("reports Kiro Claude Opus 4.8 as a 1M context model", () => {
     expect(getCapabilitiesForModel("kiro", "claude-opus-4.8").contextWindow).toBe(1000000);
     expect(getCapabilitiesForModel("kiro", "anthropic/claude-opus-4.8").contextWindow).toBe(1000000);

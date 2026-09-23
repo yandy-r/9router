@@ -97,6 +97,12 @@ describe("applyThinking per provider format", () => {
     expect(out.output_config).toEqual({ effort: "high" });
     expect(out.thinking).toBeUndefined();
   });
+  it("Opus 5.5 clamps reasoning none to low effort instead of disabling thinking", () => {
+    // Opus 5.5 rejects thinking:{type:"disabled"} with a 400 at every effort level.
+    const out = apply("claude", "claude-opus-5-5", { reasoning_effort: "none" }, "claude");
+    expect(out.thinking).toBeUndefined();
+    expect(out.output_config).toEqual({ effort: "low" });
+  });
   it("claude haiku → enabled+budget", () => {
     const out = apply("claude", "claude-haiku-4.5", { reasoning_effort: "high" }, "claude");
     expect(out.thinking).toEqual({ type: "enabled", budget_tokens: 24576 });
