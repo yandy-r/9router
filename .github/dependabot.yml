@@ -11,6 +11,11 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # undici 8 dispatchers break with Node 22/24's built-in fetch
+      # ("invalid onRequestStart method"); see closed PR #28.
+      - dependency-name: undici
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
