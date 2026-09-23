@@ -1,20 +1,11 @@
 import { NextResponse } from "next/server";
 import { getProviderConnectionById } from "@/models";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
-import { GEMINI_CONFIG, ZED_HOSTED_CONFIG } from "@/lib/oauth/constants/oauth";
-import { refreshGoogleToken, refreshCodexToken, refreshClaudeOAuthToken, updateProviderCredentials } from "@/sse/services/tokenRefresh";
-import { ANTHROPIC_API_VERSION } from "open-sse/providers/shared.js";
+import { GEMINI_CONFIG } from "@/lib/oauth/constants/oauth";
+import { refreshGoogleToken, refreshCodexToken } from "@/sse/services/tokenRefresh";
 import { resolveOllamaLocalHost } from "open-sse/config/providers.js";
-import { getModelsByProviderId } from "open-sse/config/providerModels.js";
-import { resolveKiroModels } from "open-sse/services/kiroModels.js";
-import { resolveKimchiModels } from "open-sse/services/kimchiModels.js";
-import { resolveQoderModels } from "open-sse/services/qoderModels.js";
-import { resolveGrokCliModels } from "open-sse/services/grokCliModels.js";
-import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
-import { resolveCursorModels } from "open-sse/services/cursorModels.js";
-import { resolveZedModels } from "open-sse/shared/zedAuth.js";
-import { explainEmptyZedCatalog } from "open-sse/shared/zedModelDiagnostics.js";
-import { resolveClineModels, resolveClinepassModels } from "open-sse/services/clinepassModels.js";
+import { buildOAuthResolver } from "@/lib/providerModels/oauthResolver.js";
+import { hasLiveModelResolver, resolveLiveModels } from "@/lib/providerModels/liveResolvers.js";
 
 const GEMINI_CLI_MODELS_URL = "https://cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels";
 
@@ -83,88 +74,8 @@ const createOpenAIModelsConfig = (url) => ({
   parseResponse: parseOpenAIStyleModels
 });
 
-const getStaticProviderModels = (providerId) =>
-  getModelsByProviderId(providerId).map((model) => ({
-    ...model,
-    id: model.id,
-    name: model.name || model.id,
-  }));
-
-// Generic custom resolver for OAuth providers that need refresh-on-401 + token persist.
-// Receives a `fetchFn(token)` and returns parsed models or throws.
-const buildOAuthResolver = ({ refreshFn, fetchFn, parseFn, errorLabel }) => async (connection) => {
-  const { accessToken, refreshToken } = connection;
-  if (!accessToken) {
-    return { error: "No valid token found", status: 401 };
-  }
-  let warning;
-  try {
-    let response = await fetchFn(accessToken, connection);
-    if (!response.ok && (response.status === 401 || response.status === 403) && refreshToken) {
-      const refreshed = await refreshFn(connection);
-      if (refreshed?.accessToken) {
-        await updateProviderCredentials(connection.id, {
-          accessToken: refreshed.accessToken,
-          refreshToken: refreshed.refreshToken || refreshToken,
-          expiresIn: refreshed.expiresIn,
-        });
-        connection.accessToken = refreshed.accessToken;
-        if (refreshed.refreshToken) connection.refreshToken = refreshed.refreshToken;
-        response = await fetchFn(refreshed.accessToken, connection);
-      }
-    }
-    if (response.ok) {
-      const data = await response.json();
-      const models = parseFn(data);
-      if (models.length > 0) return { models };
-    } else {
-      const errorText = await response.text();
-      warning = `${errorLabel}: ${response.status} ${errorText}`;
-      console.log(`${errorLabel} (falling back to static):`, errorText);
-    }
-  } catch (error) {
-    warning = `${errorLabel}: ${error.message}`;
-    console.log(`${errorLabel} (falling back to static):`, error.message);
-  }
-  return { models: [], warning };
-};
-
-// The default page is 20 models; ask for the maximum so none are cut off.
-const ANTHROPIC_MODELS_URL = "https://api.anthropic.com/v1/models?limit=1000";
-const ANTHROPIC_OAUTH_BETA = "oauth-2025-04-20";
-
-const parseAnthropicModels = (data) => data?.data || [];
-
-const fetchAnthropicModels = (authHeaders) => fetch(ANTHROPIC_MODELS_URL, {
-  method: "GET",
-  headers: { "Anthropic-Version": ANTHROPIC_API_VERSION, "Content-Type": "application/json", ...authHeaders },
-});
-
-// Subscription (OAuth) tokens are rejected as `x-api-key`; Anthropic accepts them
-// only as a Bearer token with the OAuth beta.
-const resolveClaudeOAuthModels = buildOAuthResolver({
-  refreshFn: (conn) => refreshClaudeOAuthToken(conn.refreshToken),
-  fetchFn: (token) => fetchAnthropicModels({ "Authorization": `Bearer ${token}`, "Anthropic-Beta": ANTHROPIC_OAUTH_BETA }),
-  parseFn: parseAnthropicModels,
-  errorLabel: "Failed to fetch Claude models",
-});
-
-async function resolveClaudeModels(connection) {
-  if (connection.accessToken) return resolveClaudeOAuthModels(connection);
-  if (!connection.apiKey) return { error: "No valid token found", status: 401 };
-  const response = await fetchAnthropicModels({ "x-api-key": connection.apiKey });
-  if (!response.ok) {
-    console.log("Error fetching models from claude:", await response.text());
-    return { error: `Failed to fetch models: ${response.status}`, status: response.status };
-  }
-  return { models: parseAnthropicModels(await response.json()) };
-}
-
 // Provider models endpoints configuration
 const PROVIDER_MODELS_CONFIG = {
-  claude: {
-    customResolver: resolveClaudeModels,
-  },
   gemini: {
     url: "https://generativelanguage.googleapis.com/v1beta/models",
     method: "GET",
@@ -196,33 +107,6 @@ const PROVIDER_MODELS_CONFIG = {
     authPrefix: "Bearer ",
     body: {},
     parseResponse: (data) => data.models || []
-  },
-  github: {
-    url: "https://api.githubcopilot.com/models",
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "Copilot-Integration-Id": "vscode-chat",
-      "editor-version": "vscode/1.107.1",
-      "editor-plugin-version": "copilot-chat/0.26.7",
-      "user-agent": "GitHubCopilotChat/0.26.7"
-    },
-    authHeader: "Authorization",
-    authPrefix: "Bearer ",
-    parseResponse: (data) => {
-      if (!data?.data) return [];
-      // Filter out embeddings, non-chat models, and disabled models
-      return data.data
-        .filter(m => m.capabilities?.type === "chat")
-        .filter(m => m.policy?.state !== "disabled") // Only return explicitly enabled models
-        .map(m => ({
-          id: m.id,
-          name: m.name || m.id,
-          version: m.version,
-          capabilities: m.capabilities,
-          isDefault: m.model_picker_enabled === true
-        }));
-    }
   },
   openai: createOpenAIModelsConfig("https://api.openai.com/v1/models"),
   openrouter: createOpenAIModelsConfig("https://openrouter.ai/api/v1/models"),
@@ -285,188 +169,6 @@ const PROVIDER_MODELS_CONFIG = {
   nvidia: createOpenAIModelsConfig("https://integrate.api.nvidia.com/v1/models"),
   assemblyai: createOpenAIModelsConfig("https://api.assemblyai.com/v1/models"),
   "vercel-ai-gateway": createOpenAIModelsConfig("https://ai-gateway.vercel.sh/v1/models"),
-  kimchi: {
-    customResolver: async (connection) => {
-      const result = await resolveKimchiModels({
-        accessToken: connection.accessToken,
-        apiKey: connection.apiKey,
-        providerSpecificData: connection.providerSpecificData || {},
-      }, { forceRefresh: true, log: console });
-      if (result?.models?.length) {
-        return { models: result.models };
-      }
-      return {
-        models: getStaticProviderModels("kimchi"),
-        warning: "Kimchi returned no live models; falling back to static catalog.",
-      };
-    }
-  },
-  cursor: {
-    customResolver: async (connection) => {
-      const result = await resolveCursorModels({
-        accessToken: connection.accessToken,
-        providerSpecificData: connection.providerSpecificData || {},
-      }, { forceRefresh: true, log: console });
-      if (result?.models?.length) return { models: result.models };
-      return {
-        models: getStaticProviderModels("cursor"),
-        warning: "Cursor returned no live models; falling back to static catalog.",
-      };
-    },
-  },
-  // Zed has no static catalog by design (live /models only) — same cursor
-  // direct pattern: resolve with the connection's own credentials (never
-  // exposed to the browser), return rich metadata, drop disabled entries.
-  // Empty/failure yields an explicit warning, never a silent zero list.
-  zed: {
-    customResolver: async (connection) => {
-      try {
-        const credentials = {
-          accessToken: connection.accessToken,
-          providerSpecificData: connection.providerSpecificData || {},
-        };
-        const result = await resolveZedModels(credentials, { config: ZED_HOSTED_CONFIG, forceRefresh: true });
-        const models = (result?.models || [])
-          .filter((m) => m && !m.isDisabled)
-          .map((m) => ({
-            id: m.id,
-            name: m.name || m.id,
-            provider: m.provider,
-            contextLength: m.contextLength,
-            contextLengthInMaxMode: m.contextLengthInMaxMode,
-            maxOutputTokens: m.maxOutputTokens,
-            supportsTools: m.supportsTools,
-            supportsImages: m.supportsImages,
-            supportsThinking: m.supportsThinking,
-            supportsDisablingThinking: m.supportsDisablingThinking,
-            supportsFastMode: m.supportsFastMode,
-            supportsServerSideCompaction: m.supportsServerSideCompaction,
-            supportedEffortLevels: m.supportedEffortLevels || [],
-            supportsStreamingTools: m.supportsStreamingTools,
-            supportsParallelToolCalls: m.supportsParallelToolCalls,
-          }));
-        if (models.length > 0) return { models };
-        const warning = await explainEmptyZedCatalog(credentials, result, { config: ZED_HOSTED_CONFIG });
-        return { models: [], warning };
-      } catch (error) {
-        console.log("Failed to fetch Zed models dynamically:", error.message);
-        return { models: [], warning: `Failed to fetch Zed models: ${error.message}` };
-      }
-    },
-  },
-
-  // Cline/ClinePass share api.cline.bot/api/v1/models. The service layer already
-  // handles Bearer-vs-`workos:` auth and swallows failures into null, so these follow
-  // the cursor direct pattern (no refreshFn) and only differ in filtering:
-  // cline returns the whole catalog verbatim, clinepass keeps cline-pass/* only.
-  cline: {
-    customResolver: async (connection) => {
-      const result = await resolveClineModels({
-        accessToken: connection.accessToken,
-        apiKey: connection.apiKey,
-      });
-      if (result?.models?.length) return { models: result.models };
-      return {
-        models: getStaticProviderModels("cline"),
-        warning: "Cline returned no live models; falling back to static catalog.",
-      };
-    },
-  },
-  clinepass: {
-    customResolver: async (connection) => {
-      const result = await resolveClinepassModels({
-        accessToken: connection.accessToken,
-        apiKey: connection.apiKey,
-      });
-      if (result?.models?.length) return { models: result.models };
-      return {
-        models: getStaticProviderModels("clinepass"),
-        warning: "ClinePass returned no live models; falling back to static catalog.",
-      };
-    },
-  },
-
-  // Custom resolvers (non-OpenAI-shaped APIs / token-refresh flows)
-  kiro: {
-    customResolver: async (connection) => {
-      const credentials = {
-        accessToken: connection.accessToken,
-        refreshToken: connection.refreshToken,
-        providerSpecificData: connection.providerSpecificData || {}
-      };
-      let warning;
-      try {
-        const result = await resolveKiroModels(credentials, {
-          log: console,
-          onCredentialsRefreshed: async (refreshed) => {
-            if (refreshed?.accessToken) {
-              await updateProviderCredentials(connection.id, {
-                accessToken: refreshed.accessToken,
-                refreshToken: refreshed.refreshToken || connection.refreshToken,
-                expiresIn: refreshed.expiresIn,
-              });
-              connection.accessToken = refreshed.accessToken;
-              if (refreshed.refreshToken) connection.refreshToken = refreshed.refreshToken;
-            }
-          }
-        });
-        if (result?.models?.length) {
-          return {
-            models: result.models.map((m) => ({
-              id: m.id,
-              name: m.name,
-              upstreamModelId: m.upstreamModelId,
-              contextLength: m.contextLength,
-              rateMultiplier: m.rateMultiplier,
-              capabilities: m.capabilities,
-              description: m.description
-            }))
-          };
-        }
-        warning = "Kiro returned no models; falling back to static catalog.";
-      } catch (error) {
-        warning = `Failed to fetch Kiro models: ${error.message}`;
-        console.log("Failed to fetch Kiro models dynamically, falling back to static:", error.message);
-      }
-      return { models: [], warning };
-    }
-  },
-  qoder: {
-    customResolver: async (connection) => {
-      const credentials = {
-        accessToken: connection.accessToken,
-        apiKey: connection.apiKey,
-        refreshToken: connection.refreshToken,
-        email: connection.email,
-        displayName: connection.displayName,
-        providerSpecificData: connection.providerSpecificData || {},
-      };
-      let warning;
-      try {
-        const result = await resolveQoderModels(credentials, { forceRefresh: true });
-        if (result?.models?.length) {
-          return {
-            models: result.models.map((m) => ({
-              // Use the canonical "qoder/<key>" id so the dashboard
-              // surfaces the same identifier the chat router expects.
-              id: `qoder/${m.id}`,
-              name: m.name,
-              contextLength: m.contextLength,
-              isVL: m.isVL,
-              isReasoning: m.isReasoning,
-              maxOutputTokens: m.maxOutputTokens,
-              description: m.description,
-            })),
-          };
-        }
-        warning = "Qoder returned no models; falling back to static catalog.";
-      } catch (error) {
-        warning = `Failed to fetch Qoder models: ${error.message}`;
-        console.log("Failed to fetch Qoder models dynamically, falling back to static:", error.message);
-      }
-      return { models: [], warning };
-    },
-  },
   "gemini-cli": {
     customResolver: buildOAuthResolver({
       refreshFn: (conn) => refreshGoogleToken(conn.refreshToken, GEMINI_CONFIG.clientId, GEMINI_CONFIG.clientSecret),
@@ -487,35 +189,6 @@ const PROVIDER_MODELS_CONFIG = {
       parseFn: parseGeminiCliModels,
       errorLabel: "Failed to fetch Gemini CLI models"
     })
-  },
-  "grok-cli": {
-    customResolver: async (connection) => {
-      const proxy = await resolveConnectionProxyConfig(connection.providerSpecificData || {});
-      const result = await resolveGrokCliModels({
-        ...connection,
-        connectionId: connection.id,
-      }, {
-        log: console,
-        proxyOptions: {
-          connectionProxyEnabled: proxy.connectionProxyEnabled === true,
-          connectionProxyUrl: proxy.connectionProxyUrl || "",
-          connectionNoProxy: proxy.connectionNoProxy || "",
-          vercelRelayUrl: proxy.vercelRelayUrl || "",
-          strictProxy: proxy.strictProxy === true,
-        },
-        onCredentialsRefreshed: async (refreshed) => {
-          await updateProviderCredentials(connection.id, {
-            ...refreshed,
-            existingProviderSpecificData: connection.providerSpecificData || {},
-          });
-        },
-      });
-      if (result.models.length) return result;
-      return {
-        models: getStaticProviderModels("grok-cli"),
-        warning: result.warning || "Grok CLI returned no live models; using static catalog.",
-      };
-    },
   },
   "ollama-local": {
     customResolver: async (connection) => {
@@ -618,6 +291,20 @@ export async function GET(request, { params }) {
         provider: connection.provider,
         connectionId: connection.id,
         models
+      });
+    }
+
+    // Live catalogs shared with /v1/models. Always 200: an empty or failed
+    // fetch comes back as models: [] + warning so the dashboard keeps its
+    // static list. Hidden entries are routable but not offered for selection.
+    if (hasLiveModelResolver(connection.provider)) {
+      const forceRefresh = new URL(request.url).searchParams.get("refresh") === "1";
+      const { models, warning } = await resolveLiveModels(connection, { forceRefresh });
+      return NextResponse.json({
+        provider: connection.provider,
+        connectionId: connection.id,
+        models: models.filter((m) => !m.hidden),
+        ...(warning ? { warning } : {})
       });
     }
 

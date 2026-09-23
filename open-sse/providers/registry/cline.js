@@ -52,4 +52,7 @@ export default {
     tokenExchangeUrl: "https://api.cline.bot/api/v1/auth/token",
     refreshUrl: "https://api.cline.bot/api/v1/auth/refresh",
   },
+  features: {
+    liveModels: true,
+  },
 };

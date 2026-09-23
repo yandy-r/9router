@@ -59,4 +59,7 @@ export default {
     options: ["auto", "on", "off"],
     defaultMode: "auto",
   },
+  features: {
+    liveModels: true,
+  },
 };

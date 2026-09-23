@@ -66,5 +66,6 @@ export default {
 
   features: {
     usage: true,
+    liveModels: true,
   },
 };
