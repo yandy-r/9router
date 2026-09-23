@@ -4,13 +4,17 @@ import { getSettings } from "../db/repos/settingsRepo.js";
 
 const SAML_REQUEST_TTL_MS = 10 * 60 * 1000; // matches saml_state cookie maxAge (10 min)
 
-// ponytail: in-memory, single-process only. Upgrade path: DB-backed CacheProvider if 9router ever runs multi-process.
+// ponytail: in-memory, single-process only; entries from unauthenticated /saml/start are bounded by
+// request rate x TTL. Upgrade path: DB-backed CacheProvider if 9router ever runs multi-process.
 if (!globalThis.__ninerouterSamlRequestCache) {
   globalThis.__ninerouterSamlRequestCache = new InMemoryCacheProvider({
     keyExpirationPeriodMs: SAML_REQUEST_TTL_MS,
   });
 }
 const requestIdCache = globalThis.__ninerouterSamlRequestCache;
+// node-saml checks the request ID, then awaits signature work before removing it, so two concurrent
+// posts of one response could both pass. Claim the ID for the duration of validation.
+const inFlightRequestIds = new Set();
 
 /**
  * Formats a raw Base64 string or unformatted X.509 certificate into standard PEM format.
@@ -177,10 +181,21 @@ export async function validateSamlResponse(request, body, expectedRequestId, set
     );
   }
 
-  const result = await samlInstance.validatePostResponseAsync({ SAMLResponse: rawSamlResponse });
-  const profile = result?.profile || result;
-
-  return profile;
+  if (inFlightRequestIds.has(expectedRequestId)) {
+    throw new Error("SAML response for this request is already being processed");
+  }
+  inFlightRequestIds.add(expectedRequestId);
+  try {
+    const result = await samlInstance.validatePostResponseAsync({ SAMLResponse: rawSamlResponse });
+    const profile = result?.profile || result;
+    // Re-check against the value node-saml parsed from the validated document, not the raw regex.
+    if (profile?.inResponseTo !== expectedRequestId) {
+      throw new Error("InResponseTo mismatch after validation");
+    }
+    return profile;
+  } finally {
+    inFlightRequestIds.delete(expectedRequestId);
+  }
 }
 
 /**
