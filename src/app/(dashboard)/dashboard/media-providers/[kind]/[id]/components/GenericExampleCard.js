@@ -87,7 +87,7 @@ export function GenericExampleCard({ providerId, kind }) {
     fetch("/api/tunnel/status")
       .then((r) => r.json())
       .then((d) => {
-        if (d.publicUrl) setTunnelEndpoint(d.publicUrl);
+        if (d.tunnel?.publicUrl) setTunnelEndpoint(d.tunnel.publicUrl);
       })
       .catch(() => {});
     // Load active connections of this provider for pinning

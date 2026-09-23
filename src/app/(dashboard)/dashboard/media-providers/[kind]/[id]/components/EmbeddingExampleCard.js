@@ -49,7 +49,7 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
     fetch("/api/tunnel/status")
       .then((r) => r.json())
       .then((d) => {
-        if (d.publicUrl) setTunnelEndpoint(d.publicUrl);
+        if (d.tunnel?.publicUrl) setTunnelEndpoint(d.tunnel.publicUrl);
       })
       .catch(() => {});
   }, []);
