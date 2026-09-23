@@ -1,3 +1,12 @@
+# v0.1.1 (2026-09-23)
+
+## Fixes
+- **Zed**: you can now finish sign-in by pasting the callback URL. While it waits, the Connect Zed modal always shows the sign-in URL and a field for the callback URL, so login works even when the browser can't reach 9router's `127.0.0.1` callback (Docker, a remote host, or another machine). The callback listener now accepts the redirect on any path, as the Zed client does, and the "Paste token" tab, which crashed for Zed, is no longer shown for it (#1).
+
+## Changes
+- **Links**: the dashboard's changelog, README link and skill links now point to `yandy-r/9router` instead of upstream. `docker-compose.yml` now uses `ghcr.io/yandy-r/9router:latest`.
+- **Docs**: the README explains where to get the Google OAuth client IDs and secrets.
+
 # v0.1.0 (2026-09-22)
 
 First release of this fork, which restarts version numbers at 0.1.0. It is based on upstream 9Router v0.5.81 and includes every change listed below that entry.
