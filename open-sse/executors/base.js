@@ -16,8 +16,11 @@ export class BaseExecutor {
     // Capability flag: false when the provider has no OAuth refresh mechanism
     // (refreshCredentials() unconditionally returns null), so 401/403 handlers
     // skip the futile refreshWithRetry path (~3s of 1s+2s waits) and return the
-    // upstream error immediately. ponytail: default true keeps every existing
-    // executor on the refresh path; only no-mechanism executors opt out.
+    // upstream error immediately. NOTE: default true keeps every existing
+    // executor on the refresh path; only no-mechanism executors opt out
+    // (currently zed, qoder, cursor, trae, windsurf — each verified to return
+    // null unconditionally). Base-inherited no-ops (CLI/noAuth executors) and
+    // DefaultExecutor subclasses with real refreshers stay on the path.
     this.supportsRefresh = true;
   }
 

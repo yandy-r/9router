@@ -404,7 +404,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
 
   // Handle 401/403 - try token refresh (skip for noAuth providers and
   // executors with no refresh mechanism, e.g. Zed's long-lived credential)
-  if (!executor.noAuth && executor.supportsRefresh !== false && (providerResponse.status === HTTP_STATUS.UNAUTHORIZED || providerResponse.status === HTTP_STATUS.FORBIDDEN)) {
+  if (!executor?.noAuth && executor?.supportsRefresh !== false && (providerResponse.status === HTTP_STATUS.UNAUTHORIZED || providerResponse.status === HTTP_STATUS.FORBIDDEN)) {
     try {
       // Mutate credentials after each successful refresh: rotating refresh_token
       // providers (xAI/grok-cli) issue a new RT on every refresh; without this,

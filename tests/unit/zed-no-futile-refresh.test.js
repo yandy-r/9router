@@ -88,9 +88,7 @@ describe("handleChatCore supportsRefresh gate (YAN-13)", () => {
       transformedBody: null,
     });
 
-    const started = Date.now();
     const result = await handleChatCore(makeOptions(log));
-    const elapsed = Date.now() - started;
 
     expect(refreshWithRetryMock).not.toHaveBeenCalled();
     expect(refreshCredentialsMock).not.toHaveBeenCalled();
@@ -98,8 +96,30 @@ describe("handleChatCore supportsRefresh gate (YAN-13)", () => {
     expect(result.success).toBe(false);
     expect(result.status).toBe(403);
     expect(result.error).toContain("not included in your plan");
-    expect(elapsed).toBeLessThan(1000); // no 1s+2s refreshWithRetry waits
+    // No timing assert: refreshWithRetryMock-not-called + single execute call
+    // already prove the skip deterministically.
     expect(log.warn).not.toHaveBeenCalledWith("TOKEN", expect.stringContaining("refresh failed"));
+  });
+
+  it("still enters the refresh path for refresh-capable executors on 403", async () => {
+    executorSupportsRefresh = true;
+    const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    executeMock.mockResolvedValue({
+      response: new Response(ZED_403_BODY, {
+        status: 403,
+        headers: { "content-type": "application/json" },
+      }),
+      url: "https://api.example.com/v1/chat/completions",
+      headers: {},
+      transformedBody: null,
+    });
+    refreshWithRetryMock.mockResolvedValue(null); // refresh fails → original 403 surfaces
+
+    const result = await handleChatCore(makeOptions(log));
+
+    expect(refreshWithRetryMock).toHaveBeenCalledTimes(1);
+    expect(result.success).toBe(false);
+    expect(result.status).toBe(403);
   });
 
   it("keeps refresh-and-retry for refresh-capable executors on 401", async () => {
