@@ -6,9 +6,9 @@
 //
 // The marker is stripped only so the model resolves. 9router rebuilds the
 // upstream `Anthropic-Beta` itself and never forwards the client's, so
-// `context-1m-2025-08-07` is not sent (on many subscription plans it bills the
-// request to extra usage);
-// current Claude models serve 1M context natively without it.
+// `context-1m-2025-08-07` is not sent: on many subscription plans that beta
+// bills the request to extra usage. Current Claude models serve 1M context
+// natively without it.
 
 const CONTEXT_MARKER = /\[1m\]$/i;
 

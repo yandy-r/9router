@@ -49,6 +49,7 @@ export const EXTRA_USAGE_EXHAUSTED_TEXT = "out of extra usage";
 const COOLDOWN = {
   long: 2 * 60 * 1000,
   short: 5 * 1000,
+  none: 0,
 };
 
 /**
@@ -68,9 +69,11 @@ export const ERROR_RULES = [
   { text: "rate limit",               backoff: true },
   { text: "too many requests",        backoff: true },
   { text: "quota exceeded",           backoff: true },
-  // Account-scoped, not request-scoped: rotate away. Fixed cooldown, since extra
-  // usage doesn't refill in seconds like a rate limit.
-  { text: EXTRA_USAGE_EXHAUSTED_TEXT, cooldownMs: COOLDOWN.long },
+  // Can be scoped to one request (a feature billed to extra usage), so rotate to the
+  // next account/combo model without locking this one: a lock would block requests
+  // the plan still covers. Once every account is tried, the client gets the
+  // upstream's actionable message.
+  { text: EXTRA_USAGE_EXHAUSTED_TEXT, cooldownMs: COOLDOWN.none },
   { text: "capacity",                 backoff: true },
   { text: "overloaded",               backoff: true },
 

@@ -70,17 +70,38 @@ export class DefaultExecutor extends BaseExecutor {
     super(provider, PROVIDERS[provider] || PROVIDERS.openai);
   }
 
+  // Whether requests for `model` carry Anthropic beta flags (incl. fast mode).
+  // anthropic-compatible-* nodes serving a real Claude model sit in front of
+  // Anthropic itself (a rotating multi-account proxy, a corporate gateway),
+  // so the request needs the same beta flags the `claude` provider sends:
+  // without `context-management-2025-06-27` upstream rejects the
+  // `context_management` block Claude Code puts in every request with
+  // "context_management: Extra inputs are not permitted" (HTTP 400), and the
+  // combo silently falls through to the next model. The model id gates this:
+  // a node fronting Kimi or GLM answers on its own ids and never matches, so
+  // gateways that would choke on unknown beta flags are left untouched.
+  usesClaudeBetas(model) {
+    const isClaudeModel = typeof model === "string" && /^claude-/.test(model);
+    return Boolean(model && (this.provider === "claude"
+      || (this.provider?.startsWith?.("anthropic-compatible-") && isClaudeModel)));
+  }
+
   // Fast mode is billed only to extra usage, even with plan usage left. When
   // that runs out, retry once at standard speed like Claude Code does; dropping
-  // `speed` also drops the fast-mode beta (selectAnthropicBeta).
+  // `speed` also drops the fast-mode beta, which selectAnthropicBeta sends only
+  // for speed:"fast" requests. Gated on usesClaudeBetas so only providers that
+  // can send the fast-mode beta ever take this path.
   async execute(args) {
     const result = await super.execute(args);
-    if (!isFastModeRequest(args.body) || result.response.status !== HTTP_STATUS.BAD_REQUEST) return result;
+    if (!this.usesClaudeBetas(args.model) || !isFastModeRequest(args.body)
+      || result.response.status !== HTTP_STATUS.BAD_REQUEST) return result;
     // Read a clone so the original response stays readable for the caller.
     const text = await result.response.clone().text().catch(() => "");
     if (!text.toLowerCase().includes(EXTRA_USAGE_EXHAUSTED_TEXT)) return result;
     args.log?.warn?.("FAST_MODE", "out of extra usage — retrying at standard speed");
     const { speed, ...standardBody } = args.body;
+    // Release the dropped 400's body (and its connection) before retrying.
+    await result.response.body?.cancel().catch(() => {});
     return super.execute({ ...args, body: standardBody });
   }
 
@@ -171,18 +192,7 @@ export class DefaultExecutor extends BaseExecutor {
     for (const hook of desc.hooks || []) HEADER_HOOKS[hook]?.(headers, credentials);
     applyAuth(headers, desc, credentials);
 
-    // anthropic-compatible-* nodes serving a real Claude model sit in front of
-    // Anthropic itself (a rotating multi-account proxy, a corporate gateway),
-    // so the request needs the same beta flags the `claude` provider sends:
-    // without `context-management-2025-06-27` upstream rejects the
-    // `context_management` block Claude Code puts in every request with
-    // "context_management: Extra inputs are not permitted" (HTTP 400), and the
-    // combo silently falls through to the next model. The model id gates this:
-    // a node fronting Kimi or GLM answers on its own ids and never matches, so
-    // gateways that would choke on unknown beta flags are left untouched.
-    const isClaudeModel = typeof model === "string" && /^claude-/.test(model);
-    if (model && (this.provider === "claude"
-      || (this.provider?.startsWith?.("anthropic-compatible-") && isClaudeModel))) {
+    if (this.usesClaudeBetas(model)) {
       headers["Anthropic-Beta"] = selectAnthropicBeta(model, body);
       // Real Claude Code sends its session id as a header too, matching the
       // session_id inside metadata.user_id (set by applyCloaking or the client).

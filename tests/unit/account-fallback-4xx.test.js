@@ -29,12 +29,12 @@ describe("checkFallbackError — request-scoped vs account-scoped failures", () 
     expect(checkFallbackError(422, "quota exceeded").shouldFallback).toBe(true);
   });
 
-  it("rotates away from a Claude account that is out of extra usage", () => {
+  it("rotates away from a Claude account that is out of extra usage without locking it", () => {
     const message = "You're out of extra usage. Add more at claude.ai/settings/usage and keep going.";
     const json = JSON.stringify({ type: "error", error: { type: "invalid_request_error", message } });
 
     for (const errorText of [json, `[400]: ${message}`]) {
-      expect(checkFallbackError(400, errorText)).toEqual({ shouldFallback: true, cooldownMs: 120000 });
+      expect(checkFallbackError(400, errorText)).toEqual({ shouldFallback: true, cooldownMs: 0 });
     }
   });
 

@@ -10,8 +10,7 @@ vi.mock("../../open-sse/utils/proxyFetch.js", async (importOriginal) => ({
 
 import { proxyAwareFetch } from "../../open-sse/utils/proxyFetch.js";
 import { DefaultExecutor } from "../../open-sse/executors/default.js";
-
-const FAST_MODE_BETA = "fast-mode-2026-02-01";
+import { ANTHROPIC_BETA_FAST_MODE } from "../../open-sse/providers/shared.js";
 const EXTRA_USAGE_ERROR = JSON.stringify({
   type: "error",
   error: {
@@ -29,15 +28,19 @@ function jsonResponse(status, text) {
   return new Response(text, { status, headers: { "content-type": "application/json" } });
 }
 
-function run(body) {
-  const executor = new DefaultExecutor("claude");
-  return executor.execute({
+// Resolves to the executor result plus the exact body object passed in, so
+// tests can check the caller's body is never mutated.
+async function run(body, provider = "claude") {
+  const executor = new DefaultExecutor(provider);
+  const requestBody = { model: "claude-opus-5", max_tokens: 64, messages: [{ role: "user", content: "hi" }], ...body };
+  const result = await executor.execute({
     model: "claude-opus-5",
-    body: { model: "claude-opus-5", max_tokens: 64, messages: [{ role: "user", content: "hi" }], ...body },
+    body: requestBody,
     stream: false,
     credentials: { accessToken: "oauth-token" },
     log: { warn: vi.fn() },
   });
+  return { ...result, requestBody };
 }
 
 function sentRequest(callIndex) {
@@ -62,11 +65,11 @@ describe("DefaultExecutor — fast mode downgrade on exhausted extra usage", () 
 
     const first = sentRequest(0);
     expect(first.body.speed).toBe("fast");
-    expect(first.betas).toContain(FAST_MODE_BETA);
+    expect(first.betas).toContain(ANTHROPIC_BETA_FAST_MODE);
 
     const second = sentRequest(1);
     expect(second.body).not.toHaveProperty("speed");
-    expect(second.betas).not.toContain(FAST_MODE_BETA);
+    expect(second.betas).not.toContain(ANTHROPIC_BETA_FAST_MODE);
   });
 
   it("does not retry a non-fast request", async () => {
@@ -85,5 +88,27 @@ describe("DefaultExecutor — fast mode downgrade on exhausted extra usage", () 
 
     expect(proxyAwareFetch).toHaveBeenCalledTimes(1);
     expect(await response.text()).toBe(OTHER_ERROR);
+  });
+
+  it("returns the second extra-usage 400 when the standard-speed retry is also rejected", async () => {
+    proxyAwareFetch
+      .mockResolvedValueOnce(jsonResponse(400, EXTRA_USAGE_ERROR))
+      .mockResolvedValueOnce(jsonResponse(400, EXTRA_USAGE_ERROR));
+
+    const { response, requestBody } = await run({ speed: "fast" });
+
+    expect(proxyAwareFetch).toHaveBeenCalledTimes(2);
+    expect(response.status).toBe(400);
+    expect(await response.text()).toContain("out of extra usage");
+    expect(requestBody.speed).toBe("fast");
+  });
+
+  it("does not retry for a provider that never sends Claude betas", async () => {
+    proxyAwareFetch.mockResolvedValueOnce(jsonResponse(400, EXTRA_USAGE_ERROR));
+
+    const { response } = await run({ speed: "fast" }, "openai");
+
+    expect(response.status).toBe(400);
+    expect(proxyAwareFetch).toHaveBeenCalledTimes(1);
   });
 });

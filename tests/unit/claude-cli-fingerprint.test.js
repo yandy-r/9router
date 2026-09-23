@@ -93,9 +93,11 @@ describe("Claude CLI fingerprint env overrides", () => {
     );
   });
 
-  it("does not duplicate a fast-mode flag already in CLAUDE_CLI_BETA_FLAGS", async () => {
+  it("sends a fast-mode flag listed in CLAUDE_CLI_BETA_FLAGS only for speed:\"fast\", once", async () => {
     process.env.CLAUDE_CLI_BETA_FLAGS = "claude-code-20250219,fast-mode-2026-02-01";
-    const { selectAnthropicBeta } = await loadShared();
+    const { selectAnthropicBeta, CLAUDE_CLI_SPOOF_HEADERS } = await loadShared();
+    expect(CLAUDE_CLI_SPOOF_HEADERS["Anthropic-Beta"]).not.toContain("fast-mode-2026-02-01");
+    expect(selectAnthropicBeta("claude-haiku-4-5-20251001")).toBe("claude-code-20250219");
     expect(selectAnthropicBeta("claude-haiku-4-5-20251001", { speed: "fast" })).toBe("claude-code-20250219,fast-mode-2026-02-01");
   });
 
