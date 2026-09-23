@@ -165,6 +165,14 @@ describe("selectModelsToImport", () => {
     expect(ids).toEqual(["openai/gpt-5.4"]);
   });
 
+  it("skips non-chat live entries, which would otherwise be imported as llm", () => {
+    const ids = selectModelsToImport({
+      ...base,
+      liveModels: [{ id: "chat" }, { id: "img", kind: "image" }, { id: "img2", type: "image" }],
+    });
+    expect(ids).toEqual(["chat"]);
+  });
+
   it("returns an empty list for empty or invalid live catalogs", () => {
     expect(selectModelsToImport({ ...base, liveModels: [] })).toEqual([]);
     expect(selectModelsToImport({ ...base, liveModels: undefined })).toEqual([]);
