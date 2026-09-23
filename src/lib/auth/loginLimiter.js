@@ -59,10 +59,16 @@ export function getClientIp(request) {
     const realIp = request.headers.get("x-9r-real-ip");
     if (realIp) return realIp;
   }
-  // Behind a trusted reverse proxy that overwrites XFF with the real client IP.
+  // Behind a trusted reverse proxy: its own hop is the rightmost XFF entry. Anything to
+  // the left came from the client when the proxy appends instead of overwriting.
   if (process.env.TRUST_PROXY === "true") {
     const xff = request.headers.get("x-forwarded-for");
-    if (xff) return xff.split(",")[0].trim();
+    const hop = xff
+      ?.split(",")
+      .map((h) => h.trim())
+      .filter(Boolean)
+      .pop();
+    if (hop) return hop;
   }
   // Direct exposure without custom-server: single bucket so spoofed XFF
   // rotation cannot escape the limiter.

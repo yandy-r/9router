@@ -61,11 +61,21 @@ describe("custom-server peer header sanitizing", () => {
   });
 
   it("marks via-proxy and adopts the forwarded IP for a loopback proxy hop", async () => {
-    const headers = await get({ "x-forwarded-for": "203.0.113.9, 10.0.0.1" });
+    const headers = await get({ "x-forwarded-for": "203.0.113.9" });
 
     expect(headers["x-9r-via-proxy"]).toBe("1");
     expect(headers["x-9r-real-ip"]).toBe("203.0.113.9");
     expect(headers["x-forwarded-for"]).toBeUndefined();
+  });
+
+  // YAN-84: cloudflared/Cloudflare and nginx append the real peer to a client-supplied XFF,
+  // so only the rightmost hop is trustworthy; rotating the leftmost must not change the key.
+  it("keys on the rightmost XFF hop so a spoofed leftmost entry is ignored", async () => {
+    const first = await get({ "x-forwarded-for": "9.9.9.9, 203.0.113.5" });
+    expect(first["x-9r-real-ip"]).toBe("203.0.113.5");
+
+    const second = await get({ "x-forwarded-for": "8.8.8.8,203.0.113.5", "x-real-ip": "7.7.7.7" });
+    expect(second["x-9r-real-ip"]).toBe("203.0.113.5");
   });
 
   // chat.js snapshots every client header into the request detail. Anything that grants

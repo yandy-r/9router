@@ -46,6 +46,15 @@ function startBackgroundTokenRefreshFromCustomServer() {
     });
 }
 
+function rightmostForwardedIp(xff) {
+  if (!xff) return "";
+  const hops = String(xff)
+    .split(",")
+    .map((hop) => hop.trim())
+    .filter(Boolean);
+  return hops[hops.length - 1] || "";
+}
+
 // Wrap Next standalone HTTP server: derive client IP from the TCP socket
 // (unspoofable) and strip client-supplied forwarding headers so downstream
 // rate-limiting keys on the real peer address instead of attacker-controlled XFF.
@@ -62,7 +71,10 @@ http.createServer = (...args) => {
       socketIp === "127.0.0.1" || socketIp === "::1" || socketIp === "::ffff:127.0.0.1";
     // Trust forwarding headers only when the TCP peer is a local reverse proxy.
     // Direct/public sockets remain keyed by the unspoofable peer address.
-    const proxyIp = xRealIp || (xff ? String(xff).split(",")[0].trim() : "");
+    // Take the rightmost XFF hop: appending proxies (Cloudflare edge via cloudflared,
+    // nginx $proxy_add_x_forwarded_for) add the real peer last, while every entry to
+    // its left is client-supplied and rotatable.
+    const proxyIp = rightmostForwardedIp(xff) || xRealIp || "";
     const ip = isLoopbackProxy && proxyIp ? proxyIp : socketIp;
     delete req.headers["x-9r-real-ip"];
     delete req.headers["x-forwarded-for"];
