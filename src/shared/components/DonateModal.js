@@ -65,9 +65,7 @@ export default function DonateModal({ isOpen, onClose }) {
               Loading...
             </div>
           )}
-          {error && (
-            <div className="text-red-500 py-4">Failed to load donate info: {error}</div>
-          )}
+          {error && <div className="text-red-500 py-4">Failed to load donate info: {error}</div>}
           {!loading && !error && data && (
             <>
               {data.message && (
@@ -83,7 +81,7 @@ export default function DonateModal({ isOpen, onClose }) {
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -98,16 +96,14 @@ function DonateChannelCard({ channel }) {
         <span className="material-symbols-outlined text-[26px]">{icon}</span>
       </div>
       <div className="font-semibold text-text-main mb-1">{label}</div>
-      {description && (
-        <div className="text-xs text-text-muted mb-3 text-center">{description}</div>
-      )}
+      {description && <div className="text-xs text-text-muted mb-3 text-center">{description}</div>}
       {qr && (
         <img
           src={qr}
           alt={`${label} QR`}
           className="w-full max-w-[180px] aspect-square object-contain rounded-lg bg-white p-1"
-        loading="lazy"
-        decoding="async"
+          loading="lazy"
+          decoding="async"
         />
       )}
     </>

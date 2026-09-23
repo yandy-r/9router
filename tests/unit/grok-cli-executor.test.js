@@ -91,7 +91,7 @@ describe("GrokCliExecutor", () => {
         accessToken: "tok_test",
         providerSpecificData: { email: "u@example.com", userId: "uid-1" },
       },
-      true
+      true,
     );
 
     expect(headers.Authorization).toBe("Bearer tok_test");
@@ -122,7 +122,7 @@ describe("GrokCliExecutor", () => {
         // userId only top-level; psd has neither email nor userId
         providerSpecificData: { authMethod: "device_code" },
       },
-      true
+      true,
     );
 
     expect(headers["x-email"]).toBe("top@example.com");
@@ -201,38 +201,46 @@ describe("GrokCliExecutor", () => {
   });
 
   it("normalizes Codex cross-provider tool and reasoning history", () => {
-    const out = executor.transformRequest("grok-4.5", {
-      model: "grok-4.5",
-      input: [
-        { type: "message", role: "user", content: "continue" },
-        {
-          type: "reasoning",
-          id: "rs_07fe505b3114f180016a5698411c448191bdcdcba678464461",
-          encrypted_content: "openai-ciphertext",
-          summary: [],
-          internal_chat_message_metadata_passthrough: { turn_id: "turn-1" },
-        },
-        {
-          type: "custom_tool_call",
-          id: "ctc_openai",
-          call_id: "call-custom",
-          name: "exec",
-          input: "run this",
-          internal_chat_message_metadata_passthrough: { turn_id: "turn-1" },
-        },
-        {
-          type: "custom_tool_call_output",
-          call_id: "call-custom",
-          output: [{ type: "input_text", text: "first" }, { type: "input_text", text: "second" }],
-        },
-        {
-          type: "function_call_output",
-          call_id: "call-function",
-          output: [{ type: "input_text", text: "function result" }],
-        },
-      ],
-      tools: [{ type: "custom", name: "exec", description: "Run command" }],
-    }, true, { connectionId: "cross-provider" });
+    const out = executor.transformRequest(
+      "grok-4.5",
+      {
+        model: "grok-4.5",
+        input: [
+          { type: "message", role: "user", content: "continue" },
+          {
+            type: "reasoning",
+            id: "rs_07fe505b3114f180016a5698411c448191bdcdcba678464461",
+            encrypted_content: "openai-ciphertext",
+            summary: [],
+            internal_chat_message_metadata_passthrough: { turn_id: "turn-1" },
+          },
+          {
+            type: "custom_tool_call",
+            id: "ctc_openai",
+            call_id: "call-custom",
+            name: "exec",
+            input: "run this",
+            internal_chat_message_metadata_passthrough: { turn_id: "turn-1" },
+          },
+          {
+            type: "custom_tool_call_output",
+            call_id: "call-custom",
+            output: [
+              { type: "input_text", text: "first" },
+              { type: "input_text", text: "second" },
+            ],
+          },
+          {
+            type: "function_call_output",
+            call_id: "call-function",
+            output: [{ type: "input_text", text: "function result" }],
+          },
+        ],
+        tools: [{ type: "custom", name: "exec", description: "Run command" }],
+      },
+      true,
+      { connectionId: "cross-provider" },
+    );
 
     expect(out.input.some((item) => item.type === "reasoning")).toBe(false);
     expect(out.input[1]).toEqual({
@@ -244,7 +252,10 @@ describe("GrokCliExecutor", () => {
     expect(out.input[2]).toEqual({
       type: "function_call_output",
       call_id: "call-custom",
-      output: JSON.stringify([{ type: "input_text", text: "first" }, { type: "input_text", text: "second" }]),
+      output: JSON.stringify([
+        { type: "input_text", text: "first" },
+        { type: "input_text", text: "second" },
+      ]),
     });
     expect(out.input.some((item) => item.call_id === "call-function")).toBe(false);
     expect(out.tools[0].parameters).toEqual({
@@ -255,17 +266,22 @@ describe("GrokCliExecutor", () => {
   });
 
   it("stringifies structured outputs and removes orphaned output items", () => {
-    const out = executor.transformRequest("grok-4.5", {
-      model: "grok-4.5",
-      input: [
-        { type: "function_call", call_id: "call-array", name: "array_tool", arguments: "{}" },
-        { type: "function_call_output", call_id: "call-array", output: [1, 2] },
-        { type: "function_call", call_id: "call-null", name: "null_tool", arguments: "{}" },
-        { type: "function_call_output", call_id: "call-null", output: null },
-        { type: "custom_tool_call", call_id: "call-invalid", input: "missing name" },
-        { type: "custom_tool_call_output", call_id: "call-invalid", output: "orphan" },
-      ],
-    }, true, { connectionId: "structured-output" });
+    const out = executor.transformRequest(
+      "grok-4.5",
+      {
+        model: "grok-4.5",
+        input: [
+          { type: "function_call", call_id: "call-array", name: "array_tool", arguments: "{}" },
+          { type: "function_call_output", call_id: "call-array", output: [1, 2] },
+          { type: "function_call", call_id: "call-null", name: "null_tool", arguments: "{}" },
+          { type: "function_call_output", call_id: "call-null", output: null },
+          { type: "custom_tool_call", call_id: "call-invalid", input: "missing name" },
+          { type: "custom_tool_call_output", call_id: "call-invalid", output: "orphan" },
+        ],
+      },
+      true,
+      { connectionId: "structured-output" },
+    );
 
     const outputs = out.input.filter((item) => item.type === "function_call_output");
     expect(outputs).toEqual([
@@ -279,23 +295,34 @@ describe("GrokCliExecutor", () => {
     const reasoningId = "rs_3e3f6187-892a-96db-893b-904eff019e19";
     const messageId = "msg_3e3f6187-892a-96db-893b-904eff019e19";
     const functionId = "fc_3e3f6187-892a-96db-893b-904eff019e19";
-    const out = executor.transformRequest("grok-4.5", {
-      model: "grok-4.5",
-      input: [
-        {
-          type: "reasoning",
-          id: reasoningId,
-          status: "completed",
-          encrypted_content: "grok-ciphertext",
-          summary: [],
-          internal_chat_message_metadata_passthrough: { turn_id: "turn-2" },
-        },
-        { type: "message", id: messageId, role: "assistant", content: "done" },
-        { type: "function_call", id: functionId, call_id: "native-call", name: "wait", arguments: "{}" },
-        { type: "function_call_output", call_id: "native-call", output: "done" },
-        { type: "message", role: "user", content: "next" },
-      ],
-    }, true, { connectionId: "native-grok" });
+    const out = executor.transformRequest(
+      "grok-4.5",
+      {
+        model: "grok-4.5",
+        input: [
+          {
+            type: "reasoning",
+            id: reasoningId,
+            status: "completed",
+            encrypted_content: "grok-ciphertext",
+            summary: [],
+            internal_chat_message_metadata_passthrough: { turn_id: "turn-2" },
+          },
+          { type: "message", id: messageId, role: "assistant", content: "done" },
+          {
+            type: "function_call",
+            id: functionId,
+            call_id: "native-call",
+            name: "wait",
+            arguments: "{}",
+          },
+          { type: "function_call_output", call_id: "native-call", output: "done" },
+          { type: "message", role: "user", content: "next" },
+        ],
+      },
+      true,
+      { connectionId: "native-grok" },
+    );
 
     expect(out.input[0]).toMatchObject({
       type: "reasoning",
@@ -314,11 +341,16 @@ describe("GrokCliExecutor", () => {
     expect(normalizeGrokCliEffort("xhigh")).toBe("xhigh");
     expect(normalizeGrokCliEffort("ultra")).toBe("high");
 
-    const out = executor.transformRequest("grok-4.5", {
-      model: "grok-4.5",
-      input: "hi",
-      reasoning: { effort: "max", summary: "detailed" },
-    }, true, { connectionId: "effort-conn" });
+    const out = executor.transformRequest(
+      "grok-4.5",
+      {
+        model: "grok-4.5",
+        input: "hi",
+        reasoning: { effort: "max", summary: "detailed" },
+      },
+      true,
+      { connectionId: "effort-conn" },
+    );
     expect(out.reasoning).toEqual({ effort: "xhigh", summary: "detailed" });
   });
 
@@ -328,30 +360,45 @@ describe("GrokCliExecutor", () => {
     expect(supportsGrokCliReasoningEffort("grok-composer-2.5-fast")).toBe(false);
 
     for (const model of ["grok-build", "grok-composer-2.5-fast"]) {
-      const out = executor.transformRequest(model, {
+      const out = executor.transformRequest(
         model,
-        input: "hi",
-        reasoning: { effort: "max" },
-      }, true, { connectionId: `effort-${model}` });
+        {
+          model,
+          input: "hi",
+          reasoning: { effort: "max" },
+        },
+        true,
+        { connectionId: `effort-${model}` },
+      );
       expect(out.reasoning).toEqual({ summary: "concise" });
       expect(out.include).toContain("reasoning.encrypted_content");
     }
   });
 
   it("drops stale tool_choice and normalizes converted custom choices", () => {
-    const noTools = executor.transformRequest("grok-build", {
-      model: "grok-build",
-      input: "hi",
-      tool_choice: "auto",
-    }, true, { connectionId: "tools-none" });
+    const noTools = executor.transformRequest(
+      "grok-build",
+      {
+        model: "grok-build",
+        input: "hi",
+        tool_choice: "auto",
+      },
+      true,
+      { connectionId: "tools-none" },
+    );
     expect(noTools.tool_choice).toBeUndefined();
 
-    const custom = executor.transformRequest("grok-build", {
-      model: "grok-build",
-      input: "hi",
-      tools: [{ type: "custom", name: "apply_patch", description: "Patch files" }],
-      tool_choice: { type: "custom", name: "apply_patch" },
-    }, true, { connectionId: "tools-custom" });
+    const custom = executor.transformRequest(
+      "grok-build",
+      {
+        model: "grok-build",
+        input: "hi",
+        tools: [{ type: "custom", name: "apply_patch", description: "Patch files" }],
+        tool_choice: { type: "custom", name: "apply_patch" },
+      },
+      true,
+      { connectionId: "tools-custom" },
+    );
     expect(custom.tools).toEqual([
       expect.objectContaining({ type: "function", name: "apply_patch" }),
     ]);
@@ -375,7 +422,7 @@ describe("GrokCliExecutor", () => {
         ],
       },
       true,
-      creds
+      creds,
     );
     expect(executor._currentSessionId).toBeTruthy();
     expect(executor._currentTurnIdx).toBe(1);
@@ -399,7 +446,7 @@ describe("GrokCliExecutor", () => {
         ],
       },
       true,
-      creds
+      creds,
     );
     expect(executor._currentSessionId).toBe(sessionId);
     expect(executor._currentTurnIdx).toBe(2);
@@ -414,7 +461,7 @@ describe("GrokCliExecutor", () => {
         input: [{ type: "message", role: "user", content: "only latest" }],
       },
       true,
-      creds
+      creds,
     );
     expect(executor._currentTurnIdx).toBe(3);
   });
@@ -427,7 +474,7 @@ describe("GrokCliExecutor", () => {
         { type: "message", role: "user", content: "a" },
         { type: "message", role: "assistant", content: "b" },
         { type: "message", role: "user", content: "c" },
-      ])
+      ]),
     ).toBe(2);
 
     expect(resolveGrokCliTurnIdx("s1", [{ role: "user", type: "message", content: "a" }])).toBe(1);
@@ -435,7 +482,7 @@ describe("GrokCliExecutor", () => {
       resolveGrokCliTurnIdx("s1", [
         { role: "user", type: "message", content: "a" },
         { role: "user", type: "message", content: "b" },
-      ])
+      ]),
     ).toBe(2);
     // monotonic
     expect(resolveGrokCliTurnIdx("s1", [{ role: "user", type: "message", content: "a" }])).toBe(2);
@@ -443,20 +490,30 @@ describe("GrokCliExecutor", () => {
 
   it("keeps fallback session stable when assistant history appears", () => {
     const creds = { connectionId: "fallback-conn", rawHeaders: {} };
-    executor.transformRequest("grok-build", {
-      model: "grok-build",
-      input: [{ type: "message", role: "user", content: "first" }],
-    }, true, creds);
+    executor.transformRequest(
+      "grok-build",
+      {
+        model: "grok-build",
+        input: [{ type: "message", role: "user", content: "first" }],
+      },
+      true,
+      creds,
+    );
     const firstSession = executor._currentSessionId;
 
-    executor.transformRequest("grok-build", {
-      model: "grok-build",
-      input: [
-        { type: "message", role: "user", content: "first" },
-        { type: "message", role: "assistant", content: "x".repeat(100) },
-        { type: "message", role: "user", content: "second" },
-      ],
-    }, true, creds);
+    executor.transformRequest(
+      "grok-build",
+      {
+        model: "grok-build",
+        input: [
+          { type: "message", role: "user", content: "first" },
+          { type: "message", role: "assistant", content: "x".repeat(100) },
+          { type: "message", role: "user", content: "second" },
+        ],
+      },
+      true,
+      creds,
+    );
     expect(executor._currentSessionId).toBe(firstSession);
     expect(executor._currentTurnIdx).toBe(2);
   });
@@ -486,7 +543,7 @@ describe("GrokCliExecutor", () => {
       JSON.stringify({
         code: "personal-team-blocked:spending-limit",
         error: "You have run out of credits",
-      })
+      }),
     );
     expect(err.status).toBe(402);
     expect(err.code).toBe("personal-team-blocked:spending-limit");

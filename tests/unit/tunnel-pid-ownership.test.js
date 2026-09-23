@@ -31,7 +31,10 @@ describe("cloudflared PID ownership", () => {
   });
 
   it("releases PID and process ownership for the exiting child only", () => {
-    const source = fs.readFileSync(new URL("../../src/lib/tunnel/cloudflare/cloudflared.js", import.meta.url), "utf8");
+    const source = fs.readFileSync(
+      new URL("../../src/lib/tunnel/cloudflare/cloudflared.js", import.meta.url),
+      "utf8",
+    );
 
     expect(source.match(/clearPid\(child\.pid\)/g)).toHaveLength(2);
     expect(source.match(/cloudflaredProcess === child/g)).toHaveLength(2);

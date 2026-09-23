@@ -18,7 +18,11 @@ async function windsurfSeatRequest(baseUrl, path, body) {
   });
   const text = await res.text();
   if (!res.ok) throw new Error(`Windsurf ${path} HTTP ${res.status}: ${text.slice(0, 200)}`);
-  try { return JSON.parse(text); } catch { throw new Error(`Windsurf ${path} invalid JSON`); }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Windsurf ${path} invalid JSON`);
+  }
 }
 
 // Parse Windsurf callback (query string or full URL): ?access_token=...&state=...
@@ -29,13 +33,18 @@ function parseWindsurfCallback(raw, expectedState) {
   if (text.startsWith("#")) queryStr = text.slice(1);
   const params = Object.fromEntries(new URLSearchParams(queryStr));
   const pick = (keys) => {
-    for (const k of keys) { const v = params[k]; if (v && String(v).trim()) return String(v).trim(); }
+    for (const k of keys) {
+      const v = params[k];
+      if (v && String(v).trim()) return String(v).trim();
+    }
     return null;
   };
   const err = pick(["error"]);
   if (err) {
     const desc = pick(["error_description"]);
-    throw new Error(desc ? `Windsurf auth failed: ${err} (${desc})` : `Windsurf auth failed: ${err}`);
+    throw new Error(
+      desc ? `Windsurf auth failed: ${err} (${desc})` : `Windsurf auth failed: ${err}`,
+    );
   }
   const accessToken = pick(["access_token", "token"]);
   if (!accessToken) throw new Error("Windsurf callback missing access_token");
@@ -48,12 +57,18 @@ function parseWindsurfCallback(raw, expectedState) {
 
 // POST RegisterUser {firebase_id_token} → {apiKey, apiServerUrl, name}
 async function fetchWindsurfRegisterUser(firebaseIdToken) {
-  const data = await windsurfSeatRequest(WINDSURF_CONFIG.registerApiBaseUrl, WINDSURF_CONFIG.registerPath, {
-    firebase_id_token: firebaseIdToken,
-  });
+  const data = await windsurfSeatRequest(
+    WINDSURF_CONFIG.registerApiBaseUrl,
+    WINDSURF_CONFIG.registerPath,
+    {
+      firebase_id_token: firebaseIdToken,
+    },
+  );
   const apiKey = extractJsonPath(data, [["apiKey"], ["api_key"]]);
   if (!apiKey) throw new Error("Windsurf RegisterUser missing apiKey");
-  const apiServerUrl = extractJsonPath(data, [["apiServerUrl"], ["api_server_url"]]) || WINDSURF_CONFIG.defaultApiServerUrl;
+  const apiServerUrl =
+    extractJsonPath(data, [["apiServerUrl"], ["api_server_url"]]) ||
+    WINDSURF_CONFIG.defaultApiServerUrl;
   const name = extractJsonPath(data, [["name"]]);
   return { apiKey, apiServerUrl, name };
 }
@@ -61,7 +76,9 @@ async function fetchWindsurfRegisterUser(firebaseIdToken) {
 // Best-effort: GetOneTimeAuthToken → GetCurrentUser → email/name.
 async function fetchWindsurfUserInfo(apiServerUrl, firebaseIdToken) {
   try {
-    const authRes = await windsurfSeatRequest(apiServerUrl, WINDSURF_CONFIG.oneTimeAuthPath, { firebaseIdToken });
+    const authRes = await windsurfSeatRequest(apiServerUrl, WINDSURF_CONFIG.oneTimeAuthPath, {
+      firebaseIdToken,
+    });
     const authToken = extractJsonPath(authRes, [["authToken"], ["auth_token"]]);
     if (!authToken) return { email: null, name: null };
     const userRes = await windsurfSeatRequest(apiServerUrl, WINDSURF_CONFIG.currentUserPath, {
@@ -73,7 +90,9 @@ async function fetchWindsurfUserInfo(apiServerUrl, firebaseIdToken) {
       email: extractJsonPath(user, [["email"]]),
       name: extractJsonPath(user, [["name"]]),
     };
-  } catch { return { email: null, name: null }; }
+  } catch {
+    return { email: null, name: null };
+  }
 }
 
 // Windsurf — browser OAuth: windsurf.com/signin →
@@ -101,14 +120,35 @@ const windsurf = {
       // Paste-token mode: sk-ws-... apiKey OR firebase JWT (eyJ...). Strip "Bearer " if pasted.
       const clean = trimmed.replace(/^Bearer\s+/i, "");
       if (clean.startsWith("sk-ws-")) {
-        return { accessToken: clean, refreshToken: null, expiresIn: null, apiServerUrl: config.defaultApiServerUrl, firebaseIdToken: null, _authMethod: "imported" };
+        return {
+          accessToken: clean,
+          refreshToken: null,
+          expiresIn: null,
+          apiServerUrl: config.defaultApiServerUrl,
+          firebaseIdToken: null,
+          _authMethod: "imported",
+        };
       }
       const reg = await fetchWindsurfRegisterUser(clean);
-      return { accessToken: reg.apiKey, refreshToken: null, expiresIn: null, apiServerUrl: reg.apiServerUrl, firebaseIdToken: clean, _authMethod: "imported" };
+      return {
+        accessToken: reg.apiKey,
+        refreshToken: null,
+        expiresIn: null,
+        apiServerUrl: reg.apiServerUrl,
+        firebaseIdToken: clean,
+        _authMethod: "imported",
+      };
     }
     const { firebaseIdToken } = parseWindsurfCallback(trimmed, state);
     const reg = await fetchWindsurfRegisterUser(firebaseIdToken);
-    return { accessToken: reg.apiKey, refreshToken: null, expiresIn: null, apiServerUrl: reg.apiServerUrl, firebaseIdToken, _authMethod: "oauth" };
+    return {
+      accessToken: reg.apiKey,
+      refreshToken: null,
+      expiresIn: null,
+      apiServerUrl: reg.apiServerUrl,
+      firebaseIdToken,
+      _authMethod: "oauth",
+    };
   },
   postExchange: async (tokens) => {
     if (!tokens.firebaseIdToken) return { userInfo: { email: null, name: null } };

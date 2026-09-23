@@ -6,7 +6,7 @@ import { MODEL_PRICING } from "../../open-sse/providers/pricing.js";
 
 describe("Gemini 3.7 Flash Support & Config (#3286, #3281)", () => {
   it("registers gemini-3.7-flash tiered models in antigravity provider registry", () => {
-    const agIds = antigravityRegistry.models.map(m => m.id);
+    const agIds = antigravityRegistry.models.map((m) => m.id);
     expect(agIds).toContain("gemini-3.7-flash-high");
     expect(agIds).toContain("gemini-3.7-flash-medium");
     expect(agIds).toContain("gemini-3.7-flash-low");
@@ -14,7 +14,7 @@ describe("Gemini 3.7 Flash Support & Config (#3286, #3281)", () => {
   });
 
   it("registers gemini-3.7-flash in gemini provider registry", () => {
-    const geminiIds = geminiRegistry.models.map(m => m.id);
+    const geminiIds = geminiRegistry.models.map((m) => m.id);
     expect(geminiIds).toContain("gemini-3.7-flash");
   });
 
@@ -30,7 +30,9 @@ describe("Gemini 3.7 Flash Support & Config (#3286, #3281)", () => {
   it("defines pricing matching gemini-3.6-flash baseline", () => {
     expect(MODEL_PRICING["gemini-3.7-flash"]).toEqual(MODEL_PRICING["gemini-3.6-flash"]);
     expect(MODEL_PRICING["gemini-3.7-flash-high"]).toEqual(MODEL_PRICING["gemini-3.6-flash-high"]);
-    expect(MODEL_PRICING["gemini-3.7-flash-medium"]).toEqual(MODEL_PRICING["gemini-3.6-flash-medium"]);
+    expect(MODEL_PRICING["gemini-3.7-flash-medium"]).toEqual(
+      MODEL_PRICING["gemini-3.6-flash-medium"],
+    );
     expect(MODEL_PRICING["gemini-3.7-flash-low"]).toEqual(MODEL_PRICING["gemini-3.6-flash-low"]);
   });
 });

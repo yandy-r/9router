@@ -10,7 +10,7 @@ const COLORS = {
   red: "\x1b[31m",
   yellow: "\x1b[33m",
   dim: "\x1b[2m",
-  cyan: "\x1b[36m"
+  cyan: "\x1b[36m",
 };
 
 const DEFAULT_PASSWORD = "123456";
@@ -30,70 +30,100 @@ async function showSettingsMenu(breadcrumb = []) {
       const tunnel = data?.tunnel || {};
       if (tunnel.enabled && tunnel.publicUrl) {
         lines.push(`  Endpoint: ${COLORS.green}${tunnel.publicUrl}/v1${COLORS.reset}`);
-        lines.push(`  Tunnel:   ${COLORS.green}ON${COLORS.reset} ${COLORS.dim}(${tunnel.shortId})${COLORS.reset}`);
+        lines.push(
+          `  Tunnel:   ${COLORS.green}ON${COLORS.reset} ${COLORS.dim}(${tunnel.shortId})${COLORS.reset}`,
+        );
       } else {
         lines.push(`  Endpoint: http://localhost:20128/v1`);
-        lines.push(`  Tunnel:   ${COLORS.red}OFF${COLORS.reset} ${COLORS.dim}(local only)${COLORS.reset}`);
+        lines.push(
+          `  Tunnel:   ${COLORS.red}OFF${COLORS.reset} ${COLORS.dim}(local only)${COLORS.reset}`,
+        );
       }
 
       // RTK section
       const rtkOn = data?.settings?.rtkEnabled !== false;
-      lines.push(`  RTK:      ${rtkOn ? `${COLORS.green}ON${COLORS.reset}` : `${COLORS.red}OFF${COLORS.reset}`} ${COLORS.dim}(Token Saver)${COLORS.reset}`);
+      lines.push(
+        `  RTK:      ${rtkOn ? `${COLORS.green}ON${COLORS.reset}` : `${COLORS.red}OFF${COLORS.reset}`} ${COLORS.dim}(Token Saver)${COLORS.reset}`,
+      );
       const headroomOn = data?.settings?.headroomEnabled === true;
-      lines.push(`  Headroom: ${headroomOn ? `${COLORS.green}ON${COLORS.reset}` : `${COLORS.red}OFF${COLORS.reset}`} ${COLORS.dim}(${data?.settings?.headroomUrl || "http://localhost:8787"})${COLORS.reset}`);
+      lines.push(
+        `  Headroom: ${headroomOn ? `${COLORS.green}ON${COLORS.reset}` : `${COLORS.red}OFF${COLORS.reset}`} ${COLORS.dim}(${data?.settings?.headroomUrl || "http://localhost:8787"})${COLORS.reset}`,
+      );
 
       // Auth mode section
       const authMode = data?.settings?.authMode || "password";
       const authColor = authMode === "password" ? COLORS.green : COLORS.yellow;
-      lines.push(`  Auth:     ${authColor}${authMode.toUpperCase()}${COLORS.reset} ${COLORS.dim}(login mode)${COLORS.reset}`);
+      lines.push(
+        `  Auth:     ${authColor}${authMode.toUpperCase()}${COLORS.reset} ${COLORS.dim}(login mode)${COLORS.reset}`,
+      );
 
       return lines.join("\n");
     },
     refresh: async () => {
       const [tunnelRes, settingsRes] = await Promise.all([
         api.getTunnelStatus(),
-        api.getSettings()
+        api.getSettings(),
       ]);
       return {
-        tunnel: tunnelRes.success ? (tunnelRes.data || {}) : {},
-        settings: settingsRes.success ? (settingsRes.data || {}) : {}
+        tunnel: tunnelRes.success ? tunnelRes.data || {} : {},
+        settings: settingsRes.success ? settingsRes.data || {} : {},
       };
     },
     items: [
       {
         label: "Tunnel ON",
-        action: async () => { await enableTunnel(); return true; }
+        action: async () => {
+          await enableTunnel();
+          return true;
+        },
       },
       {
         label: "Tunnel OFF",
-        action: async () => { await disableTunnel(); return true; }
+        action: async () => {
+          await disableTunnel();
+          return true;
+        },
       },
       {
         label: (d) => {
           const on = d?.settings?.rtkEnabled !== false;
           return `Token Saver (RTK): ${on ? "ON" : "OFF"} → toggle`;
         },
-        action: async (d) => { await toggleRtk(d?.settings?.rtkEnabled !== false); return true; }
+        action: async (d) => {
+          await toggleRtk(d?.settings?.rtkEnabled !== false);
+          return true;
+        },
       },
       {
         label: (d) => {
           const on = d?.settings?.headroomEnabled === true;
           return `Token Saver (Headroom): ${on ? "ON" : "OFF"} → toggle`;
         },
-        action: async (d) => { await toggleHeadroom(d?.settings?.headroomEnabled === true); return true; }
+        action: async (d) => {
+          await toggleHeadroom(d?.settings?.headroomEnabled === true);
+          return true;
+        },
       },
       {
         label: "🔑 Reset Password to Default",
-        action: async () => { await resetPassword(); return true; }
+        action: async () => {
+          await resetPassword();
+          return true;
+        },
       },
       {
         label: (d) => {
           const mode = d?.settings?.authMode || "password";
-          return mode === "password" ? "🔓 Reset Auth Mode (already password)" : `🔓 Reset Auth Mode to Password (current: ${mode})`;
+          return mode === "password"
+            ? "🔓 Reset Auth Mode (already password)"
+            : `🔓 Reset Auth Mode to Password (current: ${mode})`;
         },
-        action: async () => { await resetAuthMode(); return true; }
-      }
-    ]
+        action: async () => {
+          await resetAuthMode();
+          return true;
+        },
+      },
+    ],
   });
 }
 

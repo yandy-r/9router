@@ -10,7 +10,7 @@ export function geminiToOpenAIRequest(model, body, stream) {
   const result = {
     model: model,
     messages: [],
-    stream: stream
+    stream: stream,
   };
 
   // Generation config
@@ -34,7 +34,7 @@ export function geminiToOpenAIRequest(model, body, stream) {
     if (systemText) {
       result.messages.push({
         role: ROLE.SYSTEM,
-        content: systemText
+        content: systemText,
       });
     }
   }
@@ -60,8 +60,8 @@ export function geminiToOpenAIRequest(model, body, stream) {
             function: {
               name: func.name,
               description: func.description || "",
-              parameters: func.parameters || { type: "object", properties: {} }
-            }
+              parameters: func.parameters || { type: "object", properties: {} },
+            },
           });
         }
       }
@@ -74,7 +74,7 @@ export function geminiToOpenAIRequest(model, body, stream) {
 // Convert Gemini content to OpenAI message
 function convertGeminiContent(content) {
   const role = content.role === GEMINI_ROLE.USER ? ROLE.USER : ROLE.ASSISTANT;
-  
+
   if (!content.parts || !Array.isArray(content.parts)) {
     return null;
   }
@@ -91,8 +91,8 @@ function convertGeminiContent(content) {
       parts.push({
         type: OPENAI_BLOCK.IMAGE_URL,
         image_url: {
-          url: encodeDataUri(part.inlineData.mimeType, part.inlineData.data)
-        }
+          url: encodeDataUri(part.inlineData.mimeType, part.inlineData.data),
+        },
       });
     }
 
@@ -104,8 +104,8 @@ function convertGeminiContent(content) {
         type: OPENAI_BLOCK.FUNCTION,
         function: {
           name: part.functionCall.name,
-          arguments: JSON.stringify(part.functionCall.args || {})
-        }
+          arguments: JSON.stringify(part.functionCall.args || {}),
+        },
       });
     }
 
@@ -113,7 +113,9 @@ function convertGeminiContent(content) {
       return {
         role: ROLE.TOOL,
         tool_call_id: part.functionResponse.id || `call_${part.functionResponse.name}`,
-        content: JSON.stringify(part.functionResponse.response?.result || part.functionResponse.response || {})
+        content: JSON.stringify(
+          part.functionResponse.response?.result || part.functionResponse.response || {},
+        ),
       };
     }
   }
@@ -130,7 +132,7 @@ function convertGeminiContent(content) {
   if (parts.length > 0) {
     return {
       role,
-      content: collapseTextParts(parts)
+      content: collapseTextParts(parts),
     };
   }
 
@@ -141,7 +143,7 @@ function convertGeminiContent(content) {
 function extractGeminiText(content) {
   if (typeof content === "string") return content;
   if (content.parts && Array.isArray(content.parts)) {
-    return content.parts.map(p => p.text || "").join("");
+    return content.parts.map((p) => p.text || "").join("");
   }
   return "";
 }
@@ -149,4 +151,3 @@ function extractGeminiText(content) {
 // Register
 register(FORMATS.GEMINI, FORMATS.OPENAI, geminiToOpenAIRequest, null);
 register(FORMATS.GEMINI_CLI, FORMATS.OPENAI, geminiToOpenAIRequest, null);
-

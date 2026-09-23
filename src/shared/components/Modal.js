@@ -30,7 +30,9 @@ export default function Modal({
     } else {
       document.body.style.overflow = "";
     }
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function Modal({
           "rounded-[14px] shadow-[var(--shadow-elev)]",
           "fade-in",
           sizes[size],
-          className
+          className,
         )}
       >
         {/* Header */}
@@ -76,16 +78,16 @@ export default function Modal({
                       title="Close"
                       className="w-4 h-4 rounded-full bg-[#FF5F56] hover:brightness-90 transition-all cursor-pointer flex items-center justify-center group/dot"
                     >
-                      <span className="text-[9px] font-bold text-white opacity-0 group-hover/dot:opacity-100 transition-opacity leading-none">✕</span>
+                      <span className="text-[9px] font-bold text-white opacity-0 group-hover/dot:opacity-100 transition-opacity leading-none">
+                        ✕
+                      </span>
                     </button>
                   </Tooltip>
                   <div className="w-4 h-4 rounded-full bg-[#3a3a3a]/20 dark:bg-white/15 cursor-not-allowed" />
                   <div className="w-4 h-4 rounded-full bg-[#3a3a3a]/20 dark:bg-white/15 cursor-not-allowed" />
                 </div>
               )}
-              {title && (
-                <h2 className="text-lg font-semibold text-text-main">{title}</h2>
-              )}
+              {title && <h2 className="text-lg font-semibold text-text-main">{title}</h2>}
             </div>
             {/* X button — mobile only */}
             <button
@@ -99,7 +101,9 @@ export default function Modal({
         )}
 
         {/* Body */}
-        <div className="p-6 max-h-[calc(85vh-100px)] overflow-y-auto custom-scrollbar">{children}</div>
+        <div className="p-6 max-h-[calc(85vh-100px)] overflow-y-auto custom-scrollbar">
+          {children}
+        </div>
 
         {/* Footer */}
         {footer && (

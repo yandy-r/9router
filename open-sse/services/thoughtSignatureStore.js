@@ -56,7 +56,11 @@ async function maybePrunePersisted() {
 
     for (const k of keys) {
       const entry = all[k];
-      if (!entry || typeof entry.signature !== "string" || (entry.expiresAt && entry.expiresAt <= now)) {
+      if (
+        !entry ||
+        typeof entry.signature !== "string" ||
+        (entry.expiresAt && entry.expiresAt <= now)
+      ) {
         expiredKeys.push(k);
       } else {
         valid.push({ key: k, createdAt: entry.createdAt || 0 });
@@ -105,12 +109,14 @@ export function storeGeminiThoughtSignature(toolCallId, signature, sessionId = n
     });
 
     // Async persist to SQLite kv table without blocking
-    signatureKv.set(k, {
-      signature,
-      family,
-      createdAt: now,
-      expiresAt: now + PERSISTED_TTL_MS,
-    }).catch(() => {});
+    signatureKv
+      .set(k, {
+        signature,
+        family,
+        createdAt: now,
+        expiresAt: now + PERSISTED_TTL_MS,
+      })
+      .catch(() => {});
   }
 
   maybePrunePersisted().catch(() => {});
@@ -143,7 +149,12 @@ export async function getGeminiThoughtSignature(toolCallId, sessionId = null, mo
     if (sessionId && typeof sessionId === "string") {
       const sessionKey = `${sessionId}:${toolCallId}`;
       const sessionRow = await signatureKv.get(sessionKey);
-      if (sessionRow && typeof sessionRow.signature === "string" && (!sessionRow.expiresAt || sessionRow.expiresAt > Date.now()) && isCompatible(sessionRow, family)) {
+      if (
+        sessionRow &&
+        typeof sessionRow.signature === "string" &&
+        (!sessionRow.expiresAt || sessionRow.expiresAt > Date.now()) &&
+        isCompatible(sessionRow, family)
+      ) {
         memorySignatures.set(sessionKey, {
           signature: sessionRow.signature,
           family: sessionRow.family || null,

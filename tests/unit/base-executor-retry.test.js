@@ -47,7 +47,10 @@ describe("BaseExecutor.execute — retry by status (config-driven)", () => {
 
 describe("BaseExecutor.execute — baseUrls fallback", () => {
   it("falls over to the next url on 429 (shouldRetry)", async () => {
-    const ex = makeExec({ baseUrls: ["https://a/api", "https://b/api"], retry: { 429: { attempts: 0 } } });
+    const ex = makeExec({
+      baseUrls: ["https://a/api", "https://b/api"],
+      retry: { 429: { attempts: 0 } },
+    });
     fetchMock
       .mockResolvedValueOnce(res(429)) // url[0] → fallback
       .mockResolvedValueOnce(res(200)); // url[1] ok
@@ -62,7 +65,9 @@ describe("BaseExecutor.execute — network error retry/fallback", () => {
   it("maps network exception to 502 retry config", async () => {
     const ex = makeExec({ baseUrl: "https://x/api", retry: { 502: { attempts: 1, delayMs: 0 } } });
     fetchMock
-      .mockImplementationOnce(async () => { throw new Error("ECONNRESET"); })
+      .mockImplementationOnce(async () => {
+        throw new Error("ECONNRESET");
+      })
       .mockResolvedValueOnce(res(200));
     const out = await ex.execute({ model: "m", body: {}, stream: false, credentials: creds });
     expect(out.response.status).toBe(200);
@@ -72,7 +77,9 @@ describe("BaseExecutor.execute — network error retry/fallback", () => {
   it("throws when the only url fails with network error and no retries left", async () => {
     const ex = makeExec({ baseUrl: "https://x/api", retry: { 502: { attempts: 0 } } });
     // mockImplementationOnce (not persistent) avoids vitest flagging a reused rejection.
-    fetchMock.mockImplementationOnce(async () => { throw new Error("boom"); });
+    fetchMock.mockImplementationOnce(async () => {
+      throw new Error("boom");
+    });
     let thrown = null;
     try {
       await ex.execute({ model: "m", body: {}, stream: false, credentials: creds });

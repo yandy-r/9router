@@ -28,23 +28,38 @@ const kilocode = {
   pollToken: async (config, deviceCode) => {
     const response = await fetch(`${config.pollUrlBase}/${deviceCode}`);
     if (response.status === 202) return { ok: false, data: { error: "authorization_pending" } };
-    if (response.status === 403) return { ok: false, data: { error: "access_denied", error_description: "Authorization denied by user" } };
-    if (response.status === 410) return { ok: false, data: { error: "expired_token", error_description: "Authorization code expired" } };
-    if (!response.ok) return { ok: false, data: { error: "poll_failed", error_description: `Poll failed: ${response.status}` } };
+    if (response.status === 403)
+      return {
+        ok: false,
+        data: { error: "access_denied", error_description: "Authorization denied by user" },
+      };
+    if (response.status === 410)
+      return {
+        ok: false,
+        data: { error: "expired_token", error_description: "Authorization code expired" },
+      };
+    if (!response.ok)
+      return {
+        ok: false,
+        data: { error: "poll_failed", error_description: `Poll failed: ${response.status}` },
+      };
     const data = await response.json();
     if (data.status === "approved" && data.token) {
       // Fetch profile to get orgId for X-Kilocode-OrganizationID header
       let orgId = null;
       try {
         const profileRes = await fetch(`${config.apiBaseUrl}/api/profile`, {
-          headers: { "Authorization": `Bearer ${data.token}` }
+          headers: { Authorization: `Bearer ${data.token}` },
         });
         if (profileRes.ok) {
           const profile = await profileRes.json();
           orgId = profile.organizations?.[0]?.id || null;
         }
       } catch {}
-      return { ok: true, data: { access_token: data.token, _userEmail: data.userEmail, _orgId: orgId } };
+      return {
+        ok: true,
+        data: { access_token: data.token, _userEmail: data.userEmail, _orgId: orgId },
+      };
     }
     return { ok: false, data: { error: "authorization_pending" } };
   },

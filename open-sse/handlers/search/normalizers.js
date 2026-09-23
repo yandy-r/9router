@@ -35,7 +35,17 @@ function normalizeSerper(data, _query, searchType) {
   const items = searchType === "news" ? data.news : data.organic;
   if (!Array.isArray(items)) return { results: [], totalResults: null };
   const results = items.map((item, idx) =>
-    makeResult("serper", { title: item.title, url: item.link, snippet: item.snippet || item.description, published_at: item.date }, idx, now)
+    makeResult(
+      "serper",
+      {
+        title: item.title,
+        url: item.link,
+        snippet: item.snippet || item.description,
+        published_at: item.date,
+      },
+      idx,
+      now,
+    ),
   );
   const total = data.searchParameters?.totalResults;
   return { results, totalResults: typeof total === "number" ? total : null };
@@ -47,13 +57,18 @@ function normalizeBrave(data, _query, searchType) {
   const items = container?.results;
   if (!Array.isArray(items)) return { results: [], totalResults: null };
   const results = items.map((item, idx) =>
-    makeResult("brave-search", {
-      title: item.title,
-      url: item.url,
-      snippet: item.description,
-      published_at: item.page_age || item.age,
-      favicon_url: item.meta_url?.favicon || item.favicon,
-    }, idx, now)
+    makeResult(
+      "brave-search",
+      {
+        title: item.title,
+        url: item.url,
+        snippet: item.description,
+        published_at: item.page_age || item.age,
+        favicon_url: item.meta_url?.favicon || item.favicon,
+      },
+      idx,
+      now,
+    ),
   );
   return { results, totalResults: container?.totalCount ?? null };
 }
@@ -63,7 +78,17 @@ function normalizePerplexity(data, _query, _searchType) {
   const items = data.results;
   if (!Array.isArray(items)) return { results: [], totalResults: null };
   const results = items.map((item, idx) =>
-    makeResult("perplexity", { title: item.title, url: item.url, snippet: item.snippet, published_at: item.date || item.last_updated }, idx, now)
+    makeResult(
+      "perplexity",
+      {
+        title: item.title,
+        url: item.url,
+        snippet: item.snippet,
+        published_at: item.date || item.last_updated,
+      },
+      idx,
+      now,
+    ),
   );
   return { results, totalResults: results.length };
 }
@@ -73,18 +98,23 @@ function normalizeExa(data, _query, _searchType) {
   const items = data.results;
   if (!Array.isArray(items)) return { results: [], totalResults: null };
   const results = items.map((item, idx) =>
-    makeResult("exa", {
-      title: item.title,
-      url: item.url,
-      snippet: item.highlights?.[0] || item.text?.slice(0, 300) || "",
-      score: item.score,
-      published_at: item.publishedDate,
-      favicon_url: item.favicon,
-      author: item.author,
-      image_url: item.image,
-      full_text: item.text,
-      text_format: "text",
-    }, idx, now)
+    makeResult(
+      "exa",
+      {
+        title: item.title,
+        url: item.url,
+        snippet: item.highlights?.[0] || item.text?.slice(0, 300) || "",
+        score: item.score,
+        published_at: item.publishedDate,
+        favicon_url: item.favicon,
+        author: item.author,
+        image_url: item.image,
+        full_text: item.text,
+        text_format: "text",
+      },
+      idx,
+      now,
+    ),
   );
   return { results, totalResults: results.length };
 }
@@ -94,15 +124,20 @@ function normalizeTavily(data, _query, _searchType) {
   const items = data.results;
   if (!Array.isArray(items)) return { results: [], totalResults: null };
   const results = items.map((item, idx) =>
-    makeResult("tavily", {
-      title: item.title,
-      url: item.url,
-      snippet: item.content || "",
-      score: item.score,
-      published_at: item.published_date,
-      full_text: item.raw_content,
-      text_format: "text",
-    }, idx, now)
+    makeResult(
+      "tavily",
+      {
+        title: item.title,
+        url: item.url,
+        snippet: item.content || "",
+        score: item.score,
+        published_at: item.published_date,
+        full_text: item.raw_content,
+        text_format: "text",
+      },
+      idx,
+      now,
+    ),
   );
   return { results, totalResults: results.length };
 }
@@ -111,14 +146,23 @@ function normalizeGooglePse(data, _query, _searchType) {
   const now = new Date().toISOString();
   const items = Array.isArray(data.items) ? data.items : [];
   const results = items.map((item, idx) =>
-    makeResult("google-pse", {
-      title: item.title,
-      url: item.link,
-      snippet: item.snippet,
-      image_url: item.pagemap?.cse_image?.[0]?.src || item.pagemap?.cse_thumbnail?.[0]?.src || item.pagemap?.metatags?.[0]?.["og:image"],
-    }, idx, now)
+    makeResult(
+      "google-pse",
+      {
+        title: item.title,
+        url: item.link,
+        snippet: item.snippet,
+        image_url:
+          item.pagemap?.cse_image?.[0]?.src ||
+          item.pagemap?.cse_thumbnail?.[0]?.src ||
+          item.pagemap?.metatags?.[0]?.["og:image"],
+      },
+      idx,
+      now,
+    ),
   );
-  const raw = data.searchInformation?.totalResults ?? data.queries?.request?.[0]?.totalResults ?? null;
+  const raw =
+    data.searchInformation?.totalResults ?? data.queries?.request?.[0]?.totalResults ?? null;
   const total = typeof raw === "string" ? Number(raw) : raw;
   return { results, totalResults: Number.isFinite(total) ? total : null };
 }
@@ -127,32 +171,46 @@ function normalizeLinkup(data, _query, _searchType) {
   const now = new Date().toISOString();
   const items = Array.isArray(data.results) ? data.results : [];
   const results = items.map((item, idx) =>
-    makeResult("linkup", {
-      title: item.name || item.title,
-      url: item.url,
-      snippet: item.content || item.snippet || "",
-      source_type: item.type || "web",
-      image_url: item.image_url || item.imageUrl || null,
-      full_text: item.content,
-      text_format: "text",
-    }, idx, now)
+    makeResult(
+      "linkup",
+      {
+        title: item.name || item.title,
+        url: item.url,
+        snippet: item.content || item.snippet || "",
+        source_type: item.type || "web",
+        image_url: item.image_url || item.imageUrl || null,
+        full_text: item.content,
+        text_format: "text",
+      },
+      idx,
+      now,
+    ),
   );
   return { results, totalResults: results.length };
 }
 
 function normalizeSearchApi(data, _query, _searchType) {
   const now = new Date().toISOString();
-  const items = Array.isArray(data.organic_results) ? data.organic_results : Array.isArray(data.top_stories) ? data.top_stories : [];
+  const items = Array.isArray(data.organic_results)
+    ? data.organic_results
+    : Array.isArray(data.top_stories)
+      ? data.top_stories
+      : [];
   const results = items.map((item, idx) =>
-    makeResult("searchapi", {
-      title: item.title,
-      url: item.link,
-      snippet: item.snippet || item.description || "",
-      published_at: item.date || item.published_at,
-      favicon_url: item.favicon,
-      author: item.source || null,
-      image_url: item.thumbnail || null,
-    }, idx, now)
+    makeResult(
+      "searchapi",
+      {
+        title: item.title,
+        url: item.link,
+        snippet: item.snippet || item.description || "",
+        published_at: item.date || item.published_at,
+        favicon_url: item.favicon,
+        author: item.source || null,
+        image_url: item.thumbnail || null,
+      },
+      idx,
+      now,
+    ),
   );
   const raw = data.search_information?.total_results;
   const total = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : null;
@@ -165,20 +223,37 @@ function normalizeYouCom(data, _query, searchType) {
   const section = searchType === "news" ? container?.news || [] : container?.web || [];
   const items = Array.isArray(section) ? section : [];
   const results = items.map((item, idx) => {
-    const firstSnippet = Array.isArray(item.snippets) ? item.snippets.find((v) => typeof v === "string") : null;
-    const livecrawlText = typeof item.markdown === "string" ? item.markdown : typeof item.html === "string" ? item.html : undefined;
+    const firstSnippet = Array.isArray(item.snippets)
+      ? item.snippets.find((v) => typeof v === "string")
+      : null;
+    const livecrawlText =
+      typeof item.markdown === "string"
+        ? item.markdown
+        : typeof item.html === "string"
+          ? item.html
+          : undefined;
     const livecrawlFormat = typeof item.markdown === "string" ? "markdown" : "html";
-    return makeResult("youcom", {
-      title: item.title,
-      url: item.url,
-      snippet: typeof firstSnippet === "string" ? firstSnippet : typeof item.description === "string" ? item.description : "",
-      published_at: item.page_age,
-      favicon_url: item.favicon_url,
-      image_url: item.thumbnail_url,
-      source_type: searchType,
-      full_text: livecrawlText,
-      text_format: livecrawlText ? livecrawlFormat : undefined,
-    }, idx, now);
+    return makeResult(
+      "youcom",
+      {
+        title: item.title,
+        url: item.url,
+        snippet:
+          typeof firstSnippet === "string"
+            ? firstSnippet
+            : typeof item.description === "string"
+              ? item.description
+              : "",
+        published_at: item.page_age,
+        favicon_url: item.favicon_url,
+        image_url: item.thumbnail_url,
+        source_type: searchType,
+        full_text: livecrawlText,
+        text_format: livecrawlText ? livecrawlFormat : undefined,
+      },
+      idx,
+      now,
+    );
   });
   return { results, totalResults: results.length };
 }
@@ -187,14 +262,21 @@ function normalizeSearxng(data, _query, _searchType) {
   const now = new Date().toISOString();
   const items = Array.isArray(data.results) ? data.results : [];
   const results = items.map((item, idx) =>
-    makeResult("searxng", {
-      title: item.title,
-      url: item.url,
-      snippet: item.content || item.snippet || "",
-      published_at: item.publishedDate || item.published_date || null,
-      source_type: Array.isArray(item.engines) ? item.engines.join(", ") : item.engine || item.category || null,
-      image_url: item.thumbnail || item.img_src || null,
-    }, idx, now)
+    makeResult(
+      "searxng",
+      {
+        title: item.title,
+        url: item.url,
+        snippet: item.content || item.snippet || "",
+        published_at: item.publishedDate || item.published_date || null,
+        source_type: Array.isArray(item.engines)
+          ? item.engines.join(", ")
+          : item.engine || item.category || null,
+        image_url: item.thumbnail || item.img_src || null,
+      },
+      idx,
+      now,
+    ),
   );
   return { results, totalResults: results.length };
 }
@@ -206,30 +288,37 @@ function normalizeXquik(data, _query, _searchType) {
     const username = typeof item?.author?.username === "string" ? item.author.username : "";
     const authorName = typeof item?.author?.name === "string" ? item.author.name : "";
     const tweetId = typeof item?.id === "string" ? item.id : String(item?.id || "");
-    const url = username && tweetId
-      ? `https://x.com/${encodeURIComponent(username)}/status/${encodeURIComponent(tweetId)}`
-      : tweetId
-        ? `https://x.com/i/web/status/${encodeURIComponent(tweetId)}`
-        : "";
+    const url =
+      username && tweetId
+        ? `https://x.com/${encodeURIComponent(username)}/status/${encodeURIComponent(tweetId)}`
+        : tweetId
+          ? `https://x.com/i/web/status/${encodeURIComponent(tweetId)}`
+          : "";
     const author = username ? `@${username}` : authorName || null;
     const title = author ? `${author} on X` : "X post";
     const imageUrl = Array.isArray(item?.media)
       ? item.media.find((media) => typeof media?.mediaUrl === "string")?.mediaUrl
       : null;
 
-    return makeResult("xquik", {
-      title,
-      url,
-      snippet: typeof item?.text === "string" ? item.text : "",
-      published_at: typeof item?.createdAt === "string" ? item.createdAt : null,
-      author,
-      image_url: imageUrl || null,
-      source_type: "x_post",
-      full_text: typeof item?.text === "string" ? item.text : undefined,
-      text_format: "text",
-    }, idx, now);
+    return makeResult(
+      "xquik",
+      {
+        title,
+        url,
+        snippet: typeof item?.text === "string" ? item.text : "",
+        published_at: typeof item?.createdAt === "string" ? item.createdAt : null,
+        author,
+        image_url: imageUrl || null,
+        source_type: "x_post",
+        full_text: typeof item?.text === "string" ? item.text : undefined,
+        text_format: "text",
+      },
+      idx,
+      now,
+    );
   });
-  const nextCursor = typeof data.next_cursor === "string" && data.next_cursor ? data.next_cursor : null;
+  const nextCursor =
+    typeof data.next_cursor === "string" && data.next_cursor ? data.next_cursor : null;
   return {
     results,
     totalResults: null,
@@ -242,17 +331,22 @@ function normalizeXquik(data, _query, _searchType) {
 
 function normalizeOllamaSearch(data, _query, _searchType) {
   const now = new Date().toISOString();
-  const items = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+  const items = Array.isArray(data?.results) ? data.results : Array.isArray(data) ? data : [];
   const results = items.map((item, idx) =>
-    makeResult("ollama-search", {
-      title: item.title,
-      url: item.url,
-      snippet: item.content || item.snippet || "",
-      full_text: item.content,
-      text_format: "text",
-      published_at: item.published_at || null,
-      source_type: item.source || null,
-    }, idx, now)
+    makeResult(
+      "ollama-search",
+      {
+        title: item.title,
+        url: item.url,
+        snippet: item.content || item.snippet || "",
+        full_text: item.content,
+        text_format: "text",
+        published_at: item.published_at || null,
+        source_type: item.source || null,
+      },
+      idx,
+      now,
+    ),
   );
   return { results, totalResults: results.length };
 }
@@ -263,39 +357,51 @@ function normalizeGlmSearch(data, _query, _searchType) {
   let payload = data;
   const textContent = data?.result?.content?.[0]?.text;
   if (typeof textContent === "string") {
-    try { payload = JSON.parse(textContent); } catch { payload = {}; }
+    try {
+      payload = JSON.parse(textContent);
+    } catch {
+      payload = {};
+    }
   }
-  const items = Array.isArray(payload?.results) ? payload.results
-    : Array.isArray(payload?.news) ? payload.news
-    : Array.isArray(payload) ? payload
-    : [];
+  const items = Array.isArray(payload?.results)
+    ? payload.results
+    : Array.isArray(payload?.news)
+      ? payload.news
+      : Array.isArray(payload)
+        ? payload
+        : [];
   const results = items.map((item, idx) =>
-    makeResult("glm", {
-      title: item.title,
-      url: item.link || item.url,
-      snippet: item.content || "",
-      published_at: item.publish_date || item.published_at || null,
-      favicon_url: item.icon || null,
-      source_type: item.media || null,
-    }, idx, now)
+    makeResult(
+      "glm",
+      {
+        title: item.title,
+        url: item.link || item.url,
+        snippet: item.content || "",
+        published_at: item.publish_date || item.published_at || null,
+        favicon_url: item.icon || null,
+        source_type: item.media || null,
+      },
+      idx,
+      now,
+    ),
   );
   return { results, totalResults: results.length };
 }
 
 const NORMALIZERS = {
-  "serper": normalizeSerper,
+  serper: normalizeSerper,
   "brave-search": normalizeBrave,
-  "perplexity": normalizePerplexity,
-  "exa": normalizeExa,
-  "tavily": normalizeTavily,
+  perplexity: normalizePerplexity,
+  exa: normalizeExa,
+  tavily: normalizeTavily,
   "google-pse": normalizeGooglePse,
-  "linkup": normalizeLinkup,
-  "searchapi": normalizeSearchApi,
-  "youcom": normalizeYouCom,
-  "searxng": normalizeSearxng,
-  "xquik": normalizeXquik,
+  linkup: normalizeLinkup,
+  searchapi: normalizeSearchApi,
+  youcom: normalizeYouCom,
+  searxng: normalizeSearxng,
+  xquik: normalizeXquik,
   "ollama-search": normalizeOllamaSearch,
-  "glm": normalizeGlmSearch,
+  glm: normalizeGlmSearch,
 };
 
 /**

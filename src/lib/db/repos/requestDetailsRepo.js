@@ -11,7 +11,7 @@ let cachedConfig = null;
 let cachedConfigTs = 0;
 
 async function getObservabilityConfig() {
-  if (cachedConfig && (Date.now() - cachedConfigTs) < CONFIG_CACHE_TTL_MS) return cachedConfig;
+  if (cachedConfig && Date.now() - cachedConfigTs < CONFIG_CACHE_TTL_MS) return cachedConfig;
   try {
     const { getSettings } = await import("./settingsRepo.js");
     const settings = await getSettings();
@@ -20,26 +20,46 @@ async function getObservabilityConfig() {
       const enabled = envRequestLogs.toLowerCase() === "true";
       cachedConfig = {
         enabled,
-        maxRecords: settings.observabilityMaxRecords || parseInt(process.env.OBSERVABILITY_MAX_RECORDS || String(DEFAULT_MAX_RECORDS), 10),
-        batchSize: settings.observabilityBatchSize || parseInt(process.env.OBSERVABILITY_BATCH_SIZE || String(DEFAULT_BATCH_SIZE), 10),
-        flushIntervalMs: settings.observabilityFlushIntervalMs || parseInt(process.env.OBSERVABILITY_FLUSH_INTERVAL_MS || String(DEFAULT_FLUSH_INTERVAL_MS), 10),
-        maxJsonSize: (settings.observabilityMaxJsonSize || parseInt(process.env.OBSERVABILITY_MAX_JSON_SIZE || "5", 10)) * 1024,
+        maxRecords:
+          settings.observabilityMaxRecords ||
+          parseInt(process.env.OBSERVABILITY_MAX_RECORDS || String(DEFAULT_MAX_RECORDS), 10),
+        batchSize:
+          settings.observabilityBatchSize ||
+          parseInt(process.env.OBSERVABILITY_BATCH_SIZE || String(DEFAULT_BATCH_SIZE), 10),
+        flushIntervalMs:
+          settings.observabilityFlushIntervalMs ||
+          parseInt(
+            process.env.OBSERVABILITY_FLUSH_INTERVAL_MS || String(DEFAULT_FLUSH_INTERVAL_MS),
+            10,
+          ),
+        maxJsonSize:
+          (settings.observabilityMaxJsonSize ||
+            parseInt(process.env.OBSERVABILITY_MAX_JSON_SIZE || "5", 10)) * 1024,
       };
       cachedConfigTs = Date.now();
       return cachedConfig;
     }
     const envFallback = process.env.OBSERVABILITY_ENABLED !== "false";
     const uiFlag = typeof settings.enableObservability === "boolean";
-    const enabled = uiFlag
-      ? settings.enableObservability
-      : envFallback;
+    const enabled = uiFlag ? settings.enableObservability : envFallback;
 
     cachedConfig = {
       enabled,
-      maxRecords: settings.observabilityMaxRecords || parseInt(process.env.OBSERVABILITY_MAX_RECORDS || String(DEFAULT_MAX_RECORDS), 10),
-      batchSize: settings.observabilityBatchSize || parseInt(process.env.OBSERVABILITY_BATCH_SIZE || String(DEFAULT_BATCH_SIZE), 10),
-      flushIntervalMs: settings.observabilityFlushIntervalMs || parseInt(process.env.OBSERVABILITY_FLUSH_INTERVAL_MS || String(DEFAULT_FLUSH_INTERVAL_MS), 10),
-      maxJsonSize: (settings.observabilityMaxJsonSize || parseInt(process.env.OBSERVABILITY_MAX_JSON_SIZE || "5", 10)) * 1024,
+      maxRecords:
+        settings.observabilityMaxRecords ||
+        parseInt(process.env.OBSERVABILITY_MAX_RECORDS || String(DEFAULT_MAX_RECORDS), 10),
+      batchSize:
+        settings.observabilityBatchSize ||
+        parseInt(process.env.OBSERVABILITY_BATCH_SIZE || String(DEFAULT_BATCH_SIZE), 10),
+      flushIntervalMs:
+        settings.observabilityFlushIntervalMs ||
+        parseInt(
+          process.env.OBSERVABILITY_FLUSH_INTERVAL_MS || String(DEFAULT_FLUSH_INTERVAL_MS),
+          10,
+        ),
+      maxJsonSize:
+        (settings.observabilityMaxJsonSize ||
+          parseInt(process.env.OBSERVABILITY_MAX_JSON_SIZE || "5", 10)) * 1024,
     };
   } catch {
     cachedConfig = {
@@ -54,7 +74,7 @@ async function getObservabilityConfig() {
   return cachedConfig;
 }
 
-let writeBuffer = [];
+const writeBuffer = [];
 let flushTimer = null;
 let isFlushing = false;
 
@@ -120,7 +140,15 @@ async function flushToDatabase() {
 
           db.run(
             `INSERT INTO requestDetails(id, timestamp, provider, model, connectionId, status, data) VALUES(?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET timestamp = excluded.timestamp, provider = excluded.provider, model = excluded.model, connectionId = excluded.connectionId, status = excluded.status, data = excluded.data`,
-            [record.id, record.timestamp, record.provider, record.model, record.connectionId, record.status, stringifyJson(record)]
+            [
+              record.id,
+              record.timestamp,
+              record.provider,
+              record.model,
+              record.connectionId,
+              record.status,
+              stringifyJson(record),
+            ],
           );
         }
 
@@ -128,7 +156,7 @@ async function flushToDatabase() {
         if (cnt && cnt.c > config.maxRecords) {
           db.run(
             `DELETE FROM requestDetails WHERE id IN (SELECT id FROM requestDetails ORDER BY timestamp ASC LIMIT ?)`,
-            [cnt.c - config.maxRecords]
+            [cnt.c - config.maxRecords],
           );
         }
       });
@@ -142,14 +170,19 @@ async function flushToDatabase() {
 
 export async function saveRequestDetail(detail) {
   const config = await getObservabilityConfig();
-  if (!config.enabled) {return;}
+  if (!config.enabled) {
+    return;
+  }
 
   writeBuffer.push(detail);
 
   // Trigger immediate flush if batch threshold reached.
   // flushToDatabase() drains entire buffer in a loop, so all pushes during await are persisted.
   if (writeBuffer.length >= config.batchSize) {
-    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
     flushToDatabase().catch((e) => console.error("[requestDetailsRepo] flush err:", e));
   } else if (!flushTimer) {
     flushTimer = setTimeout(() => {
@@ -164,12 +197,30 @@ export async function getRequestDetails(filter = {}) {
   const conds = [];
   const params = [];
 
-  if (filter.provider) { conds.push("provider = ?"); params.push(filter.provider); }
-  if (filter.model) { conds.push("model = ?"); params.push(filter.model); }
-  if (filter.connectionId) { conds.push("connectionId = ?"); params.push(filter.connectionId); }
-  if (filter.status) { conds.push("status = ?"); params.push(filter.status); }
-  if (filter.startDate) { conds.push("timestamp >= ?"); params.push(new Date(filter.startDate).toISOString()); }
-  if (filter.endDate) { conds.push("timestamp <= ?"); params.push(new Date(filter.endDate).toISOString()); }
+  if (filter.provider) {
+    conds.push("provider = ?");
+    params.push(filter.provider);
+  }
+  if (filter.model) {
+    conds.push("model = ?");
+    params.push(filter.model);
+  }
+  if (filter.connectionId) {
+    conds.push("connectionId = ?");
+    params.push(filter.connectionId);
+  }
+  if (filter.status) {
+    conds.push("status = ?");
+    params.push(filter.status);
+  }
+  if (filter.startDate) {
+    conds.push("timestamp >= ?");
+    params.push(new Date(filter.startDate).toISOString());
+  }
+  if (filter.endDate) {
+    conds.push("timestamp <= ?");
+    params.push(new Date(filter.endDate).toISOString());
+  }
 
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
   const cntRow = db.get(`SELECT COUNT(*) as c FROM requestDetails ${where}`, params);
@@ -182,19 +233,28 @@ export async function getRequestDetails(filter = {}) {
 
   const rows = db.all(
     `SELECT data FROM requestDetails ${where} ORDER BY timestamp DESC LIMIT ? OFFSET ?`,
-    [...params, pageSize, offset]
+    [...params, pageSize, offset],
   );
   const details = rows.map((r) => parseJson(r.data, {}));
 
   return {
     details,
-    pagination: { page, pageSize, totalItems, totalPages, hasNext: page < totalPages, hasPrev: page > 1 },
+    pagination: {
+      page,
+      pageSize,
+      totalItems,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    },
   };
 }
 
 export async function getDistinctProviders() {
   const db = await getAdapter();
-  const rows = db.all(`SELECT DISTINCT provider FROM requestDetails WHERE provider IS NOT NULL ORDER BY provider ASC`);
+  const rows = db.all(
+    `SELECT DISTINCT provider FROM requestDetails WHERE provider IS NOT NULL ORDER BY provider ASC`,
+  );
   return rows.map((r) => r.provider);
 }
 
@@ -205,7 +265,10 @@ export async function getRequestDetailById(id) {
 }
 
 const _shutdownHandler = async () => {
-  if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
   if (writeBuffer.length > 0) await flushToDatabase();
 };
 

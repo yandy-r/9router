@@ -35,7 +35,7 @@ async function fetchVoicesWin() {
   const { stdout } = await execFileAsync(
     "powershell.exe",
     ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script],
-    { windowsHide: true }
+    { windowsHide: true },
   );
   const raw = JSON.parse(stdout.trim() || "[]");
   const list = Array.isArray(raw) ? raw : [raw];
@@ -44,9 +44,11 @@ async function fetchVoicesWin() {
     const [lang, country = ""] = culture.split("-");
     const genderMap = { 1: "Male", 2: "Female", Male: "Male", Female: "Female" };
     return {
-      id: v.Name, name: v.Name,
+      id: v.Name,
+      name: v.Name,
       locale: culture.replace("-", "_"),
-      lang, country,
+      lang,
+      country,
       gender: genderMap[v.Gender] || "",
     };
   });
@@ -70,7 +72,16 @@ async function synthesizeMacOrWin(text, voiceId) {
   try {
     const args = voiceId ? ["-v", voiceId, "-o", aiffPath, text] : ["-o", aiffPath, text];
     await execFileAsync("say", args);
-    await execFileAsync("ffmpeg", ["-y", "-i", aiffPath, "-codec:a", "libmp3lame", "-qscale:a", "4", mp3Path]);
+    await execFileAsync("ffmpeg", [
+      "-y",
+      "-i",
+      aiffPath,
+      "-codec:a",
+      "libmp3lame",
+      "-qscale:a",
+      "4",
+      mp3Path,
+    ]);
     const buf = await readFile(mp3Path);
     return buf.toString("base64");
   } finally {

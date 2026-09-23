@@ -25,7 +25,7 @@ export function getAllSlugs(lang = DEFAULT_LANG) {
   const walk = (dir, basePath = "") => {
     const files = fs.readdirSync(dir);
     let results = [];
-    files.forEach(file => {
+    files.forEach((file) => {
       const full = path.join(dir, file);
       const stat = fs.statSync(full);
       if (stat.isDirectory()) {

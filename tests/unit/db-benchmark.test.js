@@ -12,7 +12,9 @@ const originalDataDir = process.env.DATA_DIR;
 let tempSqlite, tempLowdb;
 let sqliteDb, lowDb;
 
-function fmt(ms) { return `${ms.toFixed(2)}ms`; }
+function fmt(ms) {
+  return `${ms.toFixed(2)}ms`;
+}
 
 async function bench(label, fn) {
   // warmup
@@ -56,8 +58,10 @@ describe("DB Benchmark — SQLite vs Lowdb", () => {
     const sqliteTime = await bench("SQLite createProviderConnection", async () => {
       for (let i = 0; i < N_ITEMS; i++) {
         await sqliteDb.createProviderConnection({
-          provider: `bench-p${i % 5}`, authType: "apikey",
-          name: `name-${i}`, apiKey: `k-${i}`,
+          provider: `bench-p${i % 5}`,
+          authType: "apikey",
+          name: `name-${i}`,
+          apiKey: `k-${i}`,
         });
       }
     });
@@ -65,9 +69,15 @@ describe("DB Benchmark — SQLite vs Lowdb", () => {
     const lowdbTime = await bench("Lowdb push + write", async () => {
       for (let i = 0; i < N_ITEMS; i++) {
         lowDb.data.providerConnections.push({
-          id: `id-${i}`, provider: `bench-p${i % 5}`, authType: "apikey",
-          name: `name-${i}`, apiKey: `k-${i}`, priority: i + 1, isActive: true,
-          createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+          id: `id-${i}`,
+          provider: `bench-p${i % 5}`,
+          authType: "apikey",
+          name: `name-${i}`,
+          apiKey: `k-${i}`,
+          priority: i + 1,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         });
         await lowDb.write();
       }
@@ -125,9 +135,12 @@ describe("DB Benchmark — SQLite vs Lowdb", () => {
     const sqliteTime = await bench("SQLite saveRequestUsage", async () => {
       for (let i = 0; i < N_ITEMS; i++) {
         await sqliteDb.saveRequestUsage({
-          provider: "openai", model: `m-${i % 10}`, connectionId: `c-${i % 5}`,
+          provider: "openai",
+          model: `m-${i % 10}`,
+          connectionId: `c-${i % 5}`,
           tokens: { prompt_tokens: 100 + i, completion_tokens: 50 + i },
-          endpoint: "/v1/chat/completions", status: "ok",
+          endpoint: "/v1/chat/completions",
+          status: "ok",
         });
       }
     });
@@ -136,9 +149,14 @@ describe("DB Benchmark — SQLite vs Lowdb", () => {
       lowDb.data.usageHistory = [];
       for (let i = 0; i < N_ITEMS; i++) {
         lowDb.data.usageHistory.push({
-          timestamp: new Date().toISOString(), provider: "openai", model: `m-${i % 10}`,
-          connectionId: `c-${i % 5}`, tokens: { prompt_tokens: 100 + i, completion_tokens: 50 + i },
-          endpoint: "/v1/chat/completions", status: "ok", cost: 0,
+          timestamp: new Date().toISOString(),
+          provider: "openai",
+          model: `m-${i % 10}`,
+          connectionId: `c-${i % 5}`,
+          tokens: { prompt_tokens: 100 + i, completion_tokens: 50 + i },
+          endpoint: "/v1/chat/completions",
+          status: "ok",
+          cost: 0,
         });
         await lowDb.write();
       }
@@ -159,7 +177,9 @@ describe("DB Benchmark — SQLite vs Lowdb", () => {
       for (let i = 0; i < 50; i++) {
         await lowDb.read();
         const cutoff = Date.now() - 86400000;
-        const hist = lowDb.data.usageHistory.filter((h) => new Date(h.timestamp).getTime() >= cutoff);
+        const hist = lowDb.data.usageHistory.filter(
+          (h) => new Date(h.timestamp).getTime() >= cutoff,
+        );
         const stats = { byProvider: {}, byModel: {} };
         for (const e of hist) {
           if (!stats.byProvider[e.provider]) stats.byProvider[e.provider] = { requests: 0 };

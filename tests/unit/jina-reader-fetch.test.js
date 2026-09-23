@@ -13,14 +13,18 @@ describe("Jina Reader fetch", () => {
   });
 
   it("uses Jina's JSON POST API instead of embedding the URL in the path", async () => {
-    global.fetch.mockResolvedValueOnce(new Response([
-      "Title: Example page",
-      "",
-      "URL Source: https://example.com/article",
-      "",
-      "Markdown Content:",
-      "Hello",
-    ].join("\n")));
+    global.fetch.mockResolvedValueOnce(
+      new Response(
+        [
+          "Title: Example page",
+          "",
+          "URL Source: https://example.com/article",
+          "",
+          "Markdown Content:",
+          "Hello",
+        ].join("\n"),
+      ),
+    );
 
     const result = await handleFetchCore({
       url: "https://example.com/article",
@@ -45,10 +49,12 @@ describe("Jina Reader fetch", () => {
   });
 
   it("returns the upstream status and error body", async () => {
-    global.fetch.mockResolvedValueOnce(new Response(
-      JSON.stringify({ detail: "Payment required" }),
-      { status: 402, headers: { "Content-Type": "application/json" } },
-    ));
+    global.fetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ detail: "Payment required" }), {
+        status: 402,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
 
     const result = await handleFetchCore({
       url: "https://example.com/article",

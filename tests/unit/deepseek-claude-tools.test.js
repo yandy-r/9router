@@ -57,12 +57,12 @@ describe("prepareClaudeRequest — provider: deepseek", () => {
         { type: "web_search_20250305", name: "web_search" },
         { type: "web_search_20260209", name: "web_search" },
       ]),
-      "deepseek"
+      "deepseek",
     );
 
     expect(Array.isArray(out.tools)).toBe(true);
     expect(out.tools).toHaveLength(2);
-    const types = out.tools.map(t => t.type).sort();
+    const types = out.tools.map((t) => t.type).sort();
     expect(types).toEqual(["web_search_20250305", "web_search_20260209"]);
   });
 
@@ -72,7 +72,7 @@ describe("prepareClaudeRequest — provider: deepseek", () => {
     // its discriminator field with the same unknown-variant error.
     const out = prepareClaudeRequest(
       makeBody([{ type: "web_search_20250305", name: "web_search" }]),
-      "deepseek"
+      "deepseek",
     );
 
     expect(out.tools[0].type).toBe("web_search_20250305");
@@ -85,7 +85,7 @@ describe("prepareClaudeRequest — provider: deepseek", () => {
         { type: "custom", name: "Bash", input_schema: { type: "object" } },
         { type: "web_search_20250305", name: "web_search" },
       ]),
-      "deepseek"
+      "deepseek",
     );
 
     expect(Array.isArray(out.tools)).toBe(true);
@@ -102,7 +102,7 @@ describe("prepareClaudeRequest — provider: deepseek", () => {
   it("rejects future / unknown tool types instead of forwarding them", () => {
     const out = prepareClaudeRequest(
       makeBody([{ type: "future_tool_2099", name: "x" }]),
-      "deepseek"
+      "deepseek",
     );
     expect(out.tools).toBeUndefined();
   });
@@ -116,8 +116,8 @@ describe("prepareClaudeRequest — backward compat: providers without the quirk"
     const candidate = Object.entries(PROVIDERS).find(
       ([id, p]) =>
         id !== "claude" &&
-        p?.transports?.some(t => t.format === "claude") &&
-        !p?.quirks?.claudeSupportedToolTypes
+        p?.transports?.some((t) => t.format === "claude") &&
+        !p?.quirks?.claudeSupportedToolTypes,
     );
 
     if (!candidate) {
@@ -133,7 +133,7 @@ describe("prepareClaudeRequest — backward compat: providers without the quirk"
         { type: "web_search_20250305", name: "web_search" },
         { name: "no_type_tool", input_schema: { type: "object" } },
       ]),
-      providerId
+      providerId,
     );
 
     if (out.tools !== undefined) {

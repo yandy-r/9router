@@ -11,7 +11,9 @@ function createNdjsonStream(lines) {
   return new ReadableStream({
     start(controller) {
       for (const line of lines) {
-        controller.enqueue(encoder.encode(typeof line === "string" ? line : JSON.stringify(line) + "\n"));
+        controller.enqueue(
+          encoder.encode(typeof line === "string" ? line : JSON.stringify(line) + "\n"),
+        );
       }
       controller.close();
     },
@@ -75,7 +77,10 @@ describe("inspectAndWrapCommandCodeResponse", () => {
       headers: { "Content-Type": "text/event-stream" },
     });
 
-    const result = await inspectAndWrapCommandCodeResponse(fakeResponse, "poolside/laguna-s-2.1-free");
+    const result = await inspectAndWrapCommandCodeResponse(
+      fakeResponse,
+      "poolside/laguna-s-2.1-free",
+    );
     expect(result.ok).toBe(false);
     expect(result.status).toBe(503);
 
@@ -104,7 +109,10 @@ describe("inspectAndWrapCommandCodeResponse", () => {
       headers: { "Content-Type": "text/event-stream" },
     });
 
-    const result = await inspectAndWrapCommandCodeResponse(fakeResponse, "poolside/laguna-s-2.1-free");
+    const result = await inspectAndWrapCommandCodeResponse(
+      fakeResponse,
+      "poolside/laguna-s-2.1-free",
+    );
     expect(result.ok).toBe(false);
     expect(result.status).toBe(503);
 
@@ -124,7 +132,10 @@ describe("inspectAndWrapCommandCodeResponse", () => {
       headers: { "Content-Type": "text/event-stream" },
     });
 
-    const result = await inspectAndWrapCommandCodeResponse(fakeResponse, "poolside/laguna-s-2.1-free");
+    const result = await inspectAndWrapCommandCodeResponse(
+      fakeResponse,
+      "poolside/laguna-s-2.1-free",
+    );
     expect(result.ok).toBe(true);
     expect(result.status).toBe(200);
 
@@ -136,7 +147,7 @@ describe("inspectAndWrapCommandCodeResponse", () => {
   it("retries when initial stream yields an error and succeeds on second attempt", async () => {
     let callCount = 0;
     const executor = new CommandCodeExecutor();
-    
+
     // Override execute on instance to test retry behavior
     executor.execute = async (opts) => {
       const maxRetries = 2;
@@ -144,18 +155,24 @@ describe("inspectAndWrapCommandCodeResponse", () => {
         callCount++;
         let rawResponse;
         if (callCount === 1) {
-          rawResponse = new Response(createNdjsonStream([
-            JSON.stringify({
-              type: "error",
-              error: { type: "server_error", message: "Network connection lost." }
-            }) + "\n"
-          ]), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+          rawResponse = new Response(
+            createNdjsonStream([
+              JSON.stringify({
+                type: "error",
+                error: { type: "server_error", message: "Network connection lost." },
+              }) + "\n",
+            ]),
+            { status: 200, headers: { "Content-Type": "text/event-stream" } },
+          );
         } else {
-          rawResponse = new Response(createNdjsonStream([
-            JSON.stringify({ type: "start" }) + "\n",
-            JSON.stringify({ type: "text-delta", text: "Recovered from lost connection" }) + "\n",
-            JSON.stringify({ type: "finish" }) + "\n"
-          ]), { status: 200, headers: { "Content-Type": "text/event-stream" } });
+          rawResponse = new Response(
+            createNdjsonStream([
+              JSON.stringify({ type: "start" }) + "\n",
+              JSON.stringify({ type: "text-delta", text: "Recovered from lost connection" }) + "\n",
+              JSON.stringify({ type: "finish" }) + "\n",
+            ]),
+            { status: 200, headers: { "Content-Type": "text/event-stream" } },
+          );
         }
 
         const wrappedResponse = await inspectAndWrapCommandCodeResponse(rawResponse, opts.model);
@@ -193,7 +210,7 @@ describe("CommandCode in Combo Fallback", () => {
               code: 503,
             },
           }),
-          { status: 503, headers: { "Content-Type": "application/json" } }
+          { status: 503, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -204,7 +221,7 @@ describe("CommandCode in Combo Fallback", () => {
             id: "chatcmpl-test",
             choices: [{ message: { role: "assistant", content: "Fallback success!" } }],
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -226,7 +243,11 @@ describe("CommandCode in Combo Fallback", () => {
     const data = await comboResponse.json();
     expect(data.choices[0].message.content).toBe("Fallback success!");
     expect(handleSingleModel).toHaveBeenCalledTimes(2);
-    expect(handleSingleModel).toHaveBeenNthCalledWith(1, expect.anything(), "commandcode/poolside/laguna-s-2.1-free");
+    expect(handleSingleModel).toHaveBeenNthCalledWith(
+      1,
+      expect.anything(),
+      "commandcode/poolside/laguna-s-2.1-free",
+    );
     expect(handleSingleModel).toHaveBeenNthCalledWith(2, expect.anything(), "openai/gpt-4o-mini");
   });
 });

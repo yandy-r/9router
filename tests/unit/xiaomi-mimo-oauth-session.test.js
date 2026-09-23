@@ -43,27 +43,48 @@ const sessions = new Map();
 const stopped = { count: 0 };
 
 vi.mock("@/lib/oauth/utils/server", () => {
-  const notUsed = () => { throw new Error("unexpected helper"); };
+  const notUsed = () => {
+    throw new Error("unexpected helper");
+  };
   const noop = () => {};
   return {
-    startCodexProxy: notUsed, stopCodexProxy: noop, registerCodexSession: noop,
-    getCodexSessionStatus: () => null, clearCodexSession: noop,
-    startXaiProxy: notUsed, stopXaiProxy: noop, registerXaiSession: noop,
-    getXaiSessionStatus: () => null, clearXaiSession: noop,
-    startTraeProxy: notUsed, stopTraeProxy: noop, registerTraeSession: noop,
-    getTraeSessionStatus: () => null, clearTraeSession: noop,
-    startWindsurfProxy: notUsed, stopWindsurfProxy: noop, registerWindsurfSession: noop,
-    getWindsurfSessionStatus: () => null, clearWindsurfSession: noop,
-    startZedProxy: notUsed, stopZedProxy: noop, registerZedSession: noop,
-    getZedSessionStatus: () => null, clearZedSession: noop,
+    startCodexProxy: notUsed,
+    stopCodexProxy: noop,
+    registerCodexSession: noop,
+    getCodexSessionStatus: () => null,
+    clearCodexSession: noop,
+    startXaiProxy: notUsed,
+    stopXaiProxy: noop,
+    registerXaiSession: noop,
+    getXaiSessionStatus: () => null,
+    clearXaiSession: noop,
+    startTraeProxy: notUsed,
+    stopTraeProxy: noop,
+    registerTraeSession: noop,
+    getTraeSessionStatus: () => null,
+    clearTraeSession: noop,
+    startWindsurfProxy: notUsed,
+    stopWindsurfProxy: noop,
+    registerWindsurfSession: noop,
+    getWindsurfSessionStatus: () => null,
+    clearWindsurfSession: noop,
+    startZedProxy: notUsed,
+    stopZedProxy: noop,
+    registerZedSession: noop,
+    getZedSessionStatus: () => null,
+    clearZedSession: noop,
     startXiaomiMimoProxy: notUsed,
-    stopXiaomiMimoProxy: () => { stopped.count += 1; },
+    stopXiaomiMimoProxy: () => {
+      stopped.count += 1;
+    },
     registerXiaomiMimoSession: () => {},
     getXiaomiMimoSessionStatus: (state) => {
       const s = sessions.get(state);
       return s ? { status: s.status, result: s.result || null, error: s.error || null } : null;
     },
-    clearXiaomiMimoSession: (state) => { sessions.delete(state); },
+    clearXiaomiMimoSession: (state) => {
+      sessions.delete(state);
+    },
   };
 });
 
@@ -91,7 +112,10 @@ describe("xiaomi-mimo OAuth session lifecycle", () => {
   });
 
   it("keeps a finished session alive so /exchange can consume it", async () => {
-    sessions.set("st1", { status: "done", result: { uid: "u1", accessToken: "sk-x", baseUrl: "https://api.xiaomimimo.com/v1" } });
+    sessions.set("st1", {
+      status: "done",
+      result: { uid: "u1", accessToken: "sk-x", baseUrl: "https://api.xiaomimimo.com/v1" },
+    });
 
     const poll = await get("poll-status", "st1");
     expect(poll.status).toBe(200);
@@ -112,7 +136,10 @@ describe("xiaomi-mimo OAuth session lifecycle", () => {
   });
 
   it("cleans up a failed session in poll-status and stops the proxy", async () => {
-    sessions.set("st2", { status: "error", error: "Could not decrypt with any pending session key" });
+    sessions.set("st2", {
+      status: "error",
+      error: "Could not decrypt with any pending session key",
+    });
 
     const poll = await get("poll-status", "st2");
     expect(await poll.json()).toMatchObject({ status: "error" });

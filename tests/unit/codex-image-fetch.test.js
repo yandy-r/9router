@@ -38,7 +38,8 @@ function mockImageFetch(sizeBytes) {
       getReader() {
         let sent = false;
         return {
-          read: async () => sent ? { done: true } : (sent = true, { done: false, value: bytes }),
+          read: async () =>
+            sent ? { done: true } : ((sent = true), { done: false, value: bytes }),
           cancel: async () => {},
         };
       },
@@ -108,7 +109,9 @@ describe("CodexExecutor image handling", () => {
   });
 
   it("falls back to original URL when remote fetch fails", async () => {
-    global.fetch = vi.fn(async () => { throw new Error("network down"); });
+    global.fetch = vi.fn(async () => {
+      throw new Error("network down");
+    });
 
     const executor = new CodexExecutor();
     const body = {

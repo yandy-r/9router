@@ -8,12 +8,16 @@ import { checkFallbackError } from "../../open-sse/services/accountFallback.js";
 
 describe("checkFallbackError — request-scoped vs account-scoped failures", () => {
   it("does not cool the account down for a 400 caused by the request", () => {
-    const result = checkFallbackError(400, JSON.stringify({
-      error: {
-        message: "This model's maximum context length is 1048576 tokens. However, you requested 1186139 tokens",
-        type: "invalid_request_error",
-      },
-    }));
+    const result = checkFallbackError(
+      400,
+      JSON.stringify({
+        error: {
+          message:
+            "This model's maximum context length is 1048576 tokens. However, you requested 1186139 tokens",
+          type: "invalid_request_error",
+        },
+      }),
+    );
 
     expect(result).toEqual({ shouldFallback: false, cooldownMs: 0 });
   });
@@ -30,8 +34,12 @@ describe("checkFallbackError — request-scoped vs account-scoped failures", () 
   });
 
   it("rotates away from a Claude account that is out of extra usage without locking it", () => {
-    const message = "You're out of extra usage. Add more at claude.ai/settings/usage and keep going.";
-    const json = JSON.stringify({ type: "error", error: { type: "invalid_request_error", message } });
+    const message =
+      "You're out of extra usage. Add more at claude.ai/settings/usage and keep going.";
+    const json = JSON.stringify({
+      type: "error",
+      error: { type: "invalid_request_error", message },
+    });
 
     for (const errorText of [json, `[400]: ${message}`]) {
       expect(checkFallbackError(400, errorText)).toEqual({ shouldFallback: true, cooldownMs: 0 });

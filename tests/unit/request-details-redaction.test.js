@@ -16,18 +16,20 @@ function redactDetails(details) {
 
 describe("request-details redaction", () => {
   it("removes conversation payloads but keeps metadata", () => {
-    const details = [{
-      id: "abc",
-      provider: "opencode",
-      model: "deepseek-v4-flash-free",
-      timestamp: "2026-08-05T00:00:00Z",
-      status: "success",
-      tokens: { prompt_tokens: 10, completion_tokens: 5 },
-      request: { messages: [{ role: "user", content: "secret prompt" }] },
-      providerRequest: { messages: [{ role: "user", content: "secret prompt" }] },
-      providerResponse: { choices: [{ message: { content: "secret answer" } }] },
-      response: { content: "secret answer" },
-    }];
+    const details = [
+      {
+        id: "abc",
+        provider: "opencode",
+        model: "deepseek-v4-flash-free",
+        timestamp: "2026-08-05T00:00:00Z",
+        status: "success",
+        tokens: { prompt_tokens: 10, completion_tokens: 5 },
+        request: { messages: [{ role: "user", content: "secret prompt" }] },
+        providerRequest: { messages: [{ role: "user", content: "secret prompt" }] },
+        providerResponse: { choices: [{ message: { content: "secret answer" } }] },
+        response: { content: "secret answer" },
+      },
+    ];
     const out = redactDetails(details)[0];
     expect(out.id).toBe("abc");
     expect(out.provider).toBe("opencode");

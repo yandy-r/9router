@@ -2,9 +2,7 @@ export default {
   id: "perplexity-web",
   priority: 220,
   alias: "perplexity-web",
-  aliases: [
-    "pw",
-  ],
+  aliases: ["pw"],
   uiAlias: "pw",
   display: {
     name: "Perplexity Web (Pro/Max)",

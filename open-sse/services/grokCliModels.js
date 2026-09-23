@@ -11,7 +11,7 @@ import { proxyAwareFetch } from "../utils/proxyFetch.js";
 const MODELS_URL = `${GROK_CLI_BASE_URL}/models`;
 
 function modelEntries(data) {
-  const value = Array.isArray(data) ? data : data?.data ?? data?.models ?? data?.results ?? [];
+  const value = Array.isArray(data) ? data : (data?.data ?? data?.models ?? data?.results ?? []);
   if (Array.isArray(value)) return value.map((item) => [null, item]);
   if (value && typeof value === "object") return Object.entries(value);
   return [];
@@ -80,14 +80,15 @@ export async function resolveGrokCliModels(credentials, options = {}) {
   let accessToken = credentials?.accessToken;
   if (!accessToken) return { models: [], warning: "Grok CLI access token is missing." };
 
-  const request = (token) => fetchFn(
-    MODELS_URL,
-    {
-      method: "GET",
-      headers: buildHeaders(token, credentials?.providerSpecificData),
-    },
-    proxyOptions,
-  );
+  const request = (token) =>
+    fetchFn(
+      MODELS_URL,
+      {
+        method: "GET",
+        headers: buildHeaders(token, credentials?.providerSpecificData),
+      },
+      proxyOptions,
+    );
 
   try {
     let response = await request(accessToken);

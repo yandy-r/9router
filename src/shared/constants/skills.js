@@ -13,7 +13,8 @@ export const SKILLS = [
   {
     id: "9router",
     name: "9Router (Entry)",
-    description: "Setup + index of all capabilities. Start here — covers base URL, auth, model discovery, and links to every capability skill.",
+    description:
+      "Setup + index of all capabilities. Start here — covers base URL, auth, model discovery, and links to every capability skill.",
     endpoint: null,
     icon: "hub",
     isEntry: true,
@@ -56,7 +57,8 @@ export const SKILLS = [
   {
     id: "9router-web-search",
     name: "Web Search",
-    description: "Web and X search via Tavily / Exa / Brave / Serper / SearXNG / Google PSE / You.com / Xquik.",
+    description:
+      "Web and X search via Tavily / Exa / Brave / Serper / SearXNG / Google PSE / You.com / Xquik.",
     endpoint: "/v1/search",
     icon: "search",
   },

@@ -66,7 +66,7 @@ const geminiCli = {
             metadata: getOAuthClientMetadata(),
             mode: 1,
           }),
-        }
+        },
       );
       if (projectRes.ok) {
         const data = await projectRes.json();

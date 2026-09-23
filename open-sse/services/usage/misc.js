@@ -7,7 +7,6 @@ import { U } from "./shared.js";
 
 export { getGlmUsage } from "./glm.js";
 
-
 // Vercel AI Gateway credits endpoint
 // Returns { balance: "95.50", total_used: "4.50" } (USD as decimal strings).
 const VERCEL_AI_GATEWAY_CREDITS_URL = U("vercel-ai-gateway").url;
@@ -37,12 +36,16 @@ export async function getOllamaUsage(apiKey, providerSpecificData, proxyOptions 
   }
 
   try {
-    const response = await proxyAwareFetch("https://ollama.com/api/usage", {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Accept: "application/json",
+    const response = await proxyAwareFetch(
+      "https://ollama.com/api/usage",
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: "application/json",
+        },
       },
-    }, proxyOptions);
+      proxyOptions,
+    );
 
     if (response.status === 401 || response.status === 403) {
       return { message: "Ollama Cloud API key invalid or expired." };
@@ -60,14 +63,20 @@ export async function getOllamaUsage(apiKey, providerSpecificData, proxyOptions 
     }
 
     // Best-effort plan label from /api/me
-    const me = await proxyAwareFetch("https://ollama.com/api/me", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Accept: "application/json",
-        "Content-Length": "0",
+    const me = await proxyAwareFetch(
+      "https://ollama.com/api/me",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: "application/json",
+          "Content-Length": "0",
+        },
       },
-    }, proxyOptions).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      proxyOptions,
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
 
     const planRaw = typeof me?.Plan === "string" ? me.Plan : "";
     const plan = planRaw
@@ -81,7 +90,13 @@ export async function getOllamaUsage(apiKey, providerSpecificData, proxyOptions 
     function ratioQuota(usageRatio, resetAt = null) {
       const ratio = Math.max(0, Math.min(1, Number(usageRatio) || 0));
       const usedPct = Math.round(ratio * 100);
-      return { used: usedPct, total: 100, remainingPercentage: 100 - usedPct, resetAt, unlimited: false };
+      return {
+        used: usedPct,
+        total: 100,
+        remainingPercentage: 100 - usedPct,
+        resetAt,
+        unlimited: false,
+      };
     }
 
     const sessionRaw = limits.session?.usage;
@@ -109,8 +124,6 @@ export async function getOllamaUsage(apiKey, providerSpecificData, proxyOptions 
   }
 }
 
-
-
 /**
  * Vercel AI Gateway usage — credit balance for the API key
  *
@@ -130,13 +143,17 @@ export async function getVercelAiGatewayUsage(apiKey, proxyOptions = null) {
   }
 
   try {
-    const response = await proxyAwareFetch(VERCEL_AI_GATEWAY_CREDITS_URL, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        Accept: "application/json",
+    const response = await proxyAwareFetch(
+      VERCEL_AI_GATEWAY_CREDITS_URL,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          Accept: "application/json",
+        },
       },
-    }, proxyOptions);
+      proxyOptions,
+    );
 
     if (response.status === 401 || response.status === 403) {
       return { message: "Vercel AI Gateway API key invalid or expired." };
@@ -162,7 +179,8 @@ export async function getVercelAiGatewayUsage(apiKey, proxyOptions = null) {
     if (balance <= 0 && totalUsed <= 0) {
       return {
         plan: "Pay-as-you-go",
-        message: "Vercel AI Gateway connected. No credit allocation found (BYOK or unfunded account).",
+        message:
+          "Vercel AI Gateway connected. No credit allocation found (BYOK or unfunded account).",
         quotas: {},
       };
     }
@@ -224,9 +242,10 @@ export async function getQoderUsage(accessToken, proxyOptions = null) {
     // Qoder publishes a single absolute reset timestamp (`expiresAt` in ms);
     // surface it on every quota record as ISO so the table can render
     // "resets at" alongside used/total.
-    const expiresAtMs = Number.isFinite(Number(body.expiresAt)) && Number(body.expiresAt) > 0
-      ? Number(body.expiresAt)
-      : null;
+    const expiresAtMs =
+      Number.isFinite(Number(body.expiresAt)) && Number(body.expiresAt) > 0
+        ? Number(body.expiresAt)
+        : null;
     const resetAt = expiresAtMs ? new Date(expiresAtMs).toISOString() : null;
     const quotas = {
       user: {

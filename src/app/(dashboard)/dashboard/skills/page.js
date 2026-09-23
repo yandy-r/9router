@@ -47,7 +47,9 @@ function SkillRow({ skill }) {
         <div className="flex items-center gap-2 flex-wrap">
           <h3 className="font-semibold text-sm text-text-main">{skill.name}</h3>
           {skill.isEntry && (
-            <Badge variant="primary" size="sm">START HERE</Badge>
+            <Badge variant="primary" size="sm">
+              START HERE
+            </Badge>
           )}
           {skill.endpoint && (
             <Badge variant="default" size="sm">
@@ -92,9 +94,7 @@ export default function SkillsPage() {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-sm font-semibold text-text-main">More on GitHub</h2>
-            <p className="text-xs text-text-muted mt-0.5">
-              Browse source, README, and examples.
-            </p>
+            <p className="text-xs text-text-muted mt-0.5">Browse source, README, and examples.</p>
           </div>
           <a
             href={`${SKILLS_REPO_URL}/tree/master/skills`}

@@ -37,7 +37,9 @@ export class KimchiService {
   async startLogin() {
     const state = generateState();
     let resolveResult;
-    const result = new Promise((resolve) => { resolveResult = resolve; });
+    const result = new Promise((resolve) => {
+      resolveResult = resolve;
+    });
 
     const { port, close } = await startLocalServer((params) => {
       this._handleCallback(params, state)
@@ -61,7 +63,11 @@ export class KimchiService {
       s.done = true;
       s.resolved = r;
       clearTimeout(s.timeout);
-      try { s.close(); } catch { /* already closed */ }
+      try {
+        s.close();
+      } catch {
+        /* already closed */
+      }
       setTimeout(() => sessions.delete(state), SESSION_TTL_MS).unref?.();
     });
 

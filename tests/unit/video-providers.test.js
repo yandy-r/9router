@@ -46,8 +46,12 @@ describe("registry wiring", () => {
 });
 
 describe("openrouter video adapter", () => {
-  beforeEach(() => { global.fetch = vi.fn(); });
-  afterEach(() => { global.fetch = originalFetch; });
+  beforeEach(() => {
+    global.fetch = vi.fn();
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
 
   it("POSTs creation to the collection root (no /generations suffix)", async () => {
     global.fetch.mockResolvedValueOnce(jsonResponse({ id: "job-1", status: "pending" }));
@@ -107,7 +111,9 @@ describe("vertex (veo) video adapter", () => {
     global.fetch = vi.fn();
     refreshVertexToken.mockReset();
   });
-  afterEach(() => { global.fetch = originalFetch; });
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
 
   const saJson = JSON.stringify({
     type: "service_account",
@@ -138,7 +144,7 @@ describe("vertex (veo) video adapter", () => {
     expect(result.success).toBe(true);
     const [url, init] = global.fetch.mock.calls[0];
     expect(url).toBe(
-      "https://aiplatform.googleapis.com/v1/projects/proj-1/locations/us-central1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning"
+      "https://aiplatform.googleapis.com/v1/projects/proj-1/locations/us-central1/publishers/google/models/veo-3.1-generate-preview:predictLongRunning",
     );
     expect(init.headers.Authorization).toBe("Bearer vertex-tok");
     expect(JSON.parse(init.body)).toEqual({
@@ -183,7 +189,7 @@ describe("vertex (veo) video adapter", () => {
         name: OPERATION_NAME,
         done: true,
         response: { videos: [{ gcsUri: "gs://bucket/v.mp4", mimeType: "video/mp4" }] },
-      })
+      }),
     );
 
     const result = await handleVideoProxyCore({
@@ -194,7 +200,7 @@ describe("vertex (veo) video adapter", () => {
 
     const [url, init] = global.fetch.mock.calls[0];
     expect(url).toBe(
-      "https://aiplatform.googleapis.com/v1/projects/proj-1/locations/us-central1/publishers/google/models/veo-3.1-generate-preview:fetchPredictOperation"
+      "https://aiplatform.googleapis.com/v1/projects/proj-1/locations/us-central1/publishers/google/models/veo-3.1-generate-preview:fetchPredictOperation",
     );
     expect(init.method).toBe("POST"); // Vertex polls with POST, not GET
     expect(JSON.parse(init.body)).toEqual({ operationName: OPERATION_NAME });
@@ -211,7 +217,7 @@ describe("vertex (veo) video adapter", () => {
   it("maps a failed operation to status failed", async () => {
     refreshVertexToken.mockResolvedValueOnce({ accessToken: "vertex-tok" });
     global.fetch.mockResolvedValueOnce(
-      jsonResponse({ name: OPERATION_NAME, done: true, error: { code: 3, message: "bad prompt" } })
+      jsonResponse({ name: OPERATION_NAME, done: true, error: { code: 3, message: "bad prompt" } }),
     );
 
     const result = await handleVideoProxyCore({
@@ -275,7 +281,11 @@ describe("vertex (veo) video adapter", () => {
       `${JOB_ID}=`,
       `${JOB_ID}\n`,
     ]) {
-      const result = await handleVideoProxyCore({ provider: "vertex", requestId: id, credentials: { apiKey: saJson } });
+      const result = await handleVideoProxyCore({
+        provider: "vertex",
+        requestId: id,
+        credentials: { apiKey: saJson },
+      });
       expect(result.status).toBe(400);
       expect(global.fetch).not.toHaveBeenCalled();
     }

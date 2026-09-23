@@ -17,7 +17,9 @@ describe("stripUnsupportedParams", () => {
       ],
     };
 
-    expect(() => stripUnsupportedParams("cloudflare-ai", "@cf/meta/llama-3.1-8b-instruct", body)).not.toThrow();
+    expect(() =>
+      stripUnsupportedParams("cloudflare-ai", "@cf/meta/llama-3.1-8b-instruct", body),
+    ).not.toThrow();
     expect(body.messages[0].content).toBe("hello world");
   });
 

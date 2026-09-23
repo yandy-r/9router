@@ -23,7 +23,9 @@ function deriveUuid(seed) {
 // {"device_id":"<64hex>","account_uuid":"<uuid>","session_id":"<uuid>"}
 // device_id/account_uuid derive from apiKey (stable per account), session_id per-conversation
 function generateFakeUserID(sessionId, apiKey) {
-  const deviceId = apiKey ? createHash("sha256").update(`device:${apiKey}`).digest("hex") : randomBytes(32).toString("hex");
+  const deviceId = apiKey
+    ? createHash("sha256").update(`device:${apiKey}`).digest("hex")
+    : randomBytes(32).toString("hex");
   const accountUuid = apiKey ? deriveUuid(`account:${apiKey}`) : randomUUID();
   const sessionUuid = sessionId || randomUUID();
   return `{"device_id":"${deviceId}","account_uuid":"${accountUuid}","session_id":"${sessionUuid}"}`;
@@ -51,7 +53,10 @@ export function cloakClaudeTools(body) {
   // Built-in server tools (web_search_20250305, etc.) carry a `type` and require
   // an exact reserved `name` — never suffix those or Claude rejects the request.
   for (const tool of tools) {
-    if (tool.type) { clientDeclarations.push(tool); continue; }
+    if (tool.type) {
+      clientDeclarations.push(tool);
+      continue;
+    }
     const suffixed = suffix(tool.name);
     toolNameMap.set(suffixed, tool.name);
     clientToolNames.add(tool.name);
@@ -62,10 +67,10 @@ export function cloakClaudeTools(body) {
   const allTools = [...clientDeclarations, ...CC_DECOY_TOOLS];
 
   // Rename tool_use in message history (all client tools get suffix)
-  const renamedMessages = body.messages?.map(msg => {
+  const renamedMessages = body.messages?.map((msg) => {
     if (!Array.isArray(msg.content)) return msg;
-    const renamedContent = msg.content.map(block =>
-      block.type === "tool_use" ? { ...block, name: suffix(block.name) } : block
+    const renamedContent = msg.content.map((block) =>
+      block.type === "tool_use" ? { ...block, name: suffix(block.name) } : block,
     );
     return { ...msg, content: renamedContent };
   });
@@ -76,23 +81,20 @@ export function cloakClaudeTools(body) {
   // tool name, otherwise Claude rejects it: "Tool '<name>' not found in provided tools".
   // Only rewrite when the choice targets one of the client tools we actually
   // renamed — never a decoy/built-in name (those are sent unsuffixed).
-  if (
-    body.tool_choice?.type === "tool" &&
-    clientToolNames.has(body.tool_choice.name)
-  ) {
+  if (body.tool_choice?.type === "tool" && clientToolNames.has(body.tool_choice.name)) {
     cloakedBody.tool_choice = { ...body.tool_choice, name: suffix(body.tool_choice.name) };
   }
 
   return {
     body: cloakedBody,
-    toolNameMap: toolNameMap.size > 0 ? toolNameMap : null
+    toolNameMap: toolNameMap.size > 0 ? toolNameMap : null,
   };
 }
 
 // Decloak tool_use names in non-streaming Claude response body (INPUT side)
 export function decloakToolNames(body, toolNameMap) {
   if (!toolNameMap?.size || !Array.isArray(body?.content)) return body;
-  const content = body.content.map(block => {
+  const content = body.content.map((block) => {
     if (block?.type === "tool_use" && toolNameMap.has(block.name)) {
       return { ...block, name: toolNameMap.get(block.name) };
     }
@@ -130,26 +132,106 @@ export function decloakStreamChunk(chunk, toolNameMap) {
 
 // CC decoy tools — Claude Code native tool names, marked unavailable
 const CC_DECOY_TOOLS = [
-  { name: "Task", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "TaskOutput", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "TaskStop", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "TaskCreate", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "TaskGet", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "TaskUpdate", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "TaskList", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "Bash", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "Glob", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "Grep", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "Read", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "Edit", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "Write", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "NotebookEdit", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "WebFetch", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "WebSearch", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "AskUserQuestion", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "Skill", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "EnterPlanMode", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
-  { name: "ExitPlanMode", description: "This tool is currently unavailable.", input_schema: { type: "object", properties: {} } },
+  {
+    name: "Task",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "TaskOutput",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "TaskStop",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "TaskCreate",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "TaskGet",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "TaskUpdate",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "TaskList",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "Bash",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "Glob",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "Grep",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "Read",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "Edit",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "Write",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "NotebookEdit",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "WebFetch",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "WebSearch",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "AskUserQuestion",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "Skill",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "EnterPlanMode",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
+  {
+    name: "ExitPlanMode",
+    description: "This tool is currently unavailable.",
+    input_schema: { type: "object", properties: {} },
+  },
 ];
 
 /**

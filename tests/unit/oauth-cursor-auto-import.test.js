@@ -167,7 +167,7 @@ describe("GET /api/oauth/cursor/auto-import", () => {
 
     expect(response.body.found).toBe(false);
     expect(response.body.error).toBe(
-      "Cursor database not found. Make sure Cursor IDE is installed and you are logged in."
+      "Cursor database not found. Make sure Cursor IDE is installed and you are logged in.",
     );
     // fs/promises.access should NOT have been called (linux skips probing)
     expect(fsPromises.access).not.toHaveBeenCalled();

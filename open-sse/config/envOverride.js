@@ -14,10 +14,15 @@ export function envString(name, def, pattern) {
 export function envList(name, def, itemPattern) {
   const raw = process.env[name]?.trim();
   if (!raw) return def;
-  const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const items = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
   const bad = items.filter((item) => !itemPattern.test(item));
   if (items.length === 0 || bad.length) {
-    throw new Error(`Invalid ${name}: ${bad.length ? `malformed entries ${bad.join(", ")}` : "empty list"}`);
+    throw new Error(
+      `Invalid ${name}: ${bad.length ? `malformed entries ${bad.join(", ")}` : "empty list"}`,
+    );
   }
   return items;
 }

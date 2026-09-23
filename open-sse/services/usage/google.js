@@ -3,7 +3,11 @@
  */
 
 import { CLIENT_METADATA } from "../../config/appConstants.js";
-import { ANTIGRAVITY_IDE_USER_AGENT, ANTIGRAVITY_IDE_VERSION, ANTIGRAVITY_OAUTH_CLIENT } from "../../providers/shared.js";
+import {
+  ANTIGRAVITY_IDE_USER_AGENT,
+  ANTIGRAVITY_IDE_VERSION,
+  ANTIGRAVITY_OAUTH_CLIENT,
+} from "../../providers/shared.js";
 import { U, parseResetTime, normalizeCloudCodeProjectId, fetchWithTimeout } from "./shared.js";
 import { fetchAntigravityWeeklyQuota } from "./antigravity-weekly.js";
 
@@ -39,7 +43,8 @@ export async function getGeminiUsage(accessToken, providerSpecificData, proxyOpt
     if (!projectId) {
       return {
         plan,
-        message: "Gemini CLI project ID not available. Reconnect Gemini CLI, or configure a Google Cloud project with Gemini Code Assist access before checking quota.",
+        message:
+          "Gemini CLI project ID not available. Reconnect Gemini CLI, or configure a Google Cloud project with Gemini Code Assist access before checking quota.",
       };
     }
 
@@ -54,7 +59,7 @@ export async function getGeminiUsage(accessToken, providerSpecificData, proxyOpt
         body: JSON.stringify({ project: projectId }),
       },
       10000,
-      proxyOptions
+      proxyOptions,
     );
 
     if (!response.ok) {
@@ -105,7 +110,7 @@ async function getGeminiSubscriptionInfo(accessToken, proxyOptions = null) {
         body: JSON.stringify({ metadata: CLIENT_METADATA }),
       },
       10000,
-      proxyOptions
+      proxyOptions,
     );
     if (!response.ok) return null;
     return await response.json();
@@ -123,31 +128,36 @@ export async function getAntigravityUsage(accessToken, providerSpecificData, pro
     const subscriptionInfo = await getAntigravitySubscriptionInfo(accessToken, proxyOptions);
     const projectId = subscriptionInfo?.cloudaicompanionProject || null;
 
-    const response = await fetchWithTimeout(ANTIGRAVITY_CONFIG.quotaApiUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "User-Agent": ANTIGRAVITY_CONFIG.userAgent,
-        "Content-Type": "application/json",
-        "X-Client-Name": "antigravity",
-        "X-Client-Version": ANTIGRAVITY_IDE_VERSION,
+    const response = await fetchWithTimeout(
+      ANTIGRAVITY_CONFIG.quotaApiUrl,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "User-Agent": ANTIGRAVITY_CONFIG.userAgent,
+          "Content-Type": "application/json",
+          "X-Client-Name": "antigravity",
+          "X-Client-Version": ANTIGRAVITY_IDE_VERSION,
+        },
+        body: JSON.stringify({
+          ...(projectId ? { project: projectId } : {}),
+        }),
       },
-      body: JSON.stringify({
-        ...(projectId ? { project: projectId } : {})
-      }),
-    }, 10000, proxyOptions);
+      10000,
+      proxyOptions,
+    );
 
     if (response.status === 403) {
       return {
         message: "Antigravity quota API access forbidden. Chat may still work.",
-        quotas: {}
+        quotas: {},
       };
     }
 
     if (response.status === 401) {
       return {
         message: "Antigravity quota API authentication expired. Chat may still work.",
-        quotas: {}
+        quotas: {},
       };
     }
 
@@ -169,24 +179,24 @@ export async function getAntigravityUsage(accessToken, providerSpecificData, pro
     if (!isFreeTier && data.models) {
       // Filter only recommended/important models (must match PROVIDER_MODELS ag ids)
       const importantModels = [
-        'gemini-3.8-flash-high',
-        'gemini-3.8-flash-medium',
-        'gemini-3.8-flash-low',
-        'gemini-3.7-flash-high',
-        'gemini-3.7-flash-medium',
-        'gemini-3.7-flash-low',
-        'gemini-3.6-flash-high',
-        'gemini-3.6-flash-medium',
-        'gemini-3.6-flash-low',
-        'gemini-3.5-flash-low',
-        'gemini-3.5-flash-extra-low',
-        'gemini-pro-agent',
-        'gemini-3.1-pro-low',
-        'claude-sonnet-4-6',
-        'claude-opus-4-6-thinking',
-        'gpt-oss-120b-medium',
+        "gemini-3.8-flash-high",
+        "gemini-3.8-flash-medium",
+        "gemini-3.8-flash-low",
+        "gemini-3.7-flash-high",
+        "gemini-3.7-flash-medium",
+        "gemini-3.7-flash-low",
+        "gemini-3.6-flash-high",
+        "gemini-3.6-flash-medium",
+        "gemini-3.6-flash-low",
+        "gemini-3.5-flash-low",
+        "gemini-3.5-flash-extra-low",
+        "gemini-pro-agent",
+        "gemini-3.1-pro-low",
+        "claude-sonnet-4-6",
+        "claude-opus-4-6-thinking",
+        "gpt-oss-120b-medium",
         // Image generation models
-        'gemini-3.1-flash-image',
+        "gemini-3.1-flash-image",
       ];
 
       for (const [modelKey, info] of Object.entries(data.models)) {
@@ -222,11 +232,7 @@ export async function getAntigravityUsage(accessToken, providerSpecificData, pro
 
     // Best-effort weekly quota overlay — never blocks or breaks per-model results
     try {
-      const weeklyQuotas = await fetchAntigravityWeeklyQuota(
-        accessToken,
-        projectId,
-        proxyOptions
-      );
+      const weeklyQuotas = await fetchAntigravityWeeklyQuota(accessToken, projectId, proxyOptions);
 
       // Reconcile weekly quota against model family status:
       // If every model in a family is locked/exhausted (remainingPercentage === 0)
@@ -238,10 +244,14 @@ export async function getAntigravityUsage(accessToken, providerSpecificData, pro
       const claudeModels = entries.filter(([k]) => k.startsWith("claude-"));
 
       if (weeklyQuotas.gemini_weekly && geminiModels.length > 0) {
-        const allGeminiExhausted = geminiModels.every(([, q]) => (q.remainingPercentage ?? 0) === 0);
+        const allGeminiExhausted = geminiModels.every(
+          ([, q]) => (q.remainingPercentage ?? 0) === 0,
+        );
         if (allGeminiExhausted && weeklyQuotas.gemini_weekly.remainingPercentage > 0) {
-          const maxResetAt = geminiModels.reduce((max, [, q]) =>
-            !max || (q.resetAt && new Date(q.resetAt) > new Date(max)) ? q.resetAt : max, null
+          const maxResetAt = geminiModels.reduce(
+            (max, [, q]) =>
+              !max || (q.resetAt && new Date(q.resetAt) > new Date(max)) ? q.resetAt : max,
+            null,
           );
           weeklyQuotas.gemini_weekly.used = weeklyQuotas.gemini_weekly.total;
           weeklyQuotas.gemini_weekly.remainingPercentage = 0;
@@ -252,10 +262,14 @@ export async function getAntigravityUsage(accessToken, providerSpecificData, pro
       }
 
       if (weeklyQuotas.claude_gpt_weekly && claudeModels.length > 0) {
-        const allClaudeExhausted = claudeModels.every(([, q]) => (q.remainingPercentage ?? 0) === 0);
+        const allClaudeExhausted = claudeModels.every(
+          ([, q]) => (q.remainingPercentage ?? 0) === 0,
+        );
         if (allClaudeExhausted && weeklyQuotas.claude_gpt_weekly.remainingPercentage > 0) {
-          const maxResetAt = claudeModels.reduce((max, [, q]) =>
-            !max || (q.resetAt && new Date(q.resetAt) > new Date(max)) ? q.resetAt : max, null
+          const maxResetAt = claudeModels.reduce(
+            (max, [, q]) =>
+              !max || (q.resetAt && new Date(q.resetAt) > new Date(max)) ? q.resetAt : max,
+            null,
           );
           weeklyQuotas.claude_gpt_weekly.used = weeklyQuotas.claude_gpt_weekly.total;
           weeklyQuotas.claude_gpt_weekly.remainingPercentage = 0;
@@ -286,15 +300,20 @@ export async function getAntigravityUsage(accessToken, providerSpecificData, pro
  */
 async function getAntigravitySubscriptionInfo(accessToken, proxyOptions = null) {
   try {
-    const response = await fetchWithTimeout(ANTIGRAVITY_CONFIG.loadProjectApiUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "User-Agent": ANTIGRAVITY_CONFIG.userAgent,
-        "Content-Type": "application/json",
+    const response = await fetchWithTimeout(
+      ANTIGRAVITY_CONFIG.loadProjectApiUrl,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "User-Agent": ANTIGRAVITY_CONFIG.userAgent,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ metadata: CLIENT_METADATA, mode: 1 }),
       },
-      body: JSON.stringify({ metadata: CLIENT_METADATA, mode: 1 }),
-    }, 10000, proxyOptions);
+      10000,
+      proxyOptions,
+    );
 
     if (!response.ok) return null;
     return await response.json();

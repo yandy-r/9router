@@ -75,11 +75,13 @@ export async function GET() {
       config,
       has9Router: has9RouterConfig(config),
       configPath: getConfigPath(),
-        opencode: {
-          models: Object.keys(modelMap),
-          activeModel: config?.model?.startsWith("9router/") ? config.model.replace(/^9router\//, "") : null,
-          baseURL: providerConfig?.options?.baseURL || null,
-        },
+      opencode: {
+        models: Object.keys(modelMap),
+        activeModel: config?.model?.startsWith("9router/")
+          ? config.model.replace(/^9router\//, "")
+          : null,
+        baseURL: providerConfig?.options?.baseURL || null,
+      },
     });
   } catch (error) {
     console.log("Error checking opencode settings:", error);
@@ -93,10 +95,17 @@ export async function POST(request) {
     const { baseUrl, apiKey, model, models, activeModel, subagentModel } = await request.json();
 
     // Accept either `model` (string, legacy) or `models` (array of strings)
-    const modelsArray = Array.isArray(models) ? models.slice() : (typeof model === "string" ? [model] : []);
+    const modelsArray = Array.isArray(models)
+      ? models.slice()
+      : typeof model === "string"
+        ? [model]
+        : [];
 
     if (!baseUrl || modelsArray.length === 0) {
-      return NextResponse.json({ error: "baseUrl and at least one model are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "baseUrl and at least one model are required" },
+        { status: 400 },
+      );
     }
 
     const configDir = getConfigDir();
@@ -109,7 +118,9 @@ export async function POST(request) {
     try {
       const existing = await fs.readFile(configPath, "utf-8");
       config = JSON.parse(existing);
-    } catch { /* No existing config */ }
+    } catch {
+      /* No existing config */
+    }
 
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
     const keyToUse = apiKey || "sk_9router";
@@ -119,7 +130,11 @@ export async function POST(request) {
     if (!config.provider) config.provider = {};
 
     // Preserve any existing 9router provider entry and its models
-    const existingProvider = config.provider["9router"] || { npm: "@ai-sdk/openai-compatible", options: {}, models: {} };
+    const existingProvider = config.provider["9router"] || {
+      npm: "@ai-sdk/openai-compatible",
+      options: {},
+      models: {},
+    };
 
     // Merge options (overwrite baseURL/apiKey)
     existingProvider.options = {
@@ -134,7 +149,10 @@ export async function POST(request) {
     // Add or update entries for all requested models
     for (const m of modelsArray) {
       if (!m || typeof m !== "string") continue;
-      existingProvider.models[m] = { name: m, modalities: { input: ["text", "image"], output: ["text"] } };
+      existingProvider.models[m] = {
+        name: m,
+        modalities: { input: ["text", "image"], output: ["text"] },
+      };
     }
 
     // Save merged provider back
@@ -229,7 +247,7 @@ export async function DELETE(request) {
     // If specific model provided, remove just that model
     if (modelToRemove && config.provider?.["9router"]?.models) {
       delete config.provider["9router"].models[modelToRemove];
-      
+
       // If no models left, remove the provider
       if (Object.keys(config.provider["9router"].models).length === 0) {
         delete config.provider["9router"];
@@ -256,7 +274,9 @@ export async function DELETE(request) {
 
     return NextResponse.json({
       success: true,
-      message: modelToRemove ? `Model "${modelToRemove}" removed` : "9Router settings removed from OpenCode",
+      message: modelToRemove
+        ? `Model "${modelToRemove}" removed`
+        : "9Router settings removed from OpenCode",
     });
   } catch (error) {
     console.log("Error resetting opencode settings:", error);

@@ -2,9 +2,7 @@ export default {
   id: "perplexity",
   priority: 180,
   alias: "perplexity",
-  aliases: [
-    "pplx",
-  ],
+  aliases: ["pplx"],
   uiAlias: "pplx",
   display: {
     name: "Perplexity",
@@ -26,7 +24,7 @@ export default {
     { id: "sonar-pro", name: "Sonar Pro" },
     { id: "sonar", name: "Sonar" },
   ],
-  serviceKinds: ["llm","webSearch"],
+  serviceKinds: ["llm", "webSearch"],
   searchViaChat: {
     defaultModel: "sonar",
     endpoint: "https://api.perplexity.ai/chat/completions",

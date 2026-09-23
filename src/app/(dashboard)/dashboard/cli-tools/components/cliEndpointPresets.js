@@ -1,7 +1,13 @@
 import { UPDATER_CONFIG } from "@/shared/constants/config";
 
 // Browser-local preset stores (endpoints, API keys) shared by every CLI tool card
-function createStore({ storageKey, changeEvent, itemField, normalize = (v) => v, defaultName = (v) => v }) {
+function createStore({
+  storageKey,
+  changeEvent,
+  itemField,
+  normalize = (v) => v,
+  defaultName = (v) => v,
+}) {
   const read = () => {
     if (typeof window === "undefined") return [];
     try {
@@ -38,8 +44,10 @@ function createStore({ storageKey, changeEvent, itemField, normalize = (v) => v,
       const finalName = (name || defaultName(v)).trim();
       if (!finalName) return null;
 
-      const next = [...items.filter((p) => p.name !== finalName && normalize(p[itemField]) !== v), { name: finalName, [itemField]: v }]
-        .sort((a, b) => a.name.localeCompare(b.name));
+      const next = [
+        ...items.filter((p) => p.name !== finalName && normalize(p[itemField]) !== v),
+        { name: finalName, [itemField]: v },
+      ].sort((a, b) => a.name.localeCompare(b.name));
       write(next);
       return finalName;
     },
@@ -55,7 +63,11 @@ const endpoints = createStore({
   itemField: "baseUrl",
   normalize: stripSlash,
   defaultName: (url) => {
-    try { return new URL(url).host; } catch { return url; }
+    try {
+      return new URL(url).host;
+    } catch {
+      return url;
+    }
   },
 });
 
@@ -80,7 +92,12 @@ export function rememberEndpoint(baseUrl, { tunnelPublicUrl, tailscaleUrl, cloud
   const url = stripSlash(baseUrl);
   if (!url) return null;
 
-  const builtIns = [`http://127.0.0.1:${UPDATER_CONFIG.appPort}`, tunnelPublicUrl, tailscaleUrl, cloudUrl]
+  const builtIns = [
+    `http://127.0.0.1:${UPDATER_CONFIG.appPort}`,
+    tunnelPublicUrl,
+    tailscaleUrl,
+    cloudUrl,
+  ]
     .filter(Boolean)
     .flatMap((u) => [stripSlash(u), `${stripSlash(u)}/v1`]);
   if (builtIns.includes(url)) return null;

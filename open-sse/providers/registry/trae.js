@@ -27,7 +27,7 @@ export default {
     headers: {
       "X-Trae-Client-Type": "web",
       "X-Preferenced-Language": "en",
-      "Referer": "https://solo.trae.ai/",
+      Referer: "https://solo.trae.ai/",
     },
     // Auth: Cloud-IDE-JWT scheme on Authorization — injected by executor buildHeaders.
     auth: {

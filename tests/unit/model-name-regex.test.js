@@ -34,7 +34,9 @@ describe("model name regex fallback (C2)", () => {
 
   it("normalizeModelId: preserves word-suffix hyphens (-thinking, -agentic)", () => {
     expect(normalizeModelId("claude-sonnet-4-5-thinking")).toBe("claude-sonnet-4.5-thinking");
-    expect(normalizeModelId("claude-sonnet-4-5-thinking-agentic")).toBe("claude-sonnet-4.5-thinking-agentic");
+    expect(normalizeModelId("claude-sonnet-4-5-thinking-agentic")).toBe(
+      "claude-sonnet-4.5-thinking-agentic",
+    );
   });
 
   it("normalizeModelId: leaves ids with no digit-digit hyphen untouched", () => {

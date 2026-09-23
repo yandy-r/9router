@@ -23,16 +23,20 @@ export async function getGitHubUsage(accessToken, providerSpecificData, proxyOpt
     }
 
     // copilot_internal/user API requires GitHub OAuth token, not copilotToken
-    const response = await proxyAwareFetch(U("github").url, {
-      headers: {
-        "Authorization": `token ${accessToken}`,
-        "Accept": "application/json",
-        "X-GitHub-Api-Version": GITHUB_CONFIG.apiVersion,
-        "User-Agent": GITHUB_CONFIG.userAgent,
-        "Editor-Version": "vscode/1.100.0",
-        "Editor-Plugin-Version": "copilot-chat/0.26.7",
+    const response = await proxyAwareFetch(
+      U("github").url,
+      {
+        headers: {
+          Authorization: `token ${accessToken}`,
+          Accept: "application/json",
+          "X-GitHub-Api-Version": GITHUB_CONFIG.apiVersion,
+          "User-Agent": GITHUB_CONFIG.userAgent,
+          "Editor-Version": "vscode/1.100.0",
+          "Editor-Plugin-Version": "copilot-chat/0.26.7",
+        },
       },
-    }, proxyOptions);
+      proxyOptions,
+    );
 
     if (!response.ok) {
       const error = await response.text();
@@ -53,7 +57,10 @@ export async function getGitHubUsage(accessToken, providerSpecificData, proxyOpt
         quotas: {
           chat: { ...formatGitHubQuotaSnapshot(snapshots.chat), resetAt },
           completions: { ...formatGitHubQuotaSnapshot(snapshots.completions), resetAt },
-          premium_interactions: { ...formatGitHubQuotaSnapshot(snapshots.premium_interactions), resetAt },
+          premium_interactions: {
+            ...formatGitHubQuotaSnapshot(snapshots.premium_interactions),
+            resetAt,
+          },
         },
       };
     } else if (data.monthly_quotas || data.limited_user_quotas) {

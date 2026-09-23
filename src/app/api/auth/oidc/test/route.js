@@ -24,11 +24,11 @@ export async function POST(request) {
 
     const issuerUrl = String(body.issuerUrl || settings.oidcIssuerUrl || "").trim();
     const clientId = String(body.clientId || settings.oidcClientId || "").trim();
-    const scopes = String(body.scopes || settings.oidcScopes || "openid profile email").trim() || "openid profile email";
+    const scopes =
+      String(body.scopes || settings.oidcScopes || "openid profile email").trim() ||
+      "openid profile email";
     const clientSecret = String(
-      Object.prototype.hasOwnProperty.call(body, "clientSecret")
-        ? body.clientSecret
-        : settings.oidcClientSecret || ""
+      Object.hasOwn(body, "clientSecret") ? body.clientSecret : settings.oidcClientSecret || "",
     ).trim();
 
     if (!issuerUrl) {

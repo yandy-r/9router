@@ -4,17 +4,20 @@ import Card from "./Card";
 
 // Only show fields user actually cares about
 const FIELD_SCHEMA = {
-  mode:             { label: "Mode",       format: (v) => v },
-  defaultModel:     { label: "Model",      format: (v) => v, mono: true },
-  baseUrl:          { label: "Endpoint",   format: (v) => v, isLink: true, mono: true },
-  costPerQuery:     { label: "Cost / call", format: (v) => v === 0 ? "Free" : `$${v.toFixed(4)}` },
-  pricingUrl:       { label: "Pricing",    format: () => "View pricing", isLink: true },
-  freeTier:         { label: "Free tier",  format: (v) => v },
-  freeMonthlyQuota: { label: "Free quota",  format: (v) => v === 0 ? "—" : v >= 999999 ? "Unlimited" : `${v.toLocaleString()} / mo` },
-  searchTypes:      { label: "Types",      format: (v) => v.join(", ") },
-  formats:          { label: "Formats",    format: (v) => v.join(", ") },
-  maxMaxResults:    { label: "Max results", format: (v) => v },
-  maxCharacters:    { label: "Max chars",  format: (v) => v.toLocaleString() },
+  mode: { label: "Mode", format: (v) => v },
+  defaultModel: { label: "Model", format: (v) => v, mono: true },
+  baseUrl: { label: "Endpoint", format: (v) => v, isLink: true, mono: true },
+  costPerQuery: { label: "Cost / call", format: (v) => (v === 0 ? "Free" : `$${v.toFixed(4)}`) },
+  pricingUrl: { label: "Pricing", format: () => "View pricing", isLink: true },
+  freeTier: { label: "Free tier", format: (v) => v },
+  freeMonthlyQuota: {
+    label: "Free quota",
+    format: (v) => (v === 0 ? "—" : v >= 999999 ? "Unlimited" : `${v.toLocaleString()} / mo`),
+  },
+  searchTypes: { label: "Types", format: (v) => v.join(", ") },
+  formats: { label: "Formats", format: (v) => v.join(", ") },
+  maxMaxResults: { label: "Max results", format: (v) => v },
+  maxCharacters: { label: "Max chars", format: (v) => v.toLocaleString() },
 };
 
 export default function ProviderInfoCard({ config, provider, title = "Provider Info" }) {

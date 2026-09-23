@@ -2,9 +2,7 @@ export default {
   id: "grok-web",
   priority: 150,
   alias: "grok-web",
-  aliases: [
-    "gw",
-  ],
+  aliases: ["gw"],
   uiAlias: "gw",
   display: {
     name: "Grok Web (Subscription)",

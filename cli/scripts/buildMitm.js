@@ -28,8 +28,11 @@ async function buildEntry(entry) {
     name: "build-plugin",
     setup(build) {
       // Stub .git file scanned by esbuild
-      build.onResolve({ filter: /\.git/ }, args => ({ path: args.path, namespace: "git-stub" }));
-      build.onLoad({ filter: /.*/, namespace: "git-stub" }, () => ({ contents: "module.exports={}", loader: "js" }));
+      build.onResolve({ filter: /\.git/ }, (args) => ({ path: args.path, namespace: "git-stub" }));
+      build.onLoad({ filter: /.*/, namespace: "git-stub" }, () => ({
+        contents: "module.exports={}",
+        loader: "js",
+      }));
     },
   };
 
@@ -54,7 +57,10 @@ async function buildEntry(entry) {
 }
 
 async function run() {
-  const flags = Object.entries(BUILD_CONFIG).filter(([, v]) => v).map(([k]) => k).join(", ");
+  const flags = Object.entries(BUILD_CONFIG)
+    .filter(([, v]) => v)
+    .map(([k]) => k)
+    .join(", ");
   console.log(`⚙️  Config: ${flags}`);
 
   for (const entry of ENTRIES) await buildEntry(entry);
@@ -68,4 +74,7 @@ async function run() {
   }
 }
 
-run().catch((e) => { console.error(e); process.exit(1); });
+run().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

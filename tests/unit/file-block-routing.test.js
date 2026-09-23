@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { convertOpenAIContentToParts } from "../../open-sse/translator/formats/gemini.js";
 import { openaiToClaudeRequest } from "../../open-sse/translator/request/openai-to-claude.js";
-import { VALID_OPENAI_CONTENT_TYPES, OPENAI_BLOCK, CLAUDE_BLOCK } from "../../open-sse/translator/schema/index.js";
+import {
+  VALID_OPENAI_CONTENT_TYPES,
+  OPENAI_BLOCK,
+  CLAUDE_BLOCK,
+} from "../../open-sse/translator/schema/index.js";
 
 const PDF_DATA = "data:application/pdf;base64,JVBERi0xLjE=";
 const PNG_DATA = "data:image/png;base64,iVBORw0KGgo=";
@@ -32,12 +36,21 @@ describe("file/document block support", () => {
   });
 
   it("claude: openai file (pdf) -> document block", () => {
-    const out = openaiToClaudeRequest("claude-x", {
-      messages: [{ role: "user", content: [
-        { type: "text", text: "read" },
-        { type: "file", file: { filename: "d.pdf", file_data: PDF_DATA } },
-      ] }],
-    }, false);
+    const out = openaiToClaudeRequest(
+      "claude-x",
+      {
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "read" },
+              { type: "file", file: { filename: "d.pdf", file_data: PDF_DATA } },
+            ],
+          },
+        ],
+      },
+      false,
+    );
     const blocks = out.messages[0].content;
     const doc = blocks.find((b) => b.type === "document");
     expect(doc).toBeTruthy();
@@ -45,12 +58,21 @@ describe("file/document block support", () => {
   });
 
   it("claude: non-pdf file is dropped (not a document)", () => {
-    const out = openaiToClaudeRequest("claude-x", {
-      messages: [{ role: "user", content: [
-        { type: "text", text: "read" },
-        { type: "file", file: { filename: "i.png", file_data: PNG_DATA } },
-      ] }],
-    }, false);
+    const out = openaiToClaudeRequest(
+      "claude-x",
+      {
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "read" },
+              { type: "file", file: { filename: "i.png", file_data: PNG_DATA } },
+            ],
+          },
+        ],
+      },
+      false,
+    );
     const blocks = out.messages[0].content;
     expect(blocks.some((b) => b.type === "document")).toBe(false);
   });

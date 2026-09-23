@@ -8,14 +8,12 @@ export default {
     textIcon: "PH",
     website: "https://play.ht",
     notice: {
-      apiKeyUrl: "https://play.ht/studio/api-access"
-    }
+      apiKeyUrl: "https://play.ht/studio/api-access",
+    },
   },
   category: "apikey",
   authType: "apikey",
-  serviceKinds: [
-    "tts"
-  ],
+  serviceKinds: ["tts"],
   ttsConfig: {
     baseUrl: "https://api.play.ht/api/v2/tts/stream",
     authType: "apikey",
@@ -24,13 +22,13 @@ export default {
     models: [
       {
         id: "PlayDialog",
-        name: "PlayDialog"
+        name: "PlayDialog",
       },
       {
         id: "Play3.0-mini",
-        name: "Play 3.0 Mini"
-      }
-    ]
+        name: "Play 3.0 Mini",
+      },
+    ],
   },
-  hidden: true
+  hidden: true,
 };

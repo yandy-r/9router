@@ -60,8 +60,14 @@ describe("Codex reset credits", () => {
       }),
     });
 
-    const { getCodexRateLimitResetCredits } = await import("../../open-sse/services/usage/codex.js");
-    const result = await getCodexRateLimitResetCredits("token", { strictProxy: false }, { workspaceId: "acct_123" });
+    const { getCodexRateLimitResetCredits } = await import(
+      "../../open-sse/services/usage/codex.js"
+    );
+    const result = await getCodexRateLimitResetCredits(
+      "token",
+      { strictProxy: false },
+      { workspaceId: "acct_123" },
+    );
 
     expect(mocks.proxyAwareFetch).toHaveBeenCalledWith(
       expect.stringContaining("/rate-limit-reset-credits"),
@@ -98,8 +104,12 @@ describe("Codex reset credits", () => {
       json: async () => ({ error: { message: "Reset credits are unavailable for this account" } }),
     });
 
-    const { getCodexRateLimitResetCredits } = await import("../../open-sse/services/usage/codex.js");
-    await expect(getCodexRateLimitResetCredits("token")).rejects.toThrow("Reset credits are unavailable for this account");
+    const { getCodexRateLimitResetCredits } = await import(
+      "../../open-sse/services/usage/codex.js"
+    );
+    await expect(getCodexRateLimitResetCredits("token")).rejects.toThrow(
+      "Reset credits are unavailable for this account",
+    );
   });
 
   it("GET refreshes OAuth credentials before returning reset credit details", async () => {
@@ -114,28 +124,50 @@ describe("Codex reset credits", () => {
     const refreshedConnection = { ...connection, accessToken: "new-token" };
     const resetCredits = {
       availableCount: 1,
-      credits: [{ status: "available", grantedAt: "2026-06-18T00:25:18.000Z", expiresAt: "2026-07-18T00:25:18.000Z" }],
+      credits: [
+        {
+          status: "available",
+          grantedAt: "2026-06-18T00:25:18.000Z",
+          expiresAt: "2026-07-18T00:25:18.000Z",
+        },
+      ],
     };
     mocks.getProviderConnectionById.mockResolvedValue(connection);
-    mocks.resolveConnectionProxyConfig.mockResolvedValue({ connectionProxyEnabled: true, connectionProxyUrl: "http://proxy.local" });
+    mocks.resolveConnectionProxyConfig.mockResolvedValue({
+      connectionProxyEnabled: true,
+      connectionProxyUrl: "http://proxy.local",
+    });
     mocks.refreshAndUpdateCredentials.mockResolvedValue({ connection: refreshedConnection });
     mocks.getCodexRateLimitResetCredits.mockResolvedValue(resetCredits);
 
-    const { GET } = await import("../../src/app/api/usage/[connectionId]/codex-reset-credits/route.js");
-    const response = await GET(new Request("http://localhost/api/usage/conn_1/codex-reset-credits"), {
-      params: Promise.resolve({ connectionId: "conn_1" }),
-    });
+    const { GET } = await import(
+      "../../src/app/api/usage/[connectionId]/codex-reset-credits/route.js"
+    );
+    const response = await GET(
+      new Request("http://localhost/api/usage/conn_1/codex-reset-credits"),
+      {
+        params: Promise.resolve({ connectionId: "conn_1" }),
+      },
+    );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(resetCredits);
     expect(mocks.refreshAndUpdateCredentials).toHaveBeenCalledWith(
       connection,
       false,
-      expect.objectContaining({ connectionProxyEnabled: true, connectionProxyUrl: "http://proxy.local", strictProxy: false }),
+      expect.objectContaining({
+        connectionProxyEnabled: true,
+        connectionProxyUrl: "http://proxy.local",
+        strictProxy: false,
+      }),
     );
     expect(mocks.getCodexRateLimitResetCredits).toHaveBeenCalledWith(
       "new-token",
-      expect.objectContaining({ connectionProxyEnabled: true, connectionProxyUrl: "http://proxy.local", strictProxy: false }),
+      expect.objectContaining({
+        connectionProxyEnabled: true,
+        connectionProxyUrl: "http://proxy.local",
+        strictProxy: false,
+      }),
       { workspaceId: "acct_123" },
     );
   });
@@ -160,16 +192,36 @@ describe("Codex reset credits", () => {
       .mockRejectedValueOnce(new Error("Unauthorized 401"))
       .mockResolvedValueOnce(resetCredits);
 
-    const { GET } = await import("../../src/app/api/usage/[connectionId]/codex-reset-credits/route.js");
-    const response = await GET(new Request("http://localhost/api/usage/conn_1/codex-reset-credits"), {
-      params: Promise.resolve({ connectionId: "conn_1" }),
-    });
+    const { GET } = await import(
+      "../../src/app/api/usage/[connectionId]/codex-reset-credits/route.js"
+    );
+    const response = await GET(
+      new Request("http://localhost/api/usage/conn_1/codex-reset-credits"),
+      {
+        params: Promise.resolve({ connectionId: "conn_1" }),
+      },
+    );
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(resetCredits);
-    expect(mocks.refreshAndUpdateCredentials).toHaveBeenNthCalledWith(1, connection, false, expect.any(Object));
-    expect(mocks.refreshAndUpdateCredentials).toHaveBeenNthCalledWith(2, refreshedConnection, true, expect.any(Object));
-    expect(mocks.getCodexRateLimitResetCredits).toHaveBeenNthCalledWith(2, "forced-token", expect.any(Object), {});
+    expect(mocks.refreshAndUpdateCredentials).toHaveBeenNthCalledWith(
+      1,
+      connection,
+      false,
+      expect.any(Object),
+    );
+    expect(mocks.refreshAndUpdateCredentials).toHaveBeenNthCalledWith(
+      2,
+      refreshedConnection,
+      true,
+      expect.any(Object),
+    );
+    expect(mocks.getCodexRateLimitResetCredits).toHaveBeenNthCalledWith(
+      2,
+      "forced-token",
+      expect.any(Object),
+      {},
+    );
   });
 
   it("POST returns 409 when there are no reset credits to consume", async () => {
@@ -188,10 +240,15 @@ describe("Codex reset credits", () => {
       windowsReset: 0,
     });
 
-    const { POST } = await import("../../src/app/api/usage/[connectionId]/codex-reset-credits/route.js");
-    const response = await POST(new Request("http://localhost/api/usage/conn_1/codex-reset-credits", { method: "POST" }), {
-      params: Promise.resolve({ connectionId: "conn_1" }),
-    });
+    const { POST } = await import(
+      "../../src/app/api/usage/[connectionId]/codex-reset-credits/route.js"
+    );
+    const response = await POST(
+      new Request("http://localhost/api/usage/conn_1/codex-reset-credits", { method: "POST" }),
+      {
+        params: Promise.resolve({ connectionId: "conn_1" }),
+      },
+    );
 
     expect(response.status).toBe(409);
     expect(await response.json()).toMatchObject({

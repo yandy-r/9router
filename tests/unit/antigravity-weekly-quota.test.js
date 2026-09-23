@@ -87,17 +87,19 @@ describe("parseWeeklyQuotaSummary", () => {
 
   it("skips non-weekly buckets", () => {
     const data = {
-      groups: [{
-        displayName: "Gemini Models",
-        buckets: [
-          {
-            bucketId: "gemini-daily-bucket",
-            displayName: "Daily Limit",
-            remainingFraction: 0.9,
-            resetTime: "2026-09-09T00:00:00Z",
-          },
-        ],
-      }],
+      groups: [
+        {
+          displayName: "Gemini Models",
+          buckets: [
+            {
+              bucketId: "gemini-daily-bucket",
+              displayName: "Daily Limit",
+              remainingFraction: 0.9,
+              resetTime: "2026-09-09T00:00:00Z",
+            },
+          ],
+        },
+      ],
     };
     const result = parseWeeklyQuotaSummary(data);
     expect(result).toEqual({});
@@ -105,16 +107,20 @@ describe("parseWeeklyQuotaSummary", () => {
 
   it("skips disabled weekly buckets", () => {
     const data = {
-      groups: [{
-        displayName: "Gemini Models",
-        buckets: [{
-          bucketId: "gemini-weekly-bucket",
-          displayName: "Weekly Limit",
-          remainingFraction: 0.75,
-          resetTime: "2026-09-15T00:00:00Z",
-          disabled: true,
-        }],
-      }],
+      groups: [
+        {
+          displayName: "Gemini Models",
+          buckets: [
+            {
+              bucketId: "gemini-weekly-bucket",
+              displayName: "Weekly Limit",
+              remainingFraction: 0.75,
+              resetTime: "2026-09-15T00:00:00Z",
+              disabled: true,
+            },
+          ],
+        },
+      ],
     };
     const result = parseWeeklyQuotaSummary(data);
     expect(result).toEqual({});
@@ -141,28 +147,36 @@ describe("parseWeeklyQuotaSummary", () => {
 
   it("handles bucket with non-finite remainingFraction", () => {
     const data = {
-      groups: [{
-        displayName: "Gemini Models",
-        buckets: [{
-          bucketId: "weekly-bucket",
-          displayName: "Weekly",
-          remainingFraction: "not-a-number",
-        }],
-      }],
+      groups: [
+        {
+          displayName: "Gemini Models",
+          buckets: [
+            {
+              bucketId: "weekly-bucket",
+              displayName: "Weekly",
+              remainingFraction: "not-a-number",
+            },
+          ],
+        },
+      ],
     };
     expect(parseWeeklyQuotaSummary(data)).toEqual({});
   });
 
   it("ignores groups that don't match known families", () => {
     const data = {
-      groups: [{
-        displayName: "Unknown AI Provider",
-        buckets: [{
-          bucketId: "weekly-bucket",
-          displayName: "Weekly",
-          remainingFraction: 0.5,
-        }],
-      }],
+      groups: [
+        {
+          displayName: "Unknown AI Provider",
+          buckets: [
+            {
+              bucketId: "weekly-bucket",
+              displayName: "Weekly",
+              remainingFraction: 0.5,
+            },
+          ],
+        },
+      ],
     };
     expect(parseWeeklyQuotaSummary(data)).toEqual({});
   });
@@ -219,7 +233,9 @@ describe("fetchAntigravityWeeklyQuota", () => {
   it("returns {} on malformed JSON response", async () => {
     proxyAwareFetch.mockResolvedValue({
       ok: true,
-      json: async () => { throw new SyntaxError("Unexpected token"); },
+      json: async () => {
+        throw new SyntaxError("Unexpected token");
+      },
     });
     const result = await fetchAntigravityWeeklyQuota("token", "project-1");
     expect(result).toEqual({});
@@ -227,9 +243,11 @@ describe("fetchAntigravityWeeklyQuota", () => {
 
   it("deduplicates concurrent requests for the same account", async () => {
     let resolveResponse;
-    proxyAwareFetch.mockReturnValue(new Promise(resolve => {
-      resolveResponse = resolve;
-    }));
+    proxyAwareFetch.mockReturnValue(
+      new Promise((resolve) => {
+        resolveResponse = resolve;
+      }),
+    );
 
     const p1 = fetchAntigravityWeeklyQuota("token", "project-1");
     const p2 = fetchAntigravityWeeklyQuota("token", "project-1");
@@ -267,7 +285,7 @@ describe("fetchAntigravityWeeklyQuota", () => {
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
-          "Authorization": "Bearer token",
+          Authorization: "Bearer token",
           "User-Agent": "antigravity/ide/2.11.0 darwin/arm64",
           "Content-Type": "application/json",
           "X-Client-Name": "antigravity",
@@ -292,7 +310,11 @@ describe("weekly quota isolation from existing quota", () => {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ cloudaicompanionProject: "p1", currentTier: { name: "Pro" }, paidTier: { id: "g1-pro-tier", name: "Google AI Pro" } }),
+          json: async () => ({
+            cloudaicompanionProject: "p1",
+            currentTier: { name: "Pro" },
+            paidTier: { id: "g1-pro-tier", name: "Google AI Pro" },
+          }),
         };
       }
       if (url.includes(":fetchAvailableModels")) {
@@ -334,7 +356,11 @@ describe("weekly quota isolation from existing quota", () => {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ cloudaicompanionProject: "p1", currentTier: { name: "Starter" }, paidTier: { id: "free-tier", name: "Antigravity Starter Quota" } }),
+          json: async () => ({
+            cloudaicompanionProject: "p1",
+            currentTier: { name: "Starter" },
+            paidTier: { id: "free-tier", name: "Antigravity Starter Quota" },
+          }),
         };
       }
       if (url.includes(":fetchAvailableModels")) {
@@ -361,23 +387,30 @@ describe("weekly quota isolation from existing quota", () => {
           ok: true,
           status: 200,
           json: async () => ({
-            groups: [{
-              displayName: "Gemini Models",
-              buckets: [{
-                bucketId: "gemini-weekly",
-                displayName: "Weekly Limit Remaining",
-                remainingFraction: 1,
-                resetTime: "2026-09-15T00:00:00Z",
-              }],
-            }, {
-              displayName: "Claude and GPT models",
-              buckets: [{
-                bucketId: "3p-weekly",
-                displayName: "Weekly Limit Remaining",
-                remainingFraction: 0,
-                resetTime: "2026-09-13T12:00:00Z",
-              }],
-            }],
+            groups: [
+              {
+                displayName: "Gemini Models",
+                buckets: [
+                  {
+                    bucketId: "gemini-weekly",
+                    displayName: "Weekly Limit Remaining",
+                    remainingFraction: 1,
+                    resetTime: "2026-09-15T00:00:00Z",
+                  },
+                ],
+              },
+              {
+                displayName: "Claude and GPT models",
+                buckets: [
+                  {
+                    bucketId: "3p-weekly",
+                    displayName: "Weekly Limit Remaining",
+                    remainingFraction: 0,
+                    resetTime: "2026-09-13T12:00:00Z",
+                  },
+                ],
+              },
+            ],
           }),
         };
       }
@@ -410,7 +443,11 @@ describe("weekly quota isolation from existing quota", () => {
         return {
           ok: true,
           status: 200,
-          json: async () => ({ cloudaicompanionProject: "p1", currentTier: { name: "Pro" }, paidTier: { id: "g1-pro-tier", name: "Google AI Pro" } }),
+          json: async () => ({
+            cloudaicompanionProject: "p1",
+            currentTier: { name: "Pro" },
+            paidTier: { id: "g1-pro-tier", name: "Google AI Pro" },
+          }),
         };
       }
       if (url.includes(":fetchAvailableModels")) {
@@ -433,15 +470,19 @@ describe("weekly quota isolation from existing quota", () => {
           ok: true,
           status: 200,
           json: async () => ({
-            groups: [{
-              displayName: "Gemini Models",
-              buckets: [{
-                bucketId: "gemini-weekly",
-                displayName: "Weekly Limit Remaining",
-                remainingFraction: 1,
-                resetTime: "2026-09-15T00:00:00Z",
-              }],
-            }],
+            groups: [
+              {
+                displayName: "Gemini Models",
+                buckets: [
+                  {
+                    bucketId: "gemini-weekly",
+                    displayName: "Weekly Limit Remaining",
+                    remainingFraction: 1,
+                    resetTime: "2026-09-15T00:00:00Z",
+                  },
+                ],
+              },
+            ],
           }),
         };
       }

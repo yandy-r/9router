@@ -34,7 +34,11 @@ export function resolveOpenAICompatibleApiType(provider, credentials = null) {
 export function detectFormat(body) {
   // OpenAI Responses API: has input (array or string) instead of messages[]
   // The Responses API accepts both input as array and input as a plain string
-  if (body.input && (Array.isArray(body.input) || typeof body.input === "string") && !body.messages) {
+  if (
+    body.input &&
+    (Array.isArray(body.input) || typeof body.input === "string") &&
+    !body.messages
+  ) {
     return "openai-responses";
   }
 
@@ -51,15 +55,15 @@ export function detectFormat(body) {
   // OpenAI-specific indicators (check BEFORE Claude)
   // These fields are OpenAI-specific and never appear in Claude format
   if (
-    body.stream_options ||           // OpenAI streaming options
-    body.response_format ||           // JSON mode, etc.
-    body.logprobs !== undefined ||    // Log probabilities
+    body.stream_options || // OpenAI streaming options
+    body.response_format || // JSON mode, etc.
+    body.logprobs !== undefined || // Log probabilities
     body.top_logprobs !== undefined ||
-    body.n !== undefined ||           // Number of completions
-    body.presence_penalty !== undefined ||  // Penalties
+    body.n !== undefined || // Number of completions
+    body.presence_penalty !== undefined || // Penalties
     body.frequency_penalty !== undefined ||
-    body.logit_bias ||                // Token biasing
-    body.user                         // User identifier
+    body.logit_bias || // Token biasing
+    body.user // User identifier
   ) {
     return "openai";
   }
@@ -68,11 +72,11 @@ export function detectFormat(body) {
   // Claude requires content to be array with specific structure
   if (body.messages && Array.isArray(body.messages)) {
     const firstMsg = body.messages[0];
-    
+
     // If content is array, check if it follows Claude structure
     if (firstMsg?.content && Array.isArray(firstMsg.content)) {
       const firstContent = firstMsg.content[0];
-      
+
       // Claude format has specific types: text, image, tool_use, tool_result
       // OpenAI multimodal has: text, image_url (note the difference)
       if (firstContent?.type === "text" && !body.model?.includes("/")) {
@@ -82,23 +86,23 @@ export function detectFormat(body) {
           return "claude";
         }
         // Check if image format is Claude (source.type) vs OpenAI (image_url.url)
-        const hasClaudeImage = firstMsg.content.some(c => 
-          c.type === "image" && c.source?.type === "base64"
+        const hasClaudeImage = firstMsg.content.some(
+          (c) => c.type === "image" && c.source?.type === "base64",
         );
-        const hasOpenAIImage = firstMsg.content.some(c => 
-          c.type === "image_url" && c.image_url?.url
+        const hasOpenAIImage = firstMsg.content.some(
+          (c) => c.type === "image_url" && c.image_url?.url,
         );
         if (hasClaudeImage) return "claude";
         if (hasOpenAIImage) return "openai";
-        
+
         // If still unclear, check for tool format
-        const hasClaudeTool = firstMsg.content.some(c => 
-          c.type === "tool_use" || c.type === "tool_result"
+        const hasClaudeTool = firstMsg.content.some(
+          (c) => c.type === "tool_use" || c.type === "tool_result",
         );
         if (hasClaudeTool) return "claude";
       }
     }
-    
+
     // If content is string, it's likely OpenAI (Claude also supports this)
     // Check for other Claude-specific indicators
     if (body.system !== undefined || body.anthropic_version) {
@@ -133,7 +137,9 @@ function getProviderConfig(provider, credentials = null) {
 // Get target format for provider
 export function getTargetFormat(provider, credentials = null) {
   if (isOpenAICompatible(provider)) {
-    return resolveOpenAICompatibleApiType(provider, credentials) === "responses" ? "openai-responses" : "openai";
+    return resolveOpenAICompatibleApiType(provider, credentials) === "responses"
+      ? "openai-responses"
+      : "openai";
   }
   if (isAnthropicCompatible(provider)) {
     return "claude";
@@ -149,7 +155,7 @@ export function resolveTransport(provider, sourceFormat) {
   const config = PROVIDERS[provider];
   const transports = config?.transports;
   if (!Array.isArray(transports) || !transports.length) return null;
-  return transports.find(t => t.format === sourceFormat) || null;
+  return transports.find((t) => t.format === sourceFormat) || null;
 }
 
 // Check if last message is from user

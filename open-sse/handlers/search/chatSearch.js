@@ -33,7 +33,7 @@ function toResult(c, index, provider, retrievedAt) {
     content: c.content || null,
     metadata: {},
     citation: { provider, retrieved_at: retrievedAt, rank: index + 1 },
-    provider_raw: null
+    provider_raw: null,
   };
 }
 
@@ -80,16 +80,19 @@ const CHAT_SEARCH_CONFIG = {
     endpoint: (model) => searchEndpoint("gemini", model),
     buildBody: (query) => ({
       contents: [{ role: "user", parts: [{ text: query }] }],
-      tools: [{ google_search: {} }]
+      tools: [{ google_search: {} }],
     }),
     buildHeaders: (token) => ({
       "Content-Type": "application/json",
-      "x-goog-api-key": token
+      "x-goog-api-key": token,
     }),
     extractAnswer: (data) => {
       const candidate = data?.candidates?.[0];
       const parts = candidate?.content?.parts || [];
-      const text = parts.map((p) => p?.text || "").filter(Boolean).join("");
+      const text = parts
+        .map((p) => p?.text || "")
+        .filter(Boolean)
+        .join("");
       const chunks = candidate?.groundingMetadata?.groundingChunks || [];
       const citations = chunks
         .map((ch) => ch?.web)
@@ -98,14 +101,16 @@ const CHAT_SEARCH_CONFIG = {
         .filter((c) => c.url);
       const tokens = data?.usageMetadata?.totalTokenCount || 0;
       return { text, citations, tokens };
-    }
+    },
   },
 
   antigravity: {
     endpoint: () => searchEndpoint("antigravity"),
     // Upstream 403s on a missing or fabricated project — surface the real cause
     requireCredentials: (credentials) =>
-      credentials?.projectId ? null : "Antigravity account has no projectId — reconnect the account",
+      credentials?.projectId
+        ? null
+        : "Antigravity account has no projectId — reconnect the account",
     buildBody: (query, model, credentials) => ({
       project: credentials.projectId,
       model,
@@ -114,20 +119,23 @@ const CHAT_SEARCH_CONFIG = {
       request: {
         contents: [{ role: "user", parts: [{ text: query }] }],
         tools: [{ googleSearch: {} }],
-        generationConfig: AG_SEARCH_GENERATION_CONFIG
-      }
+        generationConfig: AG_SEARCH_GENERATION_CONFIG,
+      },
     }),
     buildHeaders: (token) => ({
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-      "User-Agent": ANTIGRAVITY_IDE_USER_AGENT
+      "User-Agent": ANTIGRAVITY_IDE_USER_AGENT,
     }),
     extractAnswer: (data) => {
       // Antigravity wraps the Gemini payload in { response: {...} }
       const response = data?.response || data;
       const candidate = response?.candidates?.[0];
       const parts = candidate?.content?.parts || [];
-      const text = parts.map((p) => p?.text || "").filter(Boolean).join("");
+      const text = parts
+        .map((p) => p?.text || "")
+        .filter(Boolean)
+        .join("");
       const grounding = candidate?.groundingMetadata || {};
       const chunks = grounding.groundingChunks || [];
       const supports = grounding.groundingSupports || [];
@@ -139,7 +147,8 @@ const CHAT_SEARCH_CONFIG = {
         const web = ch?.web;
         const url = web?.uri || web?.url || "";
         if (!url) return null;
-        if (!sources.has(url)) sources.set(url, { title: web.title || "", snippets: new Set(), contexts: new Set() });
+        if (!sources.has(url))
+          sources.set(url, { title: web.title || "", snippets: new Set(), contexts: new Set() });
         return sources.get(url);
       });
 
@@ -158,12 +167,17 @@ const CHAT_SEARCH_CONFIG = {
 
       const citations = [...sources].map(([url, src]) => {
         const snippet = joinPieces(src.snippets, " | ") || src.title;
-        return { url, title: src.title, snippet, content: joinPieces(src.contexts, "\n\n") || snippet };
+        return {
+          url,
+          title: src.title,
+          snippet,
+          content: joinPieces(src.contexts, "\n\n") || snippet,
+        };
       });
 
       const tokens = response?.usageMetadata?.totalTokenCount || 0;
       return { text, citations, tokens };
-    }
+    },
   },
 
   openai: {
@@ -171,7 +185,7 @@ const CHAT_SEARCH_CONFIG = {
     buildBody: (query, model) => {
       const body = {
         model,
-        messages: [{ role: "user", content: query }]
+        messages: [{ role: "user", content: query }],
       };
       // Non-search-preview models need explicit web_search tool
       if (!/search/i.test(model)) {
@@ -181,7 +195,7 @@ const CHAT_SEARCH_CONFIG = {
     },
     buildHeaders: (token) => ({
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     }),
     extractAnswer: (data) => {
       const msg = data?.choices?.[0]?.message || {};
@@ -197,7 +211,7 @@ const CHAT_SEARCH_CONFIG = {
       const citations = fromAnn.length ? fromAnn : fromTop;
       const tokens = data?.usage?.total_tokens || 0;
       return { text, citations, tokens };
-    }
+    },
   },
 
   xai: {
@@ -205,11 +219,11 @@ const CHAT_SEARCH_CONFIG = {
     buildBody: (query, model) => ({
       model,
       input: [{ role: "user", content: query }],
-      tools: [{ type: "web_search" }]
+      tools: [{ type: "web_search" }],
     }),
     buildHeaders: (token) => ({
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     }),
     extractAnswer: (data) => {
       // /v1/responses returns output[] array of message/tool blocks
@@ -236,7 +250,7 @@ const CHAT_SEARCH_CONFIG = {
       }
       const tokens = data?.usage?.total_tokens || 0;
       return { text, citations, tokens };
-    }
+    },
   },
 
   kimi: {
@@ -244,13 +258,11 @@ const CHAT_SEARCH_CONFIG = {
     buildBody: (query, model) => ({
       model,
       messages: [{ role: "user", content: query }],
-      tools: [
-        { type: "builtin_function", function: { name: "$web_search" } }
-      ]
+      tools: [{ type: "builtin_function", function: { name: "$web_search" } }],
     }),
     buildHeaders: (token) => ({
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     }),
     extractAnswer: (data) => {
       const msg = data?.choices?.[0]?.message || {};
@@ -266,11 +278,7 @@ const CHAT_SEARCH_CONFIG = {
         } catch {
           continue;
         }
-        const items =
-          parsed?.search_results ||
-          parsed?.results ||
-          parsed?.references ||
-          [];
+        const items = parsed?.search_results || parsed?.results || parsed?.references || [];
         if (Array.isArray(items)) {
           for (const it of items) {
             const url = it?.url || it?.link;
@@ -278,14 +286,14 @@ const CHAT_SEARCH_CONFIG = {
             citations.push({
               url,
               title: it.title || "",
-              snippet: it.snippet || it.summary || ""
+              snippet: it.snippet || it.summary || "",
             });
           }
         }
       }
       const tokens = data?.usage?.total_tokens || 0;
       return { text, citations, tokens };
-    }
+    },
   },
 
   minimax: {
@@ -293,26 +301,24 @@ const CHAT_SEARCH_CONFIG = {
     buildBody: (query, model) => ({
       model,
       messages: [{ role: "user", content: query }],
-      tools: [{ type: "web_search" }]
+      tools: [{ type: "web_search" }],
     }),
     buildHeaders: (token) => ({
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     }),
     extractAnswer: (data) => {
       const msg = data?.choices?.[0]?.message || {};
       const text = msg.content || "";
       const citations = [];
-      const direct = Array.isArray(data?.web_search_results)
-        ? data.web_search_results
-        : [];
+      const direct = Array.isArray(data?.web_search_results) ? data.web_search_results : [];
       for (const it of direct) {
         const url = it?.url || it?.link;
         if (url) {
           citations.push({
             url,
             title: it.title || "",
-            snippet: it.snippet || it.summary || ""
+            snippet: it.snippet || it.summary || "",
           });
         }
       }
@@ -335,7 +341,7 @@ const CHAT_SEARCH_CONFIG = {
               citations.push({
                 url,
                 title: it.title || "",
-                snippet: it.snippet || ""
+                snippet: it.snippet || "",
               });
             }
           }
@@ -343,29 +349,27 @@ const CHAT_SEARCH_CONFIG = {
       }
       const tokens = data?.usage?.total_tokens || 0;
       return { text, citations, tokens };
-    }
+    },
   },
 
   perplexity: {
     endpoint: () => searchEndpoint("perplexity"),
     buildBody: (query, model) => ({
       model,
-      messages: [{ role: "user", content: query }]
+      messages: [{ role: "user", content: query }],
     }),
     buildHeaders: (token) => ({
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     }),
     extractAnswer: (data) => {
       const msg = data?.choices?.[0]?.message || {};
       const text = msg.content || "";
       const raw = data?.citations || [];
-      const citations = Array.isArray(raw)
-        ? raw.map(normalizeCitation).filter(Boolean)
-        : [];
+      const citations = Array.isArray(raw) ? raw.map(normalizeCitation).filter(Boolean) : [];
       const tokens = data?.usage?.total_tokens || 0;
       return { text, citations, tokens };
-    }
+    },
   },
 
   "perplexity-agent": {
@@ -373,11 +377,11 @@ const CHAT_SEARCH_CONFIG = {
     buildBody: (query, model) => ({
       model,
       input: query,
-      tools: [{ type: "web_search" }]
+      tools: [{ type: "web_search" }],
     }),
     buildHeaders: (token) => ({
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     }),
     extractAnswer: (data) => {
       const output = Array.isArray(data?.output) ? data.output : [];
@@ -400,7 +404,7 @@ const CHAT_SEARCH_CONFIG = {
           citations.push({
             url,
             title: r?.title || "",
-            snippet: r?.snippet || ""
+            snippet: r?.snippet || "",
           });
         }
       }
@@ -412,8 +416,8 @@ const CHAT_SEARCH_CONFIG = {
       }
       const tokens = data?.usage?.total_tokens || 0;
       return { text, citations, tokens };
-    }
-  }
+    },
+  },
 };
 
 /**
@@ -427,14 +431,7 @@ const CHAT_SEARCH_CONFIG = {
  * @param {{info?:Function, warn?:Function, error?:Function}} [params.log]
  * @returns {Promise<{success:boolean, status?:number, error?:string, data?:object}>}
  */
-export async function handleChatSearch({
-  provider,
-  query,
-  maxResults,
-  model,
-  credentials,
-  log
-}) {
+export async function handleChatSearch({ provider, query, maxResults, model, credentials, log }) {
   const startTime = Date.now();
   const cfg = CHAT_SEARCH_CONFIG[provider];
 
@@ -442,7 +439,7 @@ export async function handleChatSearch({
     return {
       success: false,
       status: 400,
-      error: `Unsupported chat-search provider: ${provider}`
+      error: `Unsupported chat-search provider: ${provider}`,
     };
   }
 
@@ -455,7 +452,7 @@ export async function handleChatSearch({
     return {
       success: false,
       status: 401,
-      error: "Missing credentials (apiKey or accessToken)"
+      error: "Missing credentials (apiKey or accessToken)",
     };
   }
 
@@ -465,9 +462,7 @@ export async function handleChatSearch({
   }
 
   const limit =
-    Number.isFinite(maxResults) && maxResults > 0
-      ? Math.floor(maxResults)
-      : DEFAULT_MAX_RESULTS;
+    Number.isFinite(maxResults) && maxResults > 0 ? Math.floor(maxResults) : DEFAULT_MAX_RESULTS;
   const useModel = model || searchModel(provider);
   const url = cfg.endpoint(useModel);
   const body = cfg.buildBody(query, useModel, credentials);
@@ -476,14 +471,14 @@ export async function handleChatSearch({
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-  let upstreamStart = Date.now();
+  const upstreamStart = Date.now();
   let resp;
   try {
     resp = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
-      signal: controller.signal
+      signal: controller.signal,
     });
   } catch (err) {
     clearTimeout(timer);
@@ -495,7 +490,7 @@ export async function handleChatSearch({
     return {
       success: false,
       status: 502,
-      error: `Network error: ${err?.message || "unknown"}`
+      error: `Network error: ${err?.message || "unknown"}`,
     };
   }
   clearTimeout(timer);
@@ -508,21 +503,18 @@ export async function handleChatSearch({
     return {
       success: false,
       status: 502,
-      error: `Invalid upstream response (status ${resp.status})`
+      error: `Invalid upstream response (status ${resp.status})`,
     };
   }
 
   if (!resp.ok) {
     const errMsg =
-      data?.error?.message ||
-      data?.error ||
-      data?.message ||
-      `Upstream HTTP ${resp.status}`;
+      data?.error?.message || data?.error || data?.message || `Upstream HTTP ${resp.status}`;
     log?.warn?.(`[chatSearch] upstream error provider=${provider} status=${resp.status}`);
     return {
       success: false,
       status: resp.status,
-      error: typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg)
+      error: typeof errMsg === "string" ? errMsg : JSON.stringify(errMsg),
     };
   }
 
@@ -543,10 +535,10 @@ export async function handleChatSearch({
       metrics: {
         response_time_ms: Date.now() - startTime,
         upstream_latency_ms: upstreamLatency,
-        total_results_available: null
+        total_results_available: null,
       },
-      errors: []
-    }
+      errors: [],
+    },
   };
 }
 

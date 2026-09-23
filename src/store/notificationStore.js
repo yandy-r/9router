@@ -39,7 +39,8 @@ export const useNotificationStore = create((set, get) => ({
   clearAll: () => set({ notifications: [] }),
 
   success: (message, title) => get().addNotification({ type: "success", message, title }),
-  error: (message, title) => get().addNotification({ type: "error", message, title, duration: 8000 }),
+  error: (message, title) =>
+    get().addNotification({ type: "error", message, title, duration: 8000 }),
   warning: (message, title) => get().addNotification({ type: "warning", message, title }),
   info: (message, title) => get().addNotification({ type: "info", message, title }),
 }));

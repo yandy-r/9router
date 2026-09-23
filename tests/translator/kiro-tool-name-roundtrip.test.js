@@ -3,7 +3,10 @@ import { normalizeKiroToolSpecs } from "../../open-sse/translator/concerns/kiroC
 import { openaiToKiroRequest } from "../../open-sse/translator/request/openai-to-kiro.js";
 import { claudeToKiroRequest } from "../../open-sse/translator/request/claude-to-kiro.js";
 import { kiroToOpenAIResponse } from "../../open-sse/translator/response/kiro-to-openai.js";
-import { kiroToClaudeResponse, kiroToClaudeNonStreaming } from "../../open-sse/translator/response/kiro-to-claude.js";
+import {
+  kiroToClaudeResponse,
+  kiroToClaudeNonStreaming,
+} from "../../open-sse/translator/response/kiro-to-claude.js";
 
 describe("Kiro tool name normalization and roundtrip", () => {
   it("preserves consecutive underscores like mcp__gitea__search_repos without collapsing", () => {
@@ -20,19 +23,29 @@ describe("Kiro tool name normalization and roundtrip", () => {
       { name: "my.tool/search", description: "tool 1" },
       { name: "my_tool_search", description: "tool 2" },
     ];
-    const openaiPayload = openaiToKiroRequest("claude-sonnet-4.6", {
-      tools: tools.map((t) => ({ type: "function", function: t })),
-      messages: [{ role: "user", content: "hello" }],
-    }, true, {});
+    const openaiPayload = openaiToKiroRequest(
+      "claude-sonnet-4.6",
+      {
+        tools: tools.map((t) => ({ type: "function", function: t })),
+        messages: [{ role: "user", content: "hello" }],
+      },
+      true,
+      {},
+    );
 
     expect(openaiPayload._toolNameMap).toBeInstanceOf(Map);
     // my.tool/search cleaned to my_tool_search. Since my_tool_search comes next, it becomes my_tool_search_2
     expect(openaiPayload._toolNameMap.get("my_tool_search")).toBe("my.tool/search");
 
-    const claudePayload = claudeToKiroRequest("claude-sonnet-4.6", {
-      tools,
-      messages: [{ role: "user", content: "hello" }],
-    }, true, {});
+    const claudePayload = claudeToKiroRequest(
+      "claude-sonnet-4.6",
+      {
+        tools,
+        messages: [{ role: "user", content: "hello" }],
+      },
+      true,
+      {},
+    );
 
     expect(claudePayload._toolNameMap).toBeInstanceOf(Map);
     expect(claudePayload._toolNameMap.get("my_tool_search")).toBe("my.tool/search");
@@ -43,10 +56,15 @@ describe("Kiro tool name normalization and roundtrip", () => {
       { name: "mcp__gitea__search_repos", description: "Search Gitea" },
       { name: "bash_exec", description: "Run bash" },
     ];
-    const payload = openaiToKiroRequest("claude-sonnet-4.6", {
-      tools: tools.map((t) => ({ type: "function", function: t })),
-      messages: [{ role: "user", content: "hello" }],
-    }, true, {});
+    const payload = openaiToKiroRequest(
+      "claude-sonnet-4.6",
+      {
+        tools: tools.map((t) => ({ type: "function", function: t })),
+        messages: [{ role: "user", content: "hello" }],
+      },
+      true,
+      {},
+    );
 
     expect(payload._toolNameMap).toBeUndefined();
   });
@@ -75,16 +93,20 @@ describe("Kiro tool name normalization and roundtrip", () => {
     };
     const chunk = {
       id: "chatcmpl-1",
-      choices: [{
-        delta: {
-          tool_calls: [{
-            index: 0,
-            id: "call_123",
-            type: "function",
-            function: { name: "my_tool_search", arguments: "" },
-          }],
+      choices: [
+        {
+          delta: {
+            tool_calls: [
+              {
+                index: 0,
+                id: "call_123",
+                type: "function",
+                function: { name: "my_tool_search", arguments: "" },
+              },
+            ],
+          },
         },
-      }],
+      ],
     };
     const events = kiroToClaudeResponse(chunk, state);
     const startEvent = events.find((e) => e.type === "content_block_start");
@@ -94,14 +116,18 @@ describe("Kiro tool name normalization and roundtrip", () => {
 
   it("restores original tool name in kiroToClaudeNonStreaming when toolNameMap is present", () => {
     const data = {
-      choices: [{
-        message: {
-          tool_calls: [{
-            id: "call_123",
-            function: { name: "my_tool_search", arguments: "{}" },
-          }],
+      choices: [
+        {
+          message: {
+            tool_calls: [
+              {
+                id: "call_123",
+                function: { name: "my_tool_search", arguments: "{}" },
+              },
+            ],
+          },
         },
-      }],
+      ],
       toolNameMap: new Map([["my_tool_search", "my.tool/search"]]),
     };
     const result = kiroToClaudeNonStreaming(data);

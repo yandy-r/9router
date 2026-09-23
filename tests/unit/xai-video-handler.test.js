@@ -34,7 +34,12 @@ vi.mock("@/lib/localDb", () => ({
   getModelAliases: vi.fn(async () => ({})),
   getProviderNodes: vi.fn(async () => []),
 }));
-vi.mock("@/sse/utils/logger.js", () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }));
+vi.mock("@/sse/utils/logger.js", () => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+}));
 
 import { handleVideoCreate, handleVideoGet } from "@/sse/handlers/videoGeneration.js";
 
@@ -77,7 +82,7 @@ describe("handleVideoCreate", () => {
 
     const res = await handleVideoCreate(
       makeRequest({ model: "xai/grok-imagine-video", prompt: "a cat" }),
-      "generations"
+      "generations",
     );
 
     expect(res.status).toBe(200);
@@ -100,7 +105,7 @@ describe("handleVideoCreate", () => {
   it("rejects providers without video support", async () => {
     const res = await handleVideoCreate(
       makeRequest({ model: "openai/sora-alike", prompt: "x" }),
-      "generations"
+      "generations",
     );
     expect(res.status).toBe(400);
     expect(await res.text()).toContain("does not support video generation");
@@ -122,18 +127,23 @@ describe("handleVideoCreate", () => {
 
     await handleVideoCreate(
       makeRequest({ prompt: "x" }, { headers: { "x-connection-id": "conn-9" } }),
-      "generations"
+      "generations",
     );
 
     expect(authMocks.getProviderCredentials).toHaveBeenCalledWith(
-      "xai", expect.anything(), null, expect.objectContaining({ preferredConnectionId: "conn-9" })
+      "xai",
+      expect.anything(),
+      null,
+      expect.objectContaining({ preferredConnectionId: "conn-9" }),
     );
   });
 
   it("rotates to the next account on 401 (auth errors cannot have created a job)", async () => {
     authMocks.getProviderCredentials
       .mockResolvedValueOnce(account({ connectionId: "conn-1", refreshToken: null }))
-      .mockResolvedValueOnce(account({ connectionId: "conn-2", accessToken: "tok-2", refreshToken: null }));
+      .mockResolvedValueOnce(
+        account({ connectionId: "conn-2", accessToken: "tok-2", refreshToken: null }),
+      );
     global.fetch
       .mockResolvedValueOnce(jsonResponse({ error: "unauthorized" }, 401))
       .mockResolvedValueOnce(jsonResponse({ request_id: "r2" }));
@@ -143,7 +153,11 @@ describe("handleVideoCreate", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("x-9router-connection-id")).toBe("conn-2");
     expect(authMocks.markAccountUnavailable).toHaveBeenCalledWith(
-      "conn-1", 401, expect.any(String), "xai", null
+      "conn-1",
+      401,
+      expect.any(String),
+      "xai",
+      null,
     );
   });
 
@@ -205,7 +219,10 @@ describe("handleVideoGet", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ status: "pending", progress: 42 });
     expect(authMocks.getProviderCredentials).toHaveBeenCalledWith(
-      "xai", null, null, expect.objectContaining({ preferredConnectionId: "conn-5" })
+      "xai",
+      null,
+      null,
+      expect.objectContaining({ preferredConnectionId: "conn-5" }),
     );
     expect(global.fetch.mock.calls[0][0]).toBe("https://api.x.ai/v1/videos/req-1");
   });

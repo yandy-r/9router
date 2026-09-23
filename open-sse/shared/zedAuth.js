@@ -21,8 +21,7 @@ export const ZED_HEADERS = {
   expiredToken: "x-zed-expired-token",
   outdatedToken: "x-zed-outdated-token",
   clientSupportsStatus: "x-zed-client-supports-status-messages",
-  clientSupportsStreamEnded:
-    "x-zed-client-supports-stream-ended-request-completion-status",
+  clientSupportsStreamEnded: "x-zed-client-supports-stream-ended-request-completion-status",
   serverSupportsStatus: "x-zed-server-supports-status-messages",
   clientSupportsXai: "x-zed-client-supports-x-ai",
   systemId: "x-zed-system-id",
@@ -80,9 +79,7 @@ export function createZedNativeAuthData(config = {}, options = {}) {
     privateKeyEncoding: { type: "pkcs1", format: "pem" },
   });
 
-  const nativeAppPort = Number(
-    options.nativeAppPort || config.defaultNativeAppPort || 58443,
-  );
+  const nativeAppPort = Number(options.nativeAppPort || config.defaultNativeAppPort || 58443);
   const systemId = options.systemId || crypto.randomUUID();
   const publicKeyString = b64urlPadded(publicKey);
   const signInUrl = new URL(
@@ -119,9 +116,7 @@ export function parseZedCallbackPayload(input) {
         // "/?user_id=..&access_token=.." or "/callback?.."), a bare query,
         // or a lone query string. Only the query part is parsed — a leading
         // path must never become part of the first parameter name.
-        const query = raw.includes("?")
-          ? raw.slice(raw.indexOf("?") + 1)
-          : raw.replace(/^\?/, "");
+        const query = raw.includes("?") ? raw.slice(raw.indexOf("?") + 1) : raw.replace(/^\?/, "");
         url = new URL(`http://127.0.0.1/?${query}`);
       } catch {
         throw new Error("Invalid Zed callback URL");
@@ -158,10 +153,7 @@ export function decryptZedAccessToken(encryptedAccessToken, privateKeyVerifier) 
   } catch (oaepError) {
     try {
       const text = crypto
-        .privateDecrypt(
-          { key: privateKey, padding: crypto.constants.RSA_PKCS1_PADDING },
-          encrypted,
-        )
+        .privateDecrypt({ key: privateKey, padding: crypto.constants.RSA_PKCS1_PADDING }, encrypted)
         .toString("utf8");
       // PKCS#1 v1.5 unpadding is not integrity-checked: a wrong-key decrypt
       // can "succeed" with garbage bytes instead of throwing. Replacement
@@ -187,9 +179,7 @@ export function buildZedUserAuthHeader(credentials) {
 }
 
 function getSystemId(credentials) {
-  return String(
-    credentials?.providerSpecificData?.systemId || credentials?.systemId || "",
-  );
+  return String(credentials?.providerSpecificData?.systemId || credentials?.systemId || "");
 }
 
 async function fetchJson(url, options, proxyOptions = null) {

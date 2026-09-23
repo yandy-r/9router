@@ -63,14 +63,36 @@ function lookup(fullId, requestedKind) {
   // Web search/fetch — virtual model id "search" / "fetch"
   if (modelId === "search" && providerInfo?.searchConfig) {
     return buildInfo({
-      alias, providerId, kind: "webSearch", providerInfo,
-      model: { id: "search", name: `${providerInfo.name} Search`, params: ["query", "max_results", "country", "language", "time_range", "domain_filter", "search_type"] },
+      alias,
+      providerId,
+      kind: "webSearch",
+      providerInfo,
+      model: {
+        id: "search",
+        name: `${providerInfo.name} Search`,
+        params: [
+          "query",
+          "max_results",
+          "country",
+          "language",
+          "time_range",
+          "domain_filter",
+          "search_type",
+        ],
+      },
     });
   }
   if (modelId === "fetch" && providerInfo?.fetchConfig) {
     return buildInfo({
-      alias, providerId, kind: "webFetch", providerInfo,
-      model: { id: "fetch", name: `${providerInfo.name} Fetch`, params: ["url", "format", "max_characters"] },
+      alias,
+      providerId,
+      kind: "webFetch",
+      providerInfo,
+      model: {
+        id: "fetch",
+        name: `${providerInfo.name} Fetch`,
+        params: ["url", "format", "max_characters"],
+      },
     });
   }
   return null;
@@ -89,7 +111,12 @@ export async function GET(request) {
   const kind = searchParams.get("kind");
   if (!id) {
     return Response.json(
-      { error: { message: "Missing required query param: id (e.g. ?id=openai/dall-e-3)", type: "invalid_request_error" } },
+      {
+        error: {
+          message: "Missing required query param: id (e.g. ?id=openai/dall-e-3)",
+          type: "invalid_request_error",
+        },
+      },
       { status: 400, headers: { "Access-Control-Allow-Origin": "*" } },
     );
   }

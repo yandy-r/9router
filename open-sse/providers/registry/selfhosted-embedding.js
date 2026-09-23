@@ -55,9 +55,7 @@ export default {
   // Dimensions are deliberately NOT declared — they are a property of the loaded
   // weights, and asserting a number here would be a guess that silently
   // contradicts the server.
-  models: [
-    { id: "embedding", name: "Self-hosted embedding model", kind: "embedding" },
-  ],
+  models: [{ id: "embedding", name: "Self-hosted embedding model", kind: "embedding" }],
   serviceKinds: ["embedding"],
   embeddingConfig: {
     // Declared for shape-consistency with the other embedding providers, and

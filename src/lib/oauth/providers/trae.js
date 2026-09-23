@@ -36,23 +36,35 @@ async function fetchTraeLoginGuidance(loginTraceId) {
         },
         body,
       });
-      if (!res.ok) { lastErr = `${url} HTTP ${res.status}`; continue; }
+      if (!res.ok) {
+        lastErr = `${url} HTTP ${res.status}`;
+        continue;
+      }
       const data = await res.json();
       const loginHost = extractJsonPath(data, [
-        ["Result", "LoginHost"], ["Result", "loginHost"], ["Result", "LoginURL"],
-        ["result", "loginHost"], ["data", "Result", "LoginHost"], ["data", "loginHost"],
-        ["LoginHost"], ["loginHost"],
+        ["Result", "LoginHost"],
+        ["Result", "loginHost"],
+        ["Result", "LoginURL"],
+        ["result", "loginHost"],
+        ["data", "Result", "LoginHost"],
+        ["data", "loginHost"],
+        ["LoginHost"],
+        ["loginHost"],
       ]);
       if (loginHost) return loginHost;
       lastErr = `${url} missing LoginHost`;
-    } catch (e) { lastErr = `${url} ${e.message}`; }
+    } catch (e) {
+      lastErr = `${url} ${e.message}`;
+    }
   }
   throw new Error(`Trae GetLoginGuidance failed: ${lastErr}`);
 }
 
 // Build the browser verification URL the user opens to sign in.
 function buildTraeVerificationUrl(loginHost, loginTraceId, callbackUrl, ctx) {
-  const url = new URL(loginHost.startsWith("http") ? loginHost : `https://${loginHost.replace(/^\/+/, "")}`);
+  const url = new URL(
+    loginHost.startsWith("http") ? loginHost : `https://${loginHost.replace(/^\/+/, "")}`,
+  );
   url.pathname = TRAE_CONFIG.authorizationPath;
   const p = new URLSearchParams();
   p.set("login_version", "1");
@@ -87,7 +99,10 @@ function parseTraeCallback(raw) {
   if (text.startsWith("#")) queryStr = text.slice(1);
   const params = Object.fromEntries(new URLSearchParams(queryStr));
   const pick = (keys) => {
-    for (const k of keys) { const v = params[k]; if (v && String(v).trim()) return String(v).trim(); }
+    for (const k of keys) {
+      const v = params[k];
+      if (v && String(v).trim()) return String(v).trim();
+    }
     return null;
   };
   const err = pick(["error", "error_code", "errorCode"]);
@@ -99,7 +114,13 @@ function parseTraeCallback(raw) {
   if (!refreshToken) throw new Error("Trae callback missing refreshToken");
   const loginHost = pick(["loginHost", "login_host", "LoginHost", "host", "consoleHost"]);
   if (!loginHost) throw new Error("Trae callback missing loginHost");
-  const cloudideToken = pick(["x-cloudide-token", "xCloudideToken", "accessToken", "access_token", "token"]);
+  const cloudideToken = pick([
+    "x-cloudide-token",
+    "xCloudideToken",
+    "accessToken",
+    "access_token",
+    "token",
+  ]);
   return { refreshToken, loginHost, cloudideToken };
 }
 
@@ -130,23 +151,49 @@ async function fetchTraeExchangeToken(refreshToken, cloudideToken) {
       if (cloudideToken) headers["x-cloudide-token"] = cloudideToken;
       const res = await fetch(url, { method: "POST", headers, body });
       const text = await res.text();
-      if (!res.ok) { lastErr = `${url} HTTP ${res.status}`; continue; }
-      let data; try { data = JSON.parse(text); } catch { lastErr = `${url} invalid JSON`; continue; }
+      if (!res.ok) {
+        lastErr = `${url} HTTP ${res.status}`;
+        continue;
+      }
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        lastErr = `${url} invalid JSON`;
+        continue;
+      }
       const accessToken = extractJsonPath(data, [
-        ["Result", "AccessToken"], ["Result", "accessToken"], ["result", "access_token"], ["accessToken"],
+        ["Result", "AccessToken"],
+        ["Result", "accessToken"],
+        ["result", "access_token"],
+        ["accessToken"],
       ]);
       if (!accessToken) {
-        const msg = extractJsonPath(data, [["message"], ["msg"], ["error"], ["Result", "Message"]]) || "missing AccessToken";
+        const msg =
+          extractJsonPath(data, [["message"], ["msg"], ["error"], ["Result", "Message"]]) ||
+          "missing AccessToken";
         lastErr = `${url} ${msg}`;
         continue;
       }
       return {
         accessToken,
-        refreshToken: extractJsonPath(data, [["Result", "RefreshToken"], ["result", "refresh_token"], ["refreshToken"]]) || refreshToken,
+        refreshToken:
+          extractJsonPath(data, [
+            ["Result", "RefreshToken"],
+            ["result", "refresh_token"],
+            ["refreshToken"],
+          ]) || refreshToken,
         expiresIn: null, // ExchangeToken returns ExpiresAt (absolute), converted below
-        expiresAt: extractJsonPath(data, [["Result", "ExpiresAt"], ["Result", "expiresAt"], ["result", "expires_at"], ["expiresAt"]]),
+        expiresAt: extractJsonPath(data, [
+          ["Result", "ExpiresAt"],
+          ["Result", "expiresAt"],
+          ["result", "expires_at"],
+          ["expiresAt"],
+        ]),
       };
-    } catch (e) { lastErr = `${url} ${e.message}`; }
+    } catch (e) {
+      lastErr = `${url} ${e.message}`;
+    }
   }
   throw new Error(`Trae ExchangeToken failed: ${lastErr}`);
 }
@@ -170,19 +217,36 @@ async function fetchTraeUserInfo(accessToken) {
       const data = await res.json();
       return {
         email: extractJsonPath(data, [
-          ["Result", "NonPlainTextEmail"], ["Result", "Email"], ["Result", "email"],
-          ["email"], ["data", "email"],
+          ["Result", "NonPlainTextEmail"],
+          ["Result", "Email"],
+          ["Result", "email"],
+          ["email"],
+          ["data", "email"],
         ]),
         name: extractJsonPath(data, [
-          ["Result", "ScreenName"], ["Result", "Nickname"], ["Result", "Name"],
-          ["result", "nickname"], ["nickname"], ["name"],
+          ["Result", "ScreenName"],
+          ["Result", "Nickname"],
+          ["Result", "Name"],
+          ["result", "nickname"],
+          ["nickname"],
+          ["name"],
         ]),
-        aiRegion: extractJsonPath(data, [["Result", "AIRegion"], ["Result", "aiRegion"], ["aiRegion"]]),
+        aiRegion: extractJsonPath(data, [
+          ["Result", "AIRegion"],
+          ["Result", "aiRegion"],
+          ["aiRegion"],
+        ]),
         region: extractJsonPath(data, [["Result", "Region"], ["Result", "region"], ["region"]]),
-        tenant: extractJsonPath(data, [["Result", "TenantID"], ["Result", "tenantId"], ["tenantId"]]),
+        tenant: extractJsonPath(data, [
+          ["Result", "TenantID"],
+          ["Result", "tenantId"],
+          ["tenantId"],
+        ]),
         userId: extractJsonPath(data, [["Result", "UserID"], ["Result", "userId"], ["userId"]]),
       };
-    } catch { /* try next origin */ }
+    } catch {
+      /* try next origin */
+    }
   }
   return { email: null, name: null };
 }
@@ -215,11 +279,18 @@ const trae = {
   exchangeToken: async (config, code) => {
     const trimmed = String(code || "").trim();
     // Paste-token mode: raw Cloud-IDE-JWT (no refresh exchange)
-    const looksCallback = /[?=&]/.test(trimmed) && (trimmed.includes("refreshToken") || trimmed.includes("refresh_token"));
+    const looksCallback =
+      /[?=&]/.test(trimmed) &&
+      (trimmed.includes("refreshToken") || trimmed.includes("refresh_token"));
     if (!looksCallback) {
       // Strip "Cloud-IDE-JWT " / "Bearer " prefix users paste from the Authorization header
       const clean = trimmed.replace(/^(Cloud-IDE-JWT|Bearer)\s+/i, "");
-      return { accessToken: clean, refreshToken: null, expiresIn: TRAE_CONFIG.tokenLifetimeDays * 24 * 60 * 60, _authMethod: "imported" };
+      return {
+        accessToken: clean,
+        refreshToken: null,
+        expiresIn: TRAE_CONFIG.tokenLifetimeDays * 24 * 60 * 60,
+        _authMethod: "imported",
+      };
     }
     const { refreshToken, cloudideToken } = parseTraeCallback(trimmed);
     return { ...(await fetchTraeExchangeToken(refreshToken, cloudideToken)), _authMethod: "oauth" };
@@ -229,8 +300,11 @@ const trae = {
     return { userInfo };
   },
   mapTokens: (tokens, extra) => {
-    const expiresIn = tokens.expiresIn
-      || (tokens.expiresAt ? Math.max(60, Number(tokens.expiresAt) - Math.floor(Date.now() / 1000)) : TRAE_CONFIG.tokenLifetimeDays * 24 * 60 * 60);
+    const expiresIn =
+      tokens.expiresIn ||
+      (tokens.expiresAt
+        ? Math.max(60, Number(tokens.expiresAt) - Math.floor(Date.now() / 1000))
+        : TRAE_CONFIG.tokenLifetimeDays * 24 * 60 * 60);
     const ui = extra?.userInfo || {};
     const aiRegion = ui.aiRegion || "US-East";
     // SOLO common_params defaults — identity fields web_id/biz_user_id are not

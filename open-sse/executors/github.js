@@ -36,7 +36,7 @@ export class GithubExecutor extends BaseExecutor {
   buildHeaders(credentials, stream = true) {
     const token = credentials.copilotToken || credentials.accessToken;
     return {
-      "Authorization": `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       "copilot-integration-id": "vscode-chat",
       "editor-version": `vscode/${GITHUB_COPILOT.VSCODE_VERSION}`,
@@ -44,12 +44,13 @@ export class GithubExecutor extends BaseExecutor {
       "user-agent": GITHUB_COPILOT.USER_AGENT,
       "openai-intent": "conversation-panel",
       "x-github-api-version": GITHUB_COPILOT.API_VERSION,
-      "x-request-id": crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      "x-request-id":
+        crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
       "x-vscode-user-agent-library-version": "electron-fetch",
       "X-Initiator": "user",
       // Harmless no-op on /chat/completions and /responses; required by /v1/messages.
       "anthropic-version": ANTHROPIC_API_VERSION,
-      "Accept": stream ? "text/event-stream" : "application/json"
+      Accept: stream ? "text/event-stream" : "application/json",
     };
   }
 
@@ -61,7 +62,7 @@ export class GithubExecutor extends BaseExecutor {
     if (!body?.messages) return body;
 
     const sanitized = { ...body };
-    sanitized.messages = body.messages.map(msg => {
+    sanitized.messages = body.messages.map((msg) => {
       // assistant messages with only tool_calls have content: null — leave as-is
       if (!msg.content) return msg;
 
@@ -71,14 +72,14 @@ export class GithubExecutor extends BaseExecutor {
       // Array content: filter/convert unsupported part types
       if (Array.isArray(msg.content)) {
         const cleanContent = msg.content
-          .map(part => {
+          .map((part) => {
             if (part.type === "text") return part;
             if (part.type === "image_url") return part;
             // Serialize tool_use, tool_result, thinking, etc. as text
             const text = part.text || part.content || JSON.stringify(part);
             return { type: "text", text: typeof text === "string" ? text : JSON.stringify(text) };
           })
-          .filter(part => part.text !== ""); // remove empty text parts
+          .filter((part) => part.text !== ""); // remove empty text parts
 
         // If all content was stripped (e.g. only tool_result with no text), drop content
         return { ...msg, content: cleanContent.length > 0 ? cleanContent : null };
@@ -143,18 +144,27 @@ export class GithubExecutor extends BaseExecutor {
     // endpoint rejects non-text/image_url content parts).
     const sanitizedOptions = {
       ...options,
-      body: this.sanitizeMessagesForChatCompletions(options.body)
+      body: this.sanitizeMessagesForChatCompletions(options.body),
     };
 
-    const result = await super.execute({ ...sanitizedOptions, proxyOptions: options.proxyOptions || null });
+    const result = await super.execute({
+      ...sanitizedOptions,
+      proxyOptions: options.proxyOptions || null,
+    });
 
     // Only escalate to /responses for models that endpoint can actually serve.
     // Gemini/Claude would otherwise loop into a misleading "does not support
     // Responses API" 400 instead of surfacing the real /chat/completions error (#1062).
-    if (result.response.status === HTTP_STATUS.BAD_REQUEST && this.supportsResponsesEndpoint(model)) {
+    if (
+      result.response.status === HTTP_STATUS.BAD_REQUEST &&
+      this.supportsResponsesEndpoint(model)
+    ) {
       const errorBody = await result.response.clone().text();
 
-      if (errorBody.includes("not accessible via the /chat/completions endpoint") || errorBody.includes("The requested model is not supported")) {
+      if (
+        errorBody.includes("not accessible via the /chat/completions endpoint") ||
+        errorBody.includes("The requested model is not supported")
+      ) {
         log?.warn("GITHUB", `Model ${model} requires /responses. Switching...`);
         this.knownCodexModels.add(model);
         return this.executeWithResponsesEndpoint(options);
@@ -164,7 +174,15 @@ export class GithubExecutor extends BaseExecutor {
     return result;
   }
 
-  async executeWithResponsesEndpoint({ model, body, stream, credentials, signal, log, proxyOptions = null }) {
+  async executeWithResponsesEndpoint({
+    model,
+    body,
+    stream,
+    credentials,
+    signal,
+    log,
+    proxyOptions = null,
+  }) {
     const url = this.config.responsesUrl;
     const headers = this.buildHeaders(credentials, stream);
 
@@ -172,12 +190,16 @@ export class GithubExecutor extends BaseExecutor {
 
     log?.debug("GITHUB", "Sending translated request to /responses");
 
-    const response = await proxyAwareFetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(transformedBody),
-      signal
-    }, proxyOptions);
+    const response = await proxyAwareFetch(
+      url,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(transformedBody),
+        signal,
+      },
+      proxyOptions,
+    );
 
     if (!response.ok) {
       return { response, url, headers, transformedBody };
@@ -225,11 +247,16 @@ export class GithubExecutor extends BaseExecutor {
             }
           }
         }
-      }
+      },
     });
 
     if (!response.body) {
-      return { response: new Response("", { status: response.status, headers: response.headers }), url, headers, transformedBody };
+      return {
+        response: new Response("", { status: response.status, headers: response.headers }),
+        url,
+        headers,
+        transformedBody,
+      };
     }
     const convertedStream = response.body.pipeThrough(transformStream);
 
@@ -237,11 +264,11 @@ export class GithubExecutor extends BaseExecutor {
       response: new Response(convertedStream, {
         status: response.status,
         statusText: response.statusText,
-        headers: response.headers
+        headers: response.headers,
       }),
       url,
       headers,
-      transformedBody
+      transformedBody,
     };
   }
 
@@ -249,7 +276,15 @@ export class GithubExecutor extends BaseExecutor {
   // see the note in execute() above), so we translate to Anthropic-native ourselves.
   // This is what makes prepareClaudeRequest() (translator/formats/claude.js) inject
   // cache_control — /chat/completions never gets there, so it never sees cache tokens.
-  async executeWithMessagesEndpoint({ model, body, stream, credentials, signal, log, proxyOptions = null }) {
+  async executeWithMessagesEndpoint({
+    model,
+    body,
+    stream,
+    credentials,
+    signal,
+    log,
+    proxyOptions = null,
+  }) {
     const url = this.config.messagesUrl;
     const headers = this.buildHeaders(credentials, stream);
 
@@ -257,7 +292,15 @@ export class GithubExecutor extends BaseExecutor {
     // executeWithResponsesEndpoint below — chatCore.js's non-streaming handler already
     // knows how to buffer an SSE response into a single JSON reply when the client
     // asked for stream:false.
-    const transformedBody = translateRequest(FORMATS.OPENAI, FORMATS.CLAUDE, model, body, true, credentials, "github");
+    const transformedBody = translateRequest(
+      FORMATS.OPENAI,
+      FORMATS.CLAUDE,
+      model,
+      body,
+      true,
+      credentials,
+      "github",
+    );
     // _toolNameMap is internal bookkeeping (see openai-to-claude.js) — chatCore.js
     // normally strips it before dispatch and threads it into the response state to
     // restore original tool names; we must do the same here, or Anthropic's strict
@@ -267,12 +310,16 @@ export class GithubExecutor extends BaseExecutor {
 
     log?.debug("GITHUB", "Sending translated request to /v1/messages");
 
-    const response = await proxyAwareFetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(transformedBody),
-      signal
-    }, proxyOptions);
+    const response = await proxyAwareFetch(
+      url,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(transformedBody),
+        signal,
+      },
+      proxyOptions,
+    );
 
     if (!response.ok) {
       return { response, url, headers, transformedBody };
@@ -320,11 +367,16 @@ export class GithubExecutor extends BaseExecutor {
             emitAll(controller, translateResponse(FORMATS.CLAUDE, FORMATS.OPENAI, parsed, state));
           }
         }
-      }
+      },
     });
 
     if (!response.body) {
-      return { response: new Response("", { status: response.status, headers: response.headers }), url, headers, transformedBody };
+      return {
+        response: new Response("", { status: response.status, headers: response.headers }),
+        url,
+        headers,
+        transformedBody,
+      };
     }
     const convertedStream = response.body.pipeThrough(transformStream);
 
@@ -332,26 +384,30 @@ export class GithubExecutor extends BaseExecutor {
       response: new Response(convertedStream, {
         status: response.status,
         statusText: response.statusText,
-        headers: response.headers
+        headers: response.headers,
       }),
       url,
       headers,
-      transformedBody
+      transformedBody,
     };
   }
 
   async refreshCopilotToken(githubAccessToken, log, proxyOptions = null) {
     try {
-      const response = await proxyAwareFetch("https://api.github.com/copilot_internal/v2/token", {
-        headers: {
-          "Authorization": `token ${githubAccessToken}`,
-          "User-Agent": GITHUB_COPILOT.USER_AGENT,
-          "Editor-Version": `vscode/${GITHUB_COPILOT.VSCODE_VERSION}`,
-          "Editor-Plugin-Version": `copilot-chat/${GITHUB_COPILOT.COPILOT_CHAT_VERSION}`,
-          "Accept": "application/json",
-          "x-github-api-version": GITHUB_COPILOT.API_VERSION
-        }
-      }, proxyOptions);
+      const response = await proxyAwareFetch(
+        "https://api.github.com/copilot_internal/v2/token",
+        {
+          headers: {
+            Authorization: `token ${githubAccessToken}`,
+            "User-Agent": GITHUB_COPILOT.USER_AGENT,
+            "Editor-Version": `vscode/${GITHUB_COPILOT.VSCODE_VERSION}`,
+            "Editor-Plugin-Version": `copilot-chat/${GITHUB_COPILOT.COPILOT_CHAT_VERSION}`,
+            Accept: "application/json",
+            "x-github-api-version": GITHUB_COPILOT.API_VERSION,
+          },
+        },
+        proxyOptions,
+      );
       if (!response.ok) {
         const errorText = await response.text();
         log?.error?.("TOKEN", `Copilot token refresh failed: ${response.status} ${errorText}`);
@@ -377,15 +433,26 @@ export class GithubExecutor extends BaseExecutor {
         params.client_secret = this.config.clientSecret;
       }
 
-      const response = await proxyAwareFetch(OAUTH_ENDPOINTS.github.token, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json" },
-        body: new URLSearchParams(params)
-      }, proxyOptions);
+      const response = await proxyAwareFetch(
+        OAUTH_ENDPOINTS.github.token,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Accept: "application/json",
+          },
+          body: new URLSearchParams(params),
+        },
+        proxyOptions,
+      );
       if (!response.ok) return null;
       const tokens = await response.json();
       log?.info?.("TOKEN", "GitHub token refreshed");
-      return { accessToken: tokens.access_token, refreshToken: tokens.refresh_token || refreshToken, expiresIn: tokens.expires_in };
+      return {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token || refreshToken,
+        expiresIn: tokens.expires_in,
+      };
     } catch (error) {
       log?.error?.("TOKEN", `GitHub refresh error: ${error.message}`);
       return null;
@@ -396,18 +463,31 @@ export class GithubExecutor extends BaseExecutor {
     let copilotResult = await this.refreshCopilotToken(credentials.accessToken, log, proxyOptions);
 
     if (!copilotResult && credentials.refreshToken) {
-      const githubTokens = await this.refreshGitHubToken(credentials.refreshToken, log, proxyOptions);
+      const githubTokens = await this.refreshGitHubToken(
+        credentials.refreshToken,
+        log,
+        proxyOptions,
+      );
       if (githubTokens?.accessToken) {
         copilotResult = await this.refreshCopilotToken(githubTokens.accessToken, log, proxyOptions);
         if (copilotResult) {
-          return { ...githubTokens, copilotToken: copilotResult.token, copilotTokenExpiresAt: copilotResult.expiresAt };
+          return {
+            ...githubTokens,
+            copilotToken: copilotResult.token,
+            copilotTokenExpiresAt: copilotResult.expiresAt,
+          };
         }
         return githubTokens;
       }
     }
 
     if (copilotResult) {
-      return { accessToken: credentials.accessToken, refreshToken: credentials.refreshToken, copilotToken: copilotResult.token, copilotTokenExpiresAt: copilotResult.expiresAt };
+      return {
+        accessToken: credentials.accessToken,
+        refreshToken: credentials.refreshToken,
+        copilotToken: copilotResult.token,
+        copilotTokenExpiresAt: copilotResult.expiresAt,
+      };
     }
 
     return null;

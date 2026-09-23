@@ -50,14 +50,14 @@ export const CLIENT_STORE_TTL_MS = 60000;
 
 // Quota auto-ping: keep 5h windows warm by sending a tiny request right after reset.
 export const QUOTA_AUTOPING_CONFIG = {
-  tickIntervalMs: 60000,                // scheduler tick
-  pingLeadMs: 5000,                     // fire once reset passes (within tolerance)
-  refreshAheadMs: 300000,               // refetch usage when within 5min of reset
-  failureCooldownMs: 900000,            // avoid failed ping spam while upstream/auth is unhealthy
+  tickIntervalMs: 60000, // scheduler tick
+  pingLeadMs: 5000, // fire once reset passes (within tolerance)
+  refreshAheadMs: 300000, // refetch usage when within 5min of reset
+  failureCooldownMs: 900000, // avoid failed ping spam while upstream/auth is unhealthy
   providers: {
     claude: {
-      settingsKey: "claudeAutoPing",    // preserve existing settings contract
-      quotaKey: "session (5h)",         // quota key returned by usage handler
+      settingsKey: "claudeAutoPing", // preserve existing settings contract
+      quotaKey: "session (5h)", // quota key returned by usage handler
       pingModel: "claude-haiku-4-5-20251001",
       pingText: "hi",
       pingMaxTokens: 1,

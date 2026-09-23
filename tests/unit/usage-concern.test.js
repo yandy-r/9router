@@ -5,8 +5,13 @@ import { toOpenAIUsage } from "../../open-sse/translator/concerns/usage.js";
 describe("toOpenAIUsage", () => {
   it("claude: folds cache read+create into prompt, exposes details", () => {
     const u = toOpenAIUsage(
-      { input_tokens: 100, output_tokens: 20, cache_read_input_tokens: 30, cache_creation_input_tokens: 10 },
-      "claude"
+      {
+        input_tokens: 100,
+        output_tokens: 20,
+        cache_read_input_tokens: 30,
+        cache_creation_input_tokens: 10,
+      },
+      "claude",
     );
     expect(u.prompt_tokens).toBe(140);
     expect(u.completion_tokens).toBe(20);
@@ -23,8 +28,13 @@ describe("toOpenAIUsage", () => {
 
   it("gemini: full fields, completion = candidates + thoughts", () => {
     const u = toOpenAIUsage(
-      { promptTokenCount: 100, candidatesTokenCount: 40, thoughtsTokenCount: 10, totalTokenCount: 150 },
-      "gemini"
+      {
+        promptTokenCount: 100,
+        candidatesTokenCount: 40,
+        thoughtsTokenCount: 10,
+        totalTokenCount: 150,
+      },
+      "gemini",
     );
     expect(u.prompt_tokens).toBe(100);
     expect(u.completion_tokens).toBe(50);
@@ -34,8 +44,13 @@ describe("toOpenAIUsage", () => {
 
   it("gemini fallback: candidates=0 -> derive from total - prompt - thoughts", () => {
     const u = toOpenAIUsage(
-      { promptTokenCount: 100, candidatesTokenCount: 0, thoughtsTokenCount: 10, totalTokenCount: 150 },
-      "gemini"
+      {
+        promptTokenCount: 100,
+        candidatesTokenCount: 0,
+        thoughtsTokenCount: 10,
+        totalTokenCount: 150,
+      },
+      "gemini",
     );
     // candidates derived = 150 - 100 - 10 = 40 ; completion = 40 + 10
     expect(u.completion_tokens).toBe(50);

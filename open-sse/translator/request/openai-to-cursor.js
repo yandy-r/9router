@@ -16,11 +16,11 @@ function extractContent(content) {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
     return content
-      .filter(part => {
+      .filter((part) => {
         if (!part || typeof part !== "object") return false;
         return part.type === OPENAI_BLOCK.TEXT && typeof part.text === "string";
       })
-      .map(part => part.text || "")
+      .map((part) => part.text || "")
       .join("");
   }
   return "";
@@ -38,7 +38,10 @@ function toImagePart(block) {
   if (block.type === CLAUDE_BLOCK.IMAGE && block.source) {
     const { source } = block;
     if (source.type === "base64" && source.data) {
-      return { type: OPENAI_BLOCK.IMAGE_URL, image_url: { url: encodeDataUri(source.media_type, source.data) } };
+      return {
+        type: OPENAI_BLOCK.IMAGE_URL,
+        image_url: { url: encodeDataUri(source.media_type, source.data) },
+      };
     }
     if (source.type === "url" && source.url) {
       return { type: OPENAI_BLOCK.IMAGE_URL, image_url: { url: source.url } };
@@ -60,6 +63,7 @@ function withImages(text, images) {
 
 function sanitizeToolResultText(text) {
   // Strip non-printable control chars that can produce backend request errors
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: sanitizer must match control chars
   return text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
 }
 
@@ -74,7 +78,7 @@ function buildToolResultBlock(toolName, toolCallId, resultText) {
     `<tool_name>${escapeXml(toolName || "tool")}</tool_name>`,
     `<tool_call_id>${escapeXml(toolCallId || "")}</tool_call_id>`,
     `<result>${escapeXml(cleanResult)}</result>`,
-    "</tool_result>"
+    "</tool_result>",
   ].join("\n");
 }
 
@@ -116,7 +120,7 @@ function convertMessages(messages) {
     if (msg.role === ROLE.SYSTEM) {
       result.push({
         role: ROLE.USER,
-        content: `[System Instructions]\n${extractContent(msg.content)}`
+        content: `[System Instructions]\n${extractContent(msg.content)}`,
       });
       continue;
     }
@@ -128,7 +132,10 @@ function convertMessages(messages) {
       const toolName = msg.name || toolMeta.name || "tool";
       result.push({
         role: ROLE.USER,
-        content: withImages(buildToolResultBlock(toolName, toolCallId, toolContent), imagePartsOf(msg.content))
+        content: withImages(
+          buildToolResultBlock(toolName, toolCallId, toolContent),
+          imagePartsOf(msg.content),
+        ),
       });
       continue;
     }
@@ -162,7 +169,8 @@ function convertMessages(messages) {
           }
         }
         const joined = parts.filter(Boolean).join("\n");
-        if (joined || images.length) result.push({ role: ROLE.USER, content: withImages(joined, images) });
+        if (joined || images.length)
+          result.push({ role: ROLE.USER, content: withImages(joined, images) });
         continue;
       }
 
@@ -172,29 +180,29 @@ function convertMessages(messages) {
 
       if (msg.role === ROLE.ASSISTANT && msg.tool_calls && msg.tool_calls.length > 0) {
         const assistantMsg = { role: ROLE.ASSISTANT, content: withImages(content || "", images) };
-        assistantMsg.tool_calls = msg.tool_calls.map(tc => {
+        assistantMsg.tool_calls = msg.tool_calls.map((tc) => {
           const { index, ...rest } = tc || {};
           return rest;
         });
         result.push(assistantMsg);
       } else if (msg.role === ROLE.ASSISTANT && Array.isArray(msg.content)) {
         const extractedToolCalls = msg.content
-          .filter(b => b?.type === CLAUDE_BLOCK.TOOL_USE)
-          .map(b => ({
+          .filter((b) => b?.type === CLAUDE_BLOCK.TOOL_USE)
+          .map((b) => ({
             id: b.id || "",
             type: OPENAI_BLOCK.FUNCTION,
             function: {
               name: b.name || "tool",
-              arguments: JSON.stringify(b.input || {})
-            }
+              arguments: JSON.stringify(b.input || {}),
+            },
           }))
-          .filter(tc => tc.id);
+          .filter((tc) => tc.id);
 
         if (extractedToolCalls.length > 0) {
           result.push({
             role: ROLE.ASSISTANT,
             content: withImages(content || "", images),
-            tool_calls: extractedToolCalls
+            tool_calls: extractedToolCalls,
           });
         } else if (content || images.length) {
           result.push({ role: ROLE.ASSISTANT, content: withImages(content, images) });
@@ -219,7 +227,7 @@ export function openaiToCursorRequest(model, body, stream, credentials) {
   return {
     ...rest,
     messages,
-    max_tokens: DEFAULT_MIN_TOKENS
+    max_tokens: DEFAULT_MIN_TOKENS,
   };
 }
 

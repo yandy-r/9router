@@ -15,5 +15,7 @@ export const XIAOMI_TOKENPLAN_DEFAULT_REGION = PROVIDERS["xiaomi-tokenplan"]?.de
 
 export function resolveXiaomiTokenplanBaseUrl(credentials) {
   const region = credentials?.providerSpecificData?.region;
-  return XIAOMI_TOKENPLAN_REGIONS[region] || XIAOMI_TOKENPLAN_REGIONS[XIAOMI_TOKENPLAN_DEFAULT_REGION];
+  return (
+    XIAOMI_TOKENPLAN_REGIONS[region] || XIAOMI_TOKENPLAN_REGIONS[XIAOMI_TOKENPLAN_DEFAULT_REGION]
+  );
 }

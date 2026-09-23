@@ -2,11 +2,16 @@ import { PROVIDERS } from "./providers.js";
 import REGISTRY from "../providers/registry/index.js";
 // PROVIDER_MODELS now built from providers/registry (transport + models co-located)
 import { PROVIDER_MODELS } from "../providers/index.js";
-import { modelQuotaFamily, modelStrip, modelTargetFormat, modelSupportedFormats, normalizeModelId } from "../providers/models/schema.js";
+import {
+  modelQuotaFamily,
+  modelStrip,
+  modelTargetFormat,
+  modelSupportedFormats,
+  normalizeModelId,
+} from "../providers/models/schema.js";
 import { CODEX_REVIEW_SUFFIX, isMuseSparkModel } from "../providers/models/helpers.js";
 import { FORMATS } from "../translator/formats.js";
 export { PROVIDER_MODELS };
-
 
 // Helper functions
 export function getProviderModels(aliasOrId) {
@@ -27,15 +32,14 @@ const DOT_VERSION_PROVIDERS = new Set(["kr", "kiro"]);
 // ("claude-sonnet-4-5" ~= "claude-sonnet-4.5"). Other providers use exact match only.
 function findModel(models, modelId, aliasOrId) {
   if (!models) return undefined;
-  const baseModelId = typeof modelId === "string"
-    ? modelId.replace(/\([^()]+\)\s*$/, "").trim()
-    : modelId;
-  const found = models.find(m => m.id === modelId || m.id === baseModelId);
+  const baseModelId =
+    typeof modelId === "string" ? modelId.replace(/\([^()]+\)\s*$/, "").trim() : modelId;
+  const found = models.find((m) => m.id === modelId || m.id === baseModelId);
   if (found) return found;
   if (!DOT_VERSION_PROVIDERS.has(aliasOrId)) return undefined;
   const normalized = normalizeModelId(baseModelId);
   if (normalized === baseModelId) return undefined;
-  return models.find(m => m.id === normalized);
+  return models.find((m) => m.id === normalized);
 }
 
 export function isValidModel(aliasOrId, modelId, passthroughProviders = new Set()) {
@@ -53,7 +57,14 @@ export function findModelName(aliasOrId, modelId) {
 }
 
 export function getModelTargetFormat(aliasOrId, modelId) {
-  if ((!aliasOrId || aliasOrId === "oc" || aliasOrId === "opencode" || aliasOrId === "ocg" || aliasOrId === "opencode-go") && isMuseSparkModel(modelId)) {
+  if (
+    (!aliasOrId ||
+      aliasOrId === "oc" ||
+      aliasOrId === "opencode" ||
+      aliasOrId === "ocg" ||
+      aliasOrId === "opencode-go") &&
+    isMuseSparkModel(modelId)
+  ) {
     return FORMATS.OPENAI_RESPONSES;
   }
   const models = PROVIDER_MODELS[aliasOrId];
@@ -105,12 +116,12 @@ export function getModelQuotaFamily(aliasOrId, modelId) {
 // OAuth short aliases — derived from registry `alias` (single source). everything else: alias = id.
 // vertex/vertex-partner keep alias=id (kept via the `|| id` fallback in consumers).
 export const OAUTH_ALIASES = Object.fromEntries(
-  REGISTRY.filter(r => r.alias && r.alias !== r.id).map(r => [r.id, r.alias])
+  REGISTRY.filter((r) => r.alias && r.alias !== r.id).map((r) => [r.id, r.alias]),
 );
 
 // Derived from PROVIDERS — no need to maintain manually
 export const PROVIDER_ID_TO_ALIAS = Object.fromEntries(
-  Object.keys(PROVIDERS).map(id => [id, OAUTH_ALIASES[id] || id])
+  Object.keys(PROVIDERS).map((id) => [id, OAUTH_ALIASES[id] || id]),
 );
 
 export function getModelsByProviderId(providerId) {

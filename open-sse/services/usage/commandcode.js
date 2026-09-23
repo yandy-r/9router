@@ -6,7 +6,10 @@
 import { proxyAwareFetch } from "../../utils/proxyFetch.js";
 import { parseResetTime, toFiniteNumber } from "./shared.js";
 
-const BASE = (process.env.COMMAND_CODE_API_BASE_URL || "https://api.commandcode.ai").replace(/\/$/, "");
+const BASE = (process.env.COMMAND_CODE_API_BASE_URL || "https://api.commandcode.ai").replace(
+  /\/$/,
+  "",
+);
 
 const PLAN_NAMES = {
   "individual-go": "Go",
@@ -66,21 +69,23 @@ export async function getCommandCodeUsage(apiKey, proxyOptions = null) {
   };
 
   const get = async (route) => {
-    const response = await proxyAwareFetch(
-      BASE + route,
-      { method: "GET", headers },
-      proxyOptions,
-    );
+    const response = await proxyAwareFetch(BASE + route, { method: "GET", headers }, proxyOptions);
     return response;
   };
 
   try {
     const whoamiRes = await get(qs("/alpha/whoami", { limits: "1" }));
     if (whoamiRes.status === 401 || whoamiRes.status === 403) {
-      return { plan: "Command Code", message: "Command Code authentication failed. Check the API key." };
+      return {
+        plan: "Command Code",
+        message: "Command Code authentication failed. Check the API key.",
+      };
     }
     if (!whoamiRes.ok) {
-      return { plan: "Command Code", message: `Command Code usage API error (${whoamiRes.status})` };
+      return {
+        plan: "Command Code",
+        message: `Command Code usage API error (${whoamiRes.status})`,
+      };
     }
     const whoami = await whoamiRes.json().catch(() => ({}));
     const orgId = whoami?.org?.id ?? null;
@@ -90,21 +95,35 @@ export async function getCommandCodeUsage(apiKey, proxyOptions = null) {
       get(qs("/alpha/billing/subscriptions", { orgId })),
     ]);
 
-    if (creditsRes.status === 401 || creditsRes.status === 403 || subsRes.status === 401 || subsRes.status === 403) {
-      return { plan: "Command Code", message: "Command Code authentication failed. Check the API key." };
+    if (
+      creditsRes.status === 401 ||
+      creditsRes.status === 403 ||
+      subsRes.status === 401 ||
+      subsRes.status === 403
+    ) {
+      return {
+        plan: "Command Code",
+        message: "Command Code authentication failed. Check the API key.",
+      };
     }
     if (!creditsRes.ok) {
-      return { plan: "Command Code", message: `Command Code credits API error (${creditsRes.status})` };
+      return {
+        plan: "Command Code",
+        message: `Command Code credits API error (${creditsRes.status})`,
+      };
     }
     if (!subsRes.ok) {
-      return { plan: "Command Code", message: `Command Code subscriptions API error (${subsRes.status})` };
+      return {
+        plan: "Command Code",
+        message: `Command Code subscriptions API error (${subsRes.status})`,
+      };
     }
 
     const creditsBody = await creditsRes.json().catch(() => ({}));
     const subsBody = await subsRes.json().catch(() => ({}));
     const planId = subsBody?.data?.planId ?? null;
     const plan = (planId && PLAN_NAMES[planId]) || planId || "Command Code";
-    const cap = planId ? (PLAN_CAPS[planId] || 0) : 0;
+    const cap = planId ? PLAN_CAPS[planId] || 0 : 0;
     const c = creditsBody?.credits || {};
     const remaining =
       toFiniteNumber(c.monthlyCredits, 0) +

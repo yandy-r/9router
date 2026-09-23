@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-const { openaiToOpenAIResponsesRequest, openaiResponsesToOpenAIRequest } =
-  await import("../../open-sse/translator/request/openai-responses.js");
+const { openaiToOpenAIResponsesRequest, openaiResponsesToOpenAIRequest } = await import(
+  "../../open-sse/translator/request/openai-responses.js"
+);
 
 const CHAT_BODY = (extra = {}) => ({
   model: "example-model",

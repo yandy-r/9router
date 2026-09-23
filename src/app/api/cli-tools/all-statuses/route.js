@@ -42,7 +42,7 @@ export async function GET() {
       } catch {
         return [toolId, null];
       }
-    })
+    }),
   );
   return NextResponse.json(Object.fromEntries(entries));
 }

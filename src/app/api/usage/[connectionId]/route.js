@@ -91,7 +91,9 @@ export async function refreshAndUpdateCredentials(connection, force = false, pro
   const providerSpecificUpdates = {
     ...(refreshResult.providerSpecificData || {}),
     ...(refreshResult.copilotToken ? { copilotToken: refreshResult.copilotToken } : {}),
-    ...(refreshResult.copilotTokenExpiresAt ? { copilotTokenExpiresAt: refreshResult.copilotTokenExpiresAt } : {}),
+    ...(refreshResult.copilotTokenExpiresAt
+      ? { copilotTokenExpiresAt: refreshResult.copilotTokenExpiresAt }
+      : {}),
   };
   if (Object.keys(providerSpecificUpdates).length > 0) {
     updateData.providerSpecificData = {
@@ -125,7 +127,6 @@ export async function GET(request, { params }) {
     const { connectionId } = await params;
     const force = new URL(request.url).searchParams.get("force") === "1";
 
-
     // Get connection from database
     connection = await getProviderConnectionById(connectionId);
     if (!connection) {
@@ -136,10 +137,8 @@ export async function GET(request, { params }) {
     // Kiro's headless api-key flow persists authType "api_key" (underscore) while
     // generic apikey providers persist "apikey" — accept both spellings here.
     const isOAuth = connection.authType === "oauth";
-    const isApikeyAuth =
-      connection.authType === "apikey" || connection.authType === "api_key";
-    const isApikeyEligible =
-      isApikeyAuth && USAGE_APIKEY_PROVIDERS.includes(connection.provider);
+    const isApikeyAuth = connection.authType === "apikey" || connection.authType === "api_key";
+    const isApikeyEligible = isApikeyAuth && USAGE_APIKEY_PROVIDERS.includes(connection.provider);
 
     if (!isOAuth && !isApikeyEligible) {
       return Response.json({ message: "Usage not available for this connection" });
@@ -162,9 +161,12 @@ export async function GET(request, { params }) {
         connection = result.connection;
       } catch (refreshError) {
         console.error("[Usage API] Credential refresh failed:", refreshError);
-        return Response.json({
-          error: `Credential refresh failed: ${refreshError.message}`
-        }, { status: 401 });
+        return Response.json(
+          {
+            error: `Credential refresh failed: ${refreshError.message}`,
+          },
+          { status: 401 },
+        );
       }
     }
 

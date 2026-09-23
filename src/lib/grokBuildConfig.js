@@ -10,19 +10,13 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const tomlString = (value) => JSON.stringify(String(value));
 
 const sectionRegExp = (section) =>
-  new RegExp(
-    `^\\[${escapeRegExp(section)}\\][ \\t]*\\r?\\n((?:(?!\\[)[^\\r\\n]*\\r?\\n?)*)`,
-    "m",
-  );
+  new RegExp(`^\\[${escapeRegExp(section)}\\][ \\t]*\\r?\\n((?:(?!\\[)[^\\r\\n]*\\r?\\n?)*)`, "m");
 
 const modelSlot = (type) => `${GROK_MAIN_MODEL_SLOT}-${type}`;
 
 const previousDefaultRegExp = /^# 9router-prev-default = "([^"]*)"[ \t]*\r?\n?/m;
 const previousSubagentRegExp = (type) =>
-  new RegExp(
-    `^# 9router-prev-subagent-${escapeRegExp(type)} = "([^"]*)"[ \\t]*\\r?\\n?`,
-    "m",
-  );
+  new RegExp(`^# 9router-prev-subagent-${escapeRegExp(type)} = "([^"]*)"[ \\t]*\\r?\\n?`, "m");
 
 function getSectionField(toml, section, key) {
   const match = toml.match(sectionRegExp(section));
@@ -53,23 +47,15 @@ function setSectionField(toml, section, key, value) {
   }
 
   const body = match[1] || "";
-  const fieldRegExp = new RegExp(
-    `^[ \\t]*${escapeRegExp(key)}[ \\t]*=[ \\t]*"[^"]*"`,
-    "m",
-  );
-  const nextBody = fieldRegExp.test(body)
-    ? body.replace(fieldRegExp, line)
-    : `${line}\n${body}`;
+  const fieldRegExp = new RegExp(`^[ \\t]*${escapeRegExp(key)}[ \\t]*=[ \\t]*"[^"]*"`, "m");
+  const nextBody = fieldRegExp.test(body) ? body.replace(fieldRegExp, line) : `${line}\n${body}`;
   return toml.replace(match[0], `[${section}]\n${nextBody}`);
 }
 
 function deleteSectionField(toml, section, key) {
   const match = toml.match(sectionRegExp(section));
   if (!match) return toml;
-  const fieldRegExp = new RegExp(
-    `^[ \\t]*${escapeRegExp(key)}[ \\t]*=[^\\r\\n]*\\r?\\n?`,
-    "m",
-  );
+  const fieldRegExp = new RegExp(`^[ \\t]*${escapeRegExp(key)}[ \\t]*=[^\\r\\n]*\\r?\\n?`, "m");
   const nextBody = (match[1] || "").replace(fieldRegExp, "");
   if (!nextBody.trim()) return toml.replace(match[0], "").replace(/\n{3,}/g, "\n\n");
   return toml.replace(match[0], `[${section}]\n${nextBody}`);
@@ -149,16 +135,13 @@ function rememberPreviousSubagent(toml, type) {
   if (regexp.test(toml)) return toml;
   const current = getSectionField(toml, SUBAGENT_MODELS_SECTION, type);
   const previous = current == null ? UNSET_SENTINEL : current;
-  return insertMarker(
-    toml,
-    `# 9router-prev-subagent-${type} = ${tomlString(previous)}\n`,
-  );
+  return insertMarker(toml, `# 9router-prev-subagent-${type} = ${tomlString(previous)}\n`);
 }
 
 function restorePreviousSubagent(toml, type) {
   const regexp = previousSubagentRegExp(type);
   const previous = toml.match(regexp)?.[1] || UNSET_SENTINEL;
-  let next = toml.replace(regexp, "");
+  const next = toml.replace(regexp, "");
   if (getSectionField(next, SUBAGENT_MODELS_SECTION, type) !== modelSlot(type)) {
     return next;
   }
@@ -174,9 +157,7 @@ export function parseGrokBuildConfig(toml) {
   for (const type of GROK_SUBAGENT_TYPES) {
     const mapping = getSectionField(toml, SUBAGENT_MODELS_SECTION, type);
     subagentMappings[type] = mapping;
-    subagentModels[type] = mapping === modelSlot(type)
-      ? parseModelSection(toml, mapping)
-      : null;
+    subagentModels[type] = mapping === modelSlot(type) ? parseModelSection(toml, mapping) : null;
   }
 
   return {

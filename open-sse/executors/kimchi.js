@@ -79,8 +79,12 @@ const REASONING_PLACEHOLDER_MAX_LEN = 8;
 export function stripReasoningContent(body) {
   if (!Array.isArray(body?.messages)) return;
   for (const msg of body.messages) {
-    if (msg && msg.role === "assistant" && typeof msg.reasoning_content === "string"
-        && msg.reasoning_content.length > REASONING_PLACEHOLDER_MAX_LEN) {
+    if (
+      msg &&
+      msg.role === "assistant" &&
+      typeof msg.reasoning_content === "string" &&
+      msg.reasoning_content.length > REASONING_PLACEHOLDER_MAX_LEN
+    ) {
       delete msg.reasoning_content;
     }
   }

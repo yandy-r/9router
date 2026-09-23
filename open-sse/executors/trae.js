@@ -120,12 +120,16 @@ export default class TraeExecutor extends BaseExecutor {
       auto_create_project: false,
       origin: "web",
     };
-    const res = await proxyAwareFetch(`${this.base()}/chat_sessions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-      signal,
-    }, null);
+    const res = await proxyAwareFetch(
+      `${this.base()}/chat_sessions`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+        signal,
+      },
+      null,
+    );
     const text = await res.text();
     if (!res.ok) throw new Error(`[${res.status}] ${text}`);
     const json = JSON.parse(text);
@@ -161,7 +165,11 @@ export default class TraeExecutor extends BaseExecutor {
           else if (line.startsWith("data:")) {
             const payload = line.slice(5).trim();
             let data;
-            try { data = JSON.parse(payload); } catch { data = { _raw: payload }; }
+            try {
+              data = JSON.parse(payload);
+            } catch {
+              data = { _raw: payload };
+            }
             if (onEvent(ev, data)) {
               await reader.cancel().catch(() => {});
               return;
@@ -182,16 +190,22 @@ export default class TraeExecutor extends BaseExecutor {
     const responseId = `chatcmpl-trae-${Date.now()}`;
     const created = Math.floor(Date.now() / 1000);
 
-    const errResponse = (status, message) => new Response(
-      JSON.stringify({ error: { message, type: "api_error", code: "" } }),
-      { status, headers: { "Content-Type": "application/json" } }
-    );
+    const errResponse = (status, message) =>
+      new Response(JSON.stringify({ error: { message, type: "api_error", code: "" } }), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
 
     let session;
     try {
       session = await this.createSession(headers, query, model, psd, signal);
     } catch (err) {
-      return { response: errResponse(502, err?.message ? String(err.message) : String(err)), url: this.base(), headers, transformedBody: body };
+      return {
+        response: errResponse(502, err?.message ? String(err.message) : String(err)),
+        url: this.base(),
+        headers,
+        transformedBody: body,
+      };
     }
 
     // Shared per-turn state: plan_item thoughts (cumulative, longest wins).
@@ -225,23 +239,32 @@ export default class TraeExecutor extends BaseExecutor {
             choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null }],
           });
           try {
-            await this.streamEvents(headers, session.sessionId, session.messageId, (ev, data) => {
-              if (ev === "error") { errorEvent = data; return true; }
-              if (ev === "token_usage") usage = data;
-              if (ev === "plan_item") {
-                const piece = renderNewText(data);
-                if (piece) {
-                  emit({
-                    id: responseId,
-                    object: "chat.completion.chunk",
-                    created,
-                    model,
-                    choices: [{ index: 0, delta: { content: piece }, finish_reason: null }],
-                  });
+            await this.streamEvents(
+              headers,
+              session.sessionId,
+              session.messageId,
+              (ev, data) => {
+                if (ev === "error") {
+                  errorEvent = data;
+                  return true;
                 }
-              }
-              return ev === "done";
-            }, signal);
+                if (ev === "token_usage") usage = data;
+                if (ev === "plan_item") {
+                  const piece = renderNewText(data);
+                  if (piece) {
+                    emit({
+                      id: responseId,
+                      object: "chat.completion.chunk",
+                      created,
+                      model,
+                      choices: [{ index: 0, delta: { content: piece }, finish_reason: null }],
+                    });
+                  }
+                }
+                return ev === "done";
+              },
+              signal,
+            );
             if (errorEvent) {
               emit({
                 id: responseId,
@@ -249,7 +272,10 @@ export default class TraeExecutor extends BaseExecutor {
                 created,
                 model,
                 choices: [],
-                error: { message: `trae ${errorEvent.code || ""}: ${errorEvent.message || ""}`, type: "api_error" },
+                error: {
+                  message: `trae ${errorEvent.code || ""}: ${errorEvent.message || ""}`,
+                  type: "api_error",
+                },
               });
             } else {
               emit({
@@ -287,7 +313,7 @@ export default class TraeExecutor extends BaseExecutor {
           headers: {
             "Content-Type": "text/event-stream",
             "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
+            Connection: "keep-alive",
           },
         }),
         url: this.base(),
@@ -298,17 +324,36 @@ export default class TraeExecutor extends BaseExecutor {
 
     // Non-streaming: drive to completion, return chat.completion JSON.
     try {
-      await this.streamEvents(headers, session.sessionId, session.messageId, (ev, data) => {
-        if (ev === "error") { errorEvent = data; return true; }
-        if (ev === "token_usage") usage = data;
-        if (ev === "plan_item") renderNewText(data);
-        return ev === "done";
-      }, signal);
+      await this.streamEvents(
+        headers,
+        session.sessionId,
+        session.messageId,
+        (ev, data) => {
+          if (ev === "error") {
+            errorEvent = data;
+            return true;
+          }
+          if (ev === "token_usage") usage = data;
+          if (ev === "plan_item") renderNewText(data);
+          return ev === "done";
+        },
+        signal,
+      );
     } catch (err) {
-      return { response: errResponse(502, err?.message ? String(err.message) : String(err)), url: this.base(), headers, transformedBody: body };
+      return {
+        response: errResponse(502, err?.message ? String(err.message) : String(err)),
+        url: this.base(),
+        headers,
+        transformedBody: body,
+      };
     }
     if (errorEvent) {
-      return { response: errResponse(502, `trae ${errorEvent.code || ""}: ${errorEvent.message || ""}`), url: this.base(), headers, transformedBody: body };
+      return {
+        response: errResponse(502, `trae ${errorEvent.code || ""}: ${errorEvent.message || ""}`),
+        url: this.base(),
+        headers,
+        transformedBody: body,
+      };
     }
     const content = order.map((i) => thoughts[i]).join("");
     const out = {
@@ -326,7 +371,10 @@ export default class TraeExecutor extends BaseExecutor {
       };
     }
     return {
-      response: new Response(JSON.stringify(out), { status: 200, headers: { "Content-Type": "application/json" } }),
+      response: new Response(JSON.stringify(out), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
       url: this.base(),
       headers,
       transformedBody: body,

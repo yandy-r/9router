@@ -127,10 +127,7 @@ describe("Kiro conversation canonicalizer", () => {
           { toolUseId: "duplicate", name: "second", input: {} },
         ]),
       ],
-      currentMessage: user("continue", [
-        result("duplicate", "one"),
-        result("duplicate", "two"),
-      ]),
+      currentMessage: user("continue", [result("duplicate", "one"), result("duplicate", "two")]),
       modelId,
       toolSpecs: specs,
       nameMap,
@@ -146,10 +143,7 @@ describe("Kiro conversation canonicalizer", () => {
   it("deduplicates extra results without losing their text", () => {
     const { specs, nameMap } = specState(["first"]);
     const canonical = canonicalizeKiroConversation({
-      history: [
-        user("start"),
-        assistant("run", [{ toolUseId: "t1", name: "first", input: {} }]),
-      ],
+      history: [user("start"), assistant("run", [{ toolUseId: "t1", name: "first", input: {} }])],
       currentMessage: user("continue", [result("t1", "one"), result("t1", "duplicate")]),
       modelId,
       toolSpecs: specs,
@@ -195,7 +189,9 @@ describe("Kiro conversation canonicalizer", () => {
     });
 
     expect(canonical.history[1].assistantResponseMessage.toolUses).toBeUndefined();
-    expect(canonical.currentMessage.userInputMessage.userInputMessageContext.toolResults).toBeUndefined();
+    expect(
+      canonical.currentMessage.userInputMessage.userInputMessageContext.toolResults,
+    ).toBeUndefined();
     expect(canonical.currentMessage.userInputMessage.content).toContain("one");
     expect(canonical.currentMessage.userInputMessage.content).toContain("two");
     expect(canonical.valid).toBe(true);
@@ -219,17 +215,16 @@ describe("Kiro conversation canonicalizer", () => {
     });
 
     expect(canonical.history[1].assistantResponseMessage.toolUses).toHaveLength(29);
-    expect(canonical.currentMessage.userInputMessage.userInputMessageContext.toolResults).toHaveLength(29);
+    expect(
+      canonical.currentMessage.userInputMessage.userInputMessageContext.toolResults,
+    ).toHaveLength(29);
     expect(canonical.repairs.missingResults).toBe(1);
     expect(canonical.valid).toBe(true);
   });
 
   it("flattens structured history when the client sent no tool specs", () => {
     const canonical = canonicalizeKiroConversation({
-      history: [
-        user("start"),
-        assistant("run", [{ toolUseId: "t1", name: "first", input: {} }]),
-      ],
+      history: [user("start"), assistant("run", [{ toolUseId: "t1", name: "first", input: {} }])],
       currentMessage: user("continue", [result("t1", "one")]),
       modelId,
     });
@@ -242,22 +237,24 @@ describe("Kiro conversation canonicalizer", () => {
 
   it("normalizes names and recursively removes unsupported schema fields", () => {
     const longDescription = "x".repeat(11000);
-    const { specs, nameMap } = normalizeKiroToolSpecs([{
-      name: "bad tool/name",
-      description: longDescription,
-      input_schema: {
-        additionalProperties: false,
-        properties: {
-          nested: {
-            type: "object",
-            additionalProperties: true,
-            properties: {},
-            required: [],
+    const { specs, nameMap } = normalizeKiroToolSpecs([
+      {
+        name: "bad tool/name",
+        description: longDescription,
+        input_schema: {
+          additionalProperties: false,
+          properties: {
+            nested: {
+              type: "object",
+              additionalProperties: true,
+              properties: {},
+              required: [],
+            },
           },
+          required: [],
         },
-        required: [],
       },
-    }]);
+    ]);
 
     const specification = specs[0].toolSpecification;
     expect(nameMap.get("bad tool/name")).toBe("bad_tool_name");
@@ -289,53 +286,90 @@ describe("Kiro conversation canonicalizer", () => {
   });
 
   it("preserves Claude tool_result errors", () => {
-    const output = claudeToKiroRequest(modelId, {
-      tools: [tool("first")],
-      messages: [
-        { role: "user", content: "start" },
-        { role: "assistant", content: [{ type: "tool_use", id: "t1", name: "first", input: {} }] },
-        { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", is_error: true, content: "failed" }] },
-      ],
-    }, true, {});
+    const output = claudeToKiroRequest(
+      modelId,
+      {
+        tools: [tool("first")],
+        messages: [
+          { role: "user", content: "start" },
+          {
+            role: "assistant",
+            content: [{ type: "tool_use", id: "t1", name: "first", input: {} }],
+          },
+          {
+            role: "user",
+            content: [
+              { type: "tool_result", tool_use_id: "t1", is_error: true, content: "failed" },
+            ],
+          },
+        ],
+      },
+      true,
+      {},
+    );
 
-    const item = output.conversationState.currentMessage.userInputMessage
-      .userInputMessageContext.toolResults[0];
+    const item =
+      output.conversationState.currentMessage.userInputMessage.userInputMessageContext
+        .toolResults[0];
     expect(item.status).toBe("error");
   });
 
   it("repairs partial parallel results in both direct translators", () => {
-    const claude = claudeToKiroRequest(modelId, {
-      tools: [tool("first"), tool("second")],
-      messages: [
-        { role: "user", content: "start" },
-        { role: "assistant", content: [
-          { type: "tool_use", id: "t1", name: "first", input: {} },
-          { type: "tool_use", id: "t2", name: "second", input: {} },
-        ] },
-        { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "one" }] },
-      ],
-    }, true, {});
-    const openai = openaiToKiroRequest(modelId, {
-      tools: [
-        { type: "function", function: { name: "first", parameters: { type: "object", properties: {} } } },
-        { type: "function", function: { name: "second", parameters: { type: "object", properties: {} } } },
-      ],
-      messages: [
-        { role: "user", content: "start" },
-        { role: "assistant", content: "", tool_calls: [
-          { id: "t1", type: "function", function: { name: "first", arguments: "{}" } },
-          { id: "t2", type: "function", function: { name: "second", arguments: "{}" } },
-        ] },
-        { role: "tool", tool_call_id: "t1", content: "one" },
-      ],
-    }, true, {});
+    const claude = claudeToKiroRequest(
+      modelId,
+      {
+        tools: [tool("first"), tool("second")],
+        messages: [
+          { role: "user", content: "start" },
+          {
+            role: "assistant",
+            content: [
+              { type: "tool_use", id: "t1", name: "first", input: {} },
+              { type: "tool_use", id: "t2", name: "second", input: {} },
+            ],
+          },
+          { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "one" }] },
+        ],
+      },
+      true,
+      {},
+    );
+    const openai = openaiToKiroRequest(
+      modelId,
+      {
+        tools: [
+          {
+            type: "function",
+            function: { name: "first", parameters: { type: "object", properties: {} } },
+          },
+          {
+            type: "function",
+            function: { name: "second", parameters: { type: "object", properties: {} } },
+          },
+        ],
+        messages: [
+          { role: "user", content: "start" },
+          {
+            role: "assistant",
+            content: "",
+            tool_calls: [
+              { id: "t1", type: "function", function: { name: "first", arguments: "{}" } },
+              { id: "t2", type: "function", function: { name: "second", arguments: "{}" } },
+            ],
+          },
+          { role: "tool", tool_call_id: "t1", content: "one" },
+        ],
+      },
+      true,
+      {},
+    );
 
     for (const payload of [claude, openai]) {
       const state = payload.conversationState;
       const validation = validateKiroConversation(
         state.history,
         state.currentMessage,
-        state.currentMessage.userInputMessage.userInputMessageContext.tools
+        state.currentMessage.userInputMessage.userInputMessageContext.tools,
       );
       expect(validation.valid).toBe(true);
       expect(state.history[1].assistantResponseMessage.toolUses).toHaveLength(1);
@@ -347,26 +381,41 @@ describe("Kiro conversation canonicalizer", () => {
       rawHeaders: { "x-session-id": "kiro-replay-tool-result-regression" },
       connectionId: "kiro-account",
     };
-    claudeToKiroRequest(modelId, {
-      messages: [{ role: "user", content: "frozen session start" }],
-    }, true, credentials);
+    claudeToKiroRequest(
+      modelId,
+      {
+        messages: [{ role: "user", content: "frozen session start" }],
+      },
+      true,
+      credentials,
+    );
 
-    const output = claudeToKiroRequest(modelId, {
-      tools: [tool("first")],
-      messages: [
-        { role: "assistant", content: [{ type: "tool_use", id: "t1", name: "first", input: {} }] },
-        { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "kept" }] },
-      ],
-    }, true, credentials);
+    const output = claudeToKiroRequest(
+      modelId,
+      {
+        tools: [tool("first")],
+        messages: [
+          {
+            role: "assistant",
+            content: [{ type: "tool_use", id: "t1", name: "first", input: {} }],
+          },
+          { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "kept" }] },
+        ],
+      },
+      true,
+      credentials,
+    );
     const state = output.conversationState;
     const allText = JSON.stringify(state);
 
     expect(allText).toContain("frozen session start");
     expect(allText).toContain("kept");
-    expect(validateKiroConversation(
-      state.history,
-      state.currentMessage,
-      state.currentMessage.userInputMessage.userInputMessageContext.tools
-    ).valid).toBe(true);
+    expect(
+      validateKiroConversation(
+        state.history,
+        state.currentMessage,
+        state.currentMessage.userInputMessage.userInputMessageContext.tools,
+      ).valid,
+    ).toBe(true);
   });
 });

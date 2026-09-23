@@ -2,9 +2,7 @@ export default {
   id: "venice",
   priority: 115,
   alias: "venice",
-  aliases: [
-    "vn",
-  ],
+  aliases: ["vn"],
   uiAlias: "venice",
   display: {
     name: "Venice AI",
@@ -40,7 +38,12 @@ export default {
     { id: "text-embedding-qwen3-8b", name: "Qwen3 8B Embedding", kind: "embedding" },
     { id: "venice-sd35", name: "Venice SD3.5", params: ["n", "size"], kind: "image" },
     { id: "flux-2-pro", name: "FLUX.2 Pro", params: ["n", "size"], kind: "image" },
-    { id: "gpt-image-2", name: "GPT Image 2 (via Venice)", params: ["n", "size", "quality"], kind: "image" },
+    {
+      id: "gpt-image-2",
+      name: "GPT Image 2 (via Venice)",
+      params: ["n", "size", "quality"],
+      kind: "image",
+    },
   ],
   serviceKinds: ["llm", "embedding", "image"],
   embeddingConfig: {

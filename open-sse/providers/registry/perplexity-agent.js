@@ -2,10 +2,7 @@ export default {
   id: "perplexity-agent",
   priority: 181,
   alias: "perplexity-agent",
-  aliases: [
-    "pplx-agent",
-    "pplx-responses",
-  ],
+  aliases: ["pplx-agent", "pplx-responses"],
   uiAlias: "pa",
   display: {
     name: "Perplexity Agent",

@@ -5,7 +5,7 @@ description: Web and X search via 9Router /v1/search using Tavily / Exa / Brave 
 
 # 9Router — Web Search
 
-Requires `NINEROUTER_URL` (and `NINEROUTER_KEY` if auth enabled). See https://raw.githubusercontent.com/yandy-r/9router/refs/heads/master/skills/9router/SKILL.md for setup.
+Requires `NINEROUTER_URL` (and `NINEROUTER_KEY` if auth enabled). See <https://raw.githubusercontent.com/yandy-r/9router/refs/heads/master/skills/9router/SKILL.md> for setup.
 
 ## Discover
 
@@ -21,13 +21,13 @@ IDs end in `/search` (e.g. `tavily/search`). Combos (`owned_by:"combo"`) chain p
 
 `POST $NINEROUTER_URL/v1/search`
 
-| Field | Required | Notes |
-|---|---|---|
-| `model` (or `provider`) | yes | from `/v1/models/web` (e.g. `tavily` or `brave`) |
-| `query` | yes | search query |
-| `max_results` | no | default 5 |
-| `search_type` | no | `web` (default) / `news` / `x` for Xquik |
-| `country`, `language`, `time_range`, `domain_filter` | no | provider-dependent |
+| Field                                                | Required | Notes                                            |
+| ---------------------------------------------------- | -------- | ------------------------------------------------ |
+| `model` (or `provider`)                              | yes      | from `/v1/models/web` (e.g. `tavily` or `brave`) |
+| `query`                                              | yes      | search query                                     |
+| `max_results`                                        | no       | default 5                                        |
+| `search_type`                                        | no       | `web` (default) / `news` / `x` for Xquik         |
+| `country`, `language`, `time_range`, `domain_filter` | no       | provider-dependent                               |
 
 ## Examples
 
@@ -43,7 +43,10 @@ JS:
 ```js
 const r = await fetch(`${process.env.NINEROUTER_URL}/v1/search`, {
   method: "POST",
-  headers: { "Authorization": `Bearer ${process.env.NINEROUTER_KEY}`, "Content-Type": "application/json" },
+  headers: {
+    Authorization: `Bearer ${process.env.NINEROUTER_KEY}`,
+    "Content-Type": "application/json",
+  },
   body: JSON.stringify({ model: "search-combo", query: "latest LLM benchmarks", max_results: 10 }),
 });
 console.log(await r.json());
@@ -77,9 +80,15 @@ Xquik responses include provider pagination and credit usage:
   "query": "9Router open source",
   "results": [
     {
-      "title": "...", "url": "https://...", "display_url": "github.com/...",
-      "snippet": "...", "position": 1, "score": 0.92,
-      "published_at": null, "favicon_url": null, "content": null,
+      "title": "...",
+      "url": "https://...",
+      "display_url": "github.com/...",
+      "snippet": "...",
+      "position": 1,
+      "score": 0.92,
+      "published_at": null,
+      "favicon_url": null,
+      "content": null,
       "metadata": { "author": null, "language": null, "source_type": null, "image_url": null },
       "citation": { "provider": "tavily", "retrieved_at": "2026-...", "rank": 1 }
     }
@@ -95,18 +104,18 @@ Xquik responses include provider pagination and credit usage:
 
 All accept `query` + `max_results`. Optional fields vary:
 
-| Provider | Supports | Required extras |
-|---|---|---|
-| `tavily` | country, domain_filter, news topic | — |
-| `exa` | domain_filter (incl/excl), news category | — |
-| `brave-search` | country, language | — |
-| `serper` | country, language, news endpoint | — |
-| `perplexity` | country, language, domain_filter | — |
-| `linkup` | domain_filter, time_range | `depth: fast/standard/deep` (option) |
-| `google-pse` | country, language, time_range, offset | **`cx` required** (providerOptions) |
-| `searchapi` | country, language, pagination | — |
-| `youcom` | country, language, time_range, domain_filter, full_page | — |
-| `searxng` | language, time_range | Self-hosted, **noAuth** |
-| `xquik` | X/Twitter search operators, language, cursor pagination | `queryType: Latest/Top`, `cursor` (options) |
+| Provider       | Supports                                                | Required extras                             |
+| -------------- | ------------------------------------------------------- | ------------------------------------------- |
+| `tavily`       | country, domain_filter, news topic                      | —                                           |
+| `exa`          | domain_filter (incl/excl), news category                | —                                           |
+| `brave-search` | country, language                                       | —                                           |
+| `serper`       | country, language, news endpoint                        | —                                           |
+| `perplexity`   | country, language, domain_filter                        | —                                           |
+| `linkup`       | domain_filter, time_range                               | `depth: fast/standard/deep` (option)        |
+| `google-pse`   | country, language, time_range, offset                   | **`cx` required** (providerOptions)         |
+| `searchapi`    | country, language, pagination                           | —                                           |
+| `youcom`       | country, language, time_range, domain_filter, full_page | —                                           |
+| `searxng`      | language, time_range                                    | Self-hosted, **noAuth**                     |
+| `xquik`        | X/Twitter search operators, language, cursor pagination | `queryType: Latest/Top`, `cursor` (options) |
 
 Provider IS the model — `"provider":"tavily" ≡ "model":"tavily"`.

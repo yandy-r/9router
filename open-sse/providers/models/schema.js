@@ -14,7 +14,7 @@ export const MODEL_DEFAULTS = {
   kind: "llm",
   quotaFamily: "normal",
   strip: [],
-  targetFormat: null
+  targetFormat: null,
 };
 
 // Normalize a registry model entry: accept terse "id" string, fill name via regex when omitted.

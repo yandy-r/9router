@@ -2,12 +2,12 @@ import { buildModelsList } from "../route.js";
 
 // URL slug → service kind(s). `web` covers both webSearch and webFetch.
 const KIND_SLUG_MAP = {
-  "image": ["image"],
-  "tts": ["tts"],
-  "stt": ["stt"],
-  "embedding": ["embedding"],
+  image: ["image"],
+  tts: ["tts"],
+  stt: ["stt"],
+  embedding: ["embedding"],
   "image-to-text": ["imageToText"],
-  "web": ["webSearch", "webFetch"],
+  web: ["webSearch", "webFetch"],
 };
 
 const LLM_KIND = "llm";
@@ -70,9 +70,6 @@ export async function GET(_request, { params }) {
     return json(matchedModel);
   } catch (error) {
     console.log("Error fetching model:", error);
-    return json(
-      { error: { message: error.message, type: "server_error" } },
-      { status: 500 },
-    );
+    return json({ error: { message: error.message, type: "server_error" } }, { status: 500 });
   }
 }

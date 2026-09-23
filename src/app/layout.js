@@ -18,7 +18,8 @@ const inter = Inter({
 
 export const metadata = {
   title: "9Router - AI Infrastructure Management",
-  description: "One endpoint for all your AI providers. Manage keys, monitor usage, and scale effortlessly.",
+  description:
+    "One endpoint for all your AI providers. Manage keys, monitor usage, and scale effortlessly.",
   icons: {
     icon: "/favicon.svg",
   },
@@ -36,11 +37,13 @@ export default function RootLayout({ children }) {
             default (light) theme before the client store hydrates. Mirrors the
             zustand-persist "theme" key and the `dark` class applyTheme() sets. */}
         <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static no-flash theme script, no user input
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var s=localStorage.getItem('theme');var t=s?(JSON.parse(s).state||{}).theme:'system';t=t||'system';var m=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(t==='system'&&m)){document.documentElement.classList.add('dark')}}catch(e){}})();`,
           }}
         />
         <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static font-loader script, no user input
           dangerouslySetInnerHTML={{
             __html: `var d=document,r=d.documentElement,f=function(){r.classList.add('fonts-loaded')};if(d.fonts&&d.fonts.load){d.fonts.load('24px "Material Symbols Outlined"').then(f).catch(f);setTimeout(f,3000)}else{f()}`,
           }}
@@ -48,9 +51,7 @@ export default function RootLayout({ children }) {
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider>
-          <RuntimeI18nProvider>
-            {children}
-          </RuntimeI18nProvider>
+          <RuntimeI18nProvider>{children}</RuntimeI18nProvider>
         </ThemeProvider>
         <GoogleAnalytics gaId={"G-LC959F603F"} />
       </body>

@@ -18,7 +18,11 @@ const DEFAULT_FALLBACK_MODEL = "oc/mimo-v2.5-free";
 // accept the legacy array form [{model, enabled}] (treated as enabled, fallback).
 function normalizeCapEntry(entry) {
   if (Array.isArray(entry)) {
-    return { enabled: true, roundRobin: false, models: entry.map((e) => e?.model || e).filter(Boolean) };
+    return {
+      enabled: true,
+      roundRobin: false,
+      models: entry.map((e) => e?.model || e).filter(Boolean),
+    };
   }
   if (entry && typeof entry === "object") {
     return {
@@ -94,13 +98,15 @@ export function augmentModelsWithCapacityAdapter(models, requiredCapabilities, s
   if (hard.length === 0 || !Array.isArray(models) || models.length === 0) return models;
   if (models.some((m) => modelSatisfies(m, hard))) return models;
 
-  const pool = getCapacityAdapterModels(settings).filter((m) => !models.includes(m) && modelSatisfies(m, hard));
+  const pool = getCapacityAdapterModels(settings).filter(
+    (m) => !models.includes(m) && modelSatisfies(m, hard),
+  );
   if (pool.length === 0) return models;
   return [...pool, ...models];
 }
 
 const CHARS_PER_TOKEN = 4; // rough estimate; avoids pulling in a tokenizer dependency
-const HEAD_KEEP = 6;      // messages after system kept verbatim before dropping the middle
+const HEAD_KEEP = 6; // messages after system kept verbatim before dropping the middle
 
 function blockLength(content) {
   if (typeof content === "string") return content.length;
@@ -115,10 +121,13 @@ function blockLength(content) {
 // carrying the media the switch happened for (tail). Older middle turns between
 // the head instructions and the current turn are dropped first.
 export function stripHistoryForContext(body, contextWindow) {
-  const key = Array.isArray(body.messages) ? "messages"
-    : Array.isArray(body.input) ? "input"
-    : Array.isArray(body.contents) ? "contents"
-    : null;
+  const key = Array.isArray(body.messages)
+    ? "messages"
+    : Array.isArray(body.input)
+      ? "input"
+      : Array.isArray(body.contents)
+        ? "contents"
+        : null;
   if (!key) return body;
   const arr = body[key];
   if (!arr || arr.length === 0) return body;
@@ -131,8 +140,8 @@ export function stripHistoryForContext(body, contextWindow) {
   const isAssistant = (r) => r === "assistant" || r === "model";
   let i = rest.length - 1;
   while (i >= 0 && !isAssistant(rest[i]?.role)) i--;
-  const tail = rest.slice(i + 1);          // current user turn (has media) — always kept
-  const older = rest.slice(0, i + 1);      // everything before it
+  const tail = rest.slice(i + 1); // current user turn (has media) — always kept
+  const older = rest.slice(0, i + 1); // everything before it
   if (older.length === 0) return body;
 
   const contentOf = (m) => m.content ?? m.parts;
@@ -145,7 +154,7 @@ export function stripHistoryForContext(body, contextWindow) {
   let total = systemMsgs.concat(headKept, tail).reduce((s, m) => s + blockLength(contentOf(m)), 0);
 
   // If head + tail overflow, drop head turns from the end (closest to middle) first.
-  let head = headKept;
+  const head = headKept;
   while (total > budgetChars && head.length > 0) {
     const dropped = head.pop();
     total -= blockLength(contentOf(dropped));

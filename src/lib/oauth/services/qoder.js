@@ -29,11 +29,7 @@ import { v4 as uuidv4 } from "uuid";
 const FETCH_TIMEOUT_MS = 15_000;
 
 function base64Url(buf) {
-  return buf
-    .toString("base64")
-    .replace(/=/g, "")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_");
+  return buf.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
 /**
@@ -208,7 +204,11 @@ export class QoderService {
     }
     // expiresInSeconds === 0 means "already expired"; honor that by returning
     // the current time rather than fabricating a 30-day default.
-    if (typeof expiresInSeconds === "number" && Number.isFinite(expiresInSeconds) && expiresInSeconds >= 0) {
+    if (
+      typeof expiresInSeconds === "number" &&
+      Number.isFinite(expiresInSeconds) &&
+      expiresInSeconds >= 0
+    ) {
       return Date.now() + expiresInSeconds * 1000;
     }
     return Date.now() + 30 * 24 * 60 * 60 * 1000;

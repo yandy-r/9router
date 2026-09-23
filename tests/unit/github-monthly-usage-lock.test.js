@@ -20,12 +20,14 @@ const { markAccountUnavailable } = await import("../../src/sse/services/auth.js"
 
 beforeEach(() => {
   vi.clearAllMocks();
-  dbMocks.getProviderConnections.mockResolvedValue([{
-    id: "github-a",
-    provider: "github",
-    name: "github-a",
-    backoffLevel: 4,
-  }]);
+  dbMocks.getProviderConnections.mockResolvedValue([
+    {
+      id: "github-a",
+      provider: "github",
+      name: "github-a",
+      backoffLevel: 4,
+    },
+  ]);
 });
 
 describe("GitHub monthly usage exhaustion", () => {
@@ -51,8 +53,9 @@ describe("GitHub monthly usage exhaustion", () => {
           backoffLevel: 0,
         }),
       );
-      expect(dbMocks.updateProviderConnection.mock.calls[0][1])
-        .not.toHaveProperty("modelLock_claude-fable-5");
+      expect(dbMocks.updateProviderConnection.mock.calls[0][1]).not.toHaveProperty(
+        "modelLock_claude-fable-5",
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -63,13 +66,7 @@ describe("GitHub monthly usage exhaustion", () => {
     vi.setSystemTime(new Date("2026-08-04T19:30:00.000Z"));
 
     try {
-      await markAccountUnavailable(
-        "github-a",
-        402,
-        "Payment required",
-        "github",
-        "claude-fable-5",
-      );
+      await markAccountUnavailable("github-a", 402, "Payment required", "github", "claude-fable-5");
 
       expect(dbMocks.updateProviderConnection).toHaveBeenCalledWith(
         "github-a",
@@ -77,8 +74,9 @@ describe("GitHub monthly usage exhaustion", () => {
           "modelLock_claude-fable-5": "2026-08-04T19:32:00.000Z",
         }),
       );
-      expect(dbMocks.updateProviderConnection.mock.calls[0][1])
-        .not.toHaveProperty("modelLock___all");
+      expect(dbMocks.updateProviderConnection.mock.calls[0][1]).not.toHaveProperty(
+        "modelLock___all",
+      );
     } finally {
       vi.useRealTimers();
     }

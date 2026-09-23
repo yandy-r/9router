@@ -13,10 +13,7 @@ export async function POST(request) {
     const { apiKey, uid, baseUrl, mimoPassToken, mimoUserId, mimoCUserId } = await request.json();
 
     if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) {
-      return NextResponse.json(
-        { error: "API key is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "API key is required" }, { status: 400 });
     }
 
     const key = apiKey.trim();
@@ -58,10 +55,9 @@ export async function POST(request) {
     // Dedup: if a connection with the same uid or same key already exists, update it
     const { getProviderConnections, updateProviderConnection } = await import("@/models");
     const existing = (await getProviderConnections()).find(
-      (c) => c.provider === "xiaomi-mimo" && (
-        (uid && c.email === `${uid}@xiaomi`) ||
-        c.accessToken === key
-      ),
+      (c) =>
+        c.provider === "xiaomi-mimo" &&
+        ((uid && c.email === `${uid}@xiaomi`) || c.accessToken === key),
     );
     if (existing) {
       const updated = await updateProviderConnection(existing.id, {
@@ -128,9 +124,6 @@ export async function POST(request) {
     });
   } catch (error) {
     console.log("Xiaomi MiMo API key import error:", error);
-    return NextResponse.json(
-      { error: "API key import failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "API key import failed" }, { status: 500 });
   }
 }

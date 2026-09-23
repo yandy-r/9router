@@ -55,7 +55,7 @@ describe("openai ↔ responses multi-turn reasoning", () => {
         ],
       },
       true,
-      null
+      null,
     );
     expect(out.input.find((i) => i.type === "reasoning")?.encrypted_content).toBe("alt_enc");
   });
@@ -100,7 +100,12 @@ describe("openai ↔ responses multi-turn reasoning", () => {
       ],
     };
 
-    const responses = openaiToOpenAIResponsesRequest("grok-4.5", structuredClone(original), true, null);
+    const responses = openaiToOpenAIResponsesRequest(
+      "grok-4.5",
+      structuredClone(original),
+      true,
+      null,
+    );
     const back = openaiResponsesToOpenAIRequest("grok-4.5", responses, true, null);
     const again = openaiToOpenAIResponsesRequest("grok-4.5", back, true, null);
 
@@ -129,11 +134,11 @@ describe("openai ↔ responses multi-turn reasoning", () => {
       structuredClone(body),
       true,
       {},
-      "grok-cli"
+      "grok-cli",
     );
-    expect(out.input.some((i) => i.type === "reasoning" && i.encrypted_content === "blob_via_registry")).toBe(
-      true
-    );
+    expect(
+      out.input.some((i) => i.type === "reasoning" && i.encrypted_content === "blob_via_registry"),
+    ).toBe(true);
   });
 });
 
@@ -145,14 +150,24 @@ describe("GrokCliExecutor multi-turn input", () => {
       model: "grok-4.5",
       input: [
         { type: "message", role: "system", content: "You are Grok" },
-        { type: "message", role: "user", content: "hi", id: "msg_3e3f6187-892a-96db-893b-904eff019e19" },
+        {
+          type: "message",
+          role: "user",
+          content: "hi",
+          id: "msg_3e3f6187-892a-96db-893b-904eff019e19",
+        },
         {
           type: "reasoning",
           id: "rs_3e3f6187-892a-96db-893b-904eff019e19",
           summary: [{ type: "summary_text", text: "prior plan" }],
           encrypted_content: "enc_from_cli",
         },
-        { type: "message", role: "assistant", content: "hello", id: "msg_4e3f6187-892a-96db-893b-904eff019e19" },
+        {
+          type: "message",
+          role: "assistant",
+          content: "hello",
+          id: "msg_4e3f6187-892a-96db-893b-904eff019e19",
+        },
         { type: "message", role: "user", content: "again" },
       ],
       include: ["reasoning.encrypted_content"],

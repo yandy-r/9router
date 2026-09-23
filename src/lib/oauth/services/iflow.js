@@ -34,9 +34,9 @@ export class IFlowService {
    */
   async exchangeCode(code, redirectUri) {
     // Create Basic Auth header
-    const basicAuth = Buffer.from(
-      `${this.config.clientId}:${this.config.clientSecret}`
-    ).toString("base64");
+    const basicAuth = Buffer.from(`${this.config.clientId}:${this.config.clientSecret}`).toString(
+      "base64",
+    );
 
     const response = await fetch(this.config.tokenUrl, {
       method: "POST",
@@ -72,7 +72,7 @@ export class IFlowService {
         headers: {
           Accept: "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -199,4 +199,3 @@ export class IFlowService {
     }
   }
 }
-

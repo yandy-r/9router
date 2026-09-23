@@ -76,7 +76,10 @@ export function getSamlBaseUrl(request, settings) {
     const forwardedHost = request?.headers?.get?.("x-forwarded-host") || "";
     const host = forwardedHost || request?.headers?.get?.("host") || "";
     if (host) {
-      const protocol = (forwardedProto || new URL(request.url).protocol || "http:").replace(/:$/, "");
+      const protocol = (forwardedProto || new URL(request.url).protocol || "http:").replace(
+        /:$/,
+        "",
+      );
       return `${protocol}://${host}`.replace(/\/+$/, "");
     }
     if (request.url) {
@@ -152,7 +155,9 @@ export async function validateSamlResponse(request, body, expectedRequestId, set
     const inResponseTo = match ? match[1] : null;
 
     if (!inResponseTo || inResponseTo !== expectedRequestId) {
-      throw new Error(`InResponseTo mismatch: expected ${expectedRequestId}, received ${inResponseTo || "none"}`);
+      throw new Error(
+        `InResponseTo mismatch: expected ${expectedRequestId}, received ${inResponseTo || "none"}`,
+      );
     }
   }
 

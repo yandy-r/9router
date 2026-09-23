@@ -3,10 +3,12 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/usageDb.js", () => ({
   appendRequestLog: vi.fn(async () => {}),
   saveRequestDetail: vi.fn(async () => {}),
-  saveRequestUsage: vi.fn(async () => {})
+  saveRequestUsage: vi.fn(async () => {}),
 }));
 
-const { extractUsageFromResponse } = await import("../../open-sse/handlers/chatCore/requestDetail.js");
+const { extractUsageFromResponse } = await import(
+  "../../open-sse/handlers/chatCore/requestDetail.js"
+);
 
 const USAGE_METADATA = {
   promptTokenCount: 1234,
@@ -24,7 +26,9 @@ const EXPECTED = {
 
 describe("#3260 non-streaming usage extraction for enveloped Gemini responses", () => {
   it("reads usageMetadata out of the antigravity { response } envelope", () => {
-    expect(extractUsageFromResponse({ response: { usageMetadata: USAGE_METADATA } })).toEqual(EXPECTED);
+    expect(extractUsageFromResponse({ response: { usageMetadata: USAGE_METADATA } })).toEqual(
+      EXPECTED,
+    );
   });
 
   it("still reads a top-level usageMetadata", () => {
@@ -41,10 +45,12 @@ describe("#3260 non-streaming usage extraction for enveloped Gemini responses", 
   });
 
   it("leaves the OpenAI and Claude shapes alone", () => {
-    expect(extractUsageFromResponse({ usage: { prompt_tokens: 10, completion_tokens: 2 } }))
-      .toMatchObject({ prompt_tokens: 10, completion_tokens: 2 });
-    expect(extractUsageFromResponse({ usage: { input_tokens: 10, output_tokens: 2 } }))
-      .toMatchObject({ prompt_tokens: 10, completion_tokens: 2 });
+    expect(
+      extractUsageFromResponse({ usage: { prompt_tokens: 10, completion_tokens: 2 } }),
+    ).toMatchObject({ prompt_tokens: 10, completion_tokens: 2 });
+    expect(
+      extractUsageFromResponse({ usage: { input_tokens: 10, output_tokens: 2 } }),
+    ).toMatchObject({ prompt_tokens: 10, completion_tokens: 2 });
   });
 
   it("returns null when there is no usage anywhere", () => {

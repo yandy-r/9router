@@ -32,14 +32,23 @@ describe("Ollama Cloud web fetch provider", () => {
   });
 
   it("calls Ollama with bearer auth and normalizes the response", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
-      title: "Example Domain",
-      content: "Hello from Ollama",
-      links: ["https://www.iana.org/domains/example"],
-    }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              title: "Example Domain",
+              content: "Hello from Ollama",
+              links: ["https://www.iana.org/domains/example"],
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+      ),
+    );
 
     const result = await handleFetchCore({
       url: "https://example.com",
@@ -71,10 +80,16 @@ describe("Ollama Cloud web fetch provider", () => {
   });
 
   it("returns the upstream status and error message", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(
-      JSON.stringify({ error: "invalid API key" }),
-      { status: 401, headers: { "Content-Type": "application/json" } },
-    )));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: "invalid API key" }), {
+            status: 401,
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
 
     const result = await handleFetchCore({
       url: "https://example.com",
@@ -91,10 +106,16 @@ describe("Ollama Cloud web fetch provider", () => {
   });
 
   it("treats an empty successful response as an upstream error", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(null, {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
 
     const result = await handleFetchCore({
       url: "https://example.com",

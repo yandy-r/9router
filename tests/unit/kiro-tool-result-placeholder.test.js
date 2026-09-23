@@ -7,20 +7,24 @@ import {
   KIRO_EMPTY_USER_PLACEHOLDER,
 } from "../../open-sse/translator/concerns/kiroConversation.js";
 
-const TOOLS_OPENAI = [{
-  type: "function",
-  function: {
+const TOOLS_OPENAI = [
+  {
+    type: "function",
+    function: {
+      name: "get_weather",
+      description: "Get weather",
+      parameters: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
+    },
+  },
+];
+
+const TOOLS_CLAUDE = [
+  {
     name: "get_weather",
     description: "Get weather",
-    parameters: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
+    input_schema: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
   },
-}];
-
-const TOOLS_CLAUDE = [{
-  name: "get_weather",
-  description: "Get weather",
-  input_schema: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
-}];
+];
 
 function allUserContents(payload) {
   const state = payload.conversationState;
@@ -31,15 +35,30 @@ function allUserContents(payload) {
 }
 
 describe("Kiro tool-result-only turns", () => {
-  it("OpenAI → Kiro: tool message gets a neutral placeholder, not \"continue\"", () => {
-    const payload = openaiToKiroRequest("claude-sonnet-4.6", {
-      tools: TOOLS_OPENAI,
-      messages: [
-        { role: "user", content: "The secret word is PINEAPPLE. Weather in Jakarta?" },
-        { role: "assistant", content: null, tool_calls: [{ id: "call_1", type: "function", function: { name: "get_weather", arguments: "{\"city\":\"Jakarta\"}" } }] },
-        { role: "tool", tool_call_id: "call_1", content: "32C, humid" },
-      ],
-    }, true, {});
+  it('OpenAI → Kiro: tool message gets a neutral placeholder, not "continue"', () => {
+    const payload = openaiToKiroRequest(
+      "claude-sonnet-4.6",
+      {
+        tools: TOOLS_OPENAI,
+        messages: [
+          { role: "user", content: "The secret word is PINEAPPLE. Weather in Jakarta?" },
+          {
+            role: "assistant",
+            content: null,
+            tool_calls: [
+              {
+                id: "call_1",
+                type: "function",
+                function: { name: "get_weather", arguments: '{"city":"Jakarta"}' },
+              },
+            ],
+          },
+          { role: "tool", tool_call_id: "call_1", content: "32C, humid" },
+        ],
+      },
+      true,
+      {},
+    );
 
     const current = payload.conversationState.currentMessage.userInputMessage;
     expect(current.content).toContain(KIRO_TOOL_RESULTS_PLACEHOLDER);
@@ -49,14 +68,27 @@ describe("Kiro tool-result-only turns", () => {
   });
 
   it("Claude → Kiro: tool_result-only user message gets a neutral placeholder", () => {
-    const payload = claudeToKiroRequest("claude-sonnet-4.6", {
-      tools: TOOLS_CLAUDE,
-      messages: [
-        { role: "user", content: "The secret word is PINEAPPLE. Weather in Jakarta?" },
-        { role: "assistant", content: [{ type: "tool_use", id: "toolu_1", name: "get_weather", input: { city: "Jakarta" } }] },
-        { role: "user", content: [{ type: "tool_result", tool_use_id: "toolu_1", content: "32C, humid" }] },
-      ],
-    }, true, {});
+    const payload = claudeToKiroRequest(
+      "claude-sonnet-4.6",
+      {
+        tools: TOOLS_CLAUDE,
+        messages: [
+          { role: "user", content: "The secret word is PINEAPPLE. Weather in Jakarta?" },
+          {
+            role: "assistant",
+            content: [
+              { type: "tool_use", id: "toolu_1", name: "get_weather", input: { city: "Jakarta" } },
+            ],
+          },
+          {
+            role: "user",
+            content: [{ type: "tool_result", tool_use_id: "toolu_1", content: "32C, humid" }],
+          },
+        ],
+      },
+      true,
+      {},
+    );
 
     const current = payload.conversationState.currentMessage.userInputMessage;
     expect(current.content).toContain(KIRO_TOOL_RESULTS_PLACEHOLDER);
@@ -65,17 +97,30 @@ describe("Kiro tool-result-only turns", () => {
   });
 
   it("keeps real user text when a turn has both text and tool results", () => {
-    const payload = claudeToKiroRequest("claude-sonnet-4.6", {
-      tools: TOOLS_CLAUDE,
-      messages: [
-        { role: "user", content: "Weather in Jakarta?" },
-        { role: "assistant", content: [{ type: "tool_use", id: "toolu_1", name: "get_weather", input: { city: "Jakarta" } }] },
-        { role: "user", content: [
-          { type: "tool_result", tool_use_id: "toolu_1", content: "32C" },
-          { type: "text", text: "Now answer in one word." },
-        ] },
-      ],
-    }, true, {});
+    const payload = claudeToKiroRequest(
+      "claude-sonnet-4.6",
+      {
+        tools: TOOLS_CLAUDE,
+        messages: [
+          { role: "user", content: "Weather in Jakarta?" },
+          {
+            role: "assistant",
+            content: [
+              { type: "tool_use", id: "toolu_1", name: "get_weather", input: { city: "Jakarta" } },
+            ],
+          },
+          {
+            role: "user",
+            content: [
+              { type: "tool_result", tool_use_id: "toolu_1", content: "32C" },
+              { type: "text", text: "Now answer in one word." },
+            ],
+          },
+        ],
+      },
+      true,
+      {},
+    );
 
     const current = payload.conversationState.currentMessage.userInputMessage;
     expect(current.content).toContain("Now answer in one word.");
@@ -86,13 +131,34 @@ describe("Kiro tool-result-only turns", () => {
     const result = canonicalizeKiroConversation({
       history: [
         { userInputMessage: { content: "Weather in Jakarta?", modelId: "m" } },
-        { assistantResponseMessage: { content: "", toolUses: [{ toolUseId: "t1", name: "get_weather", input: { city: "Jakarta" } }] } },
-        { userInputMessage: { content: "", modelId: "m", userInputMessageContext: { toolResults: [{ toolUseId: "t1", status: "success", content: [{ text: "32C" }] }] } } },
+        {
+          assistantResponseMessage: {
+            content: "",
+            toolUses: [{ toolUseId: "t1", name: "get_weather", input: { city: "Jakarta" } }],
+          },
+        },
+        {
+          userInputMessage: {
+            content: "",
+            modelId: "m",
+            userInputMessageContext: {
+              toolResults: [{ toolUseId: "t1", status: "success", content: [{ text: "32C" }] }],
+            },
+          },
+        },
         { assistantResponseMessage: { content: "It is 32C." } },
       ],
       currentMessage: { userInputMessage: { content: "Hot or cold?", modelId: "m" } },
       modelId: "m",
-      toolSpecs: [{ toolSpecification: { name: "get_weather", description: "Get weather", inputSchema: { json: { type: "object", properties: {} } } } }],
+      toolSpecs: [
+        {
+          toolSpecification: {
+            name: "get_weather",
+            description: "Get weather",
+            inputSchema: { json: { type: "object", properties: {} } },
+          },
+        },
+      ],
       nameMap: new Map([["get_weather", "get_weather"]]),
     });
 
@@ -100,7 +166,7 @@ describe("Kiro tool-result-only turns", () => {
     expect(result.history[2].userInputMessage.content).toBe(KIRO_TOOL_RESULTS_PLACEHOLDER);
   });
 
-  it("canonicalize: an empty turn without tool results still falls back to \"continue\"", () => {
+  it('canonicalize: an empty turn without tool results still falls back to "continue"', () => {
     const result = canonicalizeKiroConversation({
       history: [{ assistantResponseMessage: { content: "Hello" } }],
       currentMessage: { userInputMessage: { content: "", modelId: "m" } },

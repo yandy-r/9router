@@ -1,0 +1,117 @@
+name: Bug report
+description: "Report a reproducible bug in 9router"
+title: "[Bug]: "
+labels: ["type:bug", "status:needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug in **9router**. Please fill out
+        the form below so we can reproduce and fix it.
+
+  - type: input
+    id: version
+    attributes:
+      label: 9router version
+      description: "App version (dashboard footer) and/or CLI version (`npx 9router --version`), or commit hash"
+      placeholder: "app v0.1.3 / cli v0.1.3 or abc1234"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install-method
+    attributes:
+      label: Install method
+      description: "How did you install / run 9router?"
+      options:
+        - npm CLI (`npx 9router` / `npm i -g 9router`)
+        - Docker (`docker compose up` / image)
+        - From source (`git clone`, `npm run dev` / `npm run start`)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: provider
+    attributes:
+      label: Provider involved
+      description: "Which upstream provider / executor is involved? Use N/A for dashboard/CLI-only bugs."
+      placeholder: "e.g. kiro, cursor, openai-compatible … or N/A"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: client-tool
+    attributes:
+      label: Client tool
+      description: "Which client talks to the 9router gateway (`/v1/*`)?"
+      options:
+        - Claude Code
+        - Codex
+        - Cursor
+        - OpenCode
+        - Zed
+        - Other
+        - N/A (dashboard / CLI-only issue)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: OS
+      description: "Where are you running 9router?"
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Docker
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: "Detailed steps to reproduce the behavior."
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: "What you expected to happen."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: "What actually happened."
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Stack Trace
+      description: "Paste relevant log output or stack traces in code blocks. ⚠️ Redact API keys, tokens, and credentials before pasting."
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: duplicate-check
+    attributes:
+      label: Duplicate Check
+      description: "Please search existing issues before filing a new one."
+      options:
+        - label: "I have searched existing issues and this bug has not been reported."
+          required: true

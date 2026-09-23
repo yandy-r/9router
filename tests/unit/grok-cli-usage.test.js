@@ -151,14 +151,17 @@ describe("parseGrokCliBilling", () => {
   });
 
   it("maps current monthly fields and snake-case subscription tier", () => {
-    const parsed = parseGrokCliBilling({
-      monthlyLimit: { val: 1000 },
-      includedUsed: { val: 275 },
-      totalUsed: { val: 300 },
-      resetAt: "2026-08-01T00:00:00Z",
-    }, {
-      subscription_tier: "premium_plus",
-    });
+    const parsed = parseGrokCliBilling(
+      {
+        monthlyLimit: { val: 1000 },
+        includedUsed: { val: 275 },
+        totalUsed: { val: 300 },
+        resetAt: "2026-08-01T00:00:00Z",
+      },
+      {
+        subscription_tier: "premium_plus",
+      },
+    );
     expect(parsed.plan).toBe("Premium Plus");
     expect(parsed.quotas["Monthly included"]).toMatchObject({
       used: 275,
@@ -232,8 +235,7 @@ function accessTokenWithTier(tier) {
 }
 
 const EMPTY_GRPC_WEB_FRAME = Buffer.from([0, 0, 0, 0, 0]);
-const GRPC_CREDITS_URL =
-  "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
+const GRPC_CREDITS_URL = "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
 
 describe("getUsageForProvider(grok-cli)", () => {
   beforeEach(() => {
@@ -274,9 +276,7 @@ describe("getUsageForProvider(grok-cli)", () => {
     expect(billingCall[1].headers["x-xai-token-auth"]).toBe("xai-grok-cli");
     expect(billingCall[1].headers["x-grok-client-version"]).toBe("0.2.99");
     expect(billingCall[1].headers["x-grok-client-identifier"]).toBe("grok-shell");
-    expect(billingCall[1].headers["x-userid"]).toBe(
-      "d84768dd-224d-4052-ba49-0d336fa9160c",
-    );
+    expect(billingCall[1].headers["x-userid"]).toBe("d84768dd-224d-4052-ba49-0d336fa9160c");
     // REST already has numeric quotas — do not hit gRPC fallback
     expect(proxyAwareFetch.mock.calls).toHaveLength(2);
   });
@@ -331,7 +331,9 @@ describe("getUsageForProvider(grok-cli)", () => {
           subscriptionTier: "XPremiumPlus",
         }),
       )
-      .mockResolvedValueOnce(binaryResponse(buildCreditsResponseBuffer(0.35, resetSeconds, resetNanos)));
+      .mockResolvedValueOnce(
+        binaryResponse(buildCreditsResponseBuffer(0.35, resetSeconds, resetNanos)),
+      );
 
     const usage = await getUsageForProvider({
       provider: "grok-cli",

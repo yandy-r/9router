@@ -14,17 +14,14 @@ export async function POST(request) {
     const { accessToken, name } = await request.json();
 
     if (!accessToken || typeof accessToken !== "string") {
-      return NextResponse.json(
-        { error: "Access token is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Access token is required" }, { status: 400 });
     }
 
     const token = accessToken.trim();
 
     // Extract account info from the JWT (email, workspace, plan)
     let email = null;
-    let providerSpecificData = { authMethod: "access_token" };
+    const providerSpecificData = { authMethod: "access_token" };
 
     // Try decoding as JWT to extract email + workspace
     try {

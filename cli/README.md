@@ -106,9 +106,9 @@ Any tool supporting OpenAI/Claude-compatible API works.
 
 Full docs, advanced setup, video tutorials & development guide:
 
-- **GitHub**: https://github.com/yandy-r/9router
-- **Full README**: https://github.com/yandy-r/9router/blob/main/app/README.md
-- **Website**: https://9router.com
+- **GitHub**: <https://github.com/yandy-r/9router>
+- **Full README**: <https://github.com/yandy-r/9router/blob/main/app/README.md>
+- **Website**: <https://9router.com>
 
 ---
 

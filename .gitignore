@@ -63,8 +63,7 @@ PUBLIC.md
 Thanks.md
 PUBLIC.en.md
 PR/*
-package-lock.json
-
+/cli/package-lock.json
 
 #Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
@@ -105,3 +104,6 @@ graphify-out/*
 start-dev-silent.cjs
 debug.log
 temp/
+
+# shellcheck binary installed by scripts/install-shellcheck.sh
+/tools/shellcheck

@@ -44,7 +44,7 @@ function mimeExt(mime) {
 function decodedBytes(b64) {
   if (typeof b64 !== "string" || !b64) return 0;
   const compact = b64.replace(/\s/g, "");
-  return Math.floor(compact.length * 3 / 4);
+  return Math.floor((compact.length * 3) / 4);
 }
 
 function stubText({ name, mime, bytes, reason }) {
@@ -71,13 +71,27 @@ function extractUrlFromUploadResponse(json) {
   for (const arr of arrays) {
     if (Array.isArray(arr) && typeof arr[0] === "string" && arr[0]) return arr[0];
   }
-  const keys = ["imageUrl", "image_url", "url", "ossUrl", "oss_url", "originalUrl", "originUrl", "link", "image"];
+  const keys = [
+    "imageUrl",
+    "image_url",
+    "url",
+    "ossUrl",
+    "oss_url",
+    "originalUrl",
+    "originUrl",
+    "link",
+    "image",
+  ];
   for (const key of keys) {
     const v = result[key] ?? json[key];
     if (typeof v === "string" && v) return v;
   }
   if (typeof json.body === "string") {
-    try { return extractUrlFromUploadResponse(JSON.parse(json.body)); } catch { /* ignore */ }
+    try {
+      return extractUrlFromUploadResponse(JSON.parse(json.body));
+    } catch {
+      /* ignore */
+    }
   }
   return null;
 }
@@ -105,11 +119,7 @@ async function defaultUploadImage({ buffer, mediaType, credentials, proxyOptions
     "AI-CLIENT-TIMESTAMP": String(Math.floor(Date.now() / 1000)),
     "Accept-Encoding": "identity",
   };
-  const res = await proxyAwareFetch(
-    url,
-    { method: "PUT", headers, body, signal },
-    proxyOptions,
-  );
+  const res = await proxyAwareFetch(url, { method: "PUT", headers, body, signal }, proxyOptions);
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`HTTP ${res.status}${text ? `: ${text.slice(0, 180)}` : ""}`);
@@ -120,7 +130,16 @@ async function defaultUploadImage({ buffer, mediaType, credentials, proxyOptions
   return uploaded;
 }
 
-async function uploadImageData({ base64, mediaType, credentials, proxyOptions, signal, log, uploadFn, cache }) {
+async function uploadImageData({
+  base64,
+  mediaType,
+  credentials,
+  proxyOptions,
+  signal,
+  log,
+  uploadFn,
+  cache,
+}) {
   const compact = String(base64 || "").replace(/\s/g, "");
   if (!compact) return null;
   const bytes = decodedBytes(compact);
@@ -145,7 +164,10 @@ async function uploadImageData({ base64, mediaType, credentials, proxyOptions, s
       return { url, bytes, mime: mediaType };
     }
   } catch (err) {
-    log?.warn?.("QODER", `image upload failed (${err.message}); ${bytes <= QODER_INLINE_FALLBACK_MAX_BYTES ? "keeping inline" : "stubbing"}`);
+    log?.warn?.(
+      "QODER",
+      `image upload failed (${err.message}); ${bytes <= QODER_INLINE_FALLBACK_MAX_BYTES ? "keeping inline" : "stubbing"}`,
+    );
   }
   if (bytes <= QODER_INLINE_FALLBACK_MAX_BYTES) return { keep: true, bytes, mime: mediaType };
   return { stub: true, bytes, mime: mediaType };
@@ -163,14 +185,34 @@ async function rewriteBlock(block, ctx) {
     if (typeof raw !== "string" || !raw) return null;
     if (raw.startsWith("http://") || raw.startsWith("https://")) return imageUrlBlock(raw);
     const parsed = parseDataUri(raw);
-    if (!parsed) return { type: OPENAI_BLOCK.TEXT, text: stubText({ name: "attachment", reason: "unreadable data URI" }) };
+    if (!parsed)
+      return {
+        type: OPENAI_BLOCK.TEXT,
+        text: stubText({ name: "attachment", reason: "unreadable data URI" }),
+      };
     if (!IMAGE_MIME_RE.test(parsed.mimeType)) {
-      return { type: OPENAI_BLOCK.TEXT, text: stubText({ name: "file", mime: parsed.mimeType, bytes: decodedBytes(parsed.base64), reason: "non-image bytes are not inlined into Qoder context" }) };
+      return {
+        type: OPENAI_BLOCK.TEXT,
+        text: stubText({
+          name: "file",
+          mime: parsed.mimeType,
+          bytes: decodedBytes(parsed.base64),
+          reason: "non-image bytes are not inlined into Qoder context",
+        }),
+      };
     }
     const up = await uploadImageData({ ...ctx, base64: parsed.base64, mediaType: parsed.mimeType });
     if (up?.url) return imageUrlBlock(up.url);
     if (up?.keep) return imageUrlBlock(raw);
-    return { type: OPENAI_BLOCK.TEXT, text: stubText({ name: "image", mime: parsed.mimeType, bytes: up?.bytes, reason: "upload failed; not inlined" }) };
+    return {
+      type: OPENAI_BLOCK.TEXT,
+      text: stubText({
+        name: "image",
+        mime: parsed.mimeType,
+        bytes: up?.bytes,
+        reason: "upload failed; not inlined",
+      }),
+    };
   }
 
   if (block.type === OPENAI_BLOCK.IMAGE || block.type === CLAUDE_BLOCK.IMAGE) {
@@ -181,7 +223,15 @@ async function rewriteBlock(block, ctx) {
       const up = await uploadImageData({ ...ctx, base64: src.data, mediaType: mime });
       if (up?.url) return imageUrlBlock(up.url);
       if (up?.keep) return imageUrlBlock(`data:${mime};base64,${src.data}`);
-      return { type: OPENAI_BLOCK.TEXT, text: stubText({ name: "image", mime, bytes: up?.bytes, reason: "upload failed; not inlined" }) };
+      return {
+        type: OPENAI_BLOCK.TEXT,
+        text: stubText({
+          name: "image",
+          mime,
+          bytes: up?.bytes,
+          reason: "upload failed; not inlined",
+        }),
+      };
     }
   }
 
@@ -190,13 +240,25 @@ async function rewriteBlock(block, ctx) {
     const name = file.filename || file.name || "file";
     const dataUri = typeof file.file_data === "string" ? file.file_data : null;
     const parsed = dataUri ? parseDataUri(dataUri) : null;
-    const b64 = parsed?.base64 || (typeof file.file_data === "string" && !file.file_data.startsWith("data:") ? file.file_data : null);
+    const b64 =
+      parsed?.base64 ||
+      (typeof file.file_data === "string" && !file.file_data.startsWith("data:")
+        ? file.file_data
+        : null);
     const mime = parsed?.mimeType || file.format || "application/octet-stream";
     if (b64 && IMAGE_MIME_RE.test(mime)) {
       const up = await uploadImageData({ ...ctx, base64: b64, mediaType: mime });
       if (up?.url) return imageUrlBlock(up.url);
     }
-    return { type: OPENAI_BLOCK.TEXT, text: stubText({ name, mime, bytes: decodedBytes(b64 || ""), reason: "Qoder reads documents via its file API, not inlined bytes" }) };
+    return {
+      type: OPENAI_BLOCK.TEXT,
+      text: stubText({
+        name,
+        mime,
+        bytes: decodedBytes(b64 || ""),
+        reason: "Qoder reads documents via its file API, not inlined bytes",
+      }),
+    };
   }
 
   if (block.type === CLAUDE_BLOCK.DOCUMENT && block.source) {
@@ -208,7 +270,15 @@ async function rewriteBlock(block, ctx) {
         const up = await uploadImageData({ ...ctx, base64: src.data, mediaType: mime });
         if (up?.url) return imageUrlBlock(up.url);
       }
-      return { type: OPENAI_BLOCK.TEXT, text: stubText({ name, mime, bytes: decodedBytes(src.data), reason: "Qoder reads documents via its file API, not inlined bytes" }) };
+      return {
+        type: OPENAI_BLOCK.TEXT,
+        text: stubText({
+          name,
+          mime,
+          bytes: decodedBytes(src.data),
+          reason: "Qoder reads documents via its file API, not inlined bytes",
+        }),
+      };
     }
   }
 
@@ -217,7 +287,11 @@ async function rewriteBlock(block, ctx) {
       const parsed = parseDataUri(m.trim());
       const bytes = parsed ? decodedBytes(parsed.base64) : m.length;
       if (bytes <= QODER_INLINE_FALLBACK_MAX_BYTES) return m;
-      return stubText({ mime: parsed?.mimeType, bytes, reason: "inlined data URI stripped from Qoder context" });
+      return stubText({
+        mime: parsed?.mimeType,
+        bytes,
+        reason: "inlined data URI stripped from Qoder context",
+      });
     });
     return { ...block, text: next };
   }
@@ -232,7 +306,11 @@ async function rewriteContent(content, ctx) {
         const parsed = parseDataUri(m.trim());
         const bytes = parsed ? decodedBytes(parsed.base64) : m.length;
         if (bytes <= QODER_INLINE_FALLBACK_MAX_BYTES) return m;
-        return stubText({ mime: parsed?.mimeType, bytes, reason: "inlined data URI stripped from Qoder context" });
+        return stubText({
+          mime: parsed?.mimeType,
+          bytes,
+          reason: "inlined data URI stripped from Qoder context",
+        });
       });
     }
     return content;
@@ -266,13 +344,19 @@ function stripRemainingDataUris(messages) {
         if (block?.type === OPENAI_BLOCK.IMAGE_URL) {
           const raw = typeof block.image_url === "string" ? block.image_url : block.image_url?.url;
           if (typeof raw === "string" && raw.startsWith("data:")) {
-            return { type: OPENAI_BLOCK.TEXT, text: stubText({ name: "image", reason: "payload over Qoder size budget" }) };
+            return {
+              type: OPENAI_BLOCK.TEXT,
+              text: stubText({ name: "image", reason: "payload over Qoder size budget" }),
+            };
           }
         }
         if (typeof block?.text === "string" && block.text.includes("data:")) {
-          return { ...block, text: block.text.replace(DATA_URI_RE, (m) =>
-            stubText({ bytes: m.length, reason: "payload over Qoder size budget" }),
-          ) };
+          return {
+            ...block,
+            text: block.text.replace(DATA_URI_RE, (m) =>
+              stubText({ bytes: m.length, reason: "payload over Qoder size budget" }),
+            ),
+          };
         }
         return block;
       });
@@ -284,13 +368,10 @@ function stripRemainingDataUris(messages) {
  * Rewrite OpenAI-shaped messages in place: upload images, stub huge files.
  * @returns {Promise<{imageUrls: string[], uploaded: number, stubbed: number}>}
  */
-export async function rewriteQoderMessageAttachments(messages, {
-  credentials,
-  log,
-  proxyOptions = null,
-  signal = null,
-  uploadFn = null,
-} = {}) {
+export async function rewriteQoderMessageAttachments(
+  messages,
+  { credentials, log, proxyOptions = null, signal = null, uploadFn = null } = {},
+) {
   const stats = { imageUrls: [], uploaded: 0, stubbed: 0 };
   if (!Array.isArray(messages) || messages.length === 0) return stats;
 
@@ -303,7 +384,10 @@ export async function rewriteQoderMessageAttachments(messages, {
       const extras = msg.images.map((url) => imageUrlBlock(String(url)));
       msg.content = Array.isArray(msg.content)
         ? [...msg.content, ...extras]
-        : [{ type: OPENAI_BLOCK.TEXT, text: typeof msg.content === "string" ? msg.content : "" }, ...extras];
+        : [
+            { type: OPENAI_BLOCK.TEXT, text: typeof msg.content === "string" ? msg.content : "" },
+            ...extras,
+          ];
       delete msg.images;
     }
     msg.content = await rewriteContent(msg.content, ctx);
@@ -313,17 +397,28 @@ export async function rewriteQoderMessageAttachments(messages, {
   for (const msg of messages) {
     if (!Array.isArray(msg?.content)) continue;
     for (const block of msg.content) {
-      const url = block?.type === OPENAI_BLOCK.IMAGE_URL
-        ? (typeof block.image_url === "string" ? block.image_url : block.image_url?.url)
-        : null;
+      const url =
+        block?.type === OPENAI_BLOCK.IMAGE_URL
+          ? typeof block.image_url === "string"
+            ? block.image_url
+            : block.image_url?.url
+          : null;
       if (typeof url === "string" && /^https?:\/\//i.test(url)) stats.imageUrls.push(url);
-      if (block?.type === OPENAI_BLOCK.TEXT && typeof block.text === "string" && block.text.startsWith("[file omitted:")) stats.stubbed += 1;
+      if (
+        block?.type === OPENAI_BLOCK.TEXT &&
+        typeof block.text === "string" &&
+        block.text.startsWith("[file omitted:")
+      )
+        stats.stubbed += 1;
     }
   }
   stats.uploaded = stats.imageUrls.length;
 
   if (payloadBytes(messages) > QODER_MAX_PAYLOAD_BYTES) {
-    log?.warn?.("QODER", `request still ${payloadBytes(messages)} bytes after rewrite; stripping leftover data URIs`);
+    log?.warn?.(
+      "QODER",
+      `request still ${payloadBytes(messages)} bytes after rewrite; stripping leftover data URIs`,
+    );
     stripRemainingDataUris(messages);
   }
 

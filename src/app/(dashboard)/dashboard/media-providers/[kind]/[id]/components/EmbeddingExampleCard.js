@@ -20,8 +20,10 @@ const DEFAULT_RESPONSE_EXAMPLE = `{
 
 export function EmbeddingExampleCard({ providerId, customAlias }) {
   const isCustom = isCustomEmbeddingProvider(providerId);
-  const providerAlias = isCustom ? (customAlias || providerId) : getProviderAlias(providerId);
-  const embeddingModels = isCustom ? [] : getModelsByProviderId(providerId).filter((m) => getModelKind(m) === "embedding");
+  const providerAlias = isCustom ? customAlias || providerId : getProviderAlias(providerId);
+  const embeddingModels = isCustom
+    ? []
+    : getModelsByProviderId(providerId).filter((m) => getModelKind(m) === "embedding");
 
   const [selectedModel, setSelectedModel] = useState(embeddingModels[0]?.id ?? "");
   const [input, setInput] = useState("The quick brown fox jumps over the lazy dog");
@@ -40,11 +42,15 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
     setLocalEndpoint(window.location.origin);
     fetch("/api/keys")
       .then((r) => r.json())
-      .then((d) => { setApiKey((d.keys || []).find((k) => k.isActive !== false)?.key || ""); })
+      .then((d) => {
+        setApiKey((d.keys || []).find((k) => k.isActive !== false)?.key || "");
+      })
       .catch(() => {});
     fetch("/api/tunnel/status")
       .then((r) => r.json())
-      .then((d) => { if (d.publicUrl) setTunnelEndpoint(d.publicUrl); })
+      .then((d) => {
+        if (d.publicUrl) setTunnelEndpoint(d.publicUrl);
+      })
       .catch(() => {});
   }, []);
 
@@ -80,7 +86,10 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
       });
       const latencyMs = Date.now() - start;
       const data = await res.json();
-      if (!res.ok) { setError(data?.error?.message || data?.error || `HTTP ${res.status}`); return; }
+      if (!res.ok) {
+        setError(data?.error?.message || data?.error || `HTTP ${res.status}`);
+        return;
+      }
       setResult({ data, latencyMs });
     } catch (e) {
       setError(e.message || "Network error");
@@ -95,7 +104,10 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
     const clone = JSON.parse(JSON.stringify(data));
     (clone.data || []).forEach((item) => {
       if (Array.isArray(item.embedding) && item.embedding.length > 4) {
-        item.embedding = [...item.embedding.slice(0, 4).map((v) => parseFloat(v.toFixed(6))), `... (${item.embedding.length} dims)`];
+        item.embedding = [
+          ...item.embedding.slice(0, 4).map((v) => parseFloat(v.toFixed(6))),
+          `... (${item.embedding.length} dims)`,
+        ];
       }
     });
     return JSON.stringify(clone, null, 2);
@@ -124,7 +136,9 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
               className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
             >
               {embeddingModels.map((m) => (
-                <option key={m.id} value={m.id}>{m.name || m.id}</option>
+                <option key={m.id} value={m.id}>
+                  {m.name || m.id}
+                </option>
               ))}
             </select>
           )}
@@ -135,7 +149,9 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <input
               value={endpoint}
-              onChange={(e) => useTunnel ? setTunnelEndpoint(e.target.value) : setLocalEndpoint(e.target.value)}
+              onChange={(e) =>
+                useTunnel ? setTunnelEndpoint(e.target.value) : setLocalEndpoint(e.target.value)
+              }
               className="w-full min-w-0 flex-1 px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary font-mono"
               placeholder="http://localhost:3000"
             />
@@ -145,7 +161,9 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
                 onClick={() => setUseTunnel((v) => !v)}
                 title={useTunnel ? "Using tunnel" : "Using local"}
                 className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border shrink-0 transition-colors ${
-                  useTunnel ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-text-muted hover:text-primary"
+                  useTunnel
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-border text-text-muted hover:text-primary"
                 }`}
               >
                 <span className="material-symbols-outlined text-[14px]">wifi_tethering</span>
@@ -201,13 +219,17 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
         {/* Curl + Run */}
         <div className="mt-1">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-1.5">
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Request</span>
+            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+              Request
+            </span>
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
               <button
                 onClick={() => copyCurl(curlSnippet)}
                 className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors"
               >
-                <span className="material-symbols-outlined text-[14px]">{copiedCurl ? "check" : "content_copy"}</span>
+                <span className="material-symbols-outlined text-[14px]">
+                  {copiedCurl ? "check" : "content_copy"}
+                </span>
                 {copiedCurl ? "Copied" : "Copy"}
               </button>
               <button
@@ -215,14 +237,19 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
                 disabled={running || !input.trim() || !modelFull}
                 className="flex w-full sm:w-auto items-center justify-center gap-1.5 px-3 py-1 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <span className="material-symbols-outlined text-[14px]" style={running ? { animation: "spin 1s linear infinite" } : undefined}>
+                <span
+                  className="material-symbols-outlined text-[14px]"
+                  style={running ? { animation: "spin 1s linear infinite" } : undefined}
+                >
                   play_arrow
                 </span>
                 {running ? "Running..." : "Run"}
               </button>
             </div>
           </div>
-          <pre className="bg-sidebar rounded-lg px-3 py-2.5 text-xs font-mono text-text-main overflow-x-auto whitespace-pre-wrap break-all">{curlSnippet}</pre>
+          <pre className="bg-sidebar rounded-lg px-3 py-2.5 text-xs font-mono text-text-main overflow-x-auto whitespace-pre-wrap break-all">
+            {curlSnippet}
+          </pre>
         </div>
 
         {/* Error */}
@@ -232,14 +259,19 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
         <div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-1.5">
             <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-              Response {result && <span className="font-normal normal-case">&#9889; {result.latencyMs}ms</span>}
+              Response{" "}
+              {result && (
+                <span className="font-normal normal-case">&#9889; {result.latencyMs}ms</span>
+              )}
             </span>
             {result && (
               <button
                 onClick={() => copyRes(resultJson)}
                 className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors"
               >
-                <span className="material-symbols-outlined text-[14px]">{copiedRes ? "check" : "content_copy"}</span>
+                <span className="material-symbols-outlined text-[14px]">
+                  {copiedRes ? "check" : "content_copy"}
+                </span>
                 {copiedRes ? "Copied" : "Copy"}
               </button>
             )}

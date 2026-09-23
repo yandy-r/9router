@@ -5,13 +5,11 @@ export default {
     name: "Edge TTS",
     icon: "record_voice_over",
     color: "#0078D4",
-    textIcon: "ET"
+    textIcon: "ET",
   },
   category: "freeTier",
   authType: "none",
-  serviceKinds: [
-    "tts"
-  ],
+  serviceKinds: ["tts"],
   mediaPriority: 5,
   noAuth: true,
   ttsConfig: {
@@ -19,6 +17,6 @@ export default {
     authType: "none",
     authHeader: "none",
     format: "edge-tts",
-    models: []
-  }
+    models: [],
+  },
 };

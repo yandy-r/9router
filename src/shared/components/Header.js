@@ -53,8 +53,7 @@ const getPageInfo = (pathname) => {
   const providerMatch = pathname.match(/\/providers\/([^/]+)$/);
   if (providerMatch) {
     const providerId = providerMatch[1];
-    const providerInfo =
-      OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId];
+    const providerInfo = OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId];
     if (providerInfo) {
       return {
         title: providerInfo.name,
@@ -87,8 +86,7 @@ const getPageInfo = (pathname) => {
   if (pathname.includes("/usage"))
     return {
       title: "Usage & Analytics",
-      description:
-        "Monitor your API usage, token consumption, and request logs",
+      description: "Monitor your API usage, token consumption, and request logs",
       icon: "bar_chart",
       breadcrumbs: [],
     };
@@ -198,7 +196,14 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
         if (!res.ok) return;
         const data = await res.json();
         if (!cancelled) {
-          setDisplayName(data?.displayName || data?.samlName || data?.samlEmail || data?.oidcName || data?.oidcEmail || "");
+          setDisplayName(
+            data?.displayName ||
+              data?.samlName ||
+              data?.samlEmail ||
+              data?.oidcName ||
+              data?.oidcEmail ||
+              "",
+          );
           setLoginMethod(data?.loginMethod || "");
         }
       } catch {
@@ -308,7 +313,9 @@ export default function Header({ onMenuClick, showMenuButton = true }) {
             className="hidden sm:flex items-center max-w-[220px] px-3 py-1.5 rounded-full border border-border bg-surface/70 text-xs text-text-muted truncate"
             title={displayName}
           >
-            <span className="material-symbols-outlined text-[14px] mr-1.5 text-primary">person</span>
+            <span className="material-symbols-outlined text-[14px] mr-1.5 text-primary">
+              person
+            </span>
             <span className="truncate">{displayName}</span>
             <span className="ml-2 shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
               {loginMethod}

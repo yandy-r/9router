@@ -39,7 +39,7 @@ describe("request details — tab crash-risk cases", () => {
     // Inject a row with invalid JSON directly, bypassing save path
     adapter.run(
       `INSERT INTO requestDetails(id, timestamp, provider, model, connectionId, status, data) VALUES(?, ?, ?, ?, ?, ?, ?)`,
-      ["corrupt-1", new Date().toISOString(), "openai", "gpt-4", null, "ok", "{not-valid-json"]
+      ["corrupt-1", new Date().toISOString(), "openai", "gpt-4", null, "ok", "{not-valid-json"],
     );
 
     const res = await db.getRequestDetails({ provider: "openai" });
@@ -72,9 +72,13 @@ describe("request details — tab crash-risk cases", () => {
 
   it("large pageSize (providers route uses 9999) → returns all, no crash", async () => {
     await saveDetail({
-      id: "big-1", provider: "anthropic", model: "claude-3",
-      status: "ok", tokens: { input_tokens: 5 },
-      request: { method: "POST" }, response: { content: "hi" },
+      id: "big-1",
+      provider: "anthropic",
+      model: "claude-3",
+      status: "ok",
+      tokens: { input_tokens: 5 },
+      request: { method: "POST" },
+      response: { content: "hi" },
     });
 
     const res = await db.getRequestDetails({ pageSize: 9999 });
@@ -85,9 +89,13 @@ describe("request details — tab crash-risk cases", () => {
   it("oversized field → stored truncated + reparseable (no circular)", async () => {
     const huge = "x".repeat(20 * 1024);
     await saveDetail({
-      id: "trunc-1", provider: "openai", model: "gpt-4",
-      status: "ok", tokens: {},
-      request: { blob: huge }, response: { content: "ok" },
+      id: "trunc-1",
+      provider: "openai",
+      model: "gpt-4",
+      status: "ok",
+      tokens: {},
+      request: { blob: huge },
+      response: { content: "ok" },
     });
 
     const got = await db.getRequestDetailById("trunc-1");
@@ -100,7 +108,15 @@ describe("request details — tab crash-risk cases", () => {
   it("missing tokens/timestamp on row → getInputTokens-style access safe", async () => {
     adapter.run(
       `INSERT INTO requestDetails(id, timestamp, provider, model, connectionId, status, data) VALUES(?, ?, ?, ?, ?, ?, ?)`,
-      ["sparse-1", new Date().toISOString(), "openai", null, null, null, JSON.stringify({ id: "sparse-1" })]
+      [
+        "sparse-1",
+        new Date().toISOString(),
+        "openai",
+        null,
+        null,
+        null,
+        JSON.stringify({ id: "sparse-1" }),
+      ],
     );
     const got = await db.getRequestDetailById("sparse-1");
     expect(got.tokens).toBeUndefined();
@@ -126,7 +142,15 @@ function getInputTokens(tokens) {
 describe("backupDbLite — excludes requestDetails, keeps critical data", () => {
   it("backup file omits requestDetails rows but keeps other tables", async () => {
     const { backupDbLite } = await import("@/lib/db/backup.js");
-    await saveDetail({ id: "bk-1", provider: "openai", model: "m", status: "ok", tokens: {}, request: {}, response: {} });
+    await saveDetail({
+      id: "bk-1",
+      provider: "openai",
+      model: "m",
+      status: "ok",
+      tokens: {},
+      request: {},
+      response: {},
+    });
 
     const backupDir = fs.mkdtempSync(path.join(os.tmpdir(), "9router-bklite-"));
     const dest = backupDbLite(adapter, backupDir);
@@ -137,7 +161,9 @@ describe("backupDbLite — excludes requestDetails, keeps critical data", () => 
     const bak = new Database(dest);
     try {
       // requestDetails is fully excluded — table must not exist in the backup
-      const rdTable = bak.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='requestDetails'").get();
+      const rdTable = bak
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='requestDetails'")
+        .get();
       expect(rdTable).toBeUndefined();
       // Critical data preserved
       const st = bak.prepare("SELECT COUNT(*) c FROM settings").get();
@@ -151,9 +177,33 @@ describe("backupDbLite — excludes requestDetails, keeps critical data", () => 
 
 describe("getDistinctProviders — providers route (no full-row parse)", () => {
   it("returns unique provider list without parsing data blobs", async () => {
-    await saveDetail({ id: "dp-1", provider: "openai", model: "m", status: "ok", tokens: {}, request: {}, response: {} });
-    await saveDetail({ id: "dp-2", provider: "anthropic", model: "m", status: "ok", tokens: {}, request: {}, response: {} });
-    await saveDetail({ id: "dp-3", provider: "openai", model: "m", status: "ok", tokens: {}, request: {}, response: {} });
+    await saveDetail({
+      id: "dp-1",
+      provider: "openai",
+      model: "m",
+      status: "ok",
+      tokens: {},
+      request: {},
+      response: {},
+    });
+    await saveDetail({
+      id: "dp-2",
+      provider: "anthropic",
+      model: "m",
+      status: "ok",
+      tokens: {},
+      request: {},
+      response: {},
+    });
+    await saveDetail({
+      id: "dp-3",
+      provider: "openai",
+      model: "m",
+      status: "ok",
+      tokens: {},
+      request: {},
+      response: {},
+    });
 
     const list = await db.getDistinctProviders();
     expect(Array.isArray(list)).toBe(true);

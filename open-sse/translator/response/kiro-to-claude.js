@@ -79,17 +79,16 @@ export function kiroToClaudeResponse(chunk, state) {
     const promptTokens =
       typeof data.usage.prompt_tokens === "number" ? data.usage.prompt_tokens : 0;
     const outputTokens =
-      typeof data.usage.completion_tokens === "number"
-        ? data.usage.completion_tokens
-        : 0;
+      typeof data.usage.completion_tokens === "number" ? data.usage.completion_tokens : 0;
     state.usage = { input_tokens: promptTokens, output_tokens: outputTokens };
     // Claude clients read cache_read/cache_creation to price a turn and to size
     // their prompt cache. Both spellings are accepted because the Kiro executor
     // emits the Chat shape and passthrough responses use the nested details form.
-    const cacheRead = data.usage.cache_read_input_tokens
-      ?? data.usage.prompt_tokens_details?.cached_tokens;
-    const cacheCreation = data.usage.cache_creation_input_tokens
-      ?? data.usage.prompt_tokens_details?.cache_creation_tokens;
+    const cacheRead =
+      data.usage.cache_read_input_tokens ?? data.usage.prompt_tokens_details?.cached_tokens;
+    const cacheCreation =
+      data.usage.cache_creation_input_tokens ??
+      data.usage.prompt_tokens_details?.cache_creation_tokens;
     if (typeof cacheRead === "number") state.usage.cache_read_input_tokens = cacheRead;
     if (typeof cacheCreation === "number") state.usage.cache_creation_input_tokens = cacheCreation;
   }
@@ -98,8 +97,7 @@ export function kiroToClaudeResponse(chunk, state) {
   if (!state.messageStartSent) {
     state.messageStartSent = true;
     state.messageId =
-      (typeof data.id === "string" && data.id.replace("chatcmpl-", "")) ||
-      `msg_${Date.now()}`;
+      (typeof data.id === "string" && data.id.replace("chatcmpl-", "")) || `msg_${Date.now()}`;
     state.model = data.model || "kiro";
     state.nextBlockIndex = 0;
     results.push({
@@ -188,7 +186,7 @@ export function kiroToClaudeResponse(chunk, state) {
         if (toolInfo) {
           state.toolArgBuffers.set(
             idx,
-            (state.toolArgBuffers.get(idx) || "") + tc.function.arguments
+            (state.toolArgBuffers.get(idx) || "") + tc.function.arguments,
           );
         }
       }
@@ -272,11 +270,21 @@ export function kiroToClaudeNonStreaming(data) {
       input_tokens: usage.prompt_tokens || 0,
       output_tokens: usage.completion_tokens || 0,
       // Same cache preservation as the streaming path above.
-      ...(typeof (usage.cache_read_input_tokens ?? usage.prompt_tokens_details?.cached_tokens) === "number"
-        ? { cache_read_input_tokens: usage.cache_read_input_tokens ?? usage.prompt_tokens_details.cached_tokens }
+      ...(typeof (usage.cache_read_input_tokens ?? usage.prompt_tokens_details?.cached_tokens) ===
+      "number"
+        ? {
+            cache_read_input_tokens:
+              usage.cache_read_input_tokens ?? usage.prompt_tokens_details.cached_tokens,
+          }
         : {}),
-      ...(typeof (usage.cache_creation_input_tokens ?? usage.prompt_tokens_details?.cache_creation_tokens) === "number"
-        ? { cache_creation_input_tokens: usage.cache_creation_input_tokens ?? usage.prompt_tokens_details.cache_creation_tokens }
+      ...(typeof (
+        usage.cache_creation_input_tokens ?? usage.prompt_tokens_details?.cache_creation_tokens
+      ) === "number"
+        ? {
+            cache_creation_input_tokens:
+              usage.cache_creation_input_tokens ??
+              usage.prompt_tokens_details.cache_creation_tokens,
+          }
         : {}),
     },
   };

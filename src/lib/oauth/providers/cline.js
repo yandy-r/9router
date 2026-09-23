@@ -33,7 +33,12 @@ const cline = {
       const response = await fetch(config.tokenExchangeUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ grant_type: "authorization_code", code, client_type: "extension", redirect_uri: redirectUri }),
+        body: JSON.stringify({
+          grant_type: "authorization_code",
+          code,
+          client_type: "extension",
+          redirect_uri: redirectUri,
+        }),
       });
       if (!response.ok) {
         const error = await response.text();

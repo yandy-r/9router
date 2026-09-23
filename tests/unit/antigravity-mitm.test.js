@@ -18,7 +18,12 @@ describe("Antigravity MITM model handling", () => {
   });
 
   it("leaves models not proven auto-sent optional", () => {
-    for (const id of ["gemini-3-flash-agent", "gemini-3.1-pro-low", "claude-sonnet-4-6", "gpt-oss-120b-medium"]) {
+    for (const id of [
+      "gemini-3-flash-agent",
+      "gemini-3.1-pro-low",
+      "claude-sonnet-4-6",
+      "gpt-oss-120b-medium",
+    ]) {
       expect(ag.defaultModels.find((m) => m.id === id)?.mandatory).toBeFalsy();
     }
   });
@@ -29,7 +34,7 @@ describe("Antigravity MITM model handling", () => {
     "excludes tab-autocomplete model '%s' from re-routing",
     (id) => {
       expect((MODEL_NO_MAP.antigravity || []).some((re) => re.test(id))).toBe(true);
-    }
+    },
   );
 
   it("does not exclude real agent models from re-routing", () => {

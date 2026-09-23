@@ -16,18 +16,34 @@ function atomicWriteHostsWin(target, originalContent, newContent) {
   const tmpBak = `${target}.9router.bak`;
   try {
     fs.writeFileSync(tmpNew, newContent, "utf8");
-    try { fs.unlinkSync(tmpBak); } catch { /* none */ }
+    try {
+      fs.unlinkSync(tmpBak);
+    } catch {
+      /* none */
+    }
     fs.renameSync(target, tmpBak);
     try {
       fs.renameSync(tmpNew, target);
     } catch (e) {
       // Rollback: restore original
-      try { fs.renameSync(tmpBak, target); } catch { fs.writeFileSync(target, originalContent, "utf8"); }
+      try {
+        fs.renameSync(tmpBak, target);
+      } catch {
+        fs.writeFileSync(target, originalContent, "utf8");
+      }
       throw e;
     }
-    try { fs.unlinkSync(tmpBak); } catch { /* best effort */ }
+    try {
+      fs.unlinkSync(tmpBak);
+    } catch {
+      /* best effort */
+    }
   } finally {
-    try { fs.unlinkSync(tmpNew); } catch { /* already moved or never created */ }
+    try {
+      fs.unlinkSync(tmpNew);
+    } catch {
+      /* already moved or never created */
+    }
   }
 }
 
@@ -70,13 +86,20 @@ function execWithPassword(command, password) {
   return new Promise((resolve, reject) => {
     const useSudo = isSudoAvailable();
     const child = useSudo
-      ? spawn("sudo", ["-S", "sh", "-c", command], { stdio: ["pipe", "pipe", "pipe"], windowsHide: true })
+      ? spawn("sudo", ["-S", "sh", "-c", command], {
+          stdio: ["pipe", "pipe", "pipe"],
+          windowsHide: true,
+        })
       : spawn("sh", ["-c", command], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
 
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (d) => { stdout += d; });
-    child.stderr.on("data", (d) => { stderr += d; });
+    child.stdout.on("data", (d) => {
+      stdout += d;
+    });
+    child.stderr.on("data", (d) => {
+      stderr += d;
+    });
 
     child.on("close", (code) => {
       if (code === 0) resolve(stdout);
@@ -118,7 +141,7 @@ function checkDNSEntry(host = null) {
     const hostsContent = fs.readFileSync(HOSTS_FILE, "utf8");
     if (host) return hostsContent.includes(host);
     // Legacy: check all antigravity hosts (backward compat)
-    return TOOL_HOSTS.antigravity.every(h => hostsContent.includes(h));
+    return TOOL_HOSTS.antigravity.every((h) => hostsContent.includes(h));
   } catch {
     return false;
   }
@@ -132,11 +155,11 @@ function checkAllDNSStatus() {
     const hostsContent = fs.readFileSync(HOSTS_FILE, "utf8");
     const result = {};
     for (const [tool, hosts] of Object.entries(TOOL_HOSTS)) {
-      result[tool] = hosts.every(h => hostsContent.includes(h));
+      result[tool] = hosts.every((h) => hostsContent.includes(h));
     }
     return result;
   } catch {
-    return Object.fromEntries(Object.keys(TOOL_HOSTS).map(t => [t, false]));
+    return Object.fromEntries(Object.keys(TOOL_HOSTS).map((t) => [t, false]));
   }
 }
 
@@ -147,7 +170,7 @@ async function addDNSEntry(tool, sudoPassword) {
   const hosts = TOOL_HOSTS[tool];
   if (!hosts) throw new Error(`Unknown tool: ${tool}`);
 
-  const entriesToAdd = hosts.filter(h => !checkDNSEntry(h));
+  const entriesToAdd = hosts.filter((h) => !checkDNSEntry(h));
   if (entriesToAdd.length === 0) {
     log(`🌐 DNS ${tool}: already active`);
     return;
@@ -158,23 +181,28 @@ async function addDNSEntry(tool, sudoPassword) {
       // Read → trim → append → atomic write (Node-side, no CLI size limit)
       const current = fs.readFileSync(HOSTS_FILE, "utf8");
       const trimmed = current.replace(/[\r\n\s]+$/g, "");
-      const toAppend = entriesToAdd.map(h => `127.0.0.1 ${h}`).join("\r\n");
+      const toAppend = entriesToAdd.map((h) => `127.0.0.1 ${h}`).join("\r\n");
       const next = `${trimmed}\r\n${toAppend}\r\n`;
       atomicWriteHostsWin(HOSTS_FILE, current, next);
       await runElevatedPowerShell("ipconfig /flushdns | Out-Null");
     } else {
       const current = fs.readFileSync(HOSTS_FILE, "utf8");
       const trimmed = current.replace(/[\r\n\s]+$/g, "");
-      const toAppend = entriesToAdd.map(h => `127.0.0.1 ${h}`).join("\n");
+      const toAppend = entriesToAdd.map((h) => `127.0.0.1 ${h}`).join("\n");
       const next = `${trimmed}\n${toAppend}\n`;
       // Use tee via sudo to overwrite atomically — escape single quotes in content
       const escaped = next.replace(/'/g, "'\\''");
-      await execWithPassword(`printf '%s' '${escaped}' | tee ${HOSTS_FILE} > /dev/null`, sudoPassword);
+      await execWithPassword(
+        `printf '%s' '${escaped}' | tee ${HOSTS_FILE} > /dev/null`,
+        sudoPassword,
+      );
       await flushDNS(sudoPassword);
     }
     log(`🌐 DNS ${tool}: ✅ added ${entriesToAdd.join(", ")}`);
   } catch (error) {
-    const msg = error.message?.includes("incorrect password") ? "Wrong sudo password" : `Failed to add DNS entry: ${error.message}`;
+    const msg = error.message?.includes("incorrect password")
+      ? "Wrong sudo password"
+      : `Failed to add DNS entry: ${error.message}`;
     throw new Error(msg);
   }
 }
@@ -186,7 +214,7 @@ async function removeDNSEntry(tool, sudoPassword) {
   const hosts = TOOL_HOSTS[tool];
   if (!hosts) throw new Error(`Unknown tool: ${tool}`);
 
-  const entriesToRemove = hosts.filter(h => checkDNSEntry(h));
+  const entriesToRemove = hosts.filter((h) => checkDNSEntry(h));
   if (entriesToRemove.length === 0) {
     log(`🌐 DNS ${tool}: already inactive`);
     return;
@@ -195,21 +223,32 @@ async function removeDNSEntry(tool, sudoPassword) {
   try {
     if (IS_WIN) {
       const current = fs.readFileSync(HOSTS_FILE, "utf8");
-      const filtered = current.split(/\r?\n/).filter(l => !entriesToRemove.some(h => l.includes(h))).join("\r\n");
+      const filtered = current
+        .split(/\r?\n/)
+        .filter((l) => !entriesToRemove.some((h) => l.includes(h)))
+        .join("\r\n");
       const next = filtered.replace(/[\r\n\s]+$/g, "") + "\r\n";
       atomicWriteHostsWin(HOSTS_FILE, current, next);
       await runElevatedPowerShell("ipconfig /flushdns | Out-Null");
     } else {
       const current = fs.readFileSync(HOSTS_FILE, "utf8");
-      const filtered = current.split(/\r?\n/).filter(l => !entriesToRemove.some(h => l.includes(h))).join("\n");
+      const filtered = current
+        .split(/\r?\n/)
+        .filter((l) => !entriesToRemove.some((h) => l.includes(h)))
+        .join("\n");
       const next = filtered.replace(/[\r\n\s]+$/g, "") + "\n";
       const escaped = next.replace(/'/g, "'\\''");
-      await execWithPassword(`printf '%s' '${escaped}' | tee ${HOSTS_FILE} > /dev/null`, sudoPassword);
+      await execWithPassword(
+        `printf '%s' '${escaped}' | tee ${HOSTS_FILE} > /dev/null`,
+        sudoPassword,
+      );
       await flushDNS(sudoPassword);
     }
     log(`🌐 DNS ${tool}: ✅ removed ${entriesToRemove.join(", ")}`);
   } catch (error) {
-    const msg = error.message?.includes("incorrect password") ? "Wrong sudo password" : `Failed to remove DNS entry: ${error.message}`;
+    const msg = error.message?.includes("incorrect password")
+      ? "Wrong sudo password"
+      : `Failed to remove DNS entry: ${error.message}`;
     throw new Error(msg);
   }
 }
@@ -237,18 +276,35 @@ function removeAllDNSEntriesSync() {
     const allHosts = Object.values(TOOL_HOSTS).flat();
     const content = fs.readFileSync(HOSTS_FILE, "utf8");
     const eol = IS_WIN ? "\r\n" : "\n";
-    const filtered = content.split(/\r?\n/).filter(l => !allHosts.some(h => l.includes(h))).join(eol);
+    const filtered = content
+      .split(/\r?\n/)
+      .filter((l) => !allHosts.some((h) => l.includes(h)))
+      .join(eol);
     const next = filtered.replace(/[\r\n\s]+$/g, "") + eol;
     if (next === content) return;
     fs.writeFileSync(HOSTS_FILE, next, "utf8");
     if (IS_WIN) {
-      try { execSync("ipconfig /flushdns", { windowsHide: true, stdio: "ignore" }); } catch { /* ignore */ }
+      try {
+        execSync("ipconfig /flushdns", { windowsHide: true, stdio: "ignore" });
+      } catch {
+        /* ignore */
+      }
     } else if (IS_MAC) {
-      try { execSync("dscacheutil -flushcache && killall -HUP mDNSResponder", { stdio: "ignore" }); } catch { /* ignore */ }
+      try {
+        execSync("dscacheutil -flushcache && killall -HUP mDNSResponder", { stdio: "ignore" });
+      } catch {
+        /* ignore */
+      }
     } else {
-      try { execSync("resolvectl flush-caches 2>/dev/null || true", { stdio: "ignore" }); } catch { /* ignore */ }
+      try {
+        execSync("resolvectl flush-caches 2>/dev/null || true", { stdio: "ignore" });
+      } catch {
+        /* ignore */
+      }
     }
-  } catch { /* best effort during shutdown */ }
+  } catch {
+    /* best effort during shutdown */
+  }
 }
 
 module.exports = {

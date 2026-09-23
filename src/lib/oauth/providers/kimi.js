@@ -24,14 +24,14 @@ const kimi = {
       throw new Error(`Device code request failed: ${error}`);
     }
     const data = await response.json();
-    const authorizeDeviceUrl = config.authorizeDeviceUrl || "https://www.kimi.com/code/authorize_device";
+    const authorizeDeviceUrl =
+      config.authorizeDeviceUrl || "https://www.kimi.com/code/authorize_device";
     return {
       device_code: data.device_code,
       user_code: data.user_code,
       verification_uri: data.verification_uri || authorizeDeviceUrl,
       verification_uri_complete:
-        data.verification_uri_complete ||
-        `${authorizeDeviceUrl}?user_code=${data.user_code}`,
+        data.verification_uri_complete || `${authorizeDeviceUrl}?user_code=${data.user_code}`,
       expires_in: data.expires_in,
       interval: data.interval || 5,
       _kimiDeviceId: deviceId,

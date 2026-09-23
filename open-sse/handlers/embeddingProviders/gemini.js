@@ -16,7 +16,8 @@ export default {
   buildBody: (model, { input, dimensions }) => {
     const m = modelPath(model);
     const outputDimensionality = Number(dimensions);
-    const hasOutputDimensionality = Number.isFinite(outputDimensionality) && outputDimensionality > 0;
+    const hasOutputDimensionality =
+      Number.isFinite(outputDimensionality) && outputDimensionality > 0;
     if (Array.isArray(input)) {
       return {
         requests: input.map((text) => ({

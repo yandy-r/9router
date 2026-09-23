@@ -22,7 +22,16 @@ import { SSE_HEADERS_CORS } from "../utils/sseConstants.js";
  * @param {string} options.connectionId - Connection ID for usage tracking
  * @returns {Promise<{success: boolean, response?: Response, status?: number, error?: string}>}
  */
-export async function handleResponsesCore({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, connectionId }) {
+export async function handleResponsesCore({
+  body,
+  modelInfo,
+  credentials,
+  log,
+  onCredentialsRefreshed,
+  onRequestSuccess,
+  onDisconnect,
+  connectionId,
+}) {
   // Convert Responses API format to Chat Completions format
   const convertedBody = convertResponsesApiFormat(body);
 
@@ -43,7 +52,7 @@ export async function handleResponsesCore({ body, modelInfo, credentials, log, o
     onRequestSuccess,
     onDisconnect,
     connectionId,
-    sourceFormatOverride: "openai-responses"
+    sourceFormatOverride: "openai-responses",
   });
 
   if (!result.success || !result.response) {
@@ -65,16 +74,16 @@ export async function handleResponsesCore({ body, modelInfo, credentials, log, o
           headers: {
             "Content-Type": "application/json",
             "Cache-Control": "no-cache",
-            "Access-Control-Allow-Origin": "*"
-          }
-        })
+            "Access-Control-Allow-Origin": "*",
+          },
+        }),
       };
     } catch (error) {
       console.error("[Responses API] Stream-to-JSON conversion failed:", error);
       return {
         success: false,
         status: 500,
-        error: "Failed to convert streaming response to JSON"
+        error: "Failed to convert streaming response to JSON",
       };
     }
   }
@@ -88,12 +97,11 @@ export async function handleResponsesCore({ body, modelInfo, credentials, log, o
       success: true,
       response: new Response(transformedBody, {
         status: 200,
-        headers: { ...SSE_HEADERS_CORS }
-      })
+        headers: { ...SSE_HEADERS_CORS },
+      }),
     };
   }
 
   // Case 3: Non-SSE response (error or non-streaming from provider) - return as-is
   return result;
 }
-

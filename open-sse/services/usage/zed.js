@@ -115,8 +115,7 @@ function usageBucketLimit(bucket) {
  */
 export function parseZedAuthenticatedUserUsage(userInfo) {
   const plan = userInfo?.plan || {};
-  const planId =
-    plan.plan_v3 || plan.plan_v2 || plan.plan || userInfo?.plan_v3 || null;
+  const planId = plan.plan_v3 || plan.plan_v2 || plan.plan || userInfo?.plan_v3 || null;
   const resetAt =
     parseResetTime(plan.subscription_period?.ended_at) ||
     parseResetTime(plan.subscriptionPeriod?.endedAt) ||
@@ -138,9 +137,7 @@ export function parseZedAuthenticatedUserUsage(userInfo) {
   const modelRequests = usage.model_requests || usage.modelRequests;
   if (modelRequests) {
     const limitRaw =
-      modelRequests.limit != null
-        ? modelRequests.limit
-        : usageBucketLimit(modelRequests)?.limit;
+      modelRequests.limit != null ? modelRequests.limit : usageBucketLimit(modelRequests)?.limit;
     const limitInfo = parseZedUsageLimit(limitRaw);
     // Token-billed plans report model_requests.limit=0 — not a request quota.
     if (limitInfo.unlimited || limitInfo.total > 0) {
@@ -168,7 +165,8 @@ export function parseZedAuthenticatedUserUsage(userInfo) {
 
   let message = tokenBillingNote;
   if (plan.has_overdue_invoices || plan.hasOverdueInvoices) {
-    message = "This Zed account has overdue invoices. Usage may be blocked until billing is resolved.";
+    message =
+      "This Zed account has overdue invoices. Usage may be blocked until billing is resolved.";
   }
 
   return {

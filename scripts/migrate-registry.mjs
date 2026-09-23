@@ -19,13 +19,13 @@ const DRY = process.argv.includes("--dry");
 
 // *Config.models field → kind value
 const CFG_KIND = {
-  ttsConfig:          "tts",
-  sttConfig:          "stt",
-  embeddingConfig:    "embedding",
-  imageConfig:        "image",
-  imageToTextConfig:  "imageToText",
-  videoConfig:        "video",
-  musicConfig:        "music",
+  ttsConfig: "tts",
+  sttConfig: "stt",
+  embeddingConfig: "embedding",
+  imageConfig: "image",
+  imageToTextConfig: "imageToText",
+  videoConfig: "video",
+  musicConfig: "music",
 };
 
 // Fields in *Config that are NOT models (keep on config)
@@ -36,32 +36,58 @@ const MODEL_ONLY_KEY = "models";
 // Everything else is already top-level
 const MEDIA_WHITELIST = new Set([
   "serviceKinds",
-  "ttsConfig", "sttConfig", "embeddingConfig",
-  "imageConfig", "imageToTextConfig", "videoConfig", "musicConfig",
-  "searchViaChat", "searchConfig", "fetchConfig",
-  "modelsFetcher", "hasProviderSpecificData", "passthroughModels",
-  "mediaPriority", "hiddenKinds",
+  "ttsConfig",
+  "sttConfig",
+  "embeddingConfig",
+  "imageConfig",
+  "imageToTextConfig",
+  "videoConfig",
+  "musicConfig",
+  "searchViaChat",
+  "searchConfig",
+  "fetchConfig",
+  "modelsFetcher",
+  "hasProviderSpecificData",
+  "passthroughModels",
+  "mediaPriority",
+  "hiddenKinds",
 ]);
 
 function migrateEntry(entry, filename) {
   const out = {};
 
   // 1. Top-level identity/transport fields (preserve order)
-  const TRANSPORT_KEYS = ["id", "alias", "aliases", "uiAlias", "display", "category",
-    "authType", "authHint", "authModes", "hasOAuth", "noAuth",
-    "hasProviderSpecificData", "thinkingConfig", "hiddenKinds",
-    "regions", "defaultRegion", "passthroughModels", "transport"];
+  const TRANSPORT_KEYS = [
+    "id",
+    "alias",
+    "aliases",
+    "uiAlias",
+    "display",
+    "category",
+    "authType",
+    "authHint",
+    "authModes",
+    "hasOAuth",
+    "noAuth",
+    "hasProviderSpecificData",
+    "thinkingConfig",
+    "hiddenKinds",
+    "regions",
+    "defaultRegion",
+    "passthroughModels",
+    "transport",
+  ];
   for (const k of TRANSPORT_KEYS) {
     if (entry[k] !== undefined) out[k] = entry[k];
   }
 
   // 2. Collect existing models[] (convert type→kind, skip if kind already set)
-  const existingModels = (entry.models || []).map(m => {
+  const existingModels = (entry.models || []).map((m) => {
     const { type, ...rest } = m;
     const kind = m.kind ?? (type && type !== "llm" ? type : undefined);
     return kind ? { ...rest, kind } : rest;
   });
-  const existingIds = new Set(existingModels.map(m => m.id));
+  const existingIds = new Set(existingModels.map((m) => m.id));
 
   // 3. Extract models from *Config.models (merge into models[])
   const mediaModels = [];
@@ -71,7 +97,7 @@ function migrateEntry(entry, filename) {
     if (!cfg?.models) continue;
     for (const m of cfg.models) {
       // Check if same id+kind combo already exists to avoid true duplicates
-      const dup = existingModels.find(x => x.id === m.id && (x.kind ?? "llm") === kind);
+      const dup = existingModels.find((x) => x.id === m.id && (x.kind ?? "llm") === kind);
       if (dup) continue;
       const { ...mClean } = m;
       mediaModels.push({ ...mClean, kind });
@@ -90,7 +116,7 @@ function migrateEntry(entry, filename) {
     if (!MEDIA_WHITELIST.has(k)) continue;
     if (CFG_KIND[k]) {
       // Strip .models from config, keep rest
-      const { models: _m, ...cfgRest } = (v || {});
+      const { models: _m, ...cfgRest } = v || {};
       if (Object.keys(cfgRest).length > 0) out[k] = cfgRest;
     } else {
       out[k] = v;
@@ -98,9 +124,19 @@ function migrateEntry(entry, filename) {
   }
 
   // 6. Other top-level fields not in TRANSPORT_KEYS and not media (e.g. features, oauth, usage in transport)
-  const SKIP = new Set([...TRANSPORT_KEYS, "models", "media", ...Object.keys(CFG_KIND),
-    "serviceKinds", "searchViaChat", "searchConfig", "fetchConfig",
-    "modelsFetcher", "passthroughModels", "mediaPriority"]);
+  const SKIP = new Set([
+    ...TRANSPORT_KEYS,
+    "models",
+    "media",
+    ...Object.keys(CFG_KIND),
+    "serviceKinds",
+    "searchViaChat",
+    "searchConfig",
+    "fetchConfig",
+    "modelsFetcher",
+    "passthroughModels",
+    "mediaPriority",
+  ]);
   for (const [k, v] of Object.entries(entry)) {
     if (!SKIP.has(k)) out[k] = v;
   }
@@ -120,7 +156,7 @@ function formatValue(v, indent = 0) {
   if (Array.isArray(v)) {
     if (v.length === 0) return "[]";
     // Model arrays: 1 model per line (compact inline object)
-    const items = v.map(item => {
+    const items = v.map((item) => {
       if (typeof item === "object" && item !== null && !Array.isArray(item)) {
         return `${pad1}${formatInlineObject(item)}`;
       }
@@ -132,7 +168,7 @@ function formatValue(v, indent = 0) {
   if (typeof v === "object") {
     const keys = Object.keys(v);
     if (keys.length === 0) return "{}";
-    const lines = keys.map(k => {
+    const lines = keys.map((k) => {
       const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(k) ? k : JSON.stringify(k);
       return `${pad1}${key}: ${formatValue(v[k], indent + 1)}`;
     });
@@ -153,10 +189,12 @@ function formatInlineObject(obj) {
 
 // Config objects (ttsConfig etc) — inline single line if short, else multi-line
 function formatConfig(cfg) {
-  const line = `{ ${Object.entries(cfg).map(([k,v])=>`${k}: ${JSON.stringify(v)}`).join(", ")} }`;
+  const line = `{ ${Object.entries(cfg)
+    .map(([k, v]) => `${k}: ${JSON.stringify(v)}`)
+    .join(", ")} }`;
   if (line.length <= 120) return line;
   const pad1 = "  ".repeat(2);
-  const lines = Object.entries(cfg).map(([k,v]) => `${pad1}${k}: ${JSON.stringify(v)}`);
+  const lines = Object.entries(cfg).map(([k, v]) => `${pad1}${k}: ${JSON.stringify(v)}`);
   return `{\n${lines.join(",\n")},\n  }`;
 }
 
@@ -167,19 +205,42 @@ function formatEntry(entry, imports = "") {
   lines.push("export default {");
 
   const TOP_ORDER = [
-    "id", "alias", "aliases", "uiAlias", "display", "category",
-    "authType", "authHint", "authModes", "hasOAuth", "noAuth",
-    "hasProviderSpecificData", "thinkingConfig", "hiddenKinds",
-    "regions", "defaultRegion", "transport",
+    "id",
+    "alias",
+    "aliases",
+    "uiAlias",
+    "display",
+    "category",
+    "authType",
+    "authHint",
+    "authModes",
+    "hasOAuth",
+    "noAuth",
+    "hasProviderSpecificData",
+    "thinkingConfig",
+    "hiddenKinds",
+    "regions",
+    "defaultRegion",
+    "transport",
     "models",
     // media fields
     "serviceKinds",
-    "ttsConfig", "sttConfig", "embeddingConfig",
-    "imageConfig", "imageToTextConfig", "videoConfig", "musicConfig",
-    "searchViaChat", "searchConfig", "fetchConfig", "modelsFetcher",
-    "passthroughModels", "mediaPriority",
+    "ttsConfig",
+    "sttConfig",
+    "embeddingConfig",
+    "imageConfig",
+    "imageToTextConfig",
+    "videoConfig",
+    "musicConfig",
+    "searchViaChat",
+    "searchConfig",
+    "fetchConfig",
+    "modelsFetcher",
+    "passthroughModels",
+    "mediaPriority",
     // other
-    "oauth", "features",
+    "oauth",
+    "features",
   ];
 
   const emitted = new Set();
@@ -191,14 +252,23 @@ function formatEntry(entry, imports = "") {
     const key = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(k) ? k : JSON.stringify(k);
 
     // Config objects (xConfig) — special inline format
-    if (CFG_KIND[k] || k === "searchViaChat" || k === "searchConfig" || k === "fetchConfig" || k === "modelsFetcher") {
+    if (
+      CFG_KIND[k] ||
+      k === "searchViaChat" ||
+      k === "searchConfig" ||
+      k === "fetchConfig" ||
+      k === "modelsFetcher"
+    ) {
       lines.push(`  ${key}: ${formatConfig(v)},`);
       return;
     }
 
     // models[] — terse per-line
     if (k === "models" && Array.isArray(v)) {
-      if (v.length === 0) { lines.push(`  models: [],`); return; }
+      if (v.length === 0) {
+        lines.push(`  models: [],`);
+        return;
+      }
       lines.push(`  models: [`);
       for (const m of v) lines.push(`    ${formatInlineObject(m)},`);
       lines.push(`  ],`);
@@ -236,7 +306,7 @@ function formatEntry(entry, imports = "") {
 }
 
 // --- Main ---
-const files = readdirSync(REGISTRY_DIR).filter(f => f.endsWith(".js") && f !== "index.js");
+const files = readdirSync(REGISTRY_DIR).filter((f) => f.endsWith(".js") && f !== "index.js");
 let count = 0;
 
 for (const file of files) {
@@ -244,7 +314,7 @@ for (const file of files) {
   const src = readFileSync(path, "utf8");
 
   // Extract import lines (for files that import shared constants)
-  const importLines = src.split("\n").filter(l => l.startsWith("import "));
+  const importLines = src.split("\n").filter((l) => l.startsWith("import "));
   const importSrc = importLines.join("\n");
 
   // Dynamic import to get entry

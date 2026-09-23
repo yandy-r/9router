@@ -4,19 +4,49 @@ import { backfillCodexEmails } from "@/lib/oauth/providers";
 import { USAGE_APIKEY_PROVIDERS, USAGE_SUPPORTED_PROVIDERS } from "@/shared/constants/providers";
 
 const SAFE_FIELDS = [
-  "id", "provider", "authType", "name", "email", "displayName",
-  "priority", "globalPriority", "isActive", "defaultModel",
-  "testStatus", "lastError", "lastErrorAt", "errorCode",
-  "expiresAt", "lastUsedAt", "consecutiveUseCount",
-  "createdAt", "updatedAt",
+  "id",
+  "provider",
+  "authType",
+  "name",
+  "email",
+  "displayName",
+  "priority",
+  "globalPriority",
+  "isActive",
+  "defaultModel",
+  "testStatus",
+  "lastError",
+  "lastErrorAt",
+  "errorCode",
+  "expiresAt",
+  "lastUsedAt",
+  "consecutiveUseCount",
+  "createdAt",
+  "updatedAt",
 ];
 
 const SAFE_PSD_FIELDS = [
-  "baseUrl", "azureEndpoint", "deployment", "apiVersion", "accountId",
-  "region", "projectId", "resourceUrl", "proxyPoolId",
-  "connectionProxyEnabled", "connectionProxyUrl", "connectionNoProxy",
-  "githubLogin", "githubName", "githubEmail", "githubUserId",
-  "username", "firstName", "lastName", "authMethod", "authKind",
+  "baseUrl",
+  "azureEndpoint",
+  "deployment",
+  "apiVersion",
+  "accountId",
+  "region",
+  "projectId",
+  "resourceUrl",
+  "proxyPoolId",
+  "connectionProxyEnabled",
+  "connectionProxyUrl",
+  "connectionNoProxy",
+  "githubLogin",
+  "githubName",
+  "githubEmail",
+  "githubUserId",
+  "username",
+  "firstName",
+  "lastName",
+  "authMethod",
+  "authKind",
   "profileArn",
 ];
 
@@ -44,8 +74,9 @@ function sanitize(c) {
 }
 
 function isUsageEligible(connection) {
-  return USAGE_SUPPORTED_PROVIDERS.includes(connection.provider) && (
-    connection.authType === "oauth" || USAGE_APIKEY_PROVIDERS.includes(connection.provider)
+  return (
+    USAGE_SUPPORTED_PROVIDERS.includes(connection.provider) &&
+    (connection.authType === "oauth" || USAGE_APIKEY_PROVIDERS.includes(connection.provider))
   );
 }
 
@@ -83,15 +114,20 @@ export async function GET(request) {
     const accountStatus = searchParams.get("accountStatus") || "all";
     const sort = searchParams.get("sort") || "priority";
     const page = parsePositiveInt(searchParams.get("page"), 1);
-    const pageSize = Math.min(parsePositiveInt(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
+    const pageSize = Math.min(
+      parsePositiveInt(searchParams.get("pageSize"), DEFAULT_PAGE_SIZE),
+      MAX_PAGE_SIZE,
+    );
 
     const allConnections = await getProviderConnections();
     const eligibleConnections = allConnections.filter(isUsageEligible);
-    const providerOptions = Array.from(new Set(eligibleConnections.map((conn) => conn.provider))).sort();
+    const providerOptions = Array.from(
+      new Set(eligibleConnections.map((conn) => conn.provider)),
+    ).sort();
 
-    const providerFilteredConnections = eligibleConnections.filter((conn) => (
-      provider === "all" || conn.provider === provider
-    ));
+    const providerFilteredConnections = eligibleConnections.filter(
+      (conn) => provider === "all" || conn.provider === provider,
+    );
 
     const accountFilteredConnections = providerFilteredConnections.filter((conn) => {
       if (accountStatus === "active") return conn.isActive ?? true;

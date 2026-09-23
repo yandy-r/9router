@@ -31,8 +31,16 @@ function generateRootCA() {
   }
   if (exists) {
     console.log("🔐 Root CA expired or expiring soon — regenerating...");
-    try { fs.unlinkSync(ROOT_CA_KEY_PATH); } catch { /* ignore */ }
-    try { fs.unlinkSync(ROOT_CA_CERT_PATH); } catch { /* ignore */ }
+    try {
+      fs.unlinkSync(ROOT_CA_KEY_PATH);
+    } catch {
+      /* ignore */
+    }
+    try {
+      fs.unlinkSync(ROOT_CA_CERT_PATH);
+    } catch {
+      /* ignore */
+    }
   }
 
   if (!fs.existsSync(MITM_DIR)) {
@@ -55,7 +63,7 @@ function generateRootCA() {
   const attrs = [
     { name: "commonName", value: "9Router MITM Root CA" },
     { name: "organizationName", value: "9Router" },
-    { name: "countryName", value: "US" }
+    { name: "countryName", value: "US" },
   ];
 
   cert.setSubject(attrs);
@@ -65,17 +73,17 @@ function generateRootCA() {
     {
       name: "basicConstraints",
       cA: true,
-      critical: true
+      critical: true,
     },
     {
       name: "keyUsage",
       keyCertSign: true,
       cRLSign: true,
-      critical: true
+      critical: true,
     },
     {
-      name: "subjectKeyIdentifier"
-    }
+      name: "subjectKeyIdentifier",
+    },
   ]);
 
   // Self-sign the certificate
@@ -105,7 +113,7 @@ function loadRootCA() {
 
   return {
     key: forge.pki.privateKeyFromPem(keyPem),
-    cert: forge.pki.certificateFromPem(certPem)
+    cert: forge.pki.certificateFromPem(certPem),
   };
 }
 
@@ -124,34 +132,32 @@ function generateLeafCert(domain, rootCA) {
   cert.validity.notAfter = new Date();
   cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 1);
 
-  cert.setSubject([
-    { name: "commonName", value: domain }
-  ]);
+  cert.setSubject([{ name: "commonName", value: domain }]);
 
   cert.setIssuer(rootCA.cert.subject.attributes);
 
   cert.setExtensions([
     {
       name: "basicConstraints",
-      cA: false
+      cA: false,
     },
     {
       name: "keyUsage",
       digitalSignature: true,
-      keyEncipherment: true
+      keyEncipherment: true,
     },
     {
       name: "extKeyUsage",
       serverAuth: true,
-      clientAuth: true
+      clientAuth: true,
     },
     {
       name: "subjectAltName",
       altNames: [
         { type: 2, value: domain }, // DNS
-        { type: 2, value: `*.${domain}` } // Wildcard
-      ]
-    }
+        { type: 2, value: `*.${domain}` }, // Wildcard
+      ],
+    },
   ]);
 
   // Sign with Root CA
@@ -159,7 +165,7 @@ function generateLeafCert(domain, rootCA) {
 
   return {
     key: forge.pki.privateKeyToPem(keys.privateKey),
-    cert: forge.pki.certificateToPem(cert)
+    cert: forge.pki.certificateToPem(cert),
   };
 }
 
@@ -169,5 +175,5 @@ module.exports = {
   generateLeafCert,
   isCertExpired,
   ROOT_CA_CERT_PATH,
-  ROOT_CA_KEY_PATH
+  ROOT_CA_KEY_PATH,
 };

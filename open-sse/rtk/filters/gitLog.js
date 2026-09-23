@@ -29,7 +29,10 @@ export function gitLog(text, maxLines = GIT_LOG_MAX_LINES) {
 
     // commit <sha> header — starts new commit entry
     // Also matched with leading graph decoration (`*   commit abc1234...` — --graph without --oneline)
-    if (/^commit [0-9a-f]{7,40}$/i.test(trimmed) || /^[*|/\\ ]+commit [0-9a-f]{7,40}/i.test(trimmed)) {
+    if (
+      /^commit [0-9a-f]{7,40}$/i.test(trimmed) ||
+      /^[*|/\\ ]+commit [0-9a-f]{7,40}/i.test(trimmed)
+    ) {
       inCommit = true;
       subjectSeen = false;
       pushLine(line);
@@ -45,7 +48,7 @@ export function gitLog(text, maxLines = GIT_LOG_MAX_LINES) {
       // blank — skip
       if (trimmed === "") continue;
       // indented subject (4 spaces, optionally preceded by graph decoration) — first one is subject
-      if (!subjectSeen && /^[*|/\\ ]*    \S/.test(line)) {
+      if (!subjectSeen && /^[*|/\\ ]* {4}\S/.test(line)) {
         pushLine("  Subject: " + trimmed);
         subjectSeen = true;
         continue;

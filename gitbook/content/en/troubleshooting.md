@@ -9,6 +9,7 @@ Common issues and solutions when using 9Router.
 **Problem:** Request fails with empty response or error message.
 
 **Causes:**
+
 - Provider quota exhausted
 - API key invalid or expired
 - Model not available
@@ -16,18 +17,22 @@ Common issues and solutions when using 9Router.
 **Solutions:**
 
 1. **Check quota status:**
+
    ```
    Dashboard → Providers → View quota tracker
    ```
+
    If quota is exhausted, wait for reset or switch provider.
 
 2. **Use combo fallback:**
+
    ```
    Dashboard → Combos → Create fallback chain
    Example: cc/claude-opus → glm/glm-4.7 → if/kimi-k2
    ```
 
 3. **Verify provider connection:**
+
    ```
    Dashboard → Providers → Reconnect if needed
    ```
@@ -39,6 +44,7 @@ Common issues and solutions when using 9Router.
 **Problem:** "Rate limit exceeded" or "Too many requests" errors.
 
 **Causes:**
+
 - Subscription quota depleted (5-hour/daily/weekly limits)
 - API rate limits hit
 - Too many concurrent requests
@@ -46,17 +52,20 @@ Common issues and solutions when using 9Router.
 **Solutions:**
 
 1. **Check reset time:**
+
    ```
    Dashboard → Quota Tracking → View reset countdown
    ```
 
 2. **Switch to cheap tier:**
+
    ```
    Use: glm/glm-4.7 ($0.6/1M tokens)
         minimax/MiniMax-M2.1 ($0.20/1M tokens)
    ```
 
 3. **Add fallback combo:**
+
    ```
    Dashboard → Combos → Add backup models
    Primary: cc/claude-opus (subscription)
@@ -71,6 +80,7 @@ Common issues and solutions when using 9Router.
 **Problem:** "Unauthorized" or "Token expired" errors.
 
 **Causes:**
+
 - OAuth token expired (auto-refresh failed)
 - Provider session invalidated
 - Network issues during refresh
@@ -81,6 +91,7 @@ Common issues and solutions when using 9Router.
    9Router automatically refreshes tokens. Wait 30 seconds and retry.
 
 2. **Manual reconnect:**
+
    ```
    Dashboard → Providers → [Provider Name] → Reconnect
    → Complete OAuth flow again
@@ -96,6 +107,7 @@ Common issues and solutions when using 9Router.
 **Problem:** Unexpected high usage or costs.
 
 **Causes:**
+
 - Using expensive models unnecessarily
 - No fallback to cheaper tiers
 - Large context windows
@@ -103,12 +115,14 @@ Common issues and solutions when using 9Router.
 **Solutions:**
 
 1. **Check usage stats:**
+
    ```
    Dashboard → Usage Stats → View token consumption
    → Identify high-cost models
    ```
 
 2. **Switch to cheaper models:**
+
    ```
    Replace: cc/claude-opus ($20-100/month subscription)
    With: glm/glm-4.7 ($0.6/1M tokens)
@@ -116,6 +130,7 @@ Common issues and solutions when using 9Router.
    ```
 
 3. **Use free tier:**
+
    ```
    if/kimi-k2-thinking (FREE)
    qw/qwen3-coder-plus (FREE)
@@ -135,6 +150,7 @@ Common issues and solutions when using 9Router.
 **Problem:** "ECONNREFUSED" or "Cannot connect to localhost:20128".
 
 **Causes:**
+
 - 9Router not running
 - Port 20128 blocked
 - Firewall blocking connection
@@ -142,16 +158,19 @@ Common issues and solutions when using 9Router.
 **Solutions:**
 
 1. **Start 9Router:**
+
    ```bash
    9router
    ```
-   Dashboard should open at http://localhost:3000
+
+   Dashboard should open at <http://localhost:3000>
 
 2. **Verify port 20128:**
+
    ```bash
    # Check if port is listening
    lsof -i :20128
-   
+
    # Or on Windows
    netstat -ano | findstr :20128
    ```
@@ -163,6 +182,7 @@ Common issues and solutions when using 9Router.
 
 4. **Use cloud endpoint:**
    If localhost doesn't work (e.g., Cursor IDE):
+
    ```
    Endpoint: https://9router.com/v1
    ```
@@ -171,9 +191,10 @@ Common issues and solutions when using 9Router.
 
 ## Dashboard Not Opening
 
-**Problem:** Dashboard doesn't load at http://localhost:3000.
+**Problem:** Dashboard doesn't load at <http://localhost:3000>.
 
 **Causes:**
+
 - Port 3000 already in use
 - 9Router crashed
 - Browser cache issues
@@ -181,29 +202,32 @@ Common issues and solutions when using 9Router.
 **Solutions:**
 
 1. **Check if 9Router is running:**
+
    ```bash
    # Check process
    ps aux | grep 9router
-   
+
    # Check port 3000
    lsof -i :3000
    ```
 
 2. **Kill conflicting process:**
+
    ```bash
    # macOS/Linux
    lsof -ti:3000 | xargs kill -9
-   
+
    # Windows
    netstat -ano | findstr :3000
    taskkill /PID <PID> /F
    ```
 
 3. **Restart 9Router:**
+
    ```bash
    # Stop
    pkill -f 9router
-   
+
    # Start
    9router
    ```
@@ -222,6 +246,7 @@ Common issues and solutions when using 9Router.
 **Problem:** "Model not found" or "Invalid model" errors.
 
 **Causes:**
+
 - Provider not connected
 - Model ID typo
 - Provider inactive
@@ -229,25 +254,29 @@ Common issues and solutions when using 9Router.
 **Solutions:**
 
 1. **Verify provider connection:**
+
    ```
    Dashboard → Providers → Check status (green = active)
    ```
 
 2. **Check model ID format:**
+
    ```
    Correct: cc/claude-opus-4-5-20251101
    Wrong: claude-opus-4-5-20251101
-   
+
    Format: [provider-prefix]/[model-name]
    ```
 
 3. **List available models:**
+
    ```bash
    curl http://localhost:20128/v1/models \
      -H "Authorization: Bearer your-api-key"
    ```
 
 4. **Reconnect provider:**
+
    ```
    Dashboard → Providers → [Provider] → Reconnect
    ```
@@ -259,6 +288,7 @@ Common issues and solutions when using 9Router.
 **Problem:** Requests take too long or timeout.
 
 **Causes:**
+
 - Provider latency
 - Network issues
 - Large context/response
@@ -267,11 +297,13 @@ Common issues and solutions when using 9Router.
 **Solutions:**
 
 1. **Check provider status:**
+
    ```
    Dashboard → Providers → View latency stats
    ```
 
 2. **Switch to faster model:**
+
    ```
    Fast: cc/claude-haiku-4-5 (Haiku is faster than Opus)
          gc/gemini-3-flash-preview
@@ -279,6 +311,7 @@ Common issues and solutions when using 9Router.
    ```
 
 3. **Use streaming:**
+
    ```json
    {
      "model": "cc/claude-opus-4-5",
@@ -288,6 +321,7 @@ Common issues and solutions when using 9Router.
    ```
 
 4. **Check network:**
+
    ```bash
    # Test latency
    ping api.anthropic.com
@@ -306,6 +340,7 @@ Common issues and solutions when using 9Router.
 **Problem:** "Invalid API key" or "Authentication failed" errors.
 
 **Causes:**
+
 - Wrong API key copied
 - API key expired
 - API key not generated
@@ -313,30 +348,34 @@ Common issues and solutions when using 9Router.
 **Solutions:**
 
 1. **Regenerate API key:**
+
    ```
    Dashboard → Settings → API Keys → Generate New Key
    → Copy and use new key
    ```
 
 2. **Verify key format:**
+
    ```
    Correct: 9r_xxxxxxxxxxxxxxxxxxxxxxxx
    Wrong: Missing 9r_ prefix
    ```
 
 3. **Check key in CLI config:**
+
    ```bash
    # Cursor
    Settings → Models → OpenAI API Key
-   
+
    # Cline
    Settings → API Key
-   
+
    # Environment variable
    export OPENAI_API_KEY="9r_your_key"
    ```
 
 4. **Test API key:**
+
    ```bash
    curl http://localhost:20128/v1/models \
      -H "Authorization: Bearer 9r_your_key"

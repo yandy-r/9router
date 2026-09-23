@@ -16,7 +16,7 @@ export function Spinner({ size = "md", className }) {
       className={cn(
         "material-symbols-outlined animate-spin text-brand-500",
         sizes[size],
-        className
+        className,
       )}
     >
       progress_activity
@@ -36,15 +36,7 @@ export function PageLoading({ message = "Loading..." }) {
 
 // Skeleton loading
 export function Skeleton({ className, ...props }) {
-  return (
-    <div
-      className={cn(
-        "animate-pulse rounded-[10px] bg-surface-2",
-        className
-      )}
-      {...props}
-    />
-  );
+  return <div className={cn("animate-pulse rounded-[10px] bg-surface-2", className)} {...props} />;
 }
 
 // Card skeleton

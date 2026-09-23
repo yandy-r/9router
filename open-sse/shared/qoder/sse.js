@@ -27,26 +27,24 @@ export function canonicalizeQoderUsage(usage) {
   const completion = num(usage.completion_tokens ?? usage.output_tokens);
   if (prompt == null && completion == null) return null;
 
-  const details = (usage.prompt_tokens_details && typeof usage.prompt_tokens_details === "object")
-    ? { ...usage.prompt_tokens_details }
-    : {};
+  const details =
+    usage.prompt_tokens_details && typeof usage.prompt_tokens_details === "object"
+      ? { ...usage.prompt_tokens_details }
+      : {};
   const cached = num(
     details.cached_tokens ??
-    usage.cached_tokens ??
-    usage.prompt_cache_hit_tokens ??
-    usage.cache_read_input_tokens,
+      usage.cached_tokens ??
+      usage.prompt_cache_hit_tokens ??
+      usage.cache_read_input_tokens,
   );
-  const cacheCreation = num(
-    details.cache_creation_tokens ??
-    usage.cache_creation_input_tokens,
-  );
+  const cacheCreation = num(details.cache_creation_tokens ?? usage.cache_creation_input_tokens);
 
   const promptTokens = prompt || 0;
   const completionTokens = completion || 0;
   const out = {
     prompt_tokens: promptTokens,
     completion_tokens: completionTokens,
-    total_tokens: num(usage.total_tokens) ?? (promptTokens + completionTokens),
+    total_tokens: num(usage.total_tokens) ?? promptTokens + completionTokens,
   };
 
   if (cached != null) {
@@ -61,7 +59,9 @@ export function canonicalizeQoderUsage(usage) {
   if (usage.completion_tokens_details && typeof usage.completion_tokens_details === "object") {
     out.completion_tokens_details = usage.completion_tokens_details;
   }
-  const reasoning = num(usage.reasoning_tokens ?? usage.completion_tokens_details?.reasoning_tokens);
+  const reasoning = num(
+    usage.reasoning_tokens ?? usage.completion_tokens_details?.reasoning_tokens,
+  );
   if (reasoning != null) out.reasoning_tokens = reasoning;
 
   return out;
@@ -76,7 +76,8 @@ function hasValuableDelta(parsed) {
   const delta = parsed?.choices?.[0]?.delta;
   if (!delta || typeof delta !== "object") return false;
   if (typeof delta.content === "string" && delta.content.length > 0) return true;
-  if (typeof delta.reasoning_content === "string" && delta.reasoning_content.length > 0) return true;
+  if (typeof delta.reasoning_content === "string" && delta.reasoning_content.length > 0)
+    return true;
   if (Array.isArray(delta.tool_calls) && delta.tool_calls.length > 0) return true;
   if (delta.role) return true;
   return false;
@@ -105,7 +106,7 @@ function parseInner(inner) {
 export function createQoderSseCoalescer({ model, encoder, sseDone }) {
   let pendingFinish = null;
   let pendingUsage = null;
-  let lastMeta = { id: null, created: null, model };
+  const lastMeta = { id: null, created: null, model };
   let doneEmitted = false;
   let finishAlreadyForwarded = false;
 

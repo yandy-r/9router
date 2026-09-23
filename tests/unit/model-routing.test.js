@@ -51,11 +51,10 @@ describe("model routing", () => {
       baseUrl: "https://compatible.test/v1",
     });
 
-    await expect(ctx.getModelInfo("cf/@cf/black-forest-labs/flux-2-klein-9b"))
-      .resolves.toEqual({
-        provider: "cloudflare-ai",
-        model: "@cf/black-forest-labs/flux-2-klein-9b",
-      });
+    await expect(ctx.getModelInfo("cf/@cf/black-forest-labs/flux-2-klein-9b")).resolves.toEqual({
+      provider: "cloudflare-ai",
+      model: "@cf/black-forest-labs/flux-2-klein-9b",
+    });
   });
 
   it("still routes non-reserved compatible node prefixes", async () => {
@@ -71,10 +70,9 @@ describe("model routing", () => {
       baseUrl: "https://compatible.test/v1",
     });
 
-    await expect(ctx.getModelInfo("oct/gpt-image-1"))
-      .resolves.toEqual({
-        provider: "openai-compatible-chat-test",
-        model: "gpt-image-1",
-      });
+    await expect(ctx.getModelInfo("oct/gpt-image-1")).resolves.toEqual({
+      provider: "openai-compatible-chat-test",
+      model: "gpt-image-1",
+    });
   });
 });

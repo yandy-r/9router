@@ -36,8 +36,15 @@ vi.mock("@/lib/usageDb.js", () => ({
 const { handleChatCore } = await import("../../open-sse/handlers/chatCore.js");
 
 function makeLongDiff() {
-  const lines = ["diff --git a/foo.js b/foo.js", "index abc..def 100644", "--- a/foo.js", "+++ b/foo.js", "@@ -1,3 +1,200 @@"];
-  for (let i = 0; i < 200; i++) lines.push(`+added line ${i} UNIQUE_PADDING_${i} ${"x".repeat(20)}`);
+  const lines = [
+    "diff --git a/foo.js b/foo.js",
+    "index abc..def 100644",
+    "--- a/foo.js",
+    "+++ b/foo.js",
+    "@@ -1,3 +1,200 @@",
+  ];
+  for (let i = 0; i < 200; i++)
+    lines.push(`+added line ${i} UNIQUE_PADDING_${i} ${"x".repeat(20)}`);
   return lines.join("\n");
 }
 
@@ -47,21 +54,29 @@ describe("token savers on Cursor (pre-translate RTK)", () => {
     global.fetch = vi.fn(async (url, init) => {
       if (String(url).includes("/v1/compress")) {
         const payload = JSON.parse(init.body);
-        return new Response(JSON.stringify({
-          messages: payload.messages,
-          tokens_before: 8000,
-          tokens_after: 2500,
-          tokens_saved: 5500,
-        }), { status: 200, headers: { "content-type": "application/json" } });
+        return new Response(
+          JSON.stringify({
+            messages: payload.messages,
+            tokens_before: 8000,
+            tokens_after: 2500,
+            tokens_saved: 5500,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
       }
       throw new Error(`unexpected fetch: ${url}`);
     });
     executeMock.mockResolvedValue({
-      response: new Response(JSON.stringify({
-        id: "chatcmpl-test",
-        object: "chat.completion",
-        choices: [{ message: { role: "assistant", content: "ok" }, finish_reason: "stop", index: 0 }],
-      }), { status: 200, headers: { "content-type": "application/json" } }),
+      response: new Response(
+        JSON.stringify({
+          id: "chatcmpl-test",
+          object: "chat.completion",
+          choices: [
+            { message: { role: "assistant", content: "ok" }, finish_reason: "stop", index: 0 },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
       url: "https://api2.cursor.sh/agent",
       headers: {},
       transformedBody: null,
@@ -82,7 +97,13 @@ describe("token savers on Cursor (pre-translate RTK)", () => {
           {
             role: "assistant",
             content: null,
-            tool_calls: [{ id: "call_1", type: "function", function: { name: "Bash", arguments: JSON.stringify({ command: "git diff" }) } }],
+            tool_calls: [
+              {
+                id: "call_1",
+                type: "function",
+                function: { name: "Bash", arguments: JSON.stringify({ command: "git diff" }) },
+              },
+            ],
           },
           { role: "tool", tool_call_id: "call_1", content: diff },
           { role: "user", content: "summarize" },
@@ -119,7 +140,7 @@ describe("token savers on Cursor (pre-translate RTK)", () => {
 
     expect(global.fetch).toHaveBeenCalledWith(
       "http://localhost:8787/v1/compress",
-      expect.any(Object)
+      expect.any(Object),
     );
 
     const xf = log.line.mock.calls.find((c) => c[1] === "⚙");

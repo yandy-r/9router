@@ -22,9 +22,11 @@
 ### Task 1: Add Failing OpenCode Go Session Tests
 
 **Files:**
+
 - Create: `tests/unit/opencode-go-session.test.js`
 
 **Interfaces:**
+
 - Consumes: `getExecutor(provider)` and `DefaultExecutor.buildHeaders(credentials, stream, url, model)`.
 - Produces: the required public behavior for `OpenCodeGoExecutor.prepareRequestCredentials({ body, credentials, providerSessionId, clientTool })` and `OpenCodeGoExecutor.execute(args)`.
 
@@ -67,10 +69,12 @@ git commit -m "test: cover OpenCode Go session headers"
 ### Task 2: Implement the Dedicated Executor
 
 **Files:**
+
 - Create: `open-sse/executors/opencode-go.js`
 - Modify: `open-sse/executors/index.js`
 
 **Interfaces:**
+
 - Consumes: `DefaultExecutor`, `resolveSessionId()`, request `credentials.rawHeaders`, `providerSessionId`, and `clientTool`.
 - Produces: `OpenCodeGoExecutor`, `prepareRequestCredentials()`, and an `execute()` override that delegates with cloned credentials.
 
@@ -122,10 +126,12 @@ git commit -m "fix(opencode-go): add stable session header executor"
 ### Task 3: Pass Original Request Session Context
 
 **Files:**
+
 - Modify: `open-sse/handlers/chatCore.js`
 - Modify: `tests/unit/opencode-go-session.test.js`
 
 **Interfaces:**
+
 - Consumes: existing `sessionSeed` and `clientTool` variables in `handleChatCore()`.
 - Produces: `providerSessionId` and `clientTool` fields on both initial and refreshed-credential calls to `executor.execute()`.
 
@@ -188,10 +194,12 @@ git commit -m "fix(chat): forward provider session context"
 ### Task 4: Verify and Install the Local CLI Package
 
 **Files:**
+
 - Generated: `9router-0.5.65.tgz`
 - Packaged output: `cli/app/server.js`
 
 **Interfaces:**
+
 - Consumes: completed source changes and existing CLI build scripts.
 - Produces: a globally installed patched `9router@0.5.65`.
 
@@ -232,9 +240,11 @@ already tracks and requires them.
 ### Task 5: Publish the Upstream Pull Request
 
 **Files:**
+
 - No additional source files unless verification finds a required correction.
 
 **Interfaces:**
+
 - Consumes: verified branch commits and GitHub issue #3759.
 - Produces: a fork branch and a PR against `yandy-r/9router:master`.
 

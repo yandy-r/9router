@@ -4,8 +4,8 @@ import { DEFAULT_LANG } from "@/constants/languages";
 export const metadata = {
   title: "Redirecting...",
   other: {
-    "http-equiv:refresh": `0; url=/${DEFAULT_LANG}/`
-  }
+    "http-equiv:refresh": `0; url=/${DEFAULT_LANG}/`,
+  },
 };
 
 export default function HomePage() {
@@ -13,8 +13,9 @@ export default function HomePage() {
   return (
     <>
       <script
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: static same-file redirect string
         dangerouslySetInnerHTML={{
-          __html: `window.location.replace("${target}");`
+          __html: `window.location.replace("${target}");`,
         }}
       />
       <meta httpEquiv="refresh" content={`0; url=${target}`} />

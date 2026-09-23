@@ -43,13 +43,25 @@ function stripContentTypes(body, stripList = []) {
   };
   for (const msg of body.messages) {
     if (!Array.isArray(msg.content)) continue;
-    msg.content = msg.content.filter(part => !shouldStrip(part.type));
+    msg.content = msg.content.filter((part) => !shouldStrip(part.type));
     if (msg.content.length === 0) msg.content = "";
   }
 }
 
 // Translate request: source -> openai -> target
-export function translateRequest(sourceFormat, targetFormat, model, body, stream = true, credentials = null, provider = null, reqLogger = null, stripList = [], connectionId = null, clientTool = null) {
+export function translateRequest(
+  sourceFormat,
+  targetFormat,
+  model,
+  body,
+  stream = true,
+  credentials = null,
+  provider = null,
+  reqLogger = null,
+  stripList = [],
+  connectionId = null,
+  clientTool = null,
+) {
   ensureInitialized();
   let result = body;
 
@@ -61,7 +73,7 @@ export function translateRequest(sourceFormat, targetFormat, model, body, stream
 
   // Always ensure tool_calls have id (some providers require it)
   ensureToolCallIds(result);
-  
+
   // Kiro performs stricter source-aware reconciliation after session replay.
   // The generic helper inserts OpenAI `role: tool` messages, which a direct
   // Claude→Kiro translator cannot consume and which cannot repair partial
@@ -130,7 +142,14 @@ export function translateRequest(sourceFormat, targetFormat, model, body, stream
   // Final step: prepare request for Claude format endpoints
   if (targetFormat === FORMATS.CLAUDE) {
     const apiKey = credentials?.accessToken || credentials?.apiKey || null;
-    result = prepareClaudeRequest(result, provider, apiKey, connectionId, credentials?.rawHeaders, clientSessionId);
+    result = prepareClaudeRequest(
+      result,
+      provider,
+      apiKey,
+      connectionId,
+      credentials?.rawHeaders,
+      clientSessionId,
+    );
   }
 
   // Claude cloaking: rename client tools with CLAUDE_TOOL_SUFFIX (anti-ban)
@@ -237,7 +256,7 @@ export function initState(sourceFormat) {
     finishReason: null,
     finishReasonSent: false,
     usage: null,
-    contentBlockIndex: -1
+    contentBlockIndex: -1,
   };
 
   // Add openai-responses specific fields
@@ -265,7 +284,7 @@ export function initState(sourceFormat) {
       funcArgsDone: {},
       funcItemDone: {},
       customToolNames: new Set(),
-      completedSent: false
+      completedSent: false,
     };
   }
 

@@ -5,13 +5,23 @@ import openaiCompatNode from "./openaiCompatNode.js";
 import selfhostedEmbedding from "./selfhostedEmbedding.js";
 
 const OPENAI_COMPAT_PROVIDERS = [
-  "openai", "openrouter", "mistral", "voyage-ai", "fireworks",
-  "together", "nebius", "github", "nvidia", "jina-ai",
+  "openai",
+  "openrouter",
+  "mistral",
+  "voyage-ai",
+  "fireworks",
+  "together",
+  "nebius",
+  "github",
+  "nvidia",
+  "jina-ai",
   "vercel-ai-gateway",
 ];
 
 const ADAPTERS = {
-  ...Object.fromEntries(OPENAI_COMPAT_PROVIDERS.map((id) => [id, createOpenAIEmbeddingAdapter(id)])),
+  ...Object.fromEntries(
+    OPENAI_COMPAT_PROVIDERS.map((id) => [id, createOpenAIEmbeddingAdapter(id)]),
+  ),
   gemini,
   google_ai_studio: gemini,
   // Self-hosted reads creds.providerSpecificData.baseUrl (one provider, many

@@ -59,9 +59,7 @@ describe("kimchi stripReasoningContent", () => {
     // verbatim. Real thinking content from a thinking model is always
     // well above this threshold.
     const body = {
-      messages: [
-        { role: "assistant", content: "ok", reasoning_content: "short" },
-      ],
+      messages: [{ role: "assistant", content: "ok", reasoning_content: "short" }],
     };
     stripReasoningContent(body);
     assert.equal(body.messages[0].reasoning_content, "short");

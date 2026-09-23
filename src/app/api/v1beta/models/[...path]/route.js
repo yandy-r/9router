@@ -33,8 +33,8 @@ export async function OPTIONS() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "*"
-    }
+      "Access-Control-Allow-Headers": "*",
+    },
   });
 }
 
@@ -77,9 +77,7 @@ export async function POST(request, { params }) {
       action = modelAction.includes(":streamGenerateContent")
         ? ":streamGenerateContent"
         : ":generateContent";
-      model = modelAction
-        .replace(":streamGenerateContent", "")
-        .replace(":generateContent", "");
+      model = modelAction.replace(":streamGenerateContent", "").replace(":generateContent", "");
     }
 
     const body = await request.json();
@@ -116,10 +114,7 @@ export async function POST(request, { params }) {
     }
   } catch (error) {
     console.log("Error handling Gemini request:", error);
-    return Response.json(
-      { error: { message: error.message, code: 500 } },
-      { status: 500 }
-    );
+    return Response.json({ error: { message: error.message, code: 500 } }, { status: 500 });
   }
 }
 
@@ -151,13 +146,19 @@ function getGeminiTtsModelIds() {
 
 function hasAudioResponseModality(body) {
   const modalities = body?.generationConfig?.responseModalities;
-  return Array.isArray(modalities)
-    && modalities.some((modality) => String(modality).toUpperCase() === "AUDIO");
+  return (
+    Array.isArray(modalities) &&
+    modalities.some((modality) => String(modality).toUpperCase() === "AUDIO")
+  );
 }
 
 function isGeminiNativeTtsRequest(model, body) {
   const rawModel = String(model || "");
-  if (rawModel.includes("/") && !rawModel.startsWith("gemini/") && !rawModel.startsWith("models/")) {
+  if (
+    rawModel.includes("/") &&
+    !rawModel.startsWith("gemini/") &&
+    !rawModel.startsWith("models/")
+  ) {
     return false;
   }
 
@@ -167,7 +168,9 @@ function isGeminiNativeTtsRequest(model, body) {
 
 function buildGeminiNativeUrl(requestUrl, model, action) {
   const sourceUrl = new URL(requestUrl);
-  const upstreamUrl = new URL(`${GEMINI_NATIVE_BASE_URL}/${normalizeGeminiNativeModel(model)}${action}`);
+  const upstreamUrl = new URL(
+    `${GEMINI_NATIVE_BASE_URL}/${normalizeGeminiNativeModel(model)}${action}`,
+  );
 
   for (const [key, value] of sourceUrl.searchParams.entries()) {
     if (key === "key") continue;
@@ -251,19 +254,23 @@ async function forwardGeminiNativeRequest(request, body, model, action) {
   while (true) {
     const credentials = await getProviderCredentials("gemini", excludeConnectionIds, modelId);
     if (!credentials || credentials.allRateLimited) {
-      console.log(`[GEMINI_NATIVE] exhausted model=${modelId} status=${lastStatus || Number(credentials?.lastErrorCode) || 503} error=${lastError || credentials?.lastError || "No active credentials for provider: gemini"}`);
+      console.log(
+        `[GEMINI_NATIVE] exhausted model=${modelId} status=${lastStatus || Number(credentials?.lastErrorCode) || 503} error=${lastError || credentials?.lastError || "No active credentials for provider: gemini"}`,
+      );
       return Response.json(
-        { error: { message: lastError || credentials?.lastError || "No active credentials for provider: gemini" } },
-        { status: lastStatus || Number(credentials?.lastErrorCode) || 503 }
+        {
+          error: {
+            message:
+              lastError || credentials?.lastError || "No active credentials for provider: gemini",
+          },
+        },
+        { status: lastStatus || Number(credentials?.lastErrorCode) || 503 },
       );
     }
 
     const authHeaders = buildGeminiNativeAuthHeaders(credentials);
     if (!authHeaders) {
-      return Response.json(
-        { error: { message: "No Gemini API key configured" } },
-        { status: 404 }
-      );
+      return Response.json({ error: { message: "No Gemini API key configured" } }, { status: 404 });
     }
 
     const safeConnection = getSafeGeminiConnectionLabel(credentials);
@@ -283,7 +290,9 @@ async function forwardGeminiNativeRequest(request, body, model, action) {
     }
 
     request.signal?.addEventListener("abort", abortAttempt, { once: true });
-    console.log(`[GEMINI_NATIVE] start model=${modelId} action=${action} conn=${safeConnection} body=${Buffer.byteLength(bodyText)}B timeout=${GEMINI_NATIVE_TTS_FETCH_TIMEOUT_MS}`);
+    console.log(
+      `[GEMINI_NATIVE] start model=${modelId} action=${action} conn=${safeConnection} body=${Buffer.byteLength(bodyText)}B timeout=${GEMINI_NATIVE_TTS_FETCH_TIMEOUT_MS}`,
+    );
 
     let upstreamResponse;
     try {
@@ -299,27 +308,33 @@ async function forwardGeminiNativeRequest(request, body, model, action) {
     } catch (error) {
       const durationMs = Date.now() - startedAt;
       if (request.signal?.aborted && !timedOut) {
-        console.log(`[GEMINI_NATIVE] client aborted model=${modelId} ms=${durationMs} conn=${safeConnection}`);
+        console.log(
+          `[GEMINI_NATIVE] client aborted model=${modelId} ms=${durationMs} conn=${safeConnection}`,
+        );
         return Response.json({ error: { message: "Client closed request" } }, { status: 499 });
       }
 
       const status = isGeminiNativeTimeoutError(error, timedOut) ? 504 : 502;
       const errorText = getSafeGeminiNativeErrorText(error);
-      console.log(`[GEMINI_NATIVE] fetch failed model=${modelId} status=${status} ms=${durationMs} conn=${safeConnection} error=${errorText}`);
+      console.log(
+        `[GEMINI_NATIVE] fetch failed model=${modelId} status=${status} ms=${durationMs} conn=${safeConnection} error=${errorText}`,
+      );
 
       const { shouldFallback } = await markAccountUnavailable(
         credentials.connectionId,
         status,
         errorText,
         "gemini",
-        modelId
+        modelId,
       );
 
       if (shouldFallback) {
         excludeConnectionIds.add(credentials.connectionId);
         lastError = errorText;
         lastStatus = status;
-        console.log(`[GEMINI_NATIVE] fallback model=${modelId} status=${status} conn=${safeConnection} exclude=${excludeConnectionIds.size}`);
+        console.log(
+          `[GEMINI_NATIVE] fallback model=${modelId} status=${status} conn=${safeConnection} exclude=${excludeConnectionIds.size}`,
+        );
         continue;
       }
 
@@ -329,7 +344,9 @@ async function forwardGeminiNativeRequest(request, body, model, action) {
       request.signal?.removeEventListener("abort", abortAttempt);
     }
 
-    console.log(`[GEMINI_NATIVE] upstream model=${modelId} status=${upstreamResponse.status} ms=${Date.now() - startedAt} conn=${safeConnection} ct=${upstreamResponse.headers.get("content-type") || "?"} cl=${upstreamResponse.headers.get("content-length") || "?"}`);
+    console.log(
+      `[GEMINI_NATIVE] upstream model=${modelId} status=${upstreamResponse.status} ms=${Date.now() - startedAt} conn=${safeConnection} ct=${upstreamResponse.headers.get("content-type") || "?"} cl=${upstreamResponse.headers.get("content-length") || "?"}`,
+    );
 
     if (upstreamResponse.ok) {
       await clearAccountError(credentials.connectionId, credentials, modelId);
@@ -346,7 +363,7 @@ async function forwardGeminiNativeRequest(request, body, model, action) {
       upstreamResponse.status,
       errorText,
       "gemini",
-      modelId
+      modelId,
     );
 
     if (shouldFallback) {
@@ -376,9 +393,7 @@ function convertGeminiToInternal(geminiBody, model, stream) {
 
   // Convert system instruction
   if (geminiBody.systemInstruction) {
-    const systemText = geminiBody.systemInstruction.parts
-      ?.map(p => p.text)
-      .join("\n") || "";
+    const systemText = geminiBody.systemInstruction.parts?.map((p) => p.text).join("\n") || "";
     if (systemText) {
       messages.push({ role: "system", content: systemText });
     }
@@ -388,7 +403,7 @@ function convertGeminiToInternal(geminiBody, model, stream) {
   if (geminiBody.contents) {
     for (const content of geminiBody.contents) {
       const role = content.role === "model" ? "assistant" : "user";
-      const text = content.parts?.map(p => p.text).join("\n") || "";
+      const text = content.parts?.map((p) => p.text).join("\n") || "";
       messages.push({ role, content: text });
     }
   }
@@ -490,17 +505,14 @@ function transformOpenAISSEToGeminiSSE(upstreamResponse, model) {
             candidatesTokenCount: parsed.usage.completion_tokens || 0,
             totalTokenCount: parsed.usage.total_tokens || 0,
           };
-          const reasoningTokens =
-            parsed.usage.completion_tokens_details?.reasoning_tokens;
+          const reasoningTokens = parsed.usage.completion_tokens_details?.reasoning_tokens;
           if (reasoningTokens) {
             geminiChunk.usageMetadata.thoughtsTokenCount = reasoningTokens;
           }
           geminiChunk.modelVersion = parsed.model || model;
         }
 
-        controller.enqueue(
-          encoder.encode("data: " + JSON.stringify(geminiChunk) + "\r\n\r\n")
-        );
+        controller.enqueue(encoder.encode("data: " + JSON.stringify(geminiChunk) + "\r\n\r\n"));
       }
     },
     // No flush() needed: Gemini SSE ends by stream close, not a sentinel
@@ -530,19 +542,21 @@ async function convertOpenAIResponseToGemini(response, model) {
     return response;
   }
 
-  if (body.candidates) return Response.json(body, {
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-  });
+  if (body.candidates)
+    return Response.json(body, {
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+    });
 
-  if (body.error) return Response.json(body, {
-    status: response.status,
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
-  });
+  if (body.error)
+    return Response.json(body, {
+      status: response.status,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+    });
 
   const choice = body.choices?.[0];
   if (!choice) {
     return Response.json(body, {
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
     });
   }
 
@@ -580,6 +594,6 @@ async function convertOpenAIResponseToGemini(response, model) {
   }
 
   return Response.json(geminiResponse, {
-    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+    headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
   });
 }

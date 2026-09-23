@@ -7,7 +7,7 @@ import minimaxTts from "./minimax.js";
 async function hyperbolic({ baseUrl, apiKey, text }) {
   const res = await fetch(baseUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ text }),
   });
   if (!res.ok) await throwUpstreamError(res);
@@ -21,7 +21,7 @@ async function deepgram({ baseUrl, apiKey, text, modelId }) {
   url.searchParams.set("model", modelId || "aura-asteria-en");
   const res = await fetch(url.toString(), {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Token ${apiKey}` },
+    headers: { "Content-Type": "application/json", Authorization: `Token ${apiKey}` },
     body: JSON.stringify({ text }),
   });
   if (!res.ok) await throwUpstreamError(res);
@@ -32,7 +32,7 @@ async function deepgram({ baseUrl, apiKey, text, modelId }) {
 async function nvidia({ baseUrl, apiKey, text, modelId, voiceId }) {
   const res = await fetch(baseUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ input: { text }, voice: voiceId || "default", model: modelId }),
   });
   if (!res.ok) await throwUpstreamError(res);
@@ -44,7 +44,7 @@ async function huggingface({ baseUrl, apiKey, text, modelId }) {
   if (!modelId || modelId.includes("..")) throw new Error("Invalid HuggingFace model ID");
   const res = await fetch(`${baseUrl}/${modelId}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ inputs: text }),
   });
   if (!res.ok) await throwUpstreamError(res);
@@ -57,8 +57,8 @@ async function fishAudio({ baseUrl, apiKey, text, modelId, voiceId }) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-      "model": modelId || "s2.1-pro-free",
+      Authorization: `Bearer ${apiKey}`,
+      model: modelId || "s2.1-pro-free",
     },
     body: JSON.stringify({
       text,
@@ -74,7 +74,7 @@ async function fishAudio({ baseUrl, apiKey, text, modelId, voiceId }) {
 async function inworld({ baseUrl, apiKey, text, modelId, voiceId }) {
   const res = await fetch(baseUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Basic ${apiKey}` },
+    headers: { "Content-Type": "application/json", Authorization: `Basic ${apiKey}` },
     body: JSON.stringify({
       text,
       voiceId: voiceId || "Alex",
@@ -115,13 +115,15 @@ async function playht({ baseUrl, apiKey, text, modelId, voiceId }) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Accept": "audio/mpeg",
+      Accept: "audio/mpeg",
       "X-USER-ID": userId || "",
-      "Authorization": `Bearer ${key || apiKey}`,
+      Authorization: `Bearer ${key || apiKey}`,
     },
     body: JSON.stringify({
       text,
-      voice: voiceId || "s3://voice-cloning-zero-shot/d9ff78ba-d016-47f6-b0ef-dd630f59414e/female-cs/manifest.json",
+      voice:
+        voiceId ||
+        "s3://voice-cloning-zero-shot/d9ff78ba-d016-47f6-b0ef-dd630f59414e/female-cs/manifest.json",
       voice_engine: modelId || "PlayDialog",
       output_format: "mp3",
       speed: 1,

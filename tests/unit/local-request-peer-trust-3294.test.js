@@ -66,21 +66,25 @@ describe("peer header trust", () => {
   });
 
   it("rejects a spoofed loopback peer IP that carries no trust proof", async () => {
-    const response = await proxy(request("/api/v1/models", {
-      host: "172.18.192.1:20140",
-      "x-9r-real-ip": "127.0.0.1",
-    }));
+    const response = await proxy(
+      request("/api/v1/models", {
+        host: "172.18.192.1:20140",
+        "x-9r-real-ip": "127.0.0.1",
+      }),
+    );
 
     expect(response.status).toBe(401);
     expect(response.body.error).toBe("API key required for remote API access");
   });
 
   it("rejects a spoofed loopback peer IP carrying a wrong trust token", async () => {
-    const response = await proxy(request("/api/v1/models", {
-      host: "172.18.192.1:20140",
-      "x-9r-real-ip": "127.0.0.1",
-      "x-9r-peer-token": "guessed-token",
-    }));
+    const response = await proxy(
+      request("/api/v1/models", {
+        host: "172.18.192.1:20140",
+        "x-9r-real-ip": "127.0.0.1",
+        "x-9r-peer-token": "guessed-token",
+      }),
+    );
 
     expect(response.status).toBe(401);
   });
@@ -94,21 +98,25 @@ describe("peer header trust", () => {
   it("rejects a spoofed loopback peer IP when the wrapper never booted", async () => {
     delete process.env.NINEROUTER_PEER_TOKEN;
 
-    const response = await proxy(request("/api/v1/models", {
-      host: "172.18.192.1:20140",
-      "x-9r-real-ip": "127.0.0.1",
-      "x-9r-peer-token": "any-token",
-    }));
+    const response = await proxy(
+      request("/api/v1/models", {
+        host: "172.18.192.1:20140",
+        "x-9r-real-ip": "127.0.0.1",
+        "x-9r-peer-token": "any-token",
+      }),
+    );
 
     expect(response.status).toBe(401);
   });
 
   it("keeps serving a genuinely local request stamped by the wrapper", async () => {
-    const response = await proxy(request("/api/v1/models", {
-      host: "localhost:20128",
-      "x-9r-real-ip": "127.0.0.1",
-      "x-9r-peer-token": PEER_TOKEN,
-    }));
+    const response = await proxy(
+      request("/api/v1/models", {
+        host: "localhost:20128",
+        "x-9r-real-ip": "127.0.0.1",
+        "x-9r-peer-token": PEER_TOKEN,
+      }),
+    );
 
     expect(response).toBe(mocks.nextResponse);
     expect(mocks.validateApiKey).not.toHaveBeenCalled();
@@ -119,35 +127,41 @@ describe("peer header trust", () => {
   it.each(["::ffff:127.0.0.1", "::1", "[::1]", "127.0.0.1", "::FFFF:127.0.0.1"])(
     "treats %s as a loopback peer",
     async (peerIp) => {
-      const response = await proxy(request("/api/v1/models", {
-        host: "localhost:20128",
-        "x-9r-real-ip": peerIp,
-        "x-9r-peer-token": PEER_TOKEN,
-      }));
+      const response = await proxy(
+        request("/api/v1/models", {
+          host: "localhost:20128",
+          "x-9r-real-ip": peerIp,
+          "x-9r-peer-token": PEER_TOKEN,
+        }),
+      );
 
       expect(response).toBe(mocks.nextResponse);
-    }
+    },
   );
 
   it.each(["::ffff:10.204.111.34", "2001:db8::1", "[2001:db8::1]", "10.204.111.34"])(
     "refuses %s as a peer",
     async (peerIp) => {
-      const response = await proxy(request("/api/v1/models", {
-        host: "localhost:20128",
-        "x-9r-real-ip": peerIp,
-        "x-9r-peer-token": PEER_TOKEN,
-      }));
+      const response = await proxy(
+        request("/api/v1/models", {
+          host: "localhost:20128",
+          "x-9r-real-ip": peerIp,
+          "x-9r-peer-token": PEER_TOKEN,
+        }),
+      );
 
       expect(response.status).toBe(401);
-    }
+    },
   );
 
   it("still refuses a stamped non-loopback peer IP", async () => {
-    const response = await proxy(request("/api/v1/models", {
-      host: "localhost:20128",
-      "x-9r-real-ip": "10.204.111.34",
-      "x-9r-peer-token": PEER_TOKEN,
-    }));
+    const response = await proxy(
+      request("/api/v1/models", {
+        host: "localhost:20128",
+        "x-9r-real-ip": "10.204.111.34",
+        "x-9r-peer-token": PEER_TOKEN,
+      }),
+    );
 
     expect(response.status).toBe(401);
   });
@@ -155,10 +169,12 @@ describe("peer header trust", () => {
   it("blocks spoofed local-only routes that would otherwise spawn processes", async () => {
     mocks.getSettings.mockResolvedValue({ requireLogin: false });
 
-    const response = await proxy(request("/api/mcp/filesystem/sse", {
-      host: "172.18.192.1:20140",
-      "x-9r-real-ip": "127.0.0.1",
-    }));
+    const response = await proxy(
+      request("/api/mcp/filesystem/sse", {
+        host: "172.18.192.1:20140",
+        "x-9r-real-ip": "127.0.0.1",
+      }),
+    );
 
     expect(response.status).toBe(403);
     expect(response.body.error).toBe("Local only: CLI token required");
@@ -193,10 +209,12 @@ describe("login limiter client IP", () => {
   });
 
   it("keys on the stamped peer IP when the wrapper proved it", () => {
-    const ip = getClientIp(request("/api/auth/login", {
-      "x-9r-real-ip": "203.0.113.9",
-      "x-9r-peer-token": PEER_TOKEN,
-    }));
+    const ip = getClientIp(
+      request("/api/auth/login", {
+        "x-9r-real-ip": "203.0.113.9",
+        "x-9r-peer-token": PEER_TOKEN,
+      }),
+    );
 
     expect(ip).toBe("203.0.113.9");
   });
@@ -204,7 +222,9 @@ describe("login limiter client IP", () => {
   it("still honours TRUST_PROXY for operators fronting 9router with a reverse proxy", () => {
     process.env.TRUST_PROXY = "true";
 
-    const ip = getClientIp(request("/api/auth/login", { "x-forwarded-for": "198.51.100.7, 10.0.0.1" }));
+    const ip = getClientIp(
+      request("/api/auth/login", { "x-forwarded-for": "198.51.100.7, 10.0.0.1" }),
+    );
 
     expect(ip).toBe("198.51.100.7");
   });

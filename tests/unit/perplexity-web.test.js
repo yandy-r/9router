@@ -57,7 +57,13 @@ describe("parseOpenAIMessages", () => {
 
   it("handles multi-part content (array of text blocks)", () => {
     const parsed = parseOpenAIMessages([
-      { role: "user", content: [{ type: "text", text: "part1" }, { type: "text", text: "part2" }] },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "part1" },
+          { type: "text", text: "part2" },
+        ],
+      },
     ]);
     expect(parsed.currentMsg).toBe("part1 part2");
   });
@@ -84,7 +90,10 @@ describe("buildQuery", () => {
   it("follow-up (with backendUuid): returns plain currentMsg, no JSON", () => {
     const parsed = {
       systemMsg: "Be helpful",
-      history: [{ role: "user", content: "Q1" }, { role: "assistant", content: "A1" }],
+      history: [
+        { role: "user", content: "Q1" },
+        { role: "assistant", content: "A1" },
+      ],
       currentMsg: "Follow up",
     };
     const q = buildQuery(parsed, "uuid-abc-123");
@@ -189,7 +198,12 @@ describe("PerplexityWebExecutor.execute", () => {
       capturedBody = JSON.parse(opts.body);
       return mockPplxStream([
         {
-          blocks: [{ intended_usage: "markdown", markdown_block: { chunks: ["answer"], progress: "DONE" } }],
+          blocks: [
+            {
+              intended_usage: "markdown",
+              markdown_block: { chunks: ["answer"], progress: "DONE" },
+            },
+          ],
           status: "COMPLETED",
           backend_uuid: "resp-uuid-1",
         },
@@ -217,7 +231,11 @@ describe("PerplexityWebExecutor.execute", () => {
     const exec = new PerplexityWebExecutor();
     await exec.execute({
       model: "pplx-opus",
-      body: { messages: [{ role: "user", content: "hi" }], stream: false, reasoning_effort: "high" },
+      body: {
+        messages: [{ role: "user", content: "hi" }],
+        stream: false,
+        reasoning_effort: "high",
+      },
       stream: false,
       credentials: { apiKey: "cookie-abc" },
     });
@@ -277,7 +295,9 @@ describe("PerplexityWebExecutor.execute", () => {
   });
 
   it("surfaces upstream 401 with friendly auth message", async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify({ error: "bad" }), { status: 401 }));
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ error: "bad" }), { status: 401 }),
+    );
     const exec = new PerplexityWebExecutor();
     const { response } = await exec.execute({
       model: "pplx-auto",

@@ -5,7 +5,10 @@ import {
   refreshProviderCredentials,
   shouldRefreshCredentials,
 } from "../services/oauthCredentialManager.js";
-import { normalizeResponsesInput, resolveFunctionToolStrict } from "../translator/formats/responsesApi.js";
+import {
+  normalizeResponsesInput,
+  resolveFunctionToolStrict,
+} from "../translator/formats/responsesApi.js";
 import { getModelUpstreamId } from "../config/providerModels.js";
 import {
   GROK_CLI_CLIENT_IDENTIFIER,
@@ -53,7 +56,8 @@ const RESPONSES_API_ALLOWLIST = new Set([
 
 const EFFORT_LEVELS = ["low", "medium", "high", "xhigh"];
 const GROK_CLI_TURN_STORE_MAX = 5000;
-const GROK_CLI_NATIVE_ITEM_ID = /^(?:rs|msg|fc)_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const GROK_CLI_NATIVE_ITEM_ID =
+  /^(?:rs|msg|fc)_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const GROK_CLI_FREEFORM_TOOL_PARAMETERS = {
   type: "object",
   properties: { input: { type: "string" } },
@@ -96,9 +100,8 @@ export function resolveGrokCliTurnIdx(sessionId, input, requestKey = null) {
 
   const now = Date.now();
   const existing = sessionTurnStore.get(sessionId);
-  const prev = existing && now - existing.lastUsed <= MEMORY_CONFIG.sessionTtlMs
-    ? existing.turn
-    : 0;
+  const prev =
+    existing && now - existing.lastUsed <= MEMORY_CONFIG.sessionTtlMs ? existing.turn : 0;
   if (existing) sessionTurnStore.delete(sessionId);
 
   // A new delta-style request advances the turn; retries reuse requestKey.
@@ -175,7 +178,9 @@ function normalizeGrokCliInputItem(item) {
       type: "function_call",
       call_id: callId,
       name,
-      arguments: JSON.stringify({ input: stringifyGrokCliToolOutput(item.input ?? item.arguments) }),
+      arguments: JSON.stringify({
+        input: stringifyGrokCliToolOutput(item.input ?? item.arguments),
+      }),
     };
   }
 
@@ -198,7 +203,8 @@ function normalizeGrokCliInputItem(item) {
       ...(isNativeGrokCliItemId(item.id) ? { id: item.id } : {}),
       call_id: callId,
       name,
-      arguments: typeof item.arguments === "string" ? item.arguments : JSON.stringify(item.arguments ?? {}),
+      arguments:
+        typeof item.arguments === "string" ? item.arguments : JSON.stringify(item.arguments ?? {}),
       ...(typeof item.status === "string" ? { status: item.status } : {}),
     };
   }
@@ -212,10 +218,10 @@ export function normalizeGrokCliInput(body) {
   const callIds = new Set(
     normalized
       .filter((item) => item?.type === "function_call" && item.call_id)
-      .map((item) => item.call_id)
+      .map((item) => item.call_id),
   );
   body.input = normalized.filter(
-    (item) => item?.type !== "function_call_output" || callIds.has(item.call_id)
+    (item) => item?.type !== "function_call_output" || callIds.has(item.call_id),
   );
   return body;
 }
@@ -230,7 +236,8 @@ function stripStoredItemReferences(body) {
         typeof item.id === "string" &&
         SERVER_ID_PATTERN.test(item.id) &&
         !isNativeGrokCliItemId(item.id)
-      ) delete item.id;
+      )
+        delete item.id;
     }
     return true;
   });
@@ -289,13 +296,14 @@ function normalizeGrokCliTools(body) {
         : typeof fn?.description === "string"
           ? fn.description
           : "";
-    const parameters = type === "custom"
-      ? GROK_CLI_FREEFORM_TOOL_PARAMETERS
-      : tool.parameters && typeof tool.parameters === "object" && !Array.isArray(tool.parameters)
-        ? tool.parameters
-        : fn?.parameters && typeof fn.parameters === "object" && !Array.isArray(fn.parameters)
-          ? fn.parameters
-          : { type: "object", properties: {} };
+    const parameters =
+      type === "custom"
+        ? GROK_CLI_FREEFORM_TOOL_PARAMETERS
+        : tool.parameters && typeof tool.parameters === "object" && !Array.isArray(tool.parameters)
+          ? tool.parameters
+          : fn?.parameters && typeof fn.parameters === "object" && !Array.isArray(fn.parameters)
+            ? fn.parameters
+            : { type: "object", properties: {} };
 
     const strict = resolveFunctionToolStrict(tool);
     for (const k of Object.keys(tool)) delete tool[k];
@@ -314,7 +322,11 @@ function normalizeGrokCliTools(body) {
     return;
   }
 
-  if (body.tool_choice && typeof body.tool_choice === "object" && !Array.isArray(body.tool_choice)) {
+  if (
+    body.tool_choice &&
+    typeof body.tool_choice === "object" &&
+    !Array.isArray(body.tool_choice)
+  ) {
     const choiceType = typeof body.tool_choice.type === "string" ? body.tool_choice.type : "";
     if (choiceType === "function" || choiceType === "custom") {
       const rawName = body.tool_choice.name ?? body.tool_choice.function?.name;
@@ -371,7 +383,9 @@ export class GrokCliExecutor extends BaseExecutor {
     }
 
     headers["x-grok-client-identifier"] =
-      this.config.clientIdentifier || headers["x-grok-client-identifier"] || GROK_CLI_CLIENT_IDENTIFIER;
+      this.config.clientIdentifier ||
+      headers["x-grok-client-identifier"] ||
+      GROK_CLI_CLIENT_IDENTIFIER;
     headers["x-grok-client-version"] =
       this.config.clientVersion || headers["x-grok-client-version"] || GROK_CLI_VERSION;
 
@@ -461,7 +475,7 @@ export class GrokCliExecutor extends BaseExecutor {
     body.store = false;
 
     // Resolve upstream model id (strip effort suffix virtual models)
-    let modelEffort = resolveEffortFromModel(body.model || model);
+    const modelEffort = resolveEffortFromModel(body.model || model);
     let resolvedModel = body.model || model;
     if (modelEffort) {
       resolvedModel = resolvedModel.replace(new RegExp(`-${modelEffort}$`), "");

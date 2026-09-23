@@ -33,7 +33,9 @@ function loadModelCaps() {
       // Keep null so a later mount can retry
       return { byFull: {}, byId: {} };
     })
-    .finally(() => { inflight = null; });
+    .finally(() => {
+      inflight = null;
+    });
   return inflight;
 }
 
@@ -61,7 +63,10 @@ export function useModelCaps() {
   useEffect(() => {
     let alive = true;
     const sync = (maps) => {
-      if (alive) { setByFull(maps.byFull); setById(maps.byId); }
+      if (alive) {
+        setByFull(maps.byFull);
+        setById(maps.byId);
+      }
     };
     if (cache) {
       sync(cache);
@@ -80,10 +85,7 @@ export function useModelCaps() {
     };
   }, []);
 
-  const getCaps = useCallback(
-    (key) => resolveCaps(byFull, byId, key),
-    [byFull, byId],
-  );
+  const getCaps = useCallback((key) => resolveCaps(byFull, byId, key), [byFull, byId]);
 
   return { getCaps };
 }

@@ -14,21 +14,23 @@ const buildDistDir = path.join(appDir, buildDistDirName);
 
 // Exclude patterns for files/folders we don't want to copy
 const EXCLUDE_PATTERNS = [
-  "@img",           // Sharp image processing (not needed with unoptimized images)
-  "sharp",          // Sharp core lib (not needed with unoptimized images)
-  "detect-libc",    // Sharp dependency
-  ".env",           // Environment files
+  "@img", // Sharp image processing (not needed with unoptimized images)
+  "sharp", // Sharp core lib (not needed with unoptimized images)
+  "detect-libc", // Sharp dependency
+  ".env", // Environment files
   ".env.local",
   ".env.*.local",
-  "*.log",          // Log files
-  "tmp",            // Temp files
-  ".DS_Store",      // macOS files
+  "*.log", // Log files
+  "tmp", // Temp files
+  ".DS_Store", // macOS files
 ];
 
 function shouldExclude(name) {
-  return EXCLUDE_PATTERNS.some(pattern => {
+  return EXCLUDE_PATTERNS.some((pattern) => {
     if (pattern.includes("*")) {
-      const regex = new RegExp("^" + pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$");
+      const regex = new RegExp(
+        "^" + pattern.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$",
+      );
       return regex.test(name);
     }
     return name === pattern;
@@ -40,7 +42,7 @@ function copyRecursive(src, dest) {
     console.warn(`Warning: Source ${src} does not exist`);
     return;
   }
-  
+
   if (!fs.existsSync(dest)) {
     fs.mkdirSync(dest, { recursive: true });
   }
@@ -92,7 +94,10 @@ function resolveStandaloneBuild(appDir, buildDistDir) {
   // NEXT_TRACING_ROOT_MODE=workspace, e.g. standalone/9router/server.js.
   const pkgName = path.basename(appDir);
   const nestedRoot = path.join(standaloneRoot, pkgName);
-  if (fs.existsSync(path.join(nestedRoot, "server.js")) && !fs.existsSync(path.join(standaloneRoot, "server.js"))) {
+  if (
+    fs.existsSync(path.join(nestedRoot, "server.js")) &&
+    !fs.existsSync(path.join(standaloneRoot, "server.js"))
+  ) {
     console.log(`ℹ️  Detected nested standalone output: ${pkgName}/`);
     standaloneRoot = nestedRoot;
   }
@@ -103,7 +108,7 @@ function resolveStandaloneBuild(appDir, buildDistDir) {
   if (!fs.existsSync(standaloneApp)) {
     throw new Error(
       "Next.js standalone build not found under .next/standalone; " +
-      "expected either .next/standalone/server.js or .next/standalone/app/",
+        "expected either .next/standalone/server.js or .next/standalone/app/",
     );
   }
 
@@ -143,7 +148,7 @@ function assertRequiredApiArtifacts(cliAppDir) {
   if (missingArtifacts.length > 0) {
     throw new Error(
       `Required CLI API route artifact${missingArtifacts.length === 1 ? " is" : "s are"} missing:\n` +
-      missingArtifacts.join("\n"),
+        missingArtifacts.join("\n"),
     );
   }
 }
@@ -182,7 +187,7 @@ function buildCliPackage() {
         LOCALAPPDATA: path.join(buildHomeDir, "AppData", "Local"),
         NEXT_DIST_DIR: buildDistDirName,
         NEXT_TRACING_ROOT_MODE: "workspace",
-      }
+      },
     });
     console.log("✅ Next.js build completed\n");
   } catch (error) {
@@ -238,7 +243,9 @@ function buildCliPackage() {
     ];
     const src = candidates.find((p) => fs.existsSync(p));
     if (!src) {
-      console.warn(`⚠️  ${pkg} not found locally — bundle will rely on node:sqlite or runtime install`);
+      console.warn(
+        `⚠️  ${pkg} not found locally — bundle will rely on node:sqlite or runtime install`,
+      );
       return;
     }
     fs.mkdirSync(path.dirname(dest), { recursive: true });
@@ -286,7 +293,10 @@ function buildCliPackage() {
   const vendorChunksSrcResolved = path.join(buildDistDir, "server", "vendor-chunks");
   const vendorChunksDest = path.join(cliAppDir, buildDistDirName, "server", "vendor-chunks");
   if (fs.existsSync(vendorChunksSrcResolved) || fs.existsSync(vendorChunksSrc)) {
-    copyRecursive(fs.existsSync(vendorChunksSrcResolved) ? vendorChunksSrcResolved : vendorChunksSrc, vendorChunksDest);
+    copyRecursive(
+      fs.existsSync(vendorChunksSrcResolved) ? vendorChunksSrcResolved : vendorChunksSrc,
+      vendorChunksDest,
+    );
     console.log("✅ Copied vendor-chunks\n");
   } else {
     console.log("⏭️  No vendor-chunks found\n");

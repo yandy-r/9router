@@ -23,8 +23,8 @@ function mockGeminiAudioResponse() {
           },
         ],
       }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    )
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ),
   );
 }
 
@@ -50,11 +50,13 @@ describe("Gemini TTS", () => {
 
     expect(result.success).toBe(true);
     expect(global.fetch.mock.calls[0][0]).toBe(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=test-key"
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=test-key",
     );
 
     const sent = JSON.parse(global.fetch.mock.calls[0][1].body);
-    expect(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName).toBe("Zephyr");
+    expect(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName).toBe(
+      "Zephyr",
+    );
     const body = await result.response.json();
     expect(body.format).toBe("wav");
     expect(body.audio).toEqual(expect.any(String));
@@ -73,11 +75,13 @@ describe("Gemini TTS", () => {
 
     expect(result.success).toBe(true);
     expect(global.fetch.mock.calls[0][0]).toBe(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=test-key"
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=test-key",
     );
 
     const sent = JSON.parse(global.fetch.mock.calls[0][1].body);
-    expect(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName).toBe("Puck");
+    expect(sent.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName).toBe(
+      "Puck",
+    );
   });
 
   it("exposes current Gemini TTS models in the TTS catalog", () => {
@@ -89,7 +93,7 @@ describe("Gemini TTS", () => {
       "gemini-2.5-pro-preview-tts",
     ]);
     expect(entries["gemini-tts-voices"]).toContainEqual(
-      expect.objectContaining({ id: "Zephyr", type: "tts" })
+      expect.objectContaining({ id: "Zephyr", type: "tts" }),
     );
   });
 });

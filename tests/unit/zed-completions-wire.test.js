@@ -14,10 +14,7 @@ vi.mock("open-sse/shared/zedAuth.js", async (importOriginal) => {
   };
 });
 
-import {
-  resolveZedModels,
-  zedLlmFetch,
-} from "open-sse/shared/zedAuth.js";
+import { resolveZedModels, zedLlmFetch } from "open-sse/shared/zedAuth.js";
 import ZedExecutor from "open-sse/executors/zed.js";
 
 function catalogFor(entries) {
@@ -65,7 +62,9 @@ describe("wire provider enum", () => {
     resolveZedModels.mockRejectedValue(new Error("catalog down"));
     const executor = makeExecutor();
     const log = { warn: vi.fn() };
-    expect((await executor.resolveModel("claude-opus-x", {}, null, log)).provider).toBe("anthropic");
+    expect((await executor.resolveModel("claude-opus-x", {}, null, log)).provider).toBe(
+      "anthropic",
+    );
     expect((await executor.resolveModel("gemini-3-x", {}, null, log)).provider).toBe("google");
     expect((await executor.resolveModel("grok-4-x", {}, null, log)).provider).toBe("x_ai");
     expect((await executor.resolveModel("gpt-5-x", {}, null, log)).provider).toBe("open_ai");
@@ -74,12 +73,14 @@ describe("wire provider enum", () => {
 
 describe("completion payload shaping", () => {
   it("sends wire provider values per model family", async () => {
-    resolveZedModels.mockImplementation(async () => catalogFor([
-      ["claude-x", { provider: "anthropic" }],
-      ["gpt-x", { provider: "open_ai" }],
-      ["gemini-x", { provider: "google" }],
-      ["grok-x", { provider: "x_ai" }],
-    ]));
+    resolveZedModels.mockImplementation(async () =>
+      catalogFor([
+        ["claude-x", { provider: "anthropic" }],
+        ["gpt-x", { provider: "open_ai" }],
+        ["gemini-x", { provider: "google" }],
+        ["grok-x", { provider: "x_ai" }],
+      ]),
+    );
     const captured = {};
     mockCatalogFetch(captured);
     const executor = makeExecutor();
@@ -97,15 +98,22 @@ describe("completion payload shaping", () => {
   });
 
   it("strips safetySettings on the Zed Gemini path only", async () => {
-    resolveZedModels.mockImplementation(async () => catalogFor([
-      ["gemini-x", { provider: "google" }],
-      ["claude-x", { provider: "anthropic" }],
-    ]));
+    resolveZedModels.mockImplementation(async () =>
+      catalogFor([
+        ["gemini-x", { provider: "google" }],
+        ["claude-x", { provider: "anthropic" }],
+      ]),
+    );
     const captured = {};
     mockCatalogFetch(captured);
     const executor = makeExecutor();
 
-    await executor.execute({ model: "gemini-x", body: { ...CHAT_BODY }, stream: false, credentials: {} });
+    await executor.execute({
+      model: "gemini-x",
+      body: { ...CHAT_BODY },
+      stream: false,
+      credentials: {},
+    });
     expect(captured.body.provider).toBe("google");
     expect(captured.body.provider_request).not.toHaveProperty("safetySettings");
 
@@ -123,13 +131,20 @@ describe("completion payload shaping", () => {
 describe("YAN-12 — completions carry the Zed client version", () => {
   it("sends x-zed-version from the fingerprint and no 9router User-Agent override", async () => {
     const { ZED_CLIENT_VERSION } = await import("open-sse/config/zedClientFingerprint.js");
-    resolveZedModels.mockImplementation(async () => catalogFor([["claude-x", { provider: "anthropic" }]]));
+    resolveZedModels.mockImplementation(async () =>
+      catalogFor([["claude-x", { provider: "anthropic" }]]),
+    );
     let headers;
     zedLlmFetch.mockImplementation(async (credentials, path, options) => {
       headers = options.fetchOptions.headers;
       return new Response("upstream-error-stub", { status: 500 });
     });
-    await makeExecutor().execute({ model: "claude-x", body: { ...CHAT_BODY }, stream: false, credentials: {} });
+    await makeExecutor().execute({
+      model: "claude-x",
+      body: { ...CHAT_BODY },
+      stream: false,
+      credentials: {},
+    });
     expect(headers["x-zed-version"]).toBe(ZED_CLIENT_VERSION);
     expect(headers["User-Agent"]).toBeUndefined(); // zedLlmFetch supplies the Zed User-Agent
   });

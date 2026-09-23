@@ -5,7 +5,7 @@ description: Generate videos via 9Router /v1/videos/generations using xAI Grok I
 
 # 9Router — Video Generation (xAI Grok Imagine)
 
-Requires `NINEROUTER_URL` (and `NINEROUTER_KEY` if auth enabled). See https://raw.githubusercontent.com/yandy-r/9router/refs/heads/master/skills/9router/SKILL.md for setup.
+Requires `NINEROUTER_URL` (and `NINEROUTER_KEY` if auth enabled). See <https://raw.githubusercontent.com/yandy-r/9router/refs/heads/master/skills/9router/SKILL.md> for setup.
 
 Requires a connected **xAI account** in the 9Router dashboard — either **Grok Build OAuth** (SuperGrok / X Premium+ subscription sign-in) or a direct **xAI API key** from console.x.ai. The two are separate auth types with separate billing; the dashboard shows which one each connection uses.
 
@@ -13,24 +13,24 @@ Requires a connected **xAI account** in the 9Router dashboard — either **Grok 
 
 Video generation is **asynchronous**: the POST returns a `request_id` immediately, then you poll until the job is `done` or `failed`.
 
-| Endpoint | Purpose |
-|---|---|
+| Endpoint                      | Purpose                        |
+| ----------------------------- | ------------------------------ |
 | `POST /v1/videos/generations` | text-to-video / image-to-video |
-| `POST /v1/videos/edits` | edit an existing video |
-| `POST /v1/videos/extensions` | extend an existing video |
-| `GET /v1/videos/{request_id}` | poll job status |
+| `POST /v1/videos/edits`       | edit an existing video         |
+| `POST /v1/videos/extensions`  | extend an existing video       |
+| `GET /v1/videos/{request_id}` | poll job status                |
 
-Request fields (passed through to xAI unchanged — see https://docs.x.ai/developers/rest-api-reference/inference/videos):
+Request fields (passed through to xAI unchanged — see <https://docs.x.ai/developers/rest-api-reference/inference/videos>):
 
-| Field | Required | Notes |
-|---|---|---|
-| `model` | no | `xai/grok-imagine-video` (prefix is stripped before upstream) |
-| `prompt` | yes for T2V | video description |
-| `duration` | no | seconds |
-| `aspect_ratio` | no | `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `3:2`, `2:3` |
-| `resolution` | no | `480p`, `720p`, `1080p` |
-| `image` | no | `{ "url": "https://… or data:image/…;base64,…" }` for image-to-video |
-| `video` | edits/extensions | `{ "url": "…mp4" }` or `{ "file_id": "…" }` |
+| Field          | Required         | Notes                                                                |
+| -------------- | ---------------- | -------------------------------------------------------------------- |
+| `model`        | no               | `xai/grok-imagine-video` (prefix is stripped before upstream)        |
+| `prompt`       | yes for T2V      | video description                                                    |
+| `duration`     | no               | seconds                                                              |
+| `aspect_ratio` | no               | `16:9`, `9:16`, `1:1`, `4:3`, `3:4`, `3:2`, `2:3`                    |
+| `resolution`   | no               | `480p`, `720p`, `1080p`                                              |
+| `image`        | no               | `{ "url": "https://… or data:image/…;base64,…" }` for image-to-video |
+| `video`        | edits/extensions | `{ "url": "…mp4" }` or `{ "file_id": "…" }`                          |
 
 ## Examples
 

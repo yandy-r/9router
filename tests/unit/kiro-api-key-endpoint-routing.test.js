@@ -60,7 +60,7 @@ describe("Kiro auth-aware endpoint routing", () => {
     expect(qHeaders.TokenType).toBe("API_KEY");
     expect(qHeaders["X-Amz-Target"]).toBeUndefined();
     expect(codeWhispererHeaders["X-Amz-Target"]).toBe(
-      "AmazonCodeWhispererStreamingService.GenerateAssistantResponse"
+      "AmazonCodeWhispererStreamingService.GenerateAssistantResponse",
     );
     expect(runtimeHeaders["X-Amz-Target"]).toBeUndefined();
   });

@@ -29,12 +29,6 @@ test("getClineAccessToken does NOT prefix ClinePass API keys", () => {
 
 test("getClineAuthorizationHeader builds a Bearer header without double prefixing", () => {
   assert.equal(getClineAuthorizationHeader("clp_abc"), "Bearer clp_abc");
-  assert.equal(
-    getClineAuthorizationHeader("eyJpeg.eyJbG"),
-    "Bearer workos:eyJpeg.eyJbG"
-  );
-  assert.equal(
-    getClineAuthorizationHeader("workos:eyJpeg.eyJbG"),
-    "Bearer workos:eyJpeg.eyJbG"
-  );
+  assert.equal(getClineAuthorizationHeader("eyJpeg.eyJbG"), "Bearer workos:eyJpeg.eyJbG");
+  assert.equal(getClineAuthorizationHeader("workos:eyJpeg.eyJbG"), "Bearer workos:eyJpeg.eyJbG");
 });

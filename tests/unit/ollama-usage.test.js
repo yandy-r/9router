@@ -104,9 +104,7 @@ describe("getUsageForProvider(ollama)", () => {
   });
 
   it("surfaces invalid key message on 401", async () => {
-    proxyAwareFetch.mockResolvedValueOnce(
-      jsonResponse({ error: "unauthorized" }, 401),
-    );
+    proxyAwareFetch.mockResolvedValueOnce(jsonResponse({ error: "unauthorized" }, 401));
 
     const usage = await getUsageForProvider({
       provider: "ollama",

@@ -13,7 +13,10 @@ function isCliRequest(request) {
 
 export async function GET(request) {
   try {
-    if (!isCliRequest(request) && !(await verifyDashboardPassword(request.headers.get(PASSWORD_HEADER)))) {
+    if (
+      !isCliRequest(request) &&
+      !(await verifyDashboardPassword(request.headers.get(PASSWORD_HEADER)))
+    ) {
       return NextResponse.json({ error: "Invalid password" }, { status: 401 });
     }
     const payload = await exportDb();
@@ -45,7 +48,7 @@ export async function POST(request) {
     console.log("Error importing database:", error);
     return NextResponse.json(
       { error: error?.message || "Failed to import database" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }

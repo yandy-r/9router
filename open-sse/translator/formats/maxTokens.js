@@ -31,4 +31,3 @@ export function adjustMaxTokens(body, ceiling = DEFAULT_MAX_TOKENS) {
 
   return maxTokens;
 }
-

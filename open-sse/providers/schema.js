@@ -52,14 +52,14 @@ export const PROVIDER_DEFAULTS = {
   passthroughModels: false,
   retry: DEFAULT_RETRY_CONFIG,
   timeoutMs: FETCH_CONNECT_TIMEOUT_MS,
-  executor: "default"
+  executor: "default",
 };
 
 // Default endpoints per format (provider only overrides what differs)
 export const ENDPOINT_DEFAULTS = {
   openai: { chat: "/chat/completions", test: "/models", models: "/models" },
   claude: { chat: "/messages", test: "/models", countTokens: "/messages/count_tokens" },
-  gemini: { chat: "/{model}:streamGenerateContent", models: "/models", test: "/models" }
+  gemini: { chat: "/{model}:streamGenerateContent", models: "/models", test: "/models" },
 };
 
 // Deep-merge a provider entry over PROVIDER_DEFAULTS (defensive for missing transport)
@@ -71,6 +71,6 @@ export function resolveProvider(entry) {
     headers: { ...PROVIDER_DEFAULTS.headers, ...transport.headers },
     auth: { ...PROVIDER_DEFAULTS.auth, ...transport.auth },
     quirks: { ...PROVIDER_DEFAULTS.quirks, ...transport.quirks },
-    retry: { ...PROVIDER_DEFAULTS.retry, ...transport.retry }
+    retry: { ...PROVIDER_DEFAULTS.retry, ...transport.retry },
   };
 }

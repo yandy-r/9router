@@ -79,8 +79,12 @@ describe("getUsageForProvider(commandcode)", () => {
     expect(usage.plan).toBe("GOAT");
     const urls = proxyAwareFetch.mock.calls.map(([url]) => String(url));
     expect(urls.some((u) => u.startsWith(`${BASE}/alpha/whoami`))).toBe(true);
-    expect(urls.some((u) => u.includes("/alpha/billing/credits") && u.includes("orgId=org_1"))).toBe(true);
-    expect(urls.some((u) => u.includes("/alpha/billing/subscriptions") && u.includes("orgId=org_1"))).toBe(true);
+    expect(
+      urls.some((u) => u.includes("/alpha/billing/credits") && u.includes("orgId=org_1")),
+    ).toBe(true);
+    expect(
+      urls.some((u) => u.includes("/alpha/billing/subscriptions") && u.includes("orgId=org_1")),
+    ).toBe(true);
     expect(proxyAwareFetch.mock.calls[0][1].headers.Authorization).toBe("Bearer user_test");
   });
 

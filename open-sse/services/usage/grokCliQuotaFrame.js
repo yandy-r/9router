@@ -60,7 +60,10 @@ function readLengthDelimitedField(buffer, offset) {
   const { value: length, next: bodyStart } = lengthResult;
   if (length < 0 || bodyStart + length > buffer.length) return null;
   return {
-    field: { wireType: WIRE_TYPE_LENGTH_DELIMITED, bytes: buffer.subarray(bodyStart, bodyStart + length) },
+    field: {
+      wireType: WIRE_TYPE_LENGTH_DELIMITED,
+      bytes: buffer.subarray(bodyStart, bodyStart + length),
+    },
     next: bodyStart + length,
   };
 }

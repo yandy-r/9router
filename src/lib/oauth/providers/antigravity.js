@@ -46,7 +46,7 @@ const antigravity = {
   },
   postExchange: async (tokens) => {
     const loadHeaders = {
-      "Authorization": `Bearer ${tokens.access_token}`,
+      Authorization: `Bearer ${tokens.access_token}`,
       "Content-Type": "application/json",
       "User-Agent": ANTIGRAVITY_CONFIG.loadCodeAssistUserAgent,
       "x-request-source": "local",
@@ -104,7 +104,7 @@ const antigravity = {
           } catch (e) {
             break;
           }
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          await new Promise((resolve) => setTimeout(resolve, 5000));
         }
       };
       doOnboard().catch(() => {});

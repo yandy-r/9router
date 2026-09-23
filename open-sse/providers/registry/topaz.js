@@ -8,12 +8,10 @@ export default {
     textIcon: "TP",
     website: "https://topazlabs.com",
     notice: {
-      apiKeyUrl: "https://topazlabs.com/account"
-    }
+      apiKeyUrl: "https://topazlabs.com/account",
+    },
   },
   category: "apikey",
   authType: "apikey",
-  serviceKinds: [
-    "image"
-  ]
+  serviceKinds: ["image"],
 };

@@ -23,8 +23,12 @@ describe("extractUsageFromResponse cache surfaces", () => {
   it("surfaces OpenAI Responses input_tokens_details.cached_tokens", () => {
     // codex / /v1/responses shape: prompt is cache-INCLUSIVE
     const out = extractUsageFromResponse({
-      usage: { input_tokens: 25421, output_tokens: 5, total_tokens: 25426,
-               input_tokens_details: { cached_tokens: 24320 } },
+      usage: {
+        input_tokens: 25421,
+        output_tokens: 5,
+        total_tokens: 25426,
+        input_tokens_details: { cached_tokens: 24320 },
+      },
     });
     expect(out.cached_tokens).toBe(24320);
     expect(out.prompt_tokens).toBe(25421);
@@ -33,8 +37,11 @@ describe("extractUsageFromResponse cache surfaces", () => {
 
   it("canonicalizes Responses usage without double-counting the prompt", () => {
     const extracted = extractUsageFromResponse({
-      usage: { input_tokens: 25421, output_tokens: 5,
-               input_tokens_details: { cached_tokens: 24320 } },
+      usage: {
+        input_tokens: 25421,
+        output_tokens: 5,
+        input_tokens_details: { cached_tokens: 24320 },
+      },
     });
     const out = canonicalizeUsage(extracted);
     // inclusive prompt passes through unchanged; cache reported as subset
@@ -46,8 +53,12 @@ describe("extractUsageFromResponse cache surfaces", () => {
 
   it("still folds genuine Claude exclusive cache (regression)", () => {
     const extracted = extractUsageFromResponse({
-      usage: { input_tokens: 100, output_tokens: 50,
-               cache_read_input_tokens: 200, cache_creation_input_tokens: 30 },
+      usage: {
+        input_tokens: 100,
+        output_tokens: 50,
+        cache_read_input_tokens: 200,
+        cache_creation_input_tokens: 30,
+      },
     });
     expect(extracted.cached_tokens).toBeUndefined();
     const out = canonicalizeUsage(extracted);
@@ -65,8 +76,11 @@ describe("extractUsageFromResponse cache surfaces", () => {
 
   it("keeps nested prompt_tokens_details.cached_tokens working (regression)", () => {
     const out = extractUsageFromResponse({
-      usage: { prompt_tokens: 300, completion_tokens: 10,
-               prompt_tokens_details: { cached_tokens: 240 } },
+      usage: {
+        prompt_tokens: 300,
+        completion_tokens: 10,
+        prompt_tokens_details: { cached_tokens: 240 },
+      },
     });
     expect(out.cached_tokens).toBe(240);
     expect(canonicalizeUsage(out).cached_tokens).toBe(240);

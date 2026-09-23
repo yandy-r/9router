@@ -24,9 +24,9 @@ describe("api-airforce free models", () => {
   });
 
   it("PROVIDER_MODELS['af'] exposes the new ids", () => {
-    expect(PROVIDER_MODELS.af.map((m) => m.id)).toEqual(expect.arrayContaining([
-      "gpt-oss-120b", "gpt-oss-20b", "kimi-k2.7-code",
-    ]));
+    expect(PROVIDER_MODELS.af.map((m) => m.id)).toEqual(
+      expect.arrayContaining(["gpt-oss-120b", "gpt-oss-20b", "kimi-k2.7-code"]),
+    );
   });
 
   it("caps resolve for the free ids", () => {

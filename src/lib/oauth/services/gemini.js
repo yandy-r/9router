@@ -62,23 +62,20 @@ export class GeminiCLIService {
    * Fetch project ID from Google Cloud Code Assist
    */
   async fetchProjectId(accessToken) {
-    const response = await fetch(
-      "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist",
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-          "User-Agent": "google-api-nodejs-client/9.15.1",
-          "X-Goog-Api-Client": "google-cloud-sdk vscode_cloudshelleditor/0.1",
-          "Client-Metadata": JSON.stringify(getOAuthClientMetadata())
-        },
-        body: JSON.stringify({
-          metadata: getOAuthClientMetadata(),
-          mode: 1
-        })
-      }
-    );
+    const response = await fetch("https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        "User-Agent": "google-api-nodejs-client/9.15.1",
+        "X-Goog-Api-Client": "google-cloud-sdk vscode_cloudshelleditor/0.1",
+        "Client-Metadata": JSON.stringify(getOAuthClientMetadata()),
+      },
+      body: JSON.stringify({
+        metadata: getOAuthClientMetadata(),
+        mode: 1,
+      }),
+    });
 
     if (!response.ok) {
       const error = await response.text();
@@ -229,7 +226,9 @@ export class GeminiCLIService {
       // Save tokens to server
       await this.saveTokens(tokens, userInfo, projectId);
 
-      spinner.succeed(`Gemini CLI connected successfully! (${userInfo.email}, Project: ${projectId})`);
+      spinner.succeed(
+        `Gemini CLI connected successfully! (${userInfo.email}, Project: ${projectId})`,
+      );
       return true;
     } catch (error) {
       spinner.fail(`Failed: ${error.message}`);
@@ -237,4 +236,3 @@ export class GeminiCLIService {
     }
   }
 }
-

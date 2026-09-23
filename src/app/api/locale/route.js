@@ -5,12 +5,9 @@ import { LOCALE_COOKIE, normalizeLocale, isSupportedLocale } from "@/i18n/config
 export async function POST(request) {
   try {
     const { locale } = await request.json();
-    
+
     if (!locale || !isSupportedLocale(locale)) {
-      return NextResponse.json(
-        { error: "Invalid locale" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid locale" }, { status: 400 });
     }
 
     const normalized = normalizeLocale(locale);
@@ -22,9 +19,6 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, locale: normalized });
   } catch (error) {
-    return NextResponse.json(
-      { error: "Failed to set locale" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to set locale" }, { status: 500 });
   }
 }

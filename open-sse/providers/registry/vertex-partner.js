@@ -2,16 +2,15 @@ export default {
   id: "vertex-partner",
   priority: 260,
   alias: "vertex-partner",
-  aliases: [
-    "vxp",
-  ],
+  aliases: ["vxp"],
   uiAlias: "vxp",
   display: {
     name: "Vertex Partner",
     icon: "cloud",
     color: "#34A853",
     textIcon: "VP",
-    website: "https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-partner-models",
+    website:
+      "https://cloud.google.com/vertex-ai/generative-ai/docs/partner-models/use-partner-models",
     notice: {
       apiKeyUrl: "https://console.cloud.google.com/iam-admin/serviceaccounts",
     },

@@ -62,7 +62,11 @@ export function ensureToolCallIds(body) {
           block.id = sanitized || generateToolCallId(i, k, block.name);
         }
         // Validate tool_use_id in tool_result blocks
-        if (block.type === "tool_result" && block.tool_use_id && !TOOL_ID_PATTERN.test(block.tool_use_id)) {
+        if (
+          block.type === "tool_result" &&
+          block.tool_use_id &&
+          !TOOL_ID_PATTERN.test(block.tool_use_id)
+        ) {
           const sanitized = sanitizeToolId(block.tool_use_id);
           block.tool_use_id = sanitized || generateToolCallId(i, k);
         }
@@ -143,7 +147,7 @@ export function fixMissingToolResponses(body) {
         newMessages.push({
           role: "tool",
           tool_call_id: id,
-          content: ""
+          content: "",
         });
       }
     }
@@ -164,7 +168,7 @@ export function fixMissingToolResponses(body) {
 // overwrite the default. `{ type: "custom", ...tool }` would let `type: null` survive.
 export function defaultClaudeToolType(tools) {
   if (!Array.isArray(tools)) return tools;
-  return tools.map(tool => tool?.type ? tool : { ...tool, type: "custom" });
+  return tools.map((tool) => (tool?.type ? tool : { ...tool, type: "custom" }));
 }
 
 // Whether Claude-format tools need explicit `type` defaulting before dispatch.
@@ -174,9 +178,8 @@ export function defaultClaudeToolType(tools) {
 // "unknown variant `custom`" and every Claude Code request routed there fails (#3905).
 export function shouldDefaultClaudeToolType(provider, finalFormat, tools, PROVIDERS) {
   return (
-    finalFormat === FORMATS.CLAUDE
-    && Array.isArray(tools)
-    && PROVIDERS?.[provider]?.quirks?.requireClaudeToolType === true
+    finalFormat === FORMATS.CLAUDE &&
+    Array.isArray(tools) &&
+    PROVIDERS?.[provider]?.quirks?.requireClaudeToolType === true
   );
 }
-

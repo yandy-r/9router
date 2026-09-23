@@ -34,7 +34,7 @@ export async function POST(request) {
   } catch (error) {
     return NextResponse.json(
       { error: error?.message || "CLIProxyAPI import failed" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }

@@ -93,9 +93,13 @@ export async function handleFetch(request) {
   const comboModels = getComboModelsFromData(providerInput, combos);
   if (comboModels) {
     const comboStrategies = settings.comboStrategies || {};
-    const comboStrategy = comboStrategies[providerInput]?.fallbackStrategy || settings.comboStrategy || "fallback";
+    const comboStrategy =
+      comboStrategies[providerInput]?.fallbackStrategy || settings.comboStrategy || "fallback";
     const comboStickyLimit = settings.comboStickyRoundRobinLimit;
-    log.info("FETCH", `Combo "${providerInput}" with ${comboModels.length} providers (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`);
+    log.info(
+      "FETCH",
+      `Combo "${providerInput}" with ${comboModels.length} providers (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`,
+    );
     return handleComboChat({
       body,
       models: comboModels,
@@ -103,7 +107,7 @@ export async function handleFetch(request) {
       log,
       comboName: providerInput,
       comboStrategy,
-      comboStickyLimit
+      comboStickyLimit,
     });
   }
 
@@ -125,7 +129,10 @@ async function handleSingleProviderFetch(body, providerInput, request, apiKey, s
   const providerConfig = resolvedProvider.fetchConfig;
   if (!providerConfig) {
     log.warn("FETCH", "Provider does not support web fetch", { provider: providerId });
-    return errorResponse(HTTP_STATUS.BAD_REQUEST, `Provider ${providerId} does not support web fetch`);
+    return errorResponse(
+      HTTP_STATUS.BAD_REQUEST,
+      `Provider ${providerId} does not support web fetch`,
+    );
   }
 
   if (providerInput !== providerId) {
@@ -144,11 +151,11 @@ async function handleSingleProviderFetch(body, providerInput, request, apiKey, s
       provider: resolvedProvider.id,
       providerConfig,
       credentials: null,
-      log
+      log,
     });
     if (result.success) {
       return new Response(JSON.stringify(result.data), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       });
     }
     return errorResponse(result.status || HTTP_STATUS.BAD_GATEWAY, result.error || "Fetch failed");
@@ -165,21 +172,34 @@ async function handleSingleProviderFetch(body, providerInput, request, apiKey, s
   const fetchLockKey = `webfetch:${providerId}`;
 
   while (true) {
-    const credentials = await getProviderCredentials(providerId, excludeConnectionIds, fetchLockKey);
+    const credentials = await getProviderCredentials(
+      providerId,
+      excludeConnectionIds,
+      fetchLockKey,
+    );
 
     if (!credentials || credentials.allRateLimited) {
       if (credentials?.allRateLimited) {
         const errorMsg = lastError || credentials.lastError || "Unavailable";
-        const status = lastStatus || Number(credentials.lastErrorCode) || HTTP_STATUS.SERVICE_UNAVAILABLE;
+        const status =
+          lastStatus || Number(credentials.lastErrorCode) || HTTP_STATUS.SERVICE_UNAVAILABLE;
         log.warn("FETCH", `[${providerId}] ${errorMsg} (${credentials.retryAfterHuman})`);
-        return unavailableResponse(status, `[${providerId}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman);
+        return unavailableResponse(
+          status,
+          `[${providerId}] ${errorMsg}`,
+          credentials.retryAfter,
+          credentials.retryAfterHuman,
+        );
       }
       if (excludeConnectionIds.size === 0) {
         log.error("AUTH", `No credentials for provider: ${providerId}`);
         return errorResponse(HTTP_STATUS.BAD_REQUEST, `No credentials for provider: ${providerId}`);
       }
       log.warn("FETCH", "No more accounts available", { provider: providerId });
-      return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, lastError || "All accounts unavailable");
+      return errorResponse(
+        lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE,
+        lastError || "All accounts unavailable",
+      );
     }
 
     log.info("AUTH", `\x1b[32mUsing ${providerId} account: ${credentials.connectionName}\x1b[0m`);
@@ -199,15 +219,15 @@ async function handleSingleProviderFetch(body, providerInput, request, apiKey, s
           accessToken: newCreds.accessToken,
           refreshToken: newCreds.refreshToken,
           providerSpecificData: newCreds.providerSpecificData,
-          testStatus: "active"
+          testStatus: "active",
         });
-      }
+      },
     });
 
     if (result.success) {
       await clearAccountError(credentials.connectionId, credentials, fetchLockKey);
       return new Response(JSON.stringify(result.data), {
-        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" }
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
       });
     }
 
@@ -220,7 +240,10 @@ async function handleSingleProviderFetch(body, providerInput, request, apiKey, s
     );
 
     if (shouldFallback) {
-      log.warn("AUTH", `Account ${credentials.connectionName} unavailable (${result.status}), trying fallback`);
+      log.warn(
+        "AUTH",
+        `Account ${credentials.connectionName} unavailable (${result.status}), trying fallback`,
+      );
       excludeConnectionIds.add(credentials.connectionId);
       lastError = result.error;
       lastStatus = result.status;

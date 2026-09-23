@@ -2,9 +2,7 @@ export default {
   id: "poolside",
   priority: 60,
   alias: "poolside",
-  aliases: [
-    "ps",
-  ],
+  aliases: ["ps"],
   uiAlias: "ps",
   display: {
     name: "Poolside",

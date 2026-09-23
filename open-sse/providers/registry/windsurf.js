@@ -19,11 +19,12 @@ export default {
   authModes: ["oauth", "apikey"],
 
   transport: {
-    baseUrl: "https://server.codeium.com/exa.language_server_pb.LanguageServerService/GetChatMessage",
+    baseUrl:
+      "https://server.codeium.com/exa.language_server_pb.LanguageServerService/GetChatMessage",
     format: "openai",
     headers: {
       "Content-Type": "application/grpc-web+proto",
-      "Accept": "application/grpc-web+proto",
+      Accept: "application/grpc-web+proto",
       "X-Grpc-Web": "1",
     },
     // apiKey (sk-ws-... or Firebase-derived) as Bearer + in protobuf Metadata.api_key.
@@ -38,14 +39,16 @@ export default {
   oauth: {
     clientId: "3GUryQ7ldAeKEuD2obYnppsnmj58eP5u",
     firebaseSignInUrl: "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword",
-    registerUrl: "https://register.windsurf.com/exa.seat_management_pb.SeatManagementService/RegisterUser",
+    registerUrl:
+      "https://register.windsurf.com/exa.seat_management_pb.SeatManagementService/RegisterUser",
     apiServerUrl: "https://server.codeium.com",
     auth1ApiServerUrl: "https://server.self-serve.windsurf.com",
     platform: "windsurf",
     // Quota (Connect RPC, protobuf): POST windsurf.com/_backend/.../GetPlanStatus,
     // headers Content-Type:application/proto + Connect-Protocol-Version:1 + X-Auth-Token:<session>,
     // body = field1:session_token, field2:varint 1.
-    quotaUrl: "https://windsurf.com/_backend/exa.seat_management_pb.SeatManagementService/GetPlanStatus",
+    quotaUrl:
+      "https://windsurf.com/_backend/exa.seat_management_pb.SeatManagementService/GetPlanStatus",
   },
 
   // Catalog verified against model_configs_v2.bin from Devin CLI (2026.5.x).

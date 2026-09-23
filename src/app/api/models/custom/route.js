@@ -33,7 +33,13 @@ export async function POST(request) {
       return NextResponse.json({ error: "providerAlias and id required" }, { status: 400 });
     }
     const cleanCaps = sanitizeCaps(caps);
-    const added = await addCustomModel({ providerAlias, id, type: type || "llm", name, ...(cleanCaps ? { caps: cleanCaps } : {}) });
+    const added = await addCustomModel({
+      providerAlias,
+      id,
+      type: type || "llm",
+      name,
+      ...(cleanCaps ? { caps: cleanCaps } : {}),
+    });
     return NextResponse.json({ success: true, added });
   } catch (error) {
     console.log("Error adding custom model:", error);

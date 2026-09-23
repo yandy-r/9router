@@ -11,7 +11,7 @@ describe("alicode-intl endpoint (Coding Plan keys)", () => {
   it("routes to the coding-intl host for Coding Plan keys", () => {
     expect(alicodeIntl.id).toBe("alicode-intl");
     expect(alicodeIntl.transport.baseUrl).toBe(
-      "https://coding-intl.dashscope.aliyuncs.com/v1/chat/completions"
+      "https://coding-intl.dashscope.aliyuncs.com/v1/chat/completions",
     );
   });
 
@@ -25,7 +25,7 @@ describe("alims-intl endpoint (standard DashScope keys)", () => {
   it("routes to the compatible-mode DashScope endpoint for standard keys", () => {
     expect(alimsIntl.id).toBe("alims-intl");
     expect(alimsIntl.transport.baseUrl).toBe(
-      "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
+      "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
     );
   });
 

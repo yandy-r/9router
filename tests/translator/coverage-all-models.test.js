@@ -23,7 +23,14 @@ function baseBody(modelId) {
       },
     ],
     tools: [
-      { type: "function", function: { name: "get_time", description: "x", parameters: { type: "object", properties: {} } } },
+      {
+        type: "function",
+        function: {
+          name: "get_time",
+          description: "x",
+          parameters: { type: "object", properties: {} },
+        },
+      },
     ],
   };
 }
@@ -46,7 +53,17 @@ const stripModels = buildModelMatrix().filter((r) => r.strip.includes("image"));
 describe.skipIf(stripModels.length === 0)("coverage: image-strip models drop image content", () => {
   it.each(stripModels)("$alias/$modelId strips image when strip=[image]", (row) => {
     const body = baseBody(row.modelId);
-    const out = translateRequest(FORMATS.OPENAI, row.targetFormat, row.modelId, body, true, null, row.alias, null, row.strip);
+    const out = translateRequest(
+      FORMATS.OPENAI,
+      row.targetFormat,
+      row.modelId,
+      body,
+      true,
+      null,
+      row.alias,
+      null,
+      row.strip,
+    );
     const json = JSON.stringify(out);
     expect(json).not.toContain("data:image/png");
   });

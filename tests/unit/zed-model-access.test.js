@@ -47,11 +47,12 @@ async function loadWithFetch() {
   return { ...zedAuth, ...diagnostics, ...fingerprint };
 }
 
-const json = (body, init = {}) => new Response(JSON.stringify(body), {
-  status: 200,
-  headers: { "Content-Type": "application/json" },
-  ...init,
-});
+const json = (body, init = {}) =>
+  new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
 
 beforeEach(() => {
   delete process.env.ZED_CLIENT_VERSION;
@@ -88,8 +89,10 @@ describe("Zed client fingerprint", () => {
 
 describe("Zed cloud calls carry the client identity", () => {
   it("users/me, llm_tokens and models all send the Zed User-Agent", async () => {
-    routes["/client/users/me"] = () => json({ default_organization_id: "org-1", organizations: [] });
-    const { resolveZedModels, fetchZedAuthenticatedUser, ZED_CLIENT_USER_AGENT } = await loadWithFetch();
+    routes["/client/users/me"] = () =>
+      json({ default_organization_id: "org-1", organizations: [] });
+    const { resolveZedModels, fetchZedAuthenticatedUser, ZED_CLIENT_USER_AGENT } =
+      await loadWithFetch();
     await fetchZedAuthenticatedUser(CREDS);
     await resolveZedModels(CREDS, { forceRefresh: true });
 
@@ -103,12 +106,13 @@ describe("Zed cloud calls carry the client identity", () => {
 
 describe("disabled models are kept with their reason", () => {
   it("splits enabled vs disabled instead of dropping disabled ones", async () => {
-    routes["/models"] = () => json({
-      models: [
-        MODEL("claude-sonnet-4"),
-        MODEL("claude-opus-4", { is_disabled: true, disabled_reason: "Requires Zed Pro." }),
-      ],
-    });
+    routes["/models"] = () =>
+      json({
+        models: [
+          MODEL("claude-sonnet-4"),
+          MODEL("claude-opus-4", { is_disabled: true, disabled_reason: "Requires Zed Pro." }),
+        ],
+      });
     const { resolveZedModels } = await loadWithFetch();
     const catalog = await resolveZedModels(CREDS, { forceRefresh: true });
     expect(catalog.models.map((m) => m.id)).toEqual(["claude-sonnet-4"]);
@@ -118,10 +122,11 @@ describe("disabled models are kept with their reason", () => {
   });
 
   it("surfaces x-zed-minimum-required-version on a rejected /models call", async () => {
-    routes["/models"] = () => new Response("upgrade required", {
-      status: 426,
-      headers: { "x-zed-minimum-required-version": "1.30.0" },
-    });
+    routes["/models"] = () =>
+      new Response("upgrade required", {
+        status: 426,
+        headers: { "x-zed-minimum-required-version": "1.30.0" },
+      });
     const { resolveZedModels } = await loadWithFetch();
     await expect(resolveZedModels(CREDS, { forceRefresh: true })).rejects.toThrow(
       /426 upgrade required \(Zed requires client version >= 1\.30\.0; set ZED_CLIENT_VERSION\)/,
@@ -132,11 +137,13 @@ describe("disabled models are kept with their reason", () => {
 describe("empty catalog is explained", () => {
   it("lists Zed's disabled reasons when every model is disabled", async () => {
     const { describeDisabledZedModels } = await loadWithFetch();
-    expect(describeDisabledZedModels([
-      { id: "a", disabledReason: "Requires Zed Pro." },
-      { id: "b", disabledReason: "Requires Zed Pro." },
-      { id: "c", disabledReason: null },
-    ])).toBe("Zed lists 3 model(s), but all are disabled: Requires Zed Pro.");
+    expect(
+      describeDisabledZedModels([
+        { id: "a", disabledReason: "Requires Zed Pro." },
+        { id: "b", disabledReason: "Requires Zed Pro." },
+        { id: "c", disabledReason: null },
+      ]),
+    ).toBe("Zed lists 3 model(s), but all are disabled: Requires Zed Pro.");
     expect(describeDisabledZedModels([])).toBeNull();
   });
 
@@ -146,7 +153,9 @@ describe("empty catalog is explained", () => {
       organizations: [{ id: "org-1", name: "Acme", is_personal: false }],
       configuration_by_organization: { "org-1": { is_zed_model_provider_enabled: false } },
     });
-    expect(msg).toBe(`Zed's hosted models are disabled by the "Acme" organization's configuration.`);
+    expect(msg).toBe(
+      `Zed's hosted models are disabled by the "Acme" organization's configuration.`,
+    );
   });
 
   it("reports the plan (and the free-plan hint) for the resolved organization", async () => {
@@ -167,17 +176,20 @@ describe("empty catalog is explained", () => {
   });
 
   it("explainEmptyZedCatalog looks up the account when nothing was disabled", async () => {
-    routes["/client/users/me"] = () => json({
-      default_organization_id: "org-1",
-      organizations: [{ id: "org-1", name: "Acme", is_personal: false }],
-      plans_by_organization: { "org-1": "zed_business" },
-      configuration_by_organization: { "org-1": { is_zed_model_provider_enabled: true } },
-      plan: { plan_v3: "zed_business", is_account_too_young: false, has_overdue_invoices: false },
-    });
+    routes["/client/users/me"] = () =>
+      json({
+        default_organization_id: "org-1",
+        organizations: [{ id: "org-1", name: "Acme", is_personal: false }],
+        plans_by_organization: { "org-1": "zed_business" },
+        configuration_by_organization: { "org-1": { is_zed_model_provider_enabled: true } },
+        plan: { plan_v3: "zed_business", is_account_too_young: false, has_overdue_invoices: false },
+      });
     const { explainEmptyZedCatalog, ZED_CLIENT_USER_AGENT } = await loadWithFetch();
     const msg = await explainEmptyZedCatalog(CREDS, { models: [], disabledModels: [] });
     expect(msg).toBe(`Zed returned no live models for "Acme" (plan: Zed Business).`);
-    expect(calls.find((c) => c.path === "/client/users/me").headers.get("user-agent")).toBe(ZED_CLIENT_USER_AGENT);
+    expect(calls.find((c) => c.path === "/client/users/me").headers.get("user-agent")).toBe(
+      ZED_CLIENT_USER_AGENT,
+    );
   });
 
   it("falls back to a message carrying the lookup error", async () => {

@@ -21,21 +21,43 @@ function cloakedClaudeBody() {
       { role: "system", content: "You are opencode." },
       { role: "user", content: "a long original message ".repeat(20) },
     ],
-    tools: [{ type: "function", function: { name: "read", description: "Read a file", parameters: { type: "object", properties: { path: { type: "string" } } } } }],
+    tools: [
+      {
+        type: "function",
+        function: {
+          name: "read",
+          description: "Read a file",
+          parameters: { type: "object", properties: { path: { type: "string" } } },
+        },
+      },
+    ],
   };
-  return translateRequest("openai", "claude", MODEL, openaiBody, true, { accessToken: "sk-ant-oat01-test" }, "claude");
+  return translateRequest(
+    "openai",
+    "claude",
+    MODEL,
+    openaiBody,
+    true,
+    { accessToken: "sk-ant-oat01-test" },
+    "claude",
+  );
 }
 
 // Headroom echoes the messages it was sent, with user text compressed.
 function stubHeadroom() {
   global.fetch = vi.fn(async (_url, init) => {
     const { messages } = JSON.parse(init.body);
-    return new Response(JSON.stringify({
-      messages: messages.map((m) => (m.role === "user" ? { ...m, content: "compressed text" } : m)),
-      tokens_before: 100,
-      tokens_after: 10,
-      tokens_saved: 90,
-    }), { status: 200 });
+    return new Response(
+      JSON.stringify({
+        messages: messages.map((m) =>
+          m.role === "user" ? { ...m, content: "compressed text" } : m,
+        ),
+        tokens_before: 100,
+        tokens_after: 10,
+        tokens_saved: 90,
+      }),
+      { status: 200 },
+    );
   });
 }
 
@@ -50,7 +72,12 @@ describe("compressWithHeadroom claude format", () => {
     expect(originalSystem[0].text.startsWith(BILLING_HEADER_PREFIX)).toBe(true);
     stubHeadroom();
 
-    const data = await compressWithHeadroom(body, { enabled: true, url: "http://headroom.test", model: MODEL, format: "claude" });
+    const data = await compressWithHeadroom(body, {
+      enabled: true,
+      url: "http://headroom.test",
+      model: MODEL,
+      format: "claude",
+    });
 
     expect(data).not.toBeNull();
     expect(body.system).toEqual(originalSystem);
@@ -60,10 +87,17 @@ describe("compressWithHeadroom claude format", () => {
     const body = cloakedClaudeBody();
     stubHeadroom();
 
-    await compressWithHeadroom(body, { enabled: true, url: "http://headroom.test", model: MODEL, format: "claude" });
+    await compressWithHeadroom(body, {
+      enabled: true,
+      url: "http://headroom.test",
+      model: MODEL,
+      format: "claude",
+    });
 
     const sent = JSON.parse(global.fetch.mock.calls[0][1].body).messages;
     expect(sent.map((m) => m.role)).toEqual(["user"]);
-    expect(body.messages).toEqual([{ role: "user", content: [{ type: "text", text: "compressed text" }] }]);
+    expect(body.messages).toEqual([
+      { role: "user", content: [{ type: "text", text: "compressed text" }] },
+    ]);
   });
 });

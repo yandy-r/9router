@@ -20,10 +20,7 @@ function normalizeScopes(value) {
 }
 
 export function getPublicOrigin(request) {
-  const configuredBaseUrl =
-    process.env.BASE_URL ||
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    "";
+  const configuredBaseUrl = process.env.BASE_URL || process.env.NEXT_PUBLIC_BASE_URL || "";
 
   if (configuredBaseUrl) {
     return trimTrailingSlashes(configuredBaseUrl);
@@ -134,7 +131,8 @@ export async function exchangeOidcCode({
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const message = data?.error_description || data?.error || `OIDC token exchange failed (${res.status})`;
+    const message =
+      data?.error_description || data?.error || `OIDC token exchange failed (${res.status})`;
     throw new Error(message);
   }
 
@@ -183,7 +181,11 @@ export async function probeOidcClientSecret({
     };
   }
 
-  if (error === "invalid_client" || error === "unauthorized_client" || /client.*(invalid|failed|mismatch)/i.test(errorDescription)) {
+  if (
+    error === "invalid_client" ||
+    error === "unauthorized_client" ||
+    /client.*(invalid|failed|mismatch)/i.test(errorDescription)
+  ) {
     return {
       tested: true,
       valid: false,
@@ -192,11 +194,16 @@ export async function probeOidcClientSecret({
     };
   }
 
-  if (error === "invalid_grant" || error === "invalid_code" || /grant|code/i.test(errorDescription)) {
+  if (
+    error === "invalid_grant" ||
+    error === "invalid_code" ||
+    /grant|code/i.test(errorDescription)
+  ) {
     return {
       tested: true,
       valid: true,
-      message: "Client secret was accepted; the token exchange failed only because the test authorization code is invalid.",
+      message:
+        "Client secret was accepted; the token exchange failed only because the test authorization code is invalid.",
       raw: data,
     };
   }
@@ -209,13 +216,7 @@ export async function probeOidcClientSecret({
   };
 }
 
-export async function verifyOidcIdToken({
-  idToken,
-  issuer,
-  audience,
-  jwksUri,
-  nonce,
-}) {
+export async function verifyOidcIdToken({ idToken, issuer, audience, jwksUri, nonce }) {
   const jwks = createRemoteJWKSet(new URL(jwksUri));
   const { payload } = await jwtVerify(idToken, jwks, {
     issuer,
@@ -226,7 +227,14 @@ export async function verifyOidcIdToken({
 }
 
 export function pickOidcDisplayName(payload = {}) {
-  return payload.preferred_username || payload.email || payload.name || payload.given_name || payload.sub || "OIDC user";
+  return (
+    payload.preferred_username ||
+    payload.email ||
+    payload.name ||
+    payload.given_name ||
+    payload.sub ||
+    "OIDC user"
+  );
 }
 
 export function pickOidcEmail(payload = {}) {

@@ -43,23 +43,33 @@ function refillCadence(acc) {
   return "Monthly";
 }
 
-async function getCodeBuddyUsage(providerId, accessToken, apiKey, providerSpecificData, proxyOptions = null) {
+async function getCodeBuddyUsage(
+  providerId,
+  accessToken,
+  apiKey,
+  providerSpecificData,
+  proxyOptions = null,
+) {
   const token = accessToken || apiKey;
   if (!token) {
     return { message: `CodeBuddy (${providerId}) credential not available.` };
   }
 
   try {
-    const response = await proxyAwareFetch(U(providerId).url, {
-      method: "POST",
-      headers: {
-        ...(PROVIDERS[providerId]?.headers || {}),
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
+    const response = await proxyAwareFetch(
+      U(providerId).url,
+      {
+        method: "POST",
+        headers: {
+          ...(PROVIDERS[providerId]?.headers || {}),
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: "{}",
       },
-      body: "{}",
-    }, proxyOptions);
+      proxyOptions,
+    );
 
     if (response.status === 401 || response.status === 403) {
       return { message: "CodeBuddy CN credential invalid or expired." };
@@ -137,10 +147,26 @@ async function getCodeBuddyUsage(providerId, accessToken, apiKey, providerSpecif
   }
 }
 
-export async function getCodeBuddyCnUsage(accessToken, apiKey, providerSpecificData, proxyOptions = null) {
+export async function getCodeBuddyCnUsage(
+  accessToken,
+  apiKey,
+  providerSpecificData,
+  proxyOptions = null,
+) {
   return getCodeBuddyUsage(PROVIDER_ID, accessToken, apiKey, providerSpecificData, proxyOptions);
 }
 
-export async function getCodeBuddyIntlUsage(accessToken, apiKey, providerSpecificData, proxyOptions = null) {
-  return getCodeBuddyUsage("codebuddy-intl", accessToken, apiKey, providerSpecificData, proxyOptions);
+export async function getCodeBuddyIntlUsage(
+  accessToken,
+  apiKey,
+  providerSpecificData,
+  proxyOptions = null,
+) {
+  return getCodeBuddyUsage(
+    "codebuddy-intl",
+    accessToken,
+    apiKey,
+    providerSpecificData,
+    proxyOptions,
+  );
 }

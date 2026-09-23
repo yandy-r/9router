@@ -56,10 +56,7 @@ export function decryptCallback(privateKeyDer, encryptedB64) {
   // Reconstruct the ephemeral public key as SPKI DER for Node crypto.
   // X25519 SPKI prefix: 302a300506032b656e032100
   const ephemeralPub = crypto.createPublicKey({
-    key: Buffer.concat([
-      Buffer.from("302a300506032b656e032100", "hex"),
-      ephemeralPubRaw,
-    ]),
+    key: Buffer.concat([Buffer.from("302a300506032b656e032100", "hex"), ephemeralPubRaw]),
     format: "der",
     type: "spki",
   });

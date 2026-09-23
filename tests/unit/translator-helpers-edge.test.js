@@ -28,7 +28,10 @@ describe("normalizeClaudePassthrough — haiku adaptive thinking (docs 11 §1)",
 
 describe("parseDataUri / encodeDataUri (docs 11 §4)", () => {
   it("parses a base64 data uri", () => {
-    expect(parseDataUri("data:image/png;base64,AAAB")).toEqual({ mimeType: "image/png", base64: "AAAB" });
+    expect(parseDataUri("data:image/png;base64,AAAB")).toEqual({
+      mimeType: "image/png",
+      base64: "AAAB",
+    });
   });
 
   it("tolerates newlines inside base64 payload", () => {

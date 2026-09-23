@@ -3,9 +3,7 @@ export default {
   priority: 80,
   hasFree: true,
   alias: "nanobanana",
-  aliases: [
-    "nb",
-  ],
+  aliases: ["nb"],
   uiAlias: "nb",
   display: {
     name: "NanoBanana API",
@@ -24,8 +22,8 @@ export default {
     validateUrl: "https://api.nanobananaapi.ai/v1/models",
   },
   models: [
-    { id: "nanobanana-flash", name: "NanoBanana Flash", params: ["n","size"], kind: "image" },
-    { id: "nanobanana-pro", name: "NanoBanana Pro", params: ["n","size"], kind: "image" },
+    { id: "nanobanana-flash", name: "NanoBanana Flash", params: ["n", "size"], kind: "image" },
+    { id: "nanobanana-pro", name: "NanoBanana Pro", params: ["n", "size"], kind: "image" },
   ],
   serviceKinds: ["image"],
   imageConfig: {

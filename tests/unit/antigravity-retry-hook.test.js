@@ -53,18 +53,27 @@ describe("antigravity computeRetryDelay hook (D3)", () => {
   });
 
   it("deduplicates sanitized tool names", () => {
-    const out = ag.transformRequest("claude-opus-4-6-thinking", {
-      request: {
-        contents: [{ role: "user", parts: [{ text: "hi" }] }],
-        tools: [{ functionDeclarations: [
-          { name: "read/file", parameters: { type: "object", properties: {} } },
-          { name: "read file", parameters: { type: "object", properties: {} } },
-          { name: "read/file", parameters: { type: "object", properties: {} } },
-        ] }],
+    const out = ag.transformRequest(
+      "claude-opus-4-6-thinking",
+      {
+        request: {
+          contents: [{ role: "user", parts: [{ text: "hi" }] }],
+          tools: [
+            {
+              functionDeclarations: [
+                { name: "read/file", parameters: { type: "object", properties: {} } },
+                { name: "read file", parameters: { type: "object", properties: {} } },
+                { name: "read/file", parameters: { type: "object", properties: {} } },
+              ],
+            },
+          ],
+        },
       },
-    }, true, { projectId: "project-1", connectionId: "conn-1" });
+      true,
+      { projectId: "project-1", connectionId: "conn-1" },
+    );
 
-    expect(out.request.tools[0].functionDeclarations.map(fn => fn.name)).toEqual(["read_file"]);
+    expect(out.request.tools[0].functionDeclarations.map((fn) => fn.name)).toEqual(["read_file"]);
   });
 
   it("registry uses the daily IDE cloudcode host and user agent", () => {
@@ -84,16 +93,21 @@ describe("antigravity computeRetryDelay hook (D3)", () => {
   });
 
   it("transforms chat requests with official IDE requestId shape and 64000 token cap", () => {
-    const out = ag.transformRequest("claude-opus-4-6-thinking", {
-      request: {
-        contents: [
-          { role: "user", parts: [{ text: "hi" }] },
-          { role: "model", parts: [{ text: "hello" }] },
-        ],
-        generationConfig: { maxOutputTokens: 90000 },
-        sessionId: "-3750763034362895579",
+    const out = ag.transformRequest(
+      "claude-opus-4-6-thinking",
+      {
+        request: {
+          contents: [
+            { role: "user", parts: [{ text: "hi" }] },
+            { role: "model", parts: [{ text: "hello" }] },
+          ],
+          generationConfig: { maxOutputTokens: 90000 },
+          sessionId: "-3750763034362895579",
+        },
       },
-    }, true, { projectId: "project-1", connectionId: "conn-1" });
+      true,
+      { projectId: "project-1", connectionId: "conn-1" },
+    );
 
     expect(out.requestId).toMatch(/^agent\/[0-9a-f-]{36}\/\d{13}\/[0-9a-f-]{36}\/\d+$/);
     expect(out.request.generationConfig.maxOutputTokens).toBe(64000);

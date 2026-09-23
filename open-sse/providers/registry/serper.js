@@ -8,14 +8,12 @@ export default {
     textIcon: "SP",
     website: "https://serper.dev",
     notice: {
-      apiKeyUrl: "https://serper.dev/api-key"
-    }
+      apiKeyUrl: "https://serper.dev/api-key",
+    },
   },
   category: "apikey",
   authType: "apikey",
-  serviceKinds: [
-    "webSearch"
-  ],
+  serviceKinds: ["webSearch"],
   searchConfig: {
     baseUrl: "https://google.serper.dev",
     method: "POST",
@@ -23,13 +21,10 @@ export default {
     authHeader: "x-api-key",
     costPerQuery: 0.001,
     freeMonthlyQuota: 2500,
-    searchTypes: [
-      "web",
-      "news"
-    ],
+    searchTypes: ["web", "news"],
     defaultMaxResults: 5,
     maxMaxResults: 100,
     timeoutMs: 10000,
-    cacheTTLMs: 300000
-  }
+    cacheTTLMs: 300000,
+  },
 };

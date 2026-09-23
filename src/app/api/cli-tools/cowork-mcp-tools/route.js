@@ -11,7 +11,7 @@ const TIMEOUT_MS = 8000;
 async function probeMcp(url) {
   const headers = {
     "Content-Type": "application/json",
-    "Accept": "application/json, text/event-stream",
+    Accept: "application/json, text/event-stream",
     "MCP-Protocol-Version": "2025-06-18",
   };
   const ac = new AbortController();
@@ -22,8 +22,14 @@ async function probeMcp(url) {
       method: "POST",
       headers,
       body: JSON.stringify({
-        jsonrpc: "2.0", id: 1, method: "initialize",
-        params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "9router", version: "1" } },
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "9router", version: "1" },
+        },
       }),
       signal: ac.signal,
     });
@@ -66,8 +72,13 @@ async function probeMcp(url) {
       for (const line of dataLines) {
         try {
           const obj = JSON.parse(line.replace(/^data:\s*/, ""));
-          if (obj?.id === 2 && obj.result) { parsed = obj; break; }
-        } catch { /* skip */ }
+          if (obj?.id === 2 && obj.result) {
+            parsed = obj;
+            break;
+          }
+        } catch {
+          /* skip */
+        }
       }
     } else {
       parsed = await listRes.json().catch(() => null);

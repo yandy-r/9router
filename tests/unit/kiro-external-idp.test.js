@@ -27,11 +27,12 @@ describe("Kiro external_idp (CLIProxyAPI) import and refresh", () => {
   it("refreshes Microsoft external_idp tokens with form-encoded OAuth body", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({
-        access_token: "new-access-token",
-        refresh_token: "rotated-refresh-token",
-        expires_in: 3600,
-      }),
+      json: () =>
+        Promise.resolve({
+          access_token: "new-access-token",
+          refresh_token: "rotated-refresh-token",
+          expires_in: 3600,
+        }),
     });
     global.fetch = fetchMock;
 
@@ -106,7 +107,7 @@ describe("Kiro external_idp (CLIProxyAPI) import and refresh", () => {
     expect(headers.tokentype).toBeUndefined();
 
     expect(executor.buildUrl("claude-sonnet-4.5", true, 0, credentials)).toBe(
-      "https://codewhisperer.us-east-1.amazonaws.com/generateAssistantResponse"
+      "https://codewhisperer.us-east-1.amazonaws.com/generateAssistantResponse",
     );
   });
 
@@ -176,11 +177,13 @@ describe("Kiro external_idp (CLIProxyAPI) import and refresh", () => {
       expired: new Date(Date.now() + 3600_000).toISOString(),
     };
 
-    const response = await POST(new Request("https://9router.local/api/oauth/kiro/import-cli-proxy", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cliProxyAuth }),
-    }));
+    const response = await POST(
+      new Request("https://9router.local/api/oauth/kiro/import-cli-proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cliProxyAuth }),
+      }),
+    );
     const body = await response.json();
 
     expect(response.status).toBe(200);

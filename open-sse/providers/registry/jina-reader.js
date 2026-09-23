@@ -8,14 +8,12 @@ export default {
     textIcon: "JR",
     website: "https://jina.ai/reader",
     notice: {
-      apiKeyUrl: "https://jina.ai/?sui=apikey"
-    }
+      apiKeyUrl: "https://jina.ai/?sui=apikey",
+    },
   },
   category: "apikey",
   authType: "apikey",
-  serviceKinds: [
-    "webFetch"
-  ],
+  serviceKinds: ["webFetch"],
   fetchConfig: {
     baseUrl: "https://r.jina.ai",
     method: "GET",
@@ -23,12 +21,8 @@ export default {
     authHeader: "bearer",
     costPerQuery: 0,
     freeMonthlyQuota: 1000000,
-    formats: [
-      "markdown",
-      "text",
-      "html"
-    ],
+    formats: ["markdown", "text", "html"],
     maxCharacters: 200000,
-    timeoutMs: 30000
-  }
+    timeoutMs: 30000,
+  },
 };

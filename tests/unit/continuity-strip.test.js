@@ -3,11 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/usageDb.js", () => ({
   appendRequestLog: vi.fn(async () => {}),
   saveRequestDetail: vi.fn(async () => {}),
-  saveRequestUsage: vi.fn(async () => {})
+  saveRequestUsage: vi.fn(async () => {}),
 }));
 
 const { stripContinuityFields } = await import("../../open-sse/handlers/chatCore.js");
-const { openaiResponsesToOpenAIRequest } = await import("../../open-sse/translator/request/openai-responses.js");
+const { openaiResponsesToOpenAIRequest } = await import(
+  "../../open-sse/translator/request/openai-responses.js"
+);
 
 // Multi-turn Codex-style Responses input: reasoning item carrying a
 // store=false encrypted_content continuity blob between tool turns.
@@ -23,18 +25,30 @@ const makeResponsesBody = () => ({
       type: "reasoning",
       id: "rs_1",
       summary: [{ type: "summary_text", text: "thinking" }],
-      encrypted_content: "B".repeat(5000)
+      encrypted_content: "B".repeat(5000),
     },
-    { type: "function_call", id: "fc_1", call_id: "call_1", name: "shell", arguments: "{\"command\":\"echo hi\"}" },
+    {
+      type: "function_call",
+      id: "fc_1",
+      call_id: "call_1",
+      name: "shell",
+      arguments: '{"command":"echo hi"}',
+    },
     { type: "function_call_output", call_id: "call_1", output: "hi" },
-    { role: "user", content: [{ type: "input_text", text: "Now run: echo bye" }] }
+    { role: "user", content: [{ type: "input_text", text: "Now run: echo bye" }] },
   ],
-  tools: [{
-    type: "function",
-    name: "shell",
-    description: "Run a shell command",
-    parameters: { type: "object", properties: { command: { type: "string" } }, required: ["command"] }
-  }]
+  tools: [
+    {
+      type: "function",
+      name: "shell",
+      description: "Run a shell command",
+      parameters: {
+        type: "object",
+        properties: { command: { type: "string" } },
+        required: ["command"],
+      },
+    },
+  ],
 });
 
 describe("stripContinuityFields (outbound boundary)", () => {
@@ -42,10 +56,17 @@ describe("stripContinuityFields (outbound boundary)", () => {
     const body = {
       messages: [
         { role: "user", content: "hi" },
-        { role: "assistant", content: null, reasoning_content: "thinking",
-          encrypted_content: "B".repeat(500), reasoning_encrypted_content: "alias",
-          tool_calls: [{ id: "call_1", type: "function", function: { name: "shell", arguments: "{}" } }] }
-      ]
+        {
+          role: "assistant",
+          content: null,
+          reasoning_content: "thinking",
+          encrypted_content: "B".repeat(500),
+          reasoning_encrypted_content: "alias",
+          tool_calls: [
+            { id: "call_1", type: "function", function: { name: "shell", arguments: "{}" } },
+          ],
+        },
+      ],
     };
     stripContinuityFields(body);
     const assistant = body.messages[1];

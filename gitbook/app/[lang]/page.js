@@ -8,7 +8,7 @@ import { notFound } from "next/navigation";
 export const dynamicParams = false;
 
 export async function generateStaticParams() {
-  return LANG_CODES.map(lang => ({ lang }));
+  return LANG_CODES.map((lang) => ({ lang }));
 }
 
 export default async function LangHomePage({ params }) {

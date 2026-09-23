@@ -17,7 +17,12 @@ vi.mock("open-sse/services/tokenRefresh.js", () => ({
   refreshTokenByProvider: vi.fn(),
 }));
 
-import { handleVideoProxyCore, getVideoConfig, sanitizeSecrets, VIDEO_ACTIONS } from "open-sse/handlers/videoCore.js";
+import {
+  handleVideoProxyCore,
+  getVideoConfig,
+  sanitizeSecrets,
+  VIDEO_ACTIONS,
+} from "open-sse/handlers/videoCore.js";
 import { refreshTokenByProvider } from "open-sse/services/tokenRefresh.js";
 import { PROVIDER_MEDIA, PROVIDER_MODELS } from "open-sse/providers/index.js";
 
@@ -95,7 +100,7 @@ describe("handleVideoProxyCore", () => {
 
     const boundary = "----vitestBoundary42";
     const multipartBody = Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="prompt"\r\n\r\nextend it\r\n--${boundary}--\r\n`
+      `--${boundary}\r\nContent-Disposition: form-data; name="prompt"\r\n\r\nextend it\r\n--${boundary}--\r\n`,
     );
     const result = await handleVideoProxyCore({
       provider: "xai",
@@ -133,7 +138,10 @@ describe("handleVideoProxyCore", () => {
   });
 
   it("passes a failed job (HTTP 200, status failed) through without translating", async () => {
-    const payload = { status: "failed", error: { code: "internal_error", message: "render crashed" } };
+    const payload = {
+      status: "failed",
+      error: { code: "internal_error", message: "render crashed" },
+    };
     global.fetch.mockResolvedValueOnce(jsonResponse(payload));
 
     const result = await handleVideoProxyCore({
@@ -160,7 +168,10 @@ describe("handleVideoProxyCore", () => {
     global.fetch
       .mockResolvedValueOnce(jsonResponse({ error: "expired" }, 401))
       .mockResolvedValueOnce(jsonResponse({ request_id: "req-after-refresh" }));
-    refreshTokenByProvider.mockResolvedValueOnce({ accessToken: "tok-NEW", refreshToken: "ref-NEW" });
+    refreshTokenByProvider.mockResolvedValueOnce({
+      accessToken: "tok-NEW",
+      refreshToken: "ref-NEW",
+    });
 
     const credentials = { accessToken: "tok-OLD", refreshToken: "ref-OLD" };
     const onCredentialsRefreshed = vi.fn();
@@ -178,7 +189,9 @@ describe("handleVideoProxyCore", () => {
     expect(refreshTokenByProvider).toHaveBeenCalledTimes(1);
     expect(global.fetch).toHaveBeenCalledTimes(2);
     expect(global.fetch.mock.calls[1][1].headers.Authorization).toBe("Bearer tok-NEW");
-    expect(onCredentialsRefreshed).toHaveBeenCalledWith(expect.objectContaining({ accessToken: "tok-NEW" }));
+    expect(onCredentialsRefreshed).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: "tok-NEW" }),
+    );
     expect(await result.response.json()).toEqual({ request_id: "req-after-refresh" });
   });
 
@@ -249,7 +262,10 @@ describe("handleVideoProxyCore", () => {
 
   it("sanitizes bearer tokens and credential values out of upstream errors", async () => {
     global.fetch.mockResolvedValueOnce(
-      jsonResponse({ error: "denied for Bearer sk-secret-token-value-123456 (token tok-SECRETSECRET)" }, 403)
+      jsonResponse(
+        { error: "denied for Bearer sk-secret-token-value-123456 (token tok-SECRETSECRET)" },
+        403,
+      ),
     );
 
     const result = await handleVideoProxyCore({
@@ -286,7 +302,9 @@ describe("handleVideoProxyCore", () => {
 
 describe("sanitizeSecrets", () => {
   it("redacts bearer tokens", () => {
-    expect(sanitizeSecrets("Authorization: Bearer abc.def-ghi_jkl")).not.toContain("abc.def-ghi_jkl");
+    expect(sanitizeSecrets("Authorization: Bearer abc.def-ghi_jkl")).not.toContain(
+      "abc.def-ghi_jkl",
+    );
   });
 
   it("redacts explicit credential values", () => {
@@ -296,6 +314,8 @@ describe("sanitizeSecrets", () => {
   });
 
   it("leaves normal text untouched", () => {
-    expect(sanitizeSecrets("video render failed: invalid_argument")).toBe("video render failed: invalid_argument");
+    expect(sanitizeSecrets("video render failed: invalid_argument")).toBe(
+      "video render failed: invalid_argument",
+    );
   });
 });

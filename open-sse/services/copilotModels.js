@@ -22,14 +22,16 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes per credential
 const catalogCache = new Map();
 
 function cacheKey(credentials) {
-  return credentials?.providerSpecificData?.copilotToken
-    || credentials?.accessToken
-    || "copilot-anonymous";
+  return (
+    credentials?.providerSpecificData?.copilotToken ||
+    credentials?.accessToken ||
+    "copilot-anonymous"
+  );
 }
 
 function buildHeaders(token) {
   return {
-    "Authorization": `Bearer ${token}`,
+    Authorization: `Bearer ${token}`,
     "Content-Type": "application/json",
     "Copilot-Integration-Id": "vscode-chat",
     "editor-version": `vscode/${GITHUB_COPILOT.VSCODE_VERSION}`,
@@ -124,13 +126,19 @@ export async function resolveCopilotModels(credentials, options = {}) {
               copilotTokenExpiresAt: refreshed.expiresAt,
             });
           } catch (e) {
-            options.log?.warn?.("COPILOT_MODELS", `onCredentialsRefreshed failed: ${e?.message || e}`);
+            options.log?.warn?.(
+              "COPILOT_MODELS",
+              `onCredentialsRefreshed failed: ${e?.message || e}`,
+            );
           }
         }
         try {
           raw = await fetchCatalogRaw(refreshed.token, options.signal);
         } catch (err2) {
-          options.log?.warn?.("COPILOT_MODELS", `Retry after refresh failed: ${err2?.message || err2}`);
+          options.log?.warn?.(
+            "COPILOT_MODELS",
+            `Retry after refresh failed: ${err2?.message || err2}`,
+          );
           return null;
         }
       } else {

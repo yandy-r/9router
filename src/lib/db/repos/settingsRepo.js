@@ -98,7 +98,7 @@ export async function getSettings() {
 export async function updateSettings(updates) {
   const db = await getAdapter();
   let next;
-  db.transaction(function () {
+  db.transaction(() => {
     const row = db.get(`SELECT data FROM settings WHERE id = 1`);
     const current = row ? parseJson(row.data, {}) : {};
     next = { ...current, ...updates };
@@ -117,12 +117,7 @@ export async function isCloudEnabled() {
 
 export async function getCloudUrl() {
   const settings = await getSettings();
-  return (
-    settings.cloudUrl ||
-    process.env.CLOUD_URL ||
-    process.env.NEXT_PUBLIC_CLOUD_URL ||
-    ""
-  );
+  return settings.cloudUrl || process.env.CLOUD_URL || process.env.NEXT_PUBLIC_CLOUD_URL || "";
 }
 
 export async function exportSettings() {

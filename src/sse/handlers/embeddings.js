@@ -19,7 +19,13 @@ function exactEmbeddingUsage(raw) {
   const promptTokens = raw.prompt_tokens ?? raw.input_tokens;
   const completionTokens = raw.completion_tokens ?? raw.output_tokens ?? 0;
   const totalTokens = raw.total_tokens;
-  if (!Number.isSafeInteger(promptTokens) || promptTokens <= 0 || completionTokens !== 0 || totalTokens !== promptTokens) return null;
+  if (
+    !Number.isSafeInteger(promptTokens) ||
+    promptTokens <= 0 ||
+    completionTokens !== 0 ||
+    totalTokens !== promptTokens
+  )
+    return null;
   return { prompt_tokens: promptTokens, completion_tokens: 0, total_tokens: totalTokens };
 }
 
@@ -101,16 +107,28 @@ export async function handleEmbeddings(request) {
     if (!credentials || credentials.allRateLimited) {
       if (credentials?.allRateLimited) {
         const errorMsg = lastError || credentials.lastError || "Unavailable";
-        const status = lastStatus || Number(credentials.lastErrorCode) || HTTP_STATUS.SERVICE_UNAVAILABLE;
-        log.warn("EMBEDDINGS", `[${provider}/${model}] ${errorMsg} (${credentials.retryAfterHuman})`);
-        return unavailableResponse(status, `[${provider}/${model}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman);
+        const status =
+          lastStatus || Number(credentials.lastErrorCode) || HTTP_STATUS.SERVICE_UNAVAILABLE;
+        log.warn(
+          "EMBEDDINGS",
+          `[${provider}/${model}] ${errorMsg} (${credentials.retryAfterHuman})`,
+        );
+        return unavailableResponse(
+          status,
+          `[${provider}/${model}] ${errorMsg}`,
+          credentials.retryAfter,
+          credentials.retryAfterHuman,
+        );
       }
       if (excludeConnectionIds.size === 0) {
         log.error("AUTH", `No credentials for provider: ${provider}`);
         return errorResponse(HTTP_STATUS.BAD_REQUEST, `No credentials for provider: ${provider}`);
       }
       log.warn("EMBEDDINGS", "No more accounts available", { provider });
-      return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, lastError || "All accounts unavailable");
+      return errorResponse(
+        lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE,
+        lastError || "All accounts unavailable",
+      );
     }
 
     log.info("AUTH", `\x1b[32mUsing ${provider} account: ${credentials.connectionName}\x1b[0m`);
@@ -126,12 +144,12 @@ export async function handleEmbeddings(request) {
         await updateProviderCredentials(credentials.connectionId, {
           ...newCreds,
           existingProviderSpecificData: credentials.providerSpecificData,
-          testStatus: "active"
+          testStatus: "active",
         });
       },
       onRequestSuccess: async () => {
         await clearAccountError(credentials.connectionId, credentials, model);
-      }
+      },
     });
 
     if (result.success) {
@@ -150,10 +168,19 @@ export async function handleEmbeddings(request) {
       return result.response;
     }
 
-    const { shouldFallback } = await markAccountUnavailable(credentials.connectionId, result.status, result.error, provider, model);
+    const { shouldFallback } = await markAccountUnavailable(
+      credentials.connectionId,
+      result.status,
+      result.error,
+      provider,
+      model,
+    );
 
     if (shouldFallback) {
-      log.warn("AUTH", `Account ${credentials.connectionName} unavailable (${result.status}), trying fallback`);
+      log.warn(
+        "AUTH",
+        `Account ${credentials.connectionName} unavailable (${result.status}), trying fallback`,
+      );
       excludeConnectionIds.add(credentials.connectionId);
       lastError = result.error;
       lastStatus = result.status;

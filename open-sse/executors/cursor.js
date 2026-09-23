@@ -40,7 +40,7 @@ const COMPRESS_FLAG = {
   NONE: 0x00,
   GZIP: 0x01,
   TRAILER: 0x02,
-  GZIP_TRAILER: 0x03
+  GZIP_TRAILER: 0x03,
 };
 
 const AGENT_RUN_PATH = "/agent.v1.AgentService/Run";
@@ -84,7 +84,9 @@ function encodeHistoryMessage(message) {
   const extras = [];
   if (message?.role === ROLE.ASSISTANT && message.tool_calls?.length) {
     for (const tc of message.tool_calls) {
-      extras.push(`[tool_call id=${tc.id || ""} name=${tc.function?.name || "tool"} args=${tc.function?.arguments || "{}"}]`);
+      extras.push(
+        `[tool_call id=${tc.id || ""} name=${tc.function?.name || "tool"} args=${tc.function?.arguments || "{}"}]`,
+      );
     }
   }
   if (message?.role === ROLE.TOOL) {
@@ -125,11 +127,14 @@ export function buildAgentRunFrame(messages, model, tools = [], { images = [] } 
   const currentMessageIndex = messages.indexOf(current);
   const historical = allImages.filter((image) => image.messageIndex !== currentMessageIndex);
   const imageRefs = historical.length
-    ? `\n\n${historical.map((image, index) => {
-      const turn = messages.slice(0, image.messageIndex + 1)
-        .filter((message) => message?.role !== ROLE.SYSTEM).length;
-      return `[image ${index + 1} from prior turn ${turn}]`;
-    }).join("\n")}`
+    ? `\n\n${historical
+        .map((image, index) => {
+          const turn = messages
+            .slice(0, image.messageIndex + 1)
+            .filter((message) => message?.role !== ROLE.SYSTEM).length;
+          return `[image ${index + 1} from prior turn ${turn}]`;
+        })
+        .join("\n")}`
     : "";
   const userText = `${system ? `${system}\n\n` : ""}${rawUser}${imageRefs}`;
   const selectedContext = encodeSelectedContextImages(allImages);
@@ -223,7 +228,16 @@ function createRequestContextResponse(execRequest) {
 
 // ExecServerMessage variant → ExecClientMessage result field (same numbers).
 const EXEC_RESULT_FIELD = {
-  2: 2, 3: 3, 4: 4, 5: 5, 7: 7, 8: 8, 9: 9, 16: 16, 20: 20, 23: 23,
+  2: 2,
+  3: 3,
+  4: 4,
+  5: 5,
+  7: 7,
+  8: 8,
+  9: 9,
+  16: 16,
+  20: 20,
+  23: 23,
 };
 
 function rejectExecRequest(execRequest) {
@@ -233,7 +247,10 @@ function rejectExecRequest(execRequest) {
   if (!resultField) return null;
   // Diagnostics has no rejected variant — empty success unblocks the stream.
   if (variant === 9) return wrapExecClientMessage(id, execId, 9, new Uint8Array());
-  const rejected = agentMessage(2, agentString(2, "Tool not available in this environment. Use the MCP tools provided instead."));
+  const rejected = agentMessage(
+    2,
+    agentString(2, "Tool not available in this environment. Use the MCP tools provided instead."),
+  );
   return wrapExecClientMessage(id, execId, resultField, rejected);
 }
 
@@ -251,7 +268,9 @@ const debugLog = (...args) => {
 };
 
 function isComposerModel(model) {
-  const modelId = String(model || "").split("/").pop();
+  const modelId = String(model || "")
+    .split("/")
+    .pop();
   return /^composer(?:-|$)/i.test(modelId);
 }
 
@@ -285,9 +304,19 @@ export function classifyCursorError(jsonError) {
     };
   }
   if (jsonError?.error?.code === "resource_exhausted") {
-    return { status: HTTP_STATUS.RATE_LIMITED, type: "rate_limit_error", code: debug?.error || "resource_exhausted", message };
+    return {
+      status: HTTP_STATUS.RATE_LIMITED,
+      type: "rate_limit_error",
+      code: debug?.error || "resource_exhausted",
+      message,
+    };
   }
-  return { status: HTTP_STATUS.BAD_REQUEST, type: "api_error", code: debug?.error || jsonError?.error?.code || "unknown", message };
+  return {
+    status: HTTP_STATUS.BAD_REQUEST,
+    type: "api_error",
+    code: debug?.error || jsonError?.error?.code || "unknown",
+    message,
+  };
 }
 
 // Connect end-of-stream trailer frame → JSON error, if any.
@@ -351,8 +380,12 @@ export class CursorExecutor extends BaseExecutor {
     };
 
     const close = () => {
-      try { req?.destroy(); } catch {}
-      try { client.close(); } catch {}
+      try {
+        req?.destroy();
+      } catch {}
+      try {
+        client.close();
+      } catch {}
     };
 
     client.on("error", fail);
@@ -401,7 +434,9 @@ export class CursorExecutor extends BaseExecutor {
         if (req && !req.destroyed) req.write(Buffer.from(frame));
       },
       end() {
-        try { if (req && !req.destroyed) req.end(); } catch {}
+        try {
+          if (req && !req.destroyed) req.end();
+        } catch {}
       },
       close,
       async read() {
@@ -410,7 +445,9 @@ export class CursorExecutor extends BaseExecutor {
           if (streamError) throw streamError;
           return { value: undefined, done: true };
         }
-        const result = await new Promise((resolve) => { waiting = resolve; });
+        const result = await new Promise((resolve) => {
+          waiting = resolve;
+        });
         if (streamError) throw streamError;
         return result || { value: undefined, done: true };
       },
@@ -426,7 +463,9 @@ export class CursorExecutor extends BaseExecutor {
     const requestController = new AbortController();
     if (signal?.aborted) requestController.abort(signal.reason);
     else if (signal?.addEventListener) {
-      signal.addEventListener("abort", () => requestController.abort(signal.reason), { once: true });
+      signal.addEventListener("abort", () => requestController.abort(signal.reason), {
+        once: true,
+      });
     }
 
     let session;
@@ -434,11 +473,15 @@ export class CursorExecutor extends BaseExecutor {
     try {
       // Resolve + validate images before opening the stream: failures are
       // request-scoped, account-neutral errors, never silently dropped media.
-      const images = await resolveCursorImages(body.messages || [], { signal: requestController.signal });
+      const images = await resolveCursorImages(body.messages || [], {
+        signal: requestController.signal,
+      });
       session = this.openAgentHttp2Stream(url, headers, requestController.signal);
       session.write(buildAgentRunFrame(body.messages || [], model, tools, { images }));
     } catch (error) {
-      try { session?.close(); } catch {}
+      try {
+        session?.close();
+      } catch {}
       if (error instanceof CursorImageError) throw error;
       throw new Error(`Cursor AgentService request failed: ${error.message}`);
     }
@@ -465,14 +508,25 @@ export class CursorExecutor extends BaseExecutor {
       // Classify structured Connect errors (Update Required, quota); fall back
       // to the raw upstream status otherwise.
       let classified = null;
-      try { classified = JSON.parse(errorText); } catch {}
+      try {
+        classified = JSON.parse(errorText);
+      } catch {}
       const detail = classified?.error ? classifyCursorError(classified) : null;
       return {
-        response: new Response(JSON.stringify({
-          error: detail
-            ? { message: detail.message, type: detail.type, code: detail.code }
-            : { message: `Cursor AgentService ${status}: ${errorText || "request failed"}`, type: "api_error" },
-        }), { status: detail?.status || status || HTTP_STATUS.SERVER_ERROR, headers: { "Content-Type": "application/json" } }),
+        response: new Response(
+          JSON.stringify({
+            error: detail
+              ? { message: detail.message, type: detail.type, code: detail.code }
+              : {
+                  message: `Cursor AgentService ${status}: ${errorText || "request failed"}`,
+                  type: "api_error",
+                },
+          }),
+          {
+            status: detail?.status || status || HTTP_STATUS.SERVER_ERROR,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
         url,
         headers,
         transformedBody: body,
@@ -509,110 +563,136 @@ export class CursorExecutor extends BaseExecutor {
           const { done, value } = await session.read();
           if (done) break;
           pending = Buffer.concat([pending, Buffer.from(value)]);
-          pending = decodeAgentFrames(pending, (payload) => {
-            // A single read can carry several frames; once the turn is over the
-            // rest of the batch must not reach the already-closed controller.
-            if (finished) return;
-            const serverMessage = decodeMessage(payload);
+          pending = decodeAgentFrames(
+            pending,
+            (payload) => {
+              // A single read can carry several frames; once the turn is over the
+              // rest of the batch must not reach the already-closed controller.
+              if (finished) return;
+              const serverMessage = decodeMessage(payload);
 
-            // agent.v1.AgentServerMessage.interaction_update
-            if (serverMessage.has(1)) {
-              const update = decodeMessage(serverMessage.get(1)[0].value);
-              if (update.has(1)) {
-                const textDelta = extractAgentString(decodeMessage(update.get(1)[0].value), 1);
-                if (textDelta) {
-                  emittedText = true;
-                  onEvent({ type: "text", value: textDelta });
+              // agent.v1.AgentServerMessage.interaction_update
+              if (serverMessage.has(1)) {
+                const update = decodeMessage(serverMessage.get(1)[0].value);
+                if (update.has(1)) {
+                  const textDelta = extractAgentString(decodeMessage(update.get(1)[0].value), 1);
+                  if (textDelta) {
+                    emittedText = true;
+                    onEvent({ type: "text", value: textDelta });
+                  }
                 }
-              }
-              // thinking_delta (field 4). Composer (and some Grok variants) put
-              // the visible answer after </think> here and never send text_delta.
-              if (update.has(4)) {
-                const thinkingDelta = extractAgentString(decodeMessage(update.get(4)[0].value), 1);
-                if (thinkingDelta) {
-                  thinkingAcc += thinkingDelta;
-                  if (composerModel) {
-                    const visible = visibleComposerContentFromThinking(thinkingAcc);
-                    if (visible.length > emittedVisible) {
-                      const deltaContent = visible.slice(emittedVisible);
-                      emittedVisible = visible.length;
-                      emittedText = true;
-                      onEvent({ type: "text", value: deltaContent });
+                // thinking_delta (field 4). Composer (and some Grok variants) put
+                // the visible answer after </think> here and never send text_delta.
+                if (update.has(4)) {
+                  const thinkingDelta = extractAgentString(
+                    decodeMessage(update.get(4)[0].value),
+                    1,
+                  );
+                  if (thinkingDelta) {
+                    thinkingAcc += thinkingDelta;
+                    if (composerModel) {
+                      const visible = visibleComposerContentFromThinking(thinkingAcc);
+                      if (visible.length > emittedVisible) {
+                        const deltaContent = visible.slice(emittedVisible);
+                        emittedVisible = visible.length;
+                        emittedText = true;
+                        onEvent({ type: "text", value: deltaContent });
+                      }
                     }
                   }
                 }
-              }
-              // Keep unsigned reasoning upstream-only for Anthropic clients.
-              if (update.has(14)) {
-                flushThinkingFallback(onEvent);
-                finished = true;
-                onEvent({ type: "done" });
-              }
-            }
-
-            // KvServerMessage (field 4): get/set blob. Ack so the stream proceeds.
-            if (serverMessage.has(4)) {
-              const kv = decodeMessage(serverMessage.get(4)[0].value);
-              const kvId = kv.get(1)?.[0]?.value || 0;
-              const metadata = kv.get(4)?.[0]?.value || null;
-              if (kv.has(2)) {
-                session.write(encodeKvClientMessage(kvId, 2, agentMessage(1, new Uint8Array()), metadata));
-              } else if (kv.has(3)) {
-                session.write(encodeKvClientMessage(kvId, 3, new Uint8Array(), metadata));
-              }
-            }
-
-            // AgentService requests IDE context before producing a response.
-            if (serverMessage.has(2)) {
-              const execRequest = decodeMessage(serverMessage.get(2)[0].value);
-              if (execRequest.has(10)) {
-                log?.info?.("CURSOR", "AgentService request_context ack");
-                session.write(createRequestContextResponse(execRequest));
-              } else if (execRequest.has(11)) {
-                const mcp = decodeMcpArgs(execRequest.get(11)[0].value);
-                const name = mcp.toolName || mcp.name;
-                if (name) {
-                  log?.info?.("CURSOR", `AgentService MCP tool_call ${name}`);
+                // Keep unsigned reasoning upstream-only for Anthropic clients.
+                if (update.has(14)) {
+                  flushThinkingFallback(onEvent);
                   finished = true;
-                  onEvent({
-                    type: "tool_call",
-                    value: {
-                      id: mcp.toolCallId || `call_${crypto.randomUUID()}`,
-                      name,
-                      arguments: JSON.stringify(mcp.args || {}),
-                    },
-                  });
-                  onEvent({ type: "done", finishReason: "tool_calls" });
-                } else {
-                  debugLog(`[CURSOR AGENT] Unsupported exec request fields: ${[...execRequest.keys()].join(",")}`);
-                  finished = true;
-                  onEvent({ type: "error", value: "Cursor AgentService requested an unsupported IDE tool" });
-                }
-              } else {
-                // Auto/Composer often probe IDE builtins (shell/read/…). Reject
-                // them so the model can continue with MCP tools or a text answer
-                // instead of stalling the h2 stream.
-                const rejection = rejectExecRequest(execRequest);
-                if (rejection) {
-                  log?.info?.("CURSOR", `AgentService rejected IDE exec fields=${[...execRequest.keys()].join(",")}`);
-                  session.write(rejection);
-                } else {
-                  debugLog(`[CURSOR AGENT] Unsupported exec request fields: ${[...execRequest.keys()].join(",")}`);
-                  finished = true;
-                  onEvent({ type: "error", value: "Cursor AgentService requested an unsupported IDE tool" });
+                  onEvent({ type: "done" });
                 }
               }
-            }
-          }, (trailer) => {
-            const trailerError = parseConnectTrailerError(trailer);
-            if (!trailerError || finished) return;
-            finished = true;
-            onEvent({ type: "error", value: classifyCursorError(trailerError) });
-          });
+
+              // KvServerMessage (field 4): get/set blob. Ack so the stream proceeds.
+              if (serverMessage.has(4)) {
+                const kv = decodeMessage(serverMessage.get(4)[0].value);
+                const kvId = kv.get(1)?.[0]?.value || 0;
+                const metadata = kv.get(4)?.[0]?.value || null;
+                if (kv.has(2)) {
+                  session.write(
+                    encodeKvClientMessage(kvId, 2, agentMessage(1, new Uint8Array()), metadata),
+                  );
+                } else if (kv.has(3)) {
+                  session.write(encodeKvClientMessage(kvId, 3, new Uint8Array(), metadata));
+                }
+              }
+
+              // AgentService requests IDE context before producing a response.
+              if (serverMessage.has(2)) {
+                const execRequest = decodeMessage(serverMessage.get(2)[0].value);
+                if (execRequest.has(10)) {
+                  log?.info?.("CURSOR", "AgentService request_context ack");
+                  session.write(createRequestContextResponse(execRequest));
+                } else if (execRequest.has(11)) {
+                  const mcp = decodeMcpArgs(execRequest.get(11)[0].value);
+                  const name = mcp.toolName || mcp.name;
+                  if (name) {
+                    log?.info?.("CURSOR", `AgentService MCP tool_call ${name}`);
+                    finished = true;
+                    onEvent({
+                      type: "tool_call",
+                      value: {
+                        id: mcp.toolCallId || `call_${crypto.randomUUID()}`,
+                        name,
+                        arguments: JSON.stringify(mcp.args || {}),
+                      },
+                    });
+                    onEvent({ type: "done", finishReason: "tool_calls" });
+                  } else {
+                    debugLog(
+                      `[CURSOR AGENT] Unsupported exec request fields: ${[...execRequest.keys()].join(",")}`,
+                    );
+                    finished = true;
+                    onEvent({
+                      type: "error",
+                      value: "Cursor AgentService requested an unsupported IDE tool",
+                    });
+                  }
+                } else {
+                  // Auto/Composer often probe IDE builtins (shell/read/…). Reject
+                  // them so the model can continue with MCP tools or a text answer
+                  // instead of stalling the h2 stream.
+                  const rejection = rejectExecRequest(execRequest);
+                  if (rejection) {
+                    log?.info?.(
+                      "CURSOR",
+                      `AgentService rejected IDE exec fields=${[...execRequest.keys()].join(",")}`,
+                    );
+                    session.write(rejection);
+                  } else {
+                    debugLog(
+                      `[CURSOR AGENT] Unsupported exec request fields: ${[...execRequest.keys()].join(",")}`,
+                    );
+                    finished = true;
+                    onEvent({
+                      type: "error",
+                      value: "Cursor AgentService requested an unsupported IDE tool",
+                    });
+                  }
+                }
+              }
+            },
+            (trailer) => {
+              const trailerError = parseConnectTrailerError(trailer);
+              if (!trailerError || finished) return;
+              finished = true;
+              onEvent({ type: "error", value: classifyCursorError(trailerError) });
+            },
+          );
         }
       } finally {
-        try { session.end(); } catch {}
-        try { session.close(); } catch {}
+        try {
+          session.end();
+        } catch {}
+        try {
+          session.close();
+        } catch {}
         if (!finished) {
           flushThinkingFallback(onEvent);
           onEvent({ type: "done" });
@@ -636,21 +716,30 @@ export class CursorExecutor extends BaseExecutor {
             function: { name: event.value.name, arguments: event.value.arguments },
           });
           finishReason = "tool_calls";
-        }
-        else if (event.type === "error") agentError = event.value;
+        } else if (event.type === "error") agentError = event.value;
         else if (event.type === "done" && event.finishReason) finishReason = event.finishReason;
       });
       if (agentError) {
         // Structured upstream errors keep their classified status (Update
         // Required → 400, quota → 429); protocol errors are request-scoped 400.
-        const detail = typeof agentError === "string"
-          ? { status: HTTP_STATUS.BAD_REQUEST, message: agentError, type: "api_error" }
-          : agentError;
+        const detail =
+          typeof agentError === "string"
+            ? { status: HTTP_STATUS.BAD_REQUEST, message: agentError, type: "api_error" }
+            : agentError;
         return {
-          response: new Response(JSON.stringify({ error: { message: detail.message, type: detail.type, ...(detail.code ? { code: detail.code } : {}) } }), {
-            status: detail.status,
-            headers: { "Content-Type": "application/json" },
-          }),
+          response: new Response(
+            JSON.stringify({
+              error: {
+                message: detail.message,
+                type: detail.type,
+                ...(detail.code ? { code: detail.code } : {}),
+              },
+            }),
+            {
+              status: detail.status,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
           url,
           headers,
           transformedBody: body,
@@ -664,14 +753,17 @@ export class CursorExecutor extends BaseExecutor {
         ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
       };
       return {
-        response: new Response(JSON.stringify({
-          id: responseId,
-          object: "chat.completion",
-          created,
-          model,
-          choices: [{ index: 0, message, finish_reason: finishReason }],
-          usage: estimateUsage(body, content.length, FORMATS.OPENAI),
-        }), { headers: { "Content-Type": "application/json" } }),
+        response: new Response(
+          JSON.stringify({
+            id: responseId,
+            object: "chat.completion",
+            created,
+            model,
+            choices: [{ index: 0, message, finish_reason: finishReason }],
+            usage: estimateUsage(body, content.length, FORMATS.OPENAI),
+          }),
+          { headers: { "Content-Type": "application/json" } },
+        ),
         url,
         headers,
         transformedBody: body,
@@ -684,36 +776,65 @@ export class CursorExecutor extends BaseExecutor {
       start(controller) {
         consume((event) => {
           if (event.type === "text") {
-            controller.enqueue(encoder.encode(chatChunkSse({ id: responseId, created, model, delta: { content: event.value } })));
+            controller.enqueue(
+              encoder.encode(
+                chatChunkSse({ id: responseId, created, model, delta: { content: event.value } }),
+              ),
+            );
           } else if (event.type === "thinking") {
-            controller.enqueue(encoder.encode(chatChunkSse({ id: responseId, created, model, delta: { reasoning_content: event.value } })));
+            controller.enqueue(
+              encoder.encode(
+                chatChunkSse({
+                  id: responseId,
+                  created,
+                  model,
+                  delta: { reasoning_content: event.value },
+                }),
+              ),
+            );
           } else if (event.type === "tool_call") {
-            controller.enqueue(encoder.encode(chatChunkSse({
-              id: responseId, created, model,
-              delta: {
-                tool_calls: [{
-                  index: 0,
-                  id: event.value.id,
-                  type: "function",
-                  function: { name: event.value.name, arguments: event.value.arguments },
-                }],
-              },
-            })));
+            controller.enqueue(
+              encoder.encode(
+                chatChunkSse({
+                  id: responseId,
+                  created,
+                  model,
+                  delta: {
+                    tool_calls: [
+                      {
+                        index: 0,
+                        id: event.value.id,
+                        type: "function",
+                        function: { name: event.value.name, arguments: event.value.arguments },
+                      },
+                    ],
+                  },
+                }),
+              ),
+            );
           } else if (event.type === "error") {
             // An SSE error frame, not a content delta: a protocol failure must not
             // be rendered to the user as the assistant's reply, and downstream
             // usage tracking must not record the turn as a success.
-            const detail = typeof event.value === "string"
-              ? { message: event.value, type: "api_error" }
-              : { message: event.value.message, type: event.value.type, code: event.value.code };
+            const detail =
+              typeof event.value === "string"
+                ? { message: event.value, type: "api_error" }
+                : { message: event.value.message, type: event.value.type, code: event.value.code };
             controller.enqueue(encoder.encode(sseChunk({ error: detail })));
             controller.enqueue(encoder.encode(SSE_DONE));
             controller.close();
           } else if (event.type === "done") {
-            controller.enqueue(encoder.encode(chatChunkSse({
-              id: responseId, created, model, delta: {},
-              finishReason: event.finishReason || "stop",
-            })));
+            controller.enqueue(
+              encoder.encode(
+                chatChunkSse({
+                  id: responseId,
+                  created,
+                  model,
+                  delta: {},
+                  finishReason: event.finishReason || "stop",
+                }),
+              ),
+            );
             controller.enqueue(encoder.encode(SSE_DONE));
             controller.close();
           }
@@ -737,7 +858,8 @@ export class CursorExecutor extends BaseExecutor {
     const agentUrl = `${PROVIDER_OAUTH.cursor?.agentEndpoint || ""}${AGENT_RUN_PATH}`;
     const errorResult = (status, message, type, code) => ({
       response: new Response(JSON.stringify({ error: { message, type, code } }), {
-        status, headers: { "Content-Type": "application/json" },
+        status,
+        headers: { "Content-Type": "application/json" },
       }),
       url: agentUrl,
       headers: {},
@@ -748,13 +870,20 @@ export class CursorExecutor extends BaseExecutor {
     // Honour strictProxy by failing instead of silently going direct; add an
     // h2-over-CONNECT tunnel when proxied Cursor traffic is needed.
     if (proxyOptions?.strictProxy === true) {
-      return errorResult(HTTP_STATUS.BAD_REQUEST,
+      return errorResult(
+        HTTP_STATUS.BAD_REQUEST,
         "Cursor AgentService is HTTP/2-only and cannot use the configured proxy (strictProxy=true)",
-        "invalid_request_error", "cursor_proxy_unsupported");
+        "invalid_request_error",
+        "cursor_proxy_unsupported",
+      );
     }
     if (!isAgentCapableRequest(body)) {
-      return errorResult(HTTP_STATUS.BAD_REQUEST, "Cursor AgentService: request has no messages",
-        "invalid_request_error", "empty_request");
+      return errorResult(
+        HTTP_STATUS.BAD_REQUEST,
+        "Cursor AgentService: request has no messages",
+        "invalid_request_error",
+        "empty_request",
+      );
     }
     try {
       return await this.executeAgent({ model, body, stream, credentials, signal, log });
@@ -762,7 +891,12 @@ export class CursorExecutor extends BaseExecutor {
       // Invalid images are the caller's fault — request-scoped 400, never an
       // account-level failure that would rotate or cool down Cursor accounts.
       if (error instanceof CursorImageError) {
-        return errorResult(HTTP_STATUS.BAD_REQUEST, error.message, "invalid_request_error", "invalid_image");
+        return errorResult(
+          HTTP_STATUS.BAD_REQUEST,
+          error.message,
+          "invalid_request_error",
+          "invalid_image",
+        );
       }
       return errorResult(HTTP_STATUS.SERVER_ERROR, error.message, "connection_error", "");
     }

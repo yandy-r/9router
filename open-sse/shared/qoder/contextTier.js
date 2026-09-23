@@ -27,14 +27,18 @@ const UNIT = { K: 1_000, M: 1_000_000 };
 export function parseTierTokenCount(value) {
   if (typeof value === "number") return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
   if (typeof value !== "string") return 0;
-  const m = value.trim().toUpperCase().match(/^(\d+(?:\.\d+)?)\s*([KM])?$/);
+  const m = value
+    .trim()
+    .toUpperCase()
+    .match(/^(\d+(?:\.\d+)?)\s*([KM])?$/);
   if (!m) return 0;
   const n = Number(m[1]) * (UNIT[m[2]] || 1);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
 function tierName(entry, tokenCount) {
-  const raw = entry.name ?? entry.label ?? entry.display_name ?? entry.displayName ?? entry.key ?? entry.id;
+  const raw =
+    entry.name ?? entry.label ?? entry.display_name ?? entry.displayName ?? entry.key ?? entry.id;
   if (typeof raw === "string" && raw.trim()) return raw.trim();
   if (tokenCount >= UNIT.M && tokenCount % UNIT.M === 0) return `${tokenCount / UNIT.M}M`;
   if (tokenCount >= UNIT.K && tokenCount % UNIT.K === 0) return `${tokenCount / UNIT.K}K`;
@@ -52,15 +56,21 @@ export function getQoderContextTiers(modelConfig) {
   for (const entry of list) {
     if (!entry || typeof entry !== "object") continue;
     const tokenCount = parseTierTokenCount(
-      entry.tokenCount ?? entry.token_count ?? entry.max_input_tokens ?? entry.maxInputTokens ?? entry.contextLength ?? entry.context_length,
+      entry.tokenCount ??
+        entry.token_count ??
+        entry.max_input_tokens ??
+        entry.maxInputTokens ??
+        entry.contextLength ??
+        entry.context_length,
     );
     if (!tokenCount) continue;
-    const isDefault = entry.isDefault === true || entry.is_default === true || entry.default === true;
+    const isDefault =
+      entry.isDefault === true || entry.is_default === true || entry.default === true;
     const prev = byCount.get(tokenCount);
     byCount.set(tokenCount, {
       name: tierName(entry, tokenCount),
       tokenCount,
-      isDefault: (prev?.isDefault || false) || isDefault,
+      isDefault: prev?.isDefault || false || isDefault,
     });
   }
   return [...byCount.values()].sort((a, b) => a.tokenCount - b.tokenCount);
@@ -76,7 +86,8 @@ const CJK_RE = /[\u1100-\u11ff\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uff
 export function estimateQoderPromptTokens({ system, messages, tools } = {}) {
   let text = "";
   try {
-    text = JSON.stringify({ system: system || "", messages: messages || [], tools: tools || [] }) || "";
+    text =
+      JSON.stringify({ system: system || "", messages: messages || [], tools: tools || [] }) || "";
   } catch {
     return 0;
   }
@@ -92,7 +103,13 @@ function normalizeMode(preference) {
 function findNamedTier(tiers, name) {
   const wanted = name.replace(/\s+/g, "").toUpperCase();
   const asCount = parseTierTokenCount(wanted);
-  return tiers.find((t) => t.name.replace(/\s+/g, "").toUpperCase() === wanted || (asCount && t.tokenCount === asCount)) || null;
+  return (
+    tiers.find(
+      (t) =>
+        t.name.replace(/\s+/g, "").toUpperCase() === wanted ||
+        (asCount && t.tokenCount === asCount),
+    ) || null
+  );
 }
 
 /**
@@ -112,7 +129,8 @@ export function resolveQoderContextTier(modelConfig, prompt, options = {}) {
   const largest = tiers[tiers.length - 1];
   const defaultTier = tiers.find((t) => t.isDefault) || tiers[0];
   const estimatedTokens = estimateQoderPromptTokens(prompt);
-  const headroom = typeof options.headroom === "number" ? options.headroom : QODER_CONTEXT_TIER_HEADROOM;
+  const headroom =
+    typeof options.headroom === "number" ? options.headroom : QODER_CONTEXT_TIER_HEADROOM;
   const need = Math.ceil(estimatedTokens * (1 + headroom));
 
   if (mode.toLowerCase() === QODER_CONTEXT_TIER_MODES.MAX) {
@@ -128,7 +146,9 @@ export function resolveQoderContextTier(modelConfig, prompt, options = {}) {
   }
 
   // auto: keep the upstream default (current behaviour) while the prompt fits in it.
-  const currentMax = parseTierTokenCount(modelConfig?.max_input_tokens ?? modelConfig?.maxInputTokens);
+  const currentMax = parseTierTokenCount(
+    modelConfig?.max_input_tokens ?? modelConfig?.maxInputTokens,
+  );
   const currentLimit = currentMax || defaultTier.tokenCount;
   if (need <= currentLimit) return null;
 

@@ -11,12 +11,24 @@ import { ROLE, OPENAI_BLOCK, RESPONSES_ITEM } from "../schema/index.js";
 export function normalizeResponsesInput(input) {
   if (typeof input === "string") {
     const text = input.trim() === "" ? "..." : input;
-    return [{ type: RESPONSES_ITEM.MESSAGE, role: ROLE.USER, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text }] }];
+    return [
+      {
+        type: RESPONSES_ITEM.MESSAGE,
+        role: ROLE.USER,
+        content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text }],
+      },
+    ];
   }
   if (Array.isArray(input)) {
     // Empty input[] would produce messages:[] which all providers reject (#389)
     if (input.length === 0) {
-      return [{ type: RESPONSES_ITEM.MESSAGE, role: ROLE.USER, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "..." }] }];
+      return [
+        {
+          type: RESPONSES_ITEM.MESSAGE,
+          role: ROLE.USER,
+          content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "..." }],
+        },
+      ];
     }
     return input;
   }
@@ -79,13 +91,15 @@ export function coerceResponsesOutput(value) {
   if (typeof value === "string") return value;
   if (value === undefined || value === null) return "";
   if (Array.isArray(value)) {
-    return value.map((c) => {
-      try {
-        return c?.text ?? JSON.stringify(c);
-      } catch {
-        return String(c);
-      }
-    }).join("");
+    return value
+      .map((c) => {
+        try {
+          return c?.text ?? JSON.stringify(c);
+        } catch {
+          return String(c);
+        }
+      })
+      .join("");
   }
   try {
     return JSON.stringify(value);
@@ -112,7 +126,7 @@ export function convertResponsesApiFormat(body) {
 
   // Group items by conversation turn
   let currentAssistantMsg = null;
-  let pendingToolCalls = [];
+  const pendingToolCalls = [];
   let pendingToolResults = [];
 
   const inputItems = normalizeResponsesInput(body.input);
@@ -139,25 +153,29 @@ export function convertResponsesApiFormat(body) {
 
       // Convert content: input_text → text, output_text → text, input_image → image_url
       const content = Array.isArray(item.content)
-        ? item.content.map(c => {
-          if (c.type === RESPONSES_ITEM.INPUT_TEXT) return { type: OPENAI_BLOCK.TEXT, text: c.text };
-          if (c.type === RESPONSES_ITEM.OUTPUT_TEXT) return { type: OPENAI_BLOCK.TEXT, text: c.text };
-          if (c.type === RESPONSES_ITEM.INPUT_IMAGE) {
-            const url = c.image_url || c.file_id || "";
-            return { type: OPENAI_BLOCK.IMAGE_URL, image_url: { url, detail: c.detail || "auto" } };
-          }
-          return c;
-        })
+        ? item.content.map((c) => {
+            if (c.type === RESPONSES_ITEM.INPUT_TEXT)
+              return { type: OPENAI_BLOCK.TEXT, text: c.text };
+            if (c.type === RESPONSES_ITEM.OUTPUT_TEXT)
+              return { type: OPENAI_BLOCK.TEXT, text: c.text };
+            if (c.type === RESPONSES_ITEM.INPUT_IMAGE) {
+              const url = c.image_url || c.file_id || "";
+              return {
+                type: OPENAI_BLOCK.IMAGE_URL,
+                image_url: { url, detail: c.detail || "auto" },
+              };
+            }
+            return c;
+          })
         : item.content;
       result.messages.push({ role: item.role, content });
-    }
-    else if (itemType === RESPONSES_ITEM.FUNCTION_CALL) {
+    } else if (itemType === RESPONSES_ITEM.FUNCTION_CALL) {
       // Start or append to assistant message with tool_calls
       if (!currentAssistantMsg) {
         currentAssistantMsg = {
           role: ROLE.ASSISTANT,
           content: null,
-          tool_calls: []
+          tool_calls: [],
         };
       }
       // Skip items with empty/missing name — upstream APIs reject nameless tool calls (#444)
@@ -167,11 +185,10 @@ export function convertResponsesApiFormat(body) {
         type: OPENAI_BLOCK.FUNCTION,
         function: {
           name: item.name,
-          arguments: item.arguments
-        }
+          arguments: item.arguments,
+        },
       });
-    }
-    else if (itemType === RESPONSES_ITEM.FUNCTION_CALL_OUTPUT) {
+    } else if (itemType === RESPONSES_ITEM.FUNCTION_CALL_OUTPUT) {
       // Flush assistant message first if exists
       if (currentAssistantMsg) {
         result.messages.push(currentAssistantMsg);
@@ -181,12 +198,9 @@ export function convertResponsesApiFormat(body) {
       pendingToolResults.push({
         role: ROLE.TOOL,
         tool_call_id: item.call_id,
-        content: typeof item.output === "string" ? item.output : JSON.stringify(item.output)
+        content: typeof item.output === "string" ? item.output : JSON.stringify(item.output),
       });
-    }
-    else if (itemType === RESPONSES_ITEM.REASONING) {
-      // Skip reasoning items - they are for display only
-      continue;
+    } else if (itemType === RESPONSES_ITEM.REASONING) {
     }
   }
 

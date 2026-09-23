@@ -5,15 +5,8 @@ import { translateRequest } from "../../open-sse/translator/index.js";
 import { FORMATS } from "../../open-sse/translator/formats.js";
 
 const O2K = (body) => translateRequest(FORMATS.OPENAI, FORMATS.KIRO, "m", body, true, null, "kiro");
-const R2K = (model, body) => translateRequest(
-  FORMATS.OPENAI_RESPONSES,
-  FORMATS.KIRO,
-  model,
-  body,
-  true,
-  null,
-  "kiro"
-);
+const R2K = (model, body) =>
+  translateRequest(FORMATS.OPENAI_RESPONSES, FORMATS.KIRO, model, body, true, null, "kiro");
 
 describe("OpenAI → Kiro", () => {
   it.each([
@@ -39,12 +32,16 @@ describe("OpenAI → Kiro", () => {
       O2K({
         messages: [
           { role: "user", content: "go" },
-          { role: "assistant", content: "", tool_calls: [
-            { id: "c1", type: "function", function: { name: "f", arguments: "{not json" } },
-          ] },
+          {
+            role: "assistant",
+            content: "",
+            tool_calls: [
+              { id: "c1", type: "function", function: { name: "f", arguments: "{not json" } },
+            ],
+          },
           { role: "tool", tool_call_id: "c1", content: "r" },
         ],
-      })
+      }),
     ).not.toThrow();
   });
 
@@ -59,10 +56,15 @@ describe("OpenAI → Kiro", () => {
   // KNOWN BUG
   it.fails("remote image url is preserved as an image, not text", () => {
     const out = O2K({
-      messages: [{ role: "user", content: [
-        { type: "text", text: "see" },
-        { type: "image_url", image_url: { url: "https://x.com/p.png" } },
-      ] }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "see" },
+            { type: "image_url", image_url: { url: "https://x.com/p.png" } },
+          ],
+        },
+      ],
     });
     const content = out.conversationState?.currentMessage?.userInputMessage?.content || "";
     expect(content, "remote image flattened to text").not.toContain("[Image:");

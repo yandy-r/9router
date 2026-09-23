@@ -8,7 +8,9 @@ function reqWith(args) {
       {
         role: "assistant",
         content: "",
-        tool_calls: [{ id: "c1", type: "function", function: { name: "get_weather", arguments: args } }],
+        tool_calls: [
+          { id: "c1", type: "function", function: { name: "get_weather", arguments: args } },
+        ],
       },
     ],
   };

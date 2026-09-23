@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { UPDATER_CONFIG } from "@/shared/constants/config";
-import { readPresets, upsertPreset, deletePreset, subscribePresets, stripSlash } from "./cliEndpointPresets";
+import {
+  readPresets,
+  upsertPreset,
+  deletePreset,
+  subscribePresets,
+  stripSlash,
+} from "./cliEndpointPresets";
 
 const CUSTOM_VALUE = "__custom__";
 const SAVE_VALUE = "__save__";
@@ -13,7 +19,17 @@ const ensureV1 = (url) => {
   return /\/v1$/.test(trimmed) ? trimmed : `${trimmed}/v1`;
 };
 
-const buildOptions = ({ requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl, cloudEnabled, cloudUrl, savedPresets, withV1 }) => {
+const buildOptions = ({
+  requiresExternalUrl,
+  tunnelEnabled,
+  tunnelPublicUrl,
+  tailscaleEnabled,
+  tailscaleUrl,
+  cloudEnabled,
+  cloudUrl,
+  savedPresets,
+  withV1,
+}) => {
   const opts = [];
   const wrap = (url) => (withV1 ? ensureV1(url) : (url || "").replace(/\/+$/, ""));
   if (!requiresExternalUrl) {
@@ -81,8 +97,29 @@ export default function BaseUrlSelect({
   }, []);
 
   const options = useMemo(
-    () => buildOptions({ requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl, cloudEnabled, cloudUrl, savedPresets, withV1 }),
-    [requiresExternalUrl, tunnelEnabled, tunnelPublicUrl, tailscaleEnabled, tailscaleUrl, cloudEnabled, cloudUrl, savedPresets, withV1]
+    () =>
+      buildOptions({
+        requiresExternalUrl,
+        tunnelEnabled,
+        tunnelPublicUrl,
+        tailscaleEnabled,
+        tailscaleUrl,
+        cloudEnabled,
+        cloudUrl,
+        savedPresets,
+        withV1,
+      }),
+    [
+      requiresExternalUrl,
+      tunnelEnabled,
+      tunnelPublicUrl,
+      tailscaleEnabled,
+      tailscaleUrl,
+      cloudEnabled,
+      cloudUrl,
+      savedPresets,
+      withV1,
+    ],
   );
 
   // Prefer a saved preset matching the currently configured URL, else first option
@@ -91,9 +128,7 @@ export default function BaseUrlSelect({
     if (!presetsLoaded || options.length === 0) return;
     initializedRef.current = true;
     const current = stripSlash(currentUrl);
-    const matched = current
-      ? options.find((o) => o.saved && stripSlash(o.url) === current)
-      : null;
+    const matched = current ? options.find((o) => o.saved && stripSlash(o.url) === current) : null;
     const target = matched || options.find((o) => o.value !== CUSTOM_VALUE);
     if (target) {
       setMode(target.value);
@@ -109,7 +144,9 @@ export default function BaseUrlSelect({
       const trimmed = (value || "").trim();
       if (!trimmed) return;
       let defaultName = trimmed;
-      try { defaultName = new URL(trimmed).host; } catch {}
+      try {
+        defaultName = new URL(trimmed).host;
+      } catch {}
       const name = window.prompt("Save endpoint as:", defaultName);
       const saved = name?.trim() ? upsertPreset(trimmed, name.trim()) : null;
       if (saved) setMode(`saved:${saved}`);
@@ -159,12 +196,19 @@ export default function BaseUrlSelect({
           className="flex-1 min-w-0 px-2 py-2 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5"
         >
           {options.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
           ))}
           {canSave && <option value={SAVE_VALUE}>+ Save current as...</option>}
         </select>
         {isSaved && (
-          <button type="button" onClick={handleDeleteSaved} className="p-1 text-text-muted hover:text-red-500 rounded transition-colors shrink-0" title="Delete saved endpoint">
+          <button
+            type="button"
+            onClick={handleDeleteSaved}
+            className="p-1 text-text-muted hover:text-red-500 rounded transition-colors shrink-0"
+            title="Delete saved endpoint"
+          >
             <span className="material-symbols-outlined text-[14px]">delete</span>
           </button>
         )}

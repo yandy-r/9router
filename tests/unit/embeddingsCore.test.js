@@ -91,9 +91,11 @@ describe("buildEmbeddingsBody", () => {
   it("single string input — includes model and input, default encoding_format=float", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      body: { model: "text-embedding-ada-002", input: "Hello world" },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        body: { model: "text-embedding-ada-002", input: "Hello world" },
+      }),
+    );
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
     const sent = JSON.parse(init.body);
@@ -105,9 +107,11 @@ describe("buildEmbeddingsBody", () => {
   it("array input — passes array as-is", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      body: { model: "text-embedding-ada-002", input: ["Hello", "World"] },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        body: { model: "text-embedding-ada-002", input: ["Hello", "World"] },
+      }),
+    );
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
     const sent = JSON.parse(init.body);
@@ -117,13 +121,15 @@ describe("buildEmbeddingsBody", () => {
   it("custom encoding_format is forwarded", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      body: {
-        model: "text-embedding-ada-002",
-        input: "test",
-        encoding_format: "base64",
-      },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        body: {
+          model: "text-embedding-ada-002",
+          input: "test",
+          encoding_format: "base64",
+        },
+      }),
+    );
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
     const sent = JSON.parse(init.body);
@@ -133,9 +139,11 @@ describe("buildEmbeddingsBody", () => {
   it("no encoding_format in body → defaults to float", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      body: { model: "text-embedding-ada-002", input: "test" },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        body: { model: "text-embedding-ada-002", input: "test" },
+      }),
+    );
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
     const sent = JSON.parse(init.body);
@@ -143,19 +151,23 @@ describe("buildEmbeddingsBody", () => {
   });
 
   it("gemini single input forwards dimensions as outputDimensionality", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse({
-      embedding: { values: [0.1, 0.2, 0.3] },
-    }));
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeProviderResponse({
+        embedding: { values: [0.1, 0.2, 0.3] },
+      }),
+    );
 
-    await handleEmbeddingsCore(makeOptions({
-      body: {
-        model: "gemini/gemini-embedding-2-preview",
-        input: "test",
-        dimensions: 1536,
-      },
-      modelInfo: { provider: "gemini", model: "gemini-embedding-2-preview" },
-      credentials: { apiKey: "gemini-key" },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        body: {
+          model: "gemini/gemini-embedding-2-preview",
+          input: "test",
+          dimensions: 1536,
+        },
+        modelInfo: { provider: "gemini", model: "gemini-embedding-2-preview" },
+        credentials: { apiKey: "gemini-key" },
+      }),
+    );
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
     const sent = JSON.parse(init.body);
@@ -163,22 +175,23 @@ describe("buildEmbeddingsBody", () => {
   });
 
   it("gemini batch input forwards dimensions on each request", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse({
-      embeddings: [
-        { values: [0.1, 0.2, 0.3] },
-        { values: [0.4, 0.5, 0.6] },
-      ],
-    }));
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeProviderResponse({
+        embeddings: [{ values: [0.1, 0.2, 0.3] }, { values: [0.4, 0.5, 0.6] }],
+      }),
+    );
 
-    await handleEmbeddingsCore(makeOptions({
-      body: {
-        model: "gemini/gemini-embedding-2-preview",
-        input: ["hello", "world"],
-        dimensions: 1536,
-      },
-      modelInfo: { provider: "gemini", model: "gemini-embedding-2-preview" },
-      credentials: { apiKey: "gemini-key" },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        body: {
+          model: "gemini/gemini-embedding-2-preview",
+          input: ["hello", "world"],
+          dimensions: 1536,
+        },
+        modelInfo: { provider: "gemini", model: "gemini-embedding-2-preview" },
+        credentials: { apiKey: "gemini-key" },
+      }),
+    );
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
     const sent = JSON.parse(init.body);
@@ -201,10 +214,12 @@ describe("buildEmbeddingsUrl", () => {
   it("openai → https://api.openai.com/v1/embeddings", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "openai", model: "text-embedding-ada-002" },
-      credentials: { apiKey: "sk-test" },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "openai", model: "text-embedding-ada-002" },
+        credentials: { apiKey: "sk-test" },
+      }),
+    );
 
     const [url] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("https://api.openai.com/v1/embeddings");
@@ -213,10 +228,12 @@ describe("buildEmbeddingsUrl", () => {
   it("openrouter → https://openrouter.ai/api/v1/embeddings", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "openrouter", model: "openai/text-embedding-ada-002" },
-      credentials: { apiKey: "sk-or-test" },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "openrouter", model: "openai/text-embedding-ada-002" },
+        credentials: { apiKey: "sk-or-test" },
+      }),
+    );
 
     const [url] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("https://openrouter.ai/api/v1/embeddings");
@@ -225,10 +242,12 @@ describe("buildEmbeddingsUrl", () => {
   it("vercel-ai-gateway → https://ai-gateway.vercel.sh/v1/embeddings", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "vercel-ai-gateway", model: "openai/text-embedding-3-small" },
-      credentials: { apiKey: "vag-test-key" },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "vercel-ai-gateway", model: "openai/text-embedding-3-small" },
+        credentials: { apiKey: "vag-test-key" },
+      }),
+    );
 
     const [url, init] = vi.mocked(fetch).mock.calls[0];
     const sent = JSON.parse(init.body);
@@ -240,13 +259,15 @@ describe("buildEmbeddingsUrl", () => {
   it("openai-compatible-* → uses baseUrl from providerSpecificData", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "openai-compatible-custom", model: "embed-v1" },
-      credentials: {
-        apiKey: "sk-custom",
-        providerSpecificData: { baseUrl: "https://custom.ai/v1" },
-      },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "openai-compatible-custom", model: "embed-v1" },
+        credentials: {
+          apiKey: "sk-custom",
+          providerSpecificData: { baseUrl: "https://custom.ai/v1" },
+        },
+      }),
+    );
 
     const [url] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("https://custom.ai/v1/embeddings");
@@ -255,13 +276,15 @@ describe("buildEmbeddingsUrl", () => {
   it("openai-compatible-* strips trailing slash from baseUrl", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "openai-compatible-myhost", model: "embed-v1" },
-      credentials: {
-        apiKey: "sk-x",
-        providerSpecificData: { baseUrl: "https://myhost.ai/v1/" },
-      },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "openai-compatible-myhost", model: "embed-v1" },
+        credentials: {
+          apiKey: "sk-x",
+          providerSpecificData: { baseUrl: "https://myhost.ai/v1/" },
+        },
+      }),
+    );
 
     const [url] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("https://myhost.ai/v1/embeddings");
@@ -270,20 +293,24 @@ describe("buildEmbeddingsUrl", () => {
   it("openai-compatible-* without baseUrl → falls back to api.openai.com", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "openai-compatible-fallback", model: "embed" },
-      credentials: { apiKey: "sk-x", providerSpecificData: {} },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "openai-compatible-fallback", model: "embed" },
+        credentials: { apiKey: "sk-x", providerSpecificData: {} },
+      }),
+    );
 
     const [url] = vi.mocked(fetch).mock.calls[0];
     expect(url).toBe("https://api.openai.com/v1/embeddings");
   });
 
   it("unsupported provider (e.g. gemini-cli) → 400 error, no fetch called", async () => {
-    const result = await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "gemini-cli", model: "gemini-embedding" },
-      credentials: { apiKey: "token" },
-    }));
+    const result = await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "gemini-cli", model: "gemini-embedding" },
+        credentials: { apiKey: "token" },
+      }),
+    );
 
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
     expect(result.success).toBe(false);
@@ -292,10 +319,12 @@ describe("buildEmbeddingsUrl", () => {
   });
 
   it("antigravity (non-openai-compatible, no URL mapping) → 400", async () => {
-    const result = await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "antigravity", model: "some-embed" },
-      credentials: { apiKey: "ag-token" },
-    }));
+    const result = await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "antigravity", model: "some-embed" },
+        credentials: { apiKey: "ag-token" },
+      }),
+    );
 
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
     expect(result.success).toBe(false);
@@ -316,10 +345,12 @@ describe("buildEmbeddingsHeaders", () => {
   it("openai → Authorization: Bearer, Content-Type: application/json", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "openai", model: "text-embedding-ada-002" },
-      credentials: { apiKey: "sk-mykey" },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "openai", model: "text-embedding-ada-002" },
+        credentials: { apiKey: "sk-mykey" },
+      }),
+    );
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
     expect(init.headers["Authorization"]).toBe("Bearer sk-mykey");
@@ -329,10 +360,12 @@ describe("buildEmbeddingsHeaders", () => {
   it("openai — uses accessToken when apiKey is absent", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "openai", model: "text-embedding-ada-002" },
-      credentials: { accessToken: "at-mytoken" },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "openai", model: "text-embedding-ada-002" },
+        credentials: { accessToken: "at-mytoken" },
+      }),
+    );
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
     expect(init.headers["Authorization"]).toBe("Bearer at-mytoken");
@@ -341,10 +374,12 @@ describe("buildEmbeddingsHeaders", () => {
   it("openrouter → adds HTTP-Referer and X-Title headers", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "openrouter", model: "openai/text-embedding-ada-002" },
-      credentials: { apiKey: "sk-or-key" },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "openrouter", model: "openai/text-embedding-ada-002" },
+        credentials: { apiKey: "sk-or-key" },
+      }),
+    );
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
     expect(init.headers["HTTP-Referer"]).toBeDefined();
@@ -355,13 +390,15 @@ describe("buildEmbeddingsHeaders", () => {
   it("openai-compatible-* → Authorization: Bearer only (no extra headers)", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
 
-    await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "openai-compatible-local", model: "nomic-embed" },
-      credentials: {
-        apiKey: "local-key",
-        providerSpecificData: { baseUrl: "http://localhost:11434/v1" },
-      },
-    }));
+    await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "openai-compatible-local", model: "nomic-embed" },
+        credentials: {
+          apiKey: "local-key",
+          providerSpecificData: { baseUrl: "http://localhost:11434/v1" },
+        },
+      }),
+    );
 
     const [, init] = vi.mocked(fetch).mock.calls[0];
     expect(init.headers["Authorization"]).toBe("Bearer local-key");
@@ -378,59 +415,73 @@ describe("handleEmbeddingsCore — input validation", () => {
   });
 
   it("missing input → 400 Bad Request", async () => {
-    const result = await handleEmbeddingsCore(makeOptions({
-      body: { model: "text-embedding-ada-002" }, // no input
-    }));
+    const result = await handleEmbeddingsCore(
+      makeOptions({
+        body: { model: "text-embedding-ada-002" }, // no input
+      }),
+    );
     expect(result.success).toBe(false);
     expect(result.status).toBe(400);
     expect(result.error).toMatch(/missing required field: input/i);
   });
 
   it("input is a number → 400 Bad Request", async () => {
-    const result = await handleEmbeddingsCore(makeOptions({
-      body: { model: "text-embedding-ada-002", input: 42 },
-    }));
+    const result = await handleEmbeddingsCore(
+      makeOptions({
+        body: { model: "text-embedding-ada-002", input: 42 },
+      }),
+    );
     expect(result.success).toBe(false);
     expect(result.status).toBe(400);
     expect(result.error).toMatch(/input must be a string or array/i);
   });
 
   it("input is an object → 400 Bad Request", async () => {
-    const result = await handleEmbeddingsCore(makeOptions({
-      body: { model: "text-embedding-ada-002", input: { text: "hello" } },
-    }));
+    const result = await handleEmbeddingsCore(
+      makeOptions({
+        body: { model: "text-embedding-ada-002", input: { text: "hello" } },
+      }),
+    );
     expect(result.success).toBe(false);
     expect(result.status).toBe(400);
     expect(result.error).toMatch(/input must be a string or array/i);
   });
 
   it("input is null → 400 Bad Request", async () => {
-    const result = await handleEmbeddingsCore(makeOptions({
-      body: { model: "text-embedding-ada-002", input: null },
-    }));
+    const result = await handleEmbeddingsCore(
+      makeOptions({
+        body: { model: "text-embedding-ada-002", input: null },
+      }),
+    );
     expect(result.success).toBe(false);
     expect(result.status).toBe(400);
   });
 
   it("empty string input passes validation", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(
-      makeProviderResponse(VALID_EMBEDDING_RESPONSE)
-    ));
-    const result = await handleEmbeddingsCore(makeOptions({
-      body: { model: "text-embedding-ada-002", input: "" },
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE)),
+    );
+    const result = await handleEmbeddingsCore(
+      makeOptions({
+        body: { model: "text-embedding-ada-002", input: "" },
+      }),
+    );
     // Empty string is falsy → treated as missing
     expect(result.success).toBe(false);
     expect(result.status).toBe(400);
   });
 
   it("empty array input passes validation and reaches provider", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(
-      makeProviderResponse(VALID_EMBEDDING_RESPONSE)
-    ));
-    const result = await handleEmbeddingsCore(makeOptions({
-      body: { model: "text-embedding-ada-002", input: [] },
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE)),
+    );
+    const result = await handleEmbeddingsCore(
+      makeOptions({
+        body: { model: "text-embedding-ada-002", input: [] },
+      }),
+    );
     // Empty array is truthy → passes, fetch is called
     expect(fetch).toHaveBeenCalledOnce();
     expect(result.success).toBe(true);
@@ -566,7 +617,7 @@ describe("handleEmbeddingsCore — provider error handling", () => {
       new Response("not json }{", {
         status: 200,
         headers: { "Content-Type": "text/plain" },
-      })
+      }),
     );
 
     const result = await handleEmbeddingsCore(makeOptions());
@@ -602,7 +653,7 @@ describe("handleEmbeddingsCore — token refresh on 401/403", () => {
       new Response(JSON.stringify({ error: "unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
     );
     // Second call (retry) → success
     vi.mocked(fetch).mockResolvedValueOnce(makeProviderResponse(VALID_EMBEDDING_RESPONSE));
@@ -615,11 +666,13 @@ describe("handleEmbeddingsCore — token refresh on 401/403", () => {
     };
 
     // Mock executor's refreshCredentials to return new creds
-    const result = await handleEmbeddingsCore(makeOptions({
-      modelInfo: { provider: "openai", model: "text-embedding-ada-002" },
-      credentials,
-      onCredentialsRefreshed: vi.fn(),
-    }));
+    const result = await handleEmbeddingsCore(
+      makeOptions({
+        modelInfo: { provider: "openai", model: "text-embedding-ada-002" },
+        credentials,
+        onCredentialsRefreshed: vi.fn(),
+      }),
+    );
 
     // The handler may or may not succeed depending on whether the executor
     // can refresh (openai executor likely can't). What we verify is that
@@ -632,12 +685,14 @@ describe("handleEmbeddingsCore — token refresh on 401/403", () => {
       new Response(JSON.stringify({ error: "unauthorized" }), {
         status: 401,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
     );
 
-    const result = await handleEmbeddingsCore(makeOptions({
-      credentials: { apiKey: "sk-bad" },
-    }));
+    const result = await handleEmbeddingsCore(
+      makeOptions({
+        credentials: { apiKey: "sk-bad" },
+      }),
+    );
 
     // Should return an error result, not throw
     expect(result).toHaveProperty("success");

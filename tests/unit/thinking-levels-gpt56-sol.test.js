@@ -15,7 +15,12 @@ describe("getThinkingLevels", () => {
 
   it("does not expose Codex-only GPT-5.6 overrides on Kiro", () => {
     expect(getThinkingLevels("kiro", "gpt-5.6-sol")).toEqual([
-      "none", "minimal", "low", "medium", "high", "xhigh",
+      "none",
+      "minimal",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
     ]);
   });
 

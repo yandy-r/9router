@@ -25,7 +25,10 @@ export async function GET() {
 export async function POST() {
   const result = await syncModelCatalog();
   if (!result) {
-    return NextResponse.json({ error: getSyncState().lastError || "sync in progress" }, { status: 503 });
+    return NextResponse.json(
+      { error: getSyncState().lastError || "sync in progress" },
+      { status: 503 },
+    );
   }
   return NextResponse.json({ success: true, result });
 }

@@ -55,7 +55,7 @@ describe("canonicalizeUsage", () => {
     // response.completed, so a top-level-only read silently drops the cache
     // count for every Responses provider (codex, grok-cli, ...).
     const out = canonicalizeUsage(
-      buildUsage({ promptTokens: 330, completionTokens: 50, totalTokens: 380, cachedTokens: 200 })
+      buildUsage({ promptTokens: 330, completionTokens: 50, totalTokens: 380, cachedTokens: 200 }),
     );
     expect(out.prompt_tokens).toBe(330);
     expect(out.cached_tokens).toBe(200);
@@ -108,19 +108,28 @@ describe("calculateCostFromTokens (canonical inclusive convention)", () => {
   it("prices cached + cache_creation as subsets of an inclusive prompt without double-counting", () => {
     // prompt=330 includes 200 cached + 30 cache_creation → 100 full-price input
     const cost = calculateCostFromTokens(
-      { prompt_tokens: 330, completion_tokens: 50, cached_tokens: 200, cache_creation_input_tokens: 30 },
-      pricing
+      {
+        prompt_tokens: 330,
+        completion_tokens: 50,
+        cached_tokens: 200,
+        cache_creation_input_tokens: 30,
+      },
+      pricing,
     );
-    const expected =
-      (100 * 3 + 200 * 0.3 + 30 * 3.75 + 50 * 15) / 1_000_000;
+    const expected = (100 * 3 + 200 * 0.3 + 30 * 3.75 + 50 * 15) / 1_000_000;
     expect(cost).toBeCloseTo(expected, 12);
   });
 
   it("does not let cache_creation drive nonCached negative", () => {
     // pathological: cached + creation exceeds prompt → nonCached clamps at 0
     const cost = calculateCostFromTokens(
-      { prompt_tokens: 100, completion_tokens: 0, cached_tokens: 80, cache_creation_input_tokens: 40 },
-      pricing
+      {
+        prompt_tokens: 100,
+        completion_tokens: 0,
+        cached_tokens: 80,
+        cache_creation_input_tokens: 40,
+      },
+      pricing,
     );
     const expected = (0 * 3 + 80 * 0.3 + 40 * 3.75) / 1_000_000;
     expect(cost).toBeCloseTo(expected, 12);
@@ -136,7 +145,14 @@ describe("Anthropic streaming usage (message_start carries cache, message_delta 
   it("extractUsage reads input + cache from message_start", () => {
     const u = extractUsage({
       type: "message_start",
-      message: { usage: { input_tokens: 100, output_tokens: 1, cache_read_input_tokens: 200, cache_creation_input_tokens: 30 } },
+      message: {
+        usage: {
+          input_tokens: 100,
+          output_tokens: 1,
+          cache_read_input_tokens: 200,
+          cache_creation_input_tokens: 30,
+        },
+      },
     });
     expect(u.prompt_tokens).toBe(100);
     expect(u.cache_read_input_tokens).toBe(200);
@@ -147,7 +163,14 @@ describe("Anthropic streaming usage (message_start carries cache, message_delta 
     // Real Anthropic SSE: cache only in message_start, real output only in message_delta.
     const start = extractUsage({
       type: "message_start",
-      message: { usage: { input_tokens: 100, output_tokens: 1, cache_read_input_tokens: 200, cache_creation_input_tokens: 30 } },
+      message: {
+        usage: {
+          input_tokens: 100,
+          output_tokens: 1,
+          cache_read_input_tokens: 200,
+          cache_creation_input_tokens: 30,
+        },
+      },
     });
     const delta = extractUsage({ type: "message_delta", usage: { output_tokens: 50 } });
     const merged = mergeUsage(start, delta);
@@ -190,8 +213,13 @@ describe("Kiro usage pass-through", () => {
     // sending cache_read_input_tokens / cache_creation_input_tokens / cachedTokens,
     // cost tracking should pick them up automatically without another change.
     const out = toOpenAIUsage(
-      { inputTokens: 500, outputTokens: 100, cache_read_input_tokens: 200, cache_creation_input_tokens: 50 },
-      "kiro"
+      {
+        inputTokens: 500,
+        outputTokens: 100,
+        cache_read_input_tokens: 200,
+        cache_creation_input_tokens: 50,
+      },
+      "kiro",
     );
     expect(out.prompt_tokens_details).toBeDefined();
     expect(out.prompt_tokens_details.cached_tokens).toBe(200);

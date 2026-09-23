@@ -21,19 +21,33 @@ export async function createBunSqliteAdapter(filePath) {
   }
 
   const checkpointTimer = setInterval(() => {
-    try { db.exec("PRAGMA wal_checkpoint(TRUNCATE)"); } catch {}
+    try {
+      db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+    } catch {}
   }, CHECKPOINT_INTERVAL_MS);
   if (typeof checkpointTimer.unref === "function") checkpointTimer.unref();
 
   function gracefulClose() {
-    try { db.exec("PRAGMA wal_checkpoint(TRUNCATE)"); } catch {}
-    try { stmtCache.clear(); } catch {}
-    try { db.close(); } catch {}
+    try {
+      db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+    } catch {}
+    try {
+      stmtCache.clear();
+    } catch {}
+    try {
+      db.close();
+    } catch {}
   }
   const onShutdown = () => gracefulClose();
   process.once("beforeExit", onShutdown);
-  process.once("SIGINT", () => { onShutdown(); process.exit(0); });
-  process.once("SIGTERM", () => { onShutdown(); process.exit(0); });
+  process.once("SIGINT", () => {
+    onShutdown();
+    process.exit(0);
+  });
+  process.once("SIGTERM", () => {
+    onShutdown();
+    process.exit(0);
+  });
 
   return {
     driver: "bun:sqlite",
@@ -47,13 +61,19 @@ export async function createBunSqliteAdapter(filePath) {
     all(sql, params = []) {
       return prepare(sql).all(...params);
     },
-    exec(sql) { return db.exec(sql); },
+    exec(sql) {
+      return db.exec(sql);
+    },
     transaction(fn) {
       // bun:sqlite has db.transaction() API (similar to better-sqlite3)
       const tx = db.transaction(fn);
       return tx();
     },
-    checkpoint() { try { db.exec("PRAGMA wal_checkpoint(TRUNCATE)"); } catch {} },
+    checkpoint() {
+      try {
+        db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+      } catch {}
+    },
     close() {
       clearInterval(checkpointTimer);
       gracefulClose();

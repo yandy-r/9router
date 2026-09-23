@@ -102,10 +102,7 @@ export async function getModelInfoCore(modelStr, aliasesOrGetter) {
   }
 
   // Get aliases (from object or function)
-  const aliases =
-    typeof aliasesOrGetter === "function"
-      ? await aliasesOrGetter()
-      : aliasesOrGetter;
+  const aliases = typeof aliasesOrGetter === "function" ? await aliasesOrGetter() : aliasesOrGetter;
 
   // Resolve alias
   const resolved =

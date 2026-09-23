@@ -85,7 +85,8 @@ export default function AntigravityToolCard({
 
   // MITM elevation is decided by the server OS, not by this browser's OS.
   const serverIsWindows = status?.isWin === true;
-  const canRunWithoutPassword = serverIsWindows || status?.hasCachedPassword || status?.needsSudoPassword === false;
+  const canRunWithoutPassword =
+    serverIsWindows || status?.hasCachedPassword || status?.needsSudoPassword === false;
 
   const handleStart = () => {
     if (canRunWithoutPassword) {
@@ -111,9 +112,10 @@ export default function AntigravityToolCard({
     // Show steps progressing in order
     setStartingStep("cert");
     try {
-      const keyToUse = selectedApiKey?.trim()
-        || (apiKeys?.length > 0 ? apiKeys[0].key : null)
-        || (!cloudEnabled ? "sk_9router" : null);
+      const keyToUse =
+        selectedApiKey?.trim() ||
+        (apiKeys?.length > 0 ? apiKeys[0].key : null) ||
+        (!cloudEnabled ? "sk_9router" : null);
 
       const res = await fetch("/api/cli-tools/antigravity-mitm", {
         method: "POST",
@@ -185,7 +187,7 @@ export default function AntigravityToolCard({
 
   const handleModelSelect = (model) => {
     if (currentEditingAlias) {
-      setModelMappings(prev => ({
+      setModelMappings((prev) => ({
         ...prev,
         [currentEditingAlias]: model.value,
       }));
@@ -193,7 +195,7 @@ export default function AntigravityToolCard({
   };
 
   const handleModelMappingChange = (alias, value) => {
-    setModelMappings(prev => ({
+    setModelMappings((prev) => ({
       ...prev,
       [alias]: value,
     }));
@@ -227,7 +229,10 @@ export default function AntigravityToolCard({
 
   return (
     <Card padding="xs" className="overflow-hidden">
-      <div className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center" onClick={onToggle}>
+      <div
+        className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center"
+        onClick={onToggle}
+      >
         <div className="flex min-w-0 items-center gap-3">
           <div className="size-8 flex items-center justify-center shrink-0">
             <Image
@@ -237,24 +242,34 @@ export default function AntigravityToolCard({
               height={32}
               className="size-8 object-contain rounded-lg"
               sizes="32px"
-              onError={(e) => { e.target.style.display = "none"; }}
-            loading="lazy"
-            decoding="async"
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+              loading="lazy"
+              decoding="async"
             />
           </div>
           <div className="min-w-0">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h3 className="font-medium text-sm">{tool.name}</h3>
               {isRunning ? (
-                <Badge variant="success" size="sm">Active</Badge>
+                <Badge variant="success" size="sm">
+                  Active
+                </Badge>
               ) : (
-                <Badge variant="default" size="sm">Inactive</Badge>
+                <Badge variant="default" size="sm">
+                  Inactive
+                </Badge>
               )}
             </div>
             <p className="text-xs text-text-muted truncate">{tool.description}</p>
           </div>
         </div>
-        <span className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}>expand_more</span>
+        <span
+          className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}
+        >
+          expand_more
+        </span>
       </div>
 
       {isExpanded && (
@@ -271,17 +286,27 @@ export default function AntigravityToolCard({
                 <div key={key} className="flex items-center">
                   <div className="flex items-center gap-1 px-2 py-1 rounded-md">
                     {isLoading ? (
-                      <span className="material-symbols-outlined text-[14px] text-primary animate-spin">progress_activity</span>
+                      <span className="material-symbols-outlined text-[14px] text-primary animate-spin">
+                        progress_activity
+                      </span>
                     ) : (
-                      <span className={`material-symbols-outlined text-[14px] ${ok ? "text-green-500" : "text-text-muted"}`}>
+                      <span
+                        className={`material-symbols-outlined text-[14px] ${ok ? "text-green-500" : "text-text-muted"}`}
+                      >
                         {ok ? "check_circle" : "radio_button_unchecked"}
                       </span>
                     )}
-                    <span className={`text-xs font-medium ${isLoading ? "text-primary" : ok ? "text-green-500" : "text-text-muted"}`}>
+                    <span
+                      className={`text-xs font-medium ${isLoading ? "text-primary" : ok ? "text-green-500" : "text-text-muted"}`}
+                    >
                       {label}
                     </span>
                   </div>
-                  {i < 2 && <span className="material-symbols-outlined text-[12px] text-text-muted">arrow_forward</span>}
+                  {i < 2 && (
+                    <span className="material-symbols-outlined text-[12px] text-text-muted">
+                      arrow_forward
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -321,27 +346,44 @@ export default function AntigravityToolCard({
           {isRunning && (
             <>
               <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">API Key</span>
-                <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">
+                  API Key
+                </span>
+                <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">
+                  arrow_forward
+                </span>
                 {apiKeys.length > 0 ? (
                   <select
                     value={selectedApiKey}
                     onChange={(e) => setSelectedApiKey(e.target.value)}
                     className="w-full min-w-0 px-2 py-2 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50 sm:py-1.5"
                   >
-                    {apiKeys.map((key) => <option key={key.id} value={key.key}>{key.key}</option>)}
+                    {apiKeys.map((key) => (
+                      <option key={key.id} value={key.key}>
+                        {key.key}
+                      </option>
+                    ))}
                   </select>
                 ) : (
                   <span className="min-w-0 rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
-                    {cloudEnabled ? "No API keys - Create one in Keys page" : "sk_9router (default)"}
+                    {cloudEnabled
+                      ? "No API keys - Create one in Keys page"
+                      : "sk_9router (default)"}
                   </span>
                 )}
               </div>
 
               {tool.defaultModels.map((model) => (
-                <div key={model.alias} className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2">
-                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">{model.name}</span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">arrow_forward</span>
+                <div
+                  key={model.alias}
+                  className="grid grid-cols-1 gap-1.5 sm:grid-cols-[8rem_auto_1fr_auto] sm:items-center sm:gap-2"
+                >
+                  <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">
+                    {model.name}
+                  </span>
+                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">
+                    arrow_forward
+                  </span>
                   <div className="relative w-full min-w-0">
                     <input
                       type="text"
@@ -396,11 +438,18 @@ export default function AntigravityToolCard({
           {!isRunning && (
             <div className="flex flex-col gap-1.5 px-1">
               <p className="text-xs text-text-muted">
-                <span className="font-medium text-text-main">How it works:</span> Intercepts Antigravity traffic via DNS redirect, letting you reroute models through 9Router.
+                <span className="font-medium text-text-main">How it works:</span> Intercepts
+                Antigravity traffic via DNS redirect, letting you reroute models through 9Router.
               </p>
               <div className="flex flex-col gap-0.5 text-[11px] text-text-muted">
                 <span>1. Generates SSL cert & adds to system keychain</span>
-                <span>2. Redirects <code className="text-[10px] bg-surface px-1 rounded">daily-cloudcode-pa.googleapis.com</code> → localhost</span>
+                <span>
+                  2. Redirects{" "}
+                  <code className="text-[10px] bg-surface px-1 rounded">
+                    daily-cloudcode-pa.googleapis.com
+                  </code>{" "}
+                  → localhost
+                </span>
                 <span>3. Maps Antigravity models to any provider via 9Router</span>
               </div>
             </div>
@@ -422,7 +471,9 @@ export default function AntigravityToolCard({
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
             <span className="material-symbols-outlined text-yellow-500 text-[20px]">warning</span>
-            <p className="text-xs text-text-muted">Required for SSL certificate and DNS configuration</p>
+            <p className="text-xs text-text-muted">
+              Required for SSL certificate and DNS configuration
+            </p>
           </div>
 
           <Input
@@ -436,8 +487,12 @@ export default function AntigravityToolCard({
           />
 
           {message && (
-            <div className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${message.type === "success" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}>
-              <span className="material-symbols-outlined text-[14px]">{message.type === "success" ? "check_circle" : "error"}</span>
+            <div
+              className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${message.type === "success" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}
+            >
+              <span className="material-symbols-outlined text-[14px]">
+                {message.type === "success" ? "check_circle" : "error"}
+              </span>
               <span>{message.text}</span>
             </div>
           )}
@@ -446,17 +501,16 @@ export default function AntigravityToolCard({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => { setShowPasswordModal(false); setSudoPassword(""); setMessage(null); }}
+              onClick={() => {
+                setShowPasswordModal(false);
+                setSudoPassword("");
+                setMessage(null);
+              }}
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleConfirmPassword}
-              loading={loading}
-            >
+            <Button variant="primary" size="sm" onClick={handleConfirmPassword} loading={loading}>
               Confirm
             </Button>
           </div>

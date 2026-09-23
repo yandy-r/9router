@@ -16,11 +16,11 @@ describe("MiniMax-M3 pricing", () => {
   });
 
   it("MiniMax-M3 input price matches the design spec (0.30)", () => {
-    expect(MODEL_PRICING["MiniMax-M3"].input).toBe(0.30);
+    expect(MODEL_PRICING["MiniMax-M3"].input).toBe(0.3);
   });
 
   it("MiniMax-M3 output price matches the design spec (1.20)", () => {
-    expect(MODEL_PRICING["MiniMax-M3"].output).toBe(1.20);
+    expect(MODEL_PRICING["MiniMax-M3"].output).toBe(1.2);
   });
 
   it("MiniMax-M3 cached price matches the design spec (0.06)", () => {

@@ -8,9 +8,9 @@ import {
 
 function normalizeProxyConfig(body = {}) {
   const hasAnyProxyField =
-    Object.prototype.hasOwnProperty.call(body, "connectionProxyEnabled") ||
-    Object.prototype.hasOwnProperty.call(body, "connectionProxyUrl") ||
-    Object.prototype.hasOwnProperty.call(body, "connectionNoProxy");
+    Object.hasOwn(body, "connectionProxyEnabled") ||
+    Object.hasOwn(body, "connectionProxyUrl") ||
+    Object.hasOwn(body, "connectionNoProxy");
 
   if (!hasAnyProxyField) return { hasAnyProxyField: false };
 
@@ -98,7 +98,7 @@ export async function PUT(request, { params }) {
       testStatus,
       lastError,
       lastErrorAt,
-      providerSpecificData
+      providerSpecificData,
     } = body;
 
     const existing = await getProviderConnectionById(id);
@@ -132,7 +132,7 @@ export async function PUT(request, { params }) {
         existing.providerSpecificData,
         providerSpecificData,
         proxyConfig.hasAnyProxyField,
-        proxyPoolResult.hasProxyPoolField
+        proxyPoolResult.hasProxyPoolField,
       )
     ) {
       updateData.providerSpecificData = {

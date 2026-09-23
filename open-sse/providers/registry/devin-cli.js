@@ -32,7 +32,11 @@ export default {
     { id: "claude-opus-4.7-high", name: "Claude Opus 4.7 High", contextLength: 200000 },
     { id: "claude-opus-4.7-medium", name: "Claude Opus 4.7 Medium", contextLength: 200000 },
     { id: "claude-opus-4.7-low", name: "Claude Opus 4.7 Low", contextLength: 200000 },
-    { id: "claude-sonnet-4.6-thinking-1m", name: "Claude Sonnet 4.6 Thinking 1M", contextLength: 1000000 },
+    {
+      id: "claude-sonnet-4.6-thinking-1m",
+      name: "Claude Sonnet 4.6 Thinking 1M",
+      contextLength: 1000000,
+    },
     { id: "claude-sonnet-4.6-thinking", name: "Claude Sonnet 4.6 Thinking", contextLength: 200000 },
     { id: "claude-sonnet-4.6", name: "Claude Sonnet 4.6", contextLength: 200000 },
     { id: "claude-opus-4.6-thinking", name: "Claude Opus 4.6 Thinking", contextLength: 200000 },

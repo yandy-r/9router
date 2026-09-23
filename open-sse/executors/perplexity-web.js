@@ -5,7 +5,8 @@ import { sseChunk } from "../utils/sse.js";
 
 const PPLX_SSE_ENDPOINT = PROVIDERS["perplexity-web"].baseUrl;
 const PPLX_API_VERSION = "2.18";
-const PPLX_USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+const PPLX_USER_AGENT =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
 
 const MODEL_MAP = {
   "pplx-auto": ["concise", "pplx_pro"],
@@ -61,14 +62,21 @@ function sessionLookup(history) {
 
 function sessionStore(history, currentMsg, responseText, backendUuid) {
   if (!backendUuid) return;
-  const full = [...history, { role: "user", content: currentMsg }, { role: "assistant", content: responseText }];
+  const full = [
+    ...history,
+    { role: "user", content: currentMsg },
+    { role: "assistant", content: responseText },
+  ];
   const key = sessionKey(full);
   sessionCache.set(key, { backendUuid, ts: Date.now() });
   if (sessionCache.size > SESSION_MAX_ENTRIES) {
     let oldestKey = null;
     let oldestTs = Infinity;
     for (const [k, v] of sessionCache) {
-      if (v.ts < oldestTs) { oldestTs = v.ts; oldestKey = k; }
+      if (v.ts < oldestTs) {
+        oldestTs = v.ts;
+        oldestKey = k;
+      }
     }
     if (oldestKey) sessionCache.delete(oldestKey);
   }
@@ -101,7 +109,11 @@ async function* readPplxSseEvents(body, signal) {
     dataLines = [];
     const trimmed = payload.trim();
     if (!trimmed || trimmed === "[DONE]") return "done";
-    try { return JSON.parse(trimmed); } catch { return null; }
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return null;
+    }
   }
 
   try {
@@ -144,7 +156,10 @@ function parseOpenAIMessages(messages) {
     let content = "";
     if (typeof msg.content === "string") content = msg.content;
     else if (Array.isArray(msg.content)) {
-      content = msg.content.filter((c) => c.type === "text").map((c) => String(c.text || "")).join(" ");
+      content = msg.content
+        .filter((c) => c.type === "text")
+        .map((c) => String(c.text || ""))
+        .join(" ");
     }
     if (!content.trim()) continue;
     if (role === "system") systemMsg += content + "\n";
@@ -296,10 +311,20 @@ function buildStreamingResponse(eventStream, model, cid, created, history, curre
   return new ReadableStream({
     async start(controller) {
       try {
-        controller.enqueue(encoder.encode(sseChunk({
-          id: cid, object: "chat.completion.chunk", created, model, system_fingerprint: null,
-          choices: [{ index: 0, delta: { role: "assistant" }, finish_reason: null, logprobs: null }],
-        })));
+        controller.enqueue(
+          encoder.encode(
+            sseChunk({
+              id: cid,
+              object: "chat.completion.chunk",
+              created,
+              model,
+              system_fingerprint: null,
+              choices: [
+                { index: 0, delta: { role: "assistant" }, finish_reason: null, logprobs: null },
+              ],
+            }),
+          ),
+        );
 
         let fullAnswer = "";
         let respBackendUuid = null;
@@ -307,45 +332,111 @@ function buildStreamingResponse(eventStream, model, cid, created, history, curre
         for await (const chunk of extractContent(eventStream, signal)) {
           if (chunk.backendUuid) respBackendUuid = chunk.backendUuid;
           if (chunk.error) {
-            controller.enqueue(encoder.encode(sseChunk({
-              id: cid, object: "chat.completion.chunk", created, model, system_fingerprint: null,
-              choices: [{ index: 0, delta: { content: `[Error: ${chunk.error}]` }, finish_reason: null, logprobs: null }],
-            })));
+            controller.enqueue(
+              encoder.encode(
+                sseChunk({
+                  id: cid,
+                  object: "chat.completion.chunk",
+                  created,
+                  model,
+                  system_fingerprint: null,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: { content: `[Error: ${chunk.error}]` },
+                      finish_reason: null,
+                      logprobs: null,
+                    },
+                  ],
+                }),
+              ),
+            );
             break;
           }
           if (chunk.thinking) {
-            controller.enqueue(encoder.encode(sseChunk({
-              id: cid, object: "chat.completion.chunk", created, model, system_fingerprint: null,
-              choices: [{ index: 0, delta: { reasoning_content: chunk.thinking + "\n" }, finish_reason: null, logprobs: null }],
-            })));
+            controller.enqueue(
+              encoder.encode(
+                sseChunk({
+                  id: cid,
+                  object: "chat.completion.chunk",
+                  created,
+                  model,
+                  system_fingerprint: null,
+                  choices: [
+                    {
+                      index: 0,
+                      delta: { reasoning_content: chunk.thinking + "\n" },
+                      finish_reason: null,
+                      logprobs: null,
+                    },
+                  ],
+                }),
+              ),
+            );
             continue;
           }
-          if (chunk.done) { fullAnswer = chunk.answer || fullAnswer; break; }
+          if (chunk.done) {
+            fullAnswer = chunk.answer || fullAnswer;
+            break;
+          }
           let dt = chunk.delta || "";
           if (dt) {
             dt = cleanResponse(dt, false);
             if (dt) {
-              controller.enqueue(encoder.encode(sseChunk({
-                id: cid, object: "chat.completion.chunk", created, model, system_fingerprint: null,
-                choices: [{ index: 0, delta: { content: dt }, finish_reason: null, logprobs: null }],
-              })));
+              controller.enqueue(
+                encoder.encode(
+                  sseChunk({
+                    id: cid,
+                    object: "chat.completion.chunk",
+                    created,
+                    model,
+                    system_fingerprint: null,
+                    choices: [
+                      { index: 0, delta: { content: dt }, finish_reason: null, logprobs: null },
+                    ],
+                  }),
+                ),
+              );
             }
           }
           if (chunk.answer) fullAnswer = chunk.answer;
         }
 
-        controller.enqueue(encoder.encode(sseChunk({
-          id: cid, object: "chat.completion.chunk", created, model, system_fingerprint: null,
-          choices: [{ index: 0, delta: {}, finish_reason: "stop", logprobs: null }],
-        })));
+        controller.enqueue(
+          encoder.encode(
+            sseChunk({
+              id: cid,
+              object: "chat.completion.chunk",
+              created,
+              model,
+              system_fingerprint: null,
+              choices: [{ index: 0, delta: {}, finish_reason: "stop", logprobs: null }],
+            }),
+          ),
+        );
         controller.enqueue(encoder.encode(SSE_DONE));
 
         sessionStore(history, currentMsg, cleanResponse(fullAnswer), respBackendUuid);
       } catch (err) {
-        controller.enqueue(encoder.encode(sseChunk({
-          id: cid, object: "chat.completion.chunk", created, model, system_fingerprint: null,
-          choices: [{ index: 0, delta: { content: `[Stream error: ${err.message || String(err)}]` }, finish_reason: "stop", logprobs: null }],
-        })));
+        controller.enqueue(
+          encoder.encode(
+            sseChunk({
+              id: cid,
+              object: "chat.completion.chunk",
+              created,
+              model,
+              system_fingerprint: null,
+              choices: [
+                {
+                  index: 0,
+                  delta: { content: `[Stream error: ${err.message || String(err)}]` },
+                  finish_reason: "stop",
+                  logprobs: null,
+                },
+              ],
+            }),
+          ),
+        );
         controller.enqueue(encoder.encode(SSE_DONE));
       } finally {
         controller.close();
@@ -354,7 +445,15 @@ function buildStreamingResponse(eventStream, model, cid, created, history, curre
   });
 }
 
-async function buildNonStreamingResponse(eventStream, model, cid, created, history, currentMsg, signal) {
+async function buildNonStreamingResponse(
+  eventStream,
+  model,
+  cid,
+  created,
+  history,
+  currentMsg,
+  signal,
+) {
   let fullAnswer = "";
   let respBackendUuid = null;
   const thinkingParts = [];
@@ -362,12 +461,21 @@ async function buildNonStreamingResponse(eventStream, model, cid, created, histo
   for await (const chunk of extractContent(eventStream, signal)) {
     if (chunk.backendUuid) respBackendUuid = chunk.backendUuid;
     if (chunk.error) {
-      return new Response(JSON.stringify({
-        error: { message: chunk.error, type: "upstream_error", code: "PPLX_ERROR" },
-      }), { status: 502, headers: { "Content-Type": "application/json" } });
+      return new Response(
+        JSON.stringify({
+          error: { message: chunk.error, type: "upstream_error", code: "PPLX_ERROR" },
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
     }
-    if (chunk.thinking) { thinkingParts.push(chunk.thinking); continue; }
-    if (chunk.done) { fullAnswer = chunk.answer || fullAnswer; break; }
+    if (chunk.thinking) {
+      thinkingParts.push(chunk.thinking);
+      continue;
+    }
+    if (chunk.done) {
+      fullAnswer = chunk.answer || fullAnswer;
+      break;
+    }
     if (chunk.answer) fullAnswer = chunk.answer;
   }
 
@@ -381,11 +489,22 @@ async function buildNonStreamingResponse(eventStream, model, cid, created, histo
   const promptTokens = Math.ceil(currentMsg.length / 4);
   const completionTokens = Math.ceil(fullAnswer.length / 4);
 
-  return new Response(JSON.stringify({
-    id: cid, object: "chat.completion", created, model, system_fingerprint: null,
-    choices: [{ index: 0, message: msg, finish_reason: "stop", logprobs: null }],
-    usage: { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: promptTokens + completionTokens },
-  }), { status: 200, headers: { "Content-Type": "application/json" } });
+  return new Response(
+    JSON.stringify({
+      id: cid,
+      object: "chat.completion",
+      created,
+      model,
+      system_fingerprint: null,
+      choices: [{ index: 0, message: msg, finish_reason: "stop", logprobs: null }],
+      usage: {
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: promptTokens + completionTokens,
+      },
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
 }
 
 export class PerplexityWebExecutor extends BaseExecutor {
@@ -396,13 +515,18 @@ export class PerplexityWebExecutor extends BaseExecutor {
   async execute({ model, body, stream, credentials, signal, log }) {
     const messages = body?.messages;
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      const errResp = new Response(JSON.stringify({
-        error: { message: "Missing or empty messages array", type: "invalid_request" },
-      }), { status: 400, headers: { "Content-Type": "application/json" } });
+      const errResp = new Response(
+        JSON.stringify({
+          error: { message: "Missing or empty messages array", type: "invalid_request" },
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
       return { response: errResp, url: PPLX_SSE_ENDPOINT, headers: {}, transformedBody: body };
     }
 
-    const thinking = body?.thinking === true || (body?.reasoning_effort != null && body.reasoning_effort !== "none");
+    const thinking =
+      body?.thinking === true ||
+      (body?.reasoning_effort != null && body.reasoning_effort !== "none");
 
     let pplxMode;
     let modelPref;
@@ -424,9 +548,12 @@ export class PerplexityWebExecutor extends BaseExecutor {
 
     const query = buildQuery(parsed, followUpUuid, body?.tools);
     if (!query.trim()) {
-      const errResp = new Response(JSON.stringify({
-        error: { message: "Empty query after processing", type: "invalid_request" },
-      }), { status: 400, headers: { "Content-Type": "application/json" } });
+      const errResp = new Response(
+        JSON.stringify({
+          error: { message: "Empty query after processing", type: "invalid_request" },
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
       return { response: errResp, url: PPLX_SSE_ENDPOINT, headers: {}, transformedBody: body };
     }
 
@@ -448,7 +575,10 @@ export class PerplexityWebExecutor extends BaseExecutor {
       headers["Cookie"] = `__Secure-next-auth.session-token=${credentials.apiKey}`;
     }
 
-    log?.info?.("PPLX-WEB", `Query to ${model} (pref=${modelPref}, mode=${pplxMode}), len=${query.length}`);
+    log?.info?.(
+      "PPLX-WEB",
+      `Query to ${model} (pref=${modelPref}, mode=${pplxMode}), len=${query.length}`,
+    );
 
     const fetchOptions = { method: "POST", headers, body: JSON.stringify(pplxBody) };
     if (signal) fetchOptions.signal = signal;
@@ -458,28 +588,42 @@ export class PerplexityWebExecutor extends BaseExecutor {
       response = await fetch(PPLX_SSE_ENDPOINT, fetchOptions);
     } catch (err) {
       log?.error?.("PPLX-WEB", `Fetch failed: ${err.message || String(err)}`);
-      const errResp = new Response(JSON.stringify({
-        error: { message: `Perplexity connection failed: ${err.message || String(err)}`, type: "upstream_error" },
-      }), { status: 502, headers: { "Content-Type": "application/json" } });
+      const errResp = new Response(
+        JSON.stringify({
+          error: {
+            message: `Perplexity connection failed: ${err.message || String(err)}`,
+            type: "upstream_error",
+          },
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
       return { response: errResp, url: PPLX_SSE_ENDPOINT, headers, transformedBody: pplxBody };
     }
 
     if (!response.ok) {
       const status = response.status;
       let errMsg = `Perplexity returned HTTP ${status}`;
-      if (status === 401 || status === 403) errMsg = "Perplexity auth failed — session cookie may be expired. Re-paste your __Secure-next-auth.session-token.";
+      if (status === 401 || status === 403)
+        errMsg =
+          "Perplexity auth failed — session cookie may be expired. Re-paste your __Secure-next-auth.session-token.";
       else if (status === 429) errMsg = "Perplexity rate limited. Wait a moment and retry.";
       log?.warn?.("PPLX-WEB", errMsg);
-      const errResp = new Response(JSON.stringify({
-        error: { message: errMsg, type: "upstream_error", code: `HTTP_${status}` },
-      }), { status, headers: { "Content-Type": "application/json" } });
+      const errResp = new Response(
+        JSON.stringify({
+          error: { message: errMsg, type: "upstream_error", code: `HTTP_${status}` },
+        }),
+        { status, headers: { "Content-Type": "application/json" } },
+      );
       return { response: errResp, url: PPLX_SSE_ENDPOINT, headers, transformedBody: pplxBody };
     }
 
     if (!response.body) {
-      const errResp = new Response(JSON.stringify({
-        error: { message: "Perplexity returned empty response body", type: "upstream_error" },
-      }), { status: 502, headers: { "Content-Type": "application/json" } });
+      const errResp = new Response(
+        JSON.stringify({
+          error: { message: "Perplexity returned empty response body", type: "upstream_error" },
+        }),
+        { status: 502, headers: { "Content-Type": "application/json" } },
+      );
       return { response: errResp, url: PPLX_SSE_ENDPOINT, headers, transformedBody: pplxBody };
     }
 
@@ -488,13 +632,29 @@ export class PerplexityWebExecutor extends BaseExecutor {
 
     let finalResponse;
     if (stream) {
-      const sseStream = buildStreamingResponse(response.body, model, cid, created, parsed.history, parsed.currentMsg, signal);
+      const sseStream = buildStreamingResponse(
+        response.body,
+        model,
+        cid,
+        created,
+        parsed.history,
+        parsed.currentMsg,
+        signal,
+      );
       finalResponse = new Response(sseStream, {
         status: 200,
         headers: { ...SSE_HEADERS_NO_BUFFER },
       });
     } else {
-      finalResponse = await buildNonStreamingResponse(response.body, model, cid, created, parsed.history, parsed.currentMsg, signal);
+      finalResponse = await buildNonStreamingResponse(
+        response.body,
+        model,
+        cid,
+        created,
+        parsed.history,
+        parsed.currentMsg,
+        signal,
+      );
     }
     return { response: finalResponse, url: PPLX_SSE_ENDPOINT, headers, transformedBody: pplxBody };
   }

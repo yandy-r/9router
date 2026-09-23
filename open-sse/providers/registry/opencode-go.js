@@ -2,9 +2,7 @@ export default {
   id: "opencode-go",
   priority: 210,
   alias: "opencode-go",
-  aliases: [
-    "ocg",
-  ],
+  aliases: ["ocg"],
   uiAlias: "ocg",
   display: {
     name: "OpenCode Go",
@@ -29,9 +27,21 @@ export default {
   // translation. Guarded per-model by `supportedFormats` (see chatCore) because
   // opencode-go models differ in endpoint support.
   transports: [
-    { format: "openai", baseUrl: "https://opencode.ai/zen/go/v1/chat/completions", auth: { combined: true, header: "Authorization", scheme: "bearer" } },
-    { format: "claude", baseUrl: "https://opencode.ai/zen/go/v1/messages", auth: { combined: true, header: "x-api-key", scheme: "raw", anthropicVersion: true } },
-    { format: "openai-responses", baseUrl: "https://opencode.ai/zen/go/v1/responses", auth: { combined: true, header: "Authorization", scheme: "bearer" } },
+    {
+      format: "openai",
+      baseUrl: "https://opencode.ai/zen/go/v1/chat/completions",
+      auth: { combined: true, header: "Authorization", scheme: "bearer" },
+    },
+    {
+      format: "claude",
+      baseUrl: "https://opencode.ai/zen/go/v1/messages",
+      auth: { combined: true, header: "x-api-key", scheme: "raw", anthropicVersion: true },
+    },
+    {
+      format: "openai-responses",
+      baseUrl: "https://opencode.ai/zen/go/v1/responses",
+      auth: { combined: true, header: "Authorization", scheme: "bearer" },
+    },
   ],
   // supportedFormats follow the endpoint table in https://opencode.ai/docs/go/
   models: [
@@ -43,9 +53,21 @@ export default {
     { id: "kimi-k2.7-code", name: "Kimi K2.7 Code", supportedFormats: ["openai"] },
     { id: "kimi-k2.6", name: "Kimi K2.6", supportedFormats: ["openai"] },
     { id: "kimi-k3", name: "Kimi K3", supportedFormats: ["openai"] },
-    { id: "deepseek-v4-pro", name: "DeepSeek V4 Pro", supportedFormats: ["openai", "claude", "openai-responses"] },
-    { id: "deepseek-v4-flash", name: "DeepSeek V4 Flash", supportedFormats: ["openai", "claude", "openai-responses"] },
-    { id: "deepseek-v4-flash-vision-exp", name: "DeepSeek V4 Flash Vision (Exp)", supportedFormats: ["openai", "claude", "openai-responses"] },
+    {
+      id: "deepseek-v4-pro",
+      name: "DeepSeek V4 Pro",
+      supportedFormats: ["openai", "claude", "openai-responses"],
+    },
+    {
+      id: "deepseek-v4-flash",
+      name: "DeepSeek V4 Flash",
+      supportedFormats: ["openai", "claude", "openai-responses"],
+    },
+    {
+      id: "deepseek-v4-flash-vision-exp",
+      name: "DeepSeek V4 Flash Vision (Exp)",
+      supportedFormats: ["openai", "claude", "openai-responses"],
+    },
     { id: "longcat-2.0", name: "LongCat 2.0", supportedFormats: ["openai"] },
     { id: "mimo-v2.5", name: "MiMo V2.5", supportedFormats: ["openai"] },
     { id: "mimo-v2.5-pro", name: "MiMo V2.5 Pro", supportedFormats: ["openai"] },
@@ -61,10 +83,30 @@ export default {
     { id: "hy3", name: "Hy3", supportedFormats: ["openai"] },
     // Served by /zen/go/v1/responses only — the responses-only entry forces chatCore
     // past the sourceFormat-matched transports into translation (see chatCore guard).
-    { id: "grok-4.6", name: "Grok 4.6", targetFormat: "openai-responses", supportedFormats: ["openai-responses"] },
-    { id: "gpt-5.6-luna", name: "GPT 5.6 Luna", targetFormat: "openai-responses", supportedFormats: ["openai-responses"] },
-    { id: "muse-spark-1.2-contributor", name: "Muse Spark 1.2 Contributor", targetFormat: "openai-responses", supportedFormats: ["openai-responses"] },
-    { id: "muse-spark-1.3-contributor", name: "Muse Spark 1.3 Contributor", targetFormat: "openai-responses", supportedFormats: ["openai-responses"] },
+    {
+      id: "grok-4.6",
+      name: "Grok 4.6",
+      targetFormat: "openai-responses",
+      supportedFormats: ["openai-responses"],
+    },
+    {
+      id: "gpt-5.6-luna",
+      name: "GPT 5.6 Luna",
+      targetFormat: "openai-responses",
+      supportedFormats: ["openai-responses"],
+    },
+    {
+      id: "muse-spark-1.2-contributor",
+      name: "Muse Spark 1.2 Contributor",
+      targetFormat: "openai-responses",
+      supportedFormats: ["openai-responses"],
+    },
+    {
+      id: "muse-spark-1.3-contributor",
+      name: "Muse Spark 1.3 Contributor",
+      targetFormat: "openai-responses",
+      supportedFormats: ["openai-responses"],
+    },
   ],
   features: {
     usage: true,

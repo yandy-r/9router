@@ -63,9 +63,7 @@ async function _handleCallback(params, expectedState) {
   }
   const candidate = params.state;
   if (!candidate || candidate !== expectedState) {
-    throw new Error(
-      "This request isn't valid. Please restart the Kimchi login flow.",
-    );
+    throw new Error("This request isn't valid. Please restart the Kimchi login flow.");
   }
   const token = params.token;
   if (!token) {
@@ -114,12 +112,14 @@ function mapKimchiMetadata(raw) {
 
 describe("kimchiModels", () => {
   it("maps Kimchi metadata entries to 9router model shape", () => {
-    const raw = [{
-      slug: "glm-5.2-fp8",
-      display_name: "GLM 5.2",
-      reasoning: true,
-      limits: { context_window: 1048576, max_output_tokens: 1048576 },
-    }];
+    const raw = [
+      {
+        slug: "glm-5.2-fp8",
+        display_name: "GLM 5.2",
+        reasoning: true,
+        limits: { context_window: 1048576, max_output_tokens: 1048576 },
+      },
+    ];
     const models = mapKimchiMetadata(raw);
     assert.equal(models.length, 1);
     assert.deepEqual(models[0], {
@@ -132,7 +132,9 @@ describe("kimchiModels", () => {
   });
 
   it("falls back to slug as name when display_name is empty", () => {
-    const models = mapKimchiMetadata([{ slug: "kimi-k2.7", display_name: "", reasoning: false, limits: {} }]);
+    const models = mapKimchiMetadata([
+      { slug: "kimi-k2.7", display_name: "", reasoning: false, limits: {} },
+    ]);
     assert.equal(models[0].name, "kimi-k2.7");
     assert.equal(models[0].contextLength, null);
     assert.equal(models[0].isReasoning, false);
@@ -198,10 +200,22 @@ function findExistingOAuth(all, incoming) {
 }
 
 describe("kimchi OAuth dedup", () => {
-  const google = { authType: "oauth", email: "x@y.com", providerSpecificData: { username: "google-oauth2|123" } };
-  const hf = { authType: "oauth", email: "x@y.com", providerSpecificData: { username: "huggingface|456" } };
+  const google = {
+    authType: "oauth",
+    email: "x@y.com",
+    providerSpecificData: { username: "google-oauth2|123" },
+  };
+  const hf = {
+    authType: "oauth",
+    email: "x@y.com",
+    providerSpecificData: { username: "huggingface|456" },
+  };
   const legacy = { authType: "oauth", email: "x@y.com", providerSpecificData: {} };
-  const other = { authType: "oauth", email: "z@y.com", providerSpecificData: { username: "google-oauth2|789" } };
+  const other = {
+    authType: "oauth",
+    email: "z@y.com",
+    providerSpecificData: { username: "google-oauth2|789" },
+  };
 
   it("different email never matches", () => {
     assert.equal(findExistingOAuth([other], google), undefined);
@@ -225,9 +239,21 @@ describe("kimchi OAuth dedup", () => {
   });
 
   it("workspaces still dedupe on workspace ID when both sides have one", () => {
-    const ws1 = { authType: "oauth", email: "a@b.com", providerSpecificData: { chatgptAccountId: "ws1" } };
-    const ws1dup = { authType: "oauth", email: "a@b.com", providerSpecificData: { chatgptAccountId: "ws1" } };
-    const ws2 = { authType: "oauth", email: "a@b.com", providerSpecificData: { chatgptAccountId: "ws2" } };
+    const ws1 = {
+      authType: "oauth",
+      email: "a@b.com",
+      providerSpecificData: { chatgptAccountId: "ws1" },
+    };
+    const ws1dup = {
+      authType: "oauth",
+      email: "a@b.com",
+      providerSpecificData: { chatgptAccountId: "ws1" },
+    };
+    const ws2 = {
+      authType: "oauth",
+      email: "a@b.com",
+      providerSpecificData: { chatgptAccountId: "ws2" },
+    };
     assert.equal(findExistingOAuth([ws1], ws1dup), ws1);
     assert.equal(findExistingOAuth([ws1], ws2), undefined);
   });

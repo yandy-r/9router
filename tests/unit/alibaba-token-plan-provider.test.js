@@ -21,21 +21,24 @@ describe("Alibaba Token Plan provider", () => {
   });
 
   it("does not collide with the other three Alibaba key types", () => {
-    const hosts = ["alicode", "alicode-intl", "alims-intl", "alitp-intl"]
-      .map((id) => new URL(PROVIDERS[id].baseUrl).host);
+    const hosts = ["alicode", "alicode-intl", "alims-intl", "alitp-intl"].map(
+      (id) => new URL(PROVIDERS[id].baseUrl).host,
+    );
     expect(new Set(hosts).size).toBe(hosts.length);
   });
 
   it("exposes the models the plan actually serves", () => {
     const ids = (PROVIDER_MODELS["alitp-intl"] || []).map((m) => m.id);
-    expect(ids).toEqual(expect.arrayContaining([
-      "qwen3.8-max-preview",
-      "qwen3.7-max",
-      "qwen3.7-plus",
-      "qwen3.6-flash",
-      "glm-5.2",
-      "deepseek-v4-pro",
-    ]));
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "qwen3.8-max-preview",
+        "qwen3.7-max",
+        "qwen3.7-plus",
+        "qwen3.6-flash",
+        "glm-5.2",
+        "deepseek-v4-pro",
+      ]),
+    );
   });
 
   it("keeps every registry id unique after adding the provider", () => {

@@ -20,9 +20,16 @@ import { GET as getProviderModels } from "@/app/api/providers/[id]/models/route.
 import { buildModelsList } from "@/app/api/v1/models/route.js";
 import { createProviderConnection, deleteProviderConnectionsByProvider } from "@/models/index.js";
 import { getProviderAlias } from "@/shared/constants/providers";
-import { clearLiveModelsCache, hasLiveModelResolver, resolveLiveModels } from "@/lib/providerModels/liveResolvers.js";
+import {
+  clearLiveModelsCache,
+  hasLiveModelResolver,
+  resolveLiveModels,
+} from "@/lib/providerModels/liveResolvers.js";
 
-const CLAUDE_LIVE = { data: [{ id: "claude-live-9-9", display_name: "Claude Live 9.9" }], has_more: false };
+const CLAUDE_LIVE = {
+  data: [{ id: "claude-live-9-9", display_name: "Claude Live 9.9" }],
+  has_more: false,
+};
 
 let anthropicCalls;
 let anthropicStatus;
@@ -35,7 +42,8 @@ beforeEach(async () => {
   await deleteProviderConnectionsByProvider("qoder");
   const nativeFetch = globalThis.fetch.bind(globalThis);
   vi.stubGlobal("fetch", async (url, init) => {
-    if (!String(url).startsWith("https://api.anthropic.com/v1/models")) return nativeFetch(url, init);
+    if (!String(url).startsWith("https://api.anthropic.com/v1/models"))
+      return nativeFetch(url, init);
     anthropicCalls++;
     if (anthropicStatus !== 200) return new Response("down", { status: anthropicStatus });
     return Response.json(CLAUDE_LIVE);
@@ -50,24 +58,37 @@ async function dashboardModels(connectionId, query = "") {
   return getProviderModels(req, { params: Promise.resolve({ id: connectionId }) });
 }
 
-const seedClaude = (providerSpecificData) => createProviderConnection({
-  provider: "claude",
-  authType: "apikey",
-  apiKey: `sk-ant-api03-${Date.now()}-${Math.random()}`,
-  testStatus: "active",
-  ...(providerSpecificData ? { providerSpecificData } : {}),
-});
-const seedQoder = () => createProviderConnection({
-  provider: "qoder",
-  authType: "oauth",
-  accessToken: `qoder-${Date.now()}-${Math.random()}`,
-  email: `qoder-${Date.now()}@example.com`,
-  testStatus: "active",
-});
+const seedClaude = (providerSpecificData) =>
+  createProviderConnection({
+    provider: "claude",
+    authType: "apikey",
+    apiKey: `sk-ant-api03-${Date.now()}-${Math.random()}`,
+    testStatus: "active",
+    ...(providerSpecificData ? { providerSpecificData } : {}),
+  });
+const seedQoder = () =>
+  createProviderConnection({
+    provider: "qoder",
+    authType: "oauth",
+    accessToken: `qoder-${Date.now()}-${Math.random()}`,
+    email: `qoder-${Date.now()}@example.com`,
+    testStatus: "active",
+  });
 
 describe("resolver registry", () => {
   it("covers every provider moved out of the route files", () => {
-    for (const id of ["claude", "zed", "kiro", "qoder", "grok-cli", "cursor", "kimchi", "github", "cline", "clinepass"]) {
+    for (const id of [
+      "claude",
+      "zed",
+      "kiro",
+      "qoder",
+      "grok-cli",
+      "cursor",
+      "kimchi",
+      "github",
+      "cline",
+      "clinepass",
+    ]) {
       expect(hasLiveModelResolver(id)).toBe(true);
     }
     expect(hasLiveModelResolver("openai")).toBe(false);
@@ -85,7 +106,9 @@ describe("TTL cache", () => {
   it("serves a repeat call from cache and bypasses it on ?refresh=1", async () => {
     const conn = await seedClaude();
 
-    expect((await (await dashboardModels(conn.id)).json()).models.map((m) => m.id)).toEqual(["claude-live-9-9"]);
+    expect((await (await dashboardModels(conn.id)).json()).models.map((m) => m.id)).toEqual([
+      "claude-live-9-9",
+    ]);
     await dashboardModels(conn.id);
     expect(anthropicCalls).toBe(1);
 

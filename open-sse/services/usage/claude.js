@@ -64,14 +64,18 @@ async function fetchClaudeUsageRaw(accessToken, proxyOptions = null) {
     }
 
     // Primary: OAuth usage endpoint (Claude Code consumer OAuth tokens)
-    const oauthResponse = await proxyAwareFetch(CLAUDE_CONFIG.oauthUsageUrl, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "anthropic-beta": "oauth-2025-04-20",
-        "anthropic-version": CLAUDE_CONFIG.apiVersion,
+    const oauthResponse = await proxyAwareFetch(
+      CLAUDE_CONFIG.oauthUsageUrl,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "anthropic-beta": "oauth-2025-04-20",
+          "anthropic-version": CLAUDE_CONFIG.apiVersion,
+        },
       },
-    }, proxyOptions);
+      proxyOptions,
+    );
 
     if (oauthResponse.ok) {
       const data = await oauthResponse.json();
@@ -117,7 +121,9 @@ async function fetchClaudeUsageRaw(accessToken, proxyOptions = null) {
       if (Array.isArray(data.limits)) {
         for (const limit of data.limits) {
           if (limit?.kind !== "weekly_scoped") continue;
-          const modelName = String(limit?.scope?.model?.display_name || "").trim().toLowerCase();
+          const modelName = String(limit?.scope?.model?.display_name || "")
+            .trim()
+            .toLowerCase();
           if (!modelName || typeof limit.percent !== "number") continue;
           quotas[`weekly ${modelName} (7d)`] = createQuotaObject({
             utilization: Math.max(0, Math.min(100, limit.percent)),
@@ -139,7 +145,9 @@ async function fetchClaudeUsageRaw(accessToken, proxyOptions = null) {
     }
 
     // Fallback: legacy settings + org usage endpoint
-    console.warn(`[Claude Usage] OAuth endpoint returned ${oauthResponse.status}, falling back to legacy`);
+    console.warn(
+      `[Claude Usage] OAuth endpoint returned ${oauthResponse.status}, falling back to legacy`,
+    );
     return await getClaudeUsageLegacy(accessToken, proxyOptions);
   } catch (error) {
     return { message: `Claude connected. Unable to fetch usage: ${error.message}` };
@@ -151,13 +159,17 @@ async function fetchClaudeUsageRaw(accessToken, proxyOptions = null) {
  */
 async function getClaudeUsageLegacy(accessToken, proxyOptions = null) {
   try {
-    const settingsResponse = await proxyAwareFetch(CLAUDE_CONFIG.settingsUrl, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "anthropic-version": CLAUDE_CONFIG.apiVersion,
+    const settingsResponse = await proxyAwareFetch(
+      CLAUDE_CONFIG.settingsUrl,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "anthropic-version": CLAUDE_CONFIG.apiVersion,
+        },
       },
-    }, proxyOptions);
+      proxyOptions,
+    );
 
     if (settingsResponse.ok) {
       const settings = await settingsResponse.json();
@@ -168,11 +180,11 @@ async function getClaudeUsageLegacy(accessToken, proxyOptions = null) {
           {
             method: "GET",
             headers: {
-              "Authorization": `Bearer ${accessToken}`,
+              Authorization: `Bearer ${accessToken}`,
               "anthropic-version": CLAUDE_CONFIG.apiVersion,
             },
           },
-          proxyOptions
+          proxyOptions,
         );
 
         if (usageResponse.ok) {

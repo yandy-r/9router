@@ -23,11 +23,7 @@ import { openaiToOpenAIResponsesRequest } from "../translator/request/openai-res
 import { claudeToOpenAIResponse } from "../translator/response/claude-to-openai.js";
 import { geminiToOpenAIResponse } from "../translator/response/gemini-to-openai.js";
 import { openaiResponsesToOpenAIResponse } from "../translator/response/openai-responses.js";
-import {
-  ZED_HEADERS,
-  resolveZedModels,
-  zedLlmFetch,
-} from "../shared/zedAuth.js";
+import { ZED_HEADERS, resolveZedModels, zedLlmFetch } from "../shared/zedAuth.js";
 import { ZED_CLIENT_VERSION } from "../config/zedClientFingerprint.js";
 
 // Wire values for the `provider` field of POST /completions. These are NOT
@@ -101,9 +97,7 @@ function createErrorChunk(model, message) {
     object: "chat.completion.chunk",
     created: Math.floor(Date.now() / 1000),
     model,
-    choices: [
-      { index: 0, delta: { content: `[Zed error] ${message}` }, finish_reason: "stop" },
-    ],
+    choices: [{ index: 0, delta: { content: `[Zed error] ${message}` }, finish_reason: "stop" }],
   };
 }
 
@@ -123,10 +117,10 @@ function unwrapZedLine(line) {
   if (text === "[DONE]") return { done: true };
   try {
     const parsed = JSON.parse(text);
-    if (parsed && Object.prototype.hasOwnProperty.call(parsed, "event")) {
+    if (parsed && Object.hasOwn(parsed, "event")) {
       return { event: parsed.event };
     }
-    if (parsed && Object.prototype.hasOwnProperty.call(parsed, "status")) {
+    if (parsed && Object.hasOwn(parsed, "status")) {
       return { status: parsed.status };
     }
     return { event: parsed };
@@ -295,8 +289,7 @@ class ZedExecutor extends BaseExecutor {
 
     const errorObj = parsed?.error || undefined;
     const code = parsed?.code || errorObj?.code || "";
-    const rawMessage =
-      parsed?.message || errorObj?.message || bodyText || response.statusText;
+    const rawMessage = parsed?.message || errorObj?.message || bodyText || response.statusText;
     if (code === "trial_blocked") {
       return {
         status: response.status,
@@ -306,7 +299,10 @@ class ZedExecutor extends BaseExecutor {
     if (code) {
       return { status: response.status, message: `Zed ${code}: ${rawMessage}` };
     }
-    return { status: response.status, message: rawMessage || `Zed upstream error: ${response.status}` };
+    return {
+      status: response.status,
+      message: rawMessage || `Zed upstream error: ${response.status}`,
+    };
   }
 
   async refreshCredentials() {

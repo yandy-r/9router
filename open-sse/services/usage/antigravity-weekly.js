@@ -110,19 +110,24 @@ export async function fetchAntigravityWeeklyQuota(accessToken, projectId, proxyO
       const url = WEEKLY_CONFIG.quotaSummaryApiUrl;
       if (!url) return {};
 
-      const response = await fetchWithTimeout(url, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "User-Agent": WEEKLY_CONFIG.userAgent,
-          "Content-Type": "application/json",
-          "X-Client-Name": "antigravity",
-          "X-Client-Version": ANTIGRAVITY_IDE_VERSION,
+      const response = await fetchWithTimeout(
+        url,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "User-Agent": WEEKLY_CONFIG.userAgent,
+            "Content-Type": "application/json",
+            "X-Client-Name": "antigravity",
+            "X-Client-Version": ANTIGRAVITY_IDE_VERSION,
+          },
+          body: JSON.stringify({
+            ...(projectId ? { project: projectId } : {}),
+          }),
         },
-        body: JSON.stringify({
-          ...(projectId ? { project: projectId } : {}),
-        }),
-      }, 10000, proxyOptions);
+        10000,
+        proxyOptions,
+      );
 
       if (!response.ok) return {};
 

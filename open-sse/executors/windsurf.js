@@ -398,13 +398,22 @@ export class WindsurfExecutor extends BaseExecutor {
     return null;
   }
 
-  async execute({ model, body, stream, credentials, signal, log, upstreamExtraHeaders, proxyOptions = null }) {
+  async execute({
+    model,
+    body,
+    stream,
+    credentials,
+    signal,
+    log,
+    upstreamExtraHeaders,
+    proxyOptions = null,
+  }) {
     const apiKey = credentials?.accessToken || credentials?.apiKey || "";
     const wsModel = resolveWsModelId(model);
 
     const b = body ?? {};
     const rawMessages = Array.isArray(b.messages) ? b.messages : [];
-    let wsMessages = openAIMessagesToWs(rawMessages);
+    const wsMessages = openAIMessagesToWs(rawMessages);
     if (wsMessages.length === 0) {
       wsMessages.push({ role: "user", content: "" });
     }
@@ -418,12 +427,16 @@ export class WindsurfExecutor extends BaseExecutor {
 
     log?.debug?.("WS", `Windsurf → ${wsModel} (${wsMessages.length} messages)`);
 
-    const upstream = await proxyAwareFetch(url, {
-      method: "POST",
-      headers,
-      body: framedPayload,
-      signal,
-    }, proxyOptions);
+    const upstream = await proxyAwareFetch(
+      url,
+      {
+        method: "POST",
+        headers,
+        body: framedPayload,
+        signal,
+      },
+      proxyOptions,
+    );
 
     if (!upstream.ok && upstream.status !== 200) {
       return { response: upstream, url, headers, transformedBody: protoPayload };
@@ -476,16 +489,28 @@ export class WindsurfExecutor extends BaseExecutor {
             if (chunk.kind === "content" && chunk.text) {
               totalText += chunk.text;
               if (!roleEmitted) {
-                emit(`data: ${JSON.stringify({
-                  id: responseId, object: "chat.completion.chunk", created, model,
-                  choices: [{ index: 0, delta: { role: "assistant", content: "" }, finish_reason: null }],
-                })}\n\n`);
+                emit(
+                  `data: ${JSON.stringify({
+                    id: responseId,
+                    object: "chat.completion.chunk",
+                    created,
+                    model,
+                    choices: [
+                      { index: 0, delta: { role: "assistant", content: "" }, finish_reason: null },
+                    ],
+                  })}\n\n`,
+                );
                 roleEmitted = true;
               }
-              emit(`data: ${JSON.stringify({
-                id: responseId, object: "chat.completion.chunk", created, model,
-                choices: [{ index: 0, delta: { content: chunk.text }, finish_reason: null }],
-              })}\n\n`);
+              emit(
+                `data: ${JSON.stringify({
+                  id: responseId,
+                  object: "chat.completion.chunk",
+                  created,
+                  model,
+                  choices: [{ index: 0, delta: { content: chunk.text }, finish_reason: null }],
+                })}\n\n`,
+              );
             } else if (chunk.kind === "done") {
               promptTokens = chunk.promptTokens;
               completionTokens = chunk.completionTokens;
@@ -526,9 +551,11 @@ export class WindsurfExecutor extends BaseExecutor {
           drainFrames();
 
           if (hadError) {
-            emit(`data: ${JSON.stringify({
-              error: { message: hadError, type: "windsurf_error", code: "upstream_error" },
-            })}\n\n`);
+            emit(
+              `data: ${JSON.stringify({
+                error: { message: hadError, type: "windsurf_error", code: "upstream_error" },
+              })}\n\n`,
+            );
             emit("data: [DONE]\n\n");
             controller.close();
             return;
@@ -536,18 +563,33 @@ export class WindsurfExecutor extends BaseExecutor {
 
           // Unary fallback: nothing streamed but text decoded → emit as one chunk.
           if (!roleEmitted && totalText) {
-            emit(`data: ${JSON.stringify({
-              id: responseId, object: "chat.completion.chunk", created, model,
-              choices: [{ index: 0, delta: { role: "assistant", content: "" }, finish_reason: null }],
-            })}\n\n`);
-            emit(`data: ${JSON.stringify({
-              id: responseId, object: "chat.completion.chunk", created, model,
-              choices: [{ index: 0, delta: { content: totalText }, finish_reason: null }],
-            })}\n\n`);
+            emit(
+              `data: ${JSON.stringify({
+                id: responseId,
+                object: "chat.completion.chunk",
+                created,
+                model,
+                choices: [
+                  { index: 0, delta: { role: "assistant", content: "" }, finish_reason: null },
+                ],
+              })}\n\n`,
+            );
+            emit(
+              `data: ${JSON.stringify({
+                id: responseId,
+                object: "chat.completion.chunk",
+                created,
+                model,
+                choices: [{ index: 0, delta: { content: totalText }, finish_reason: null }],
+              })}\n\n`,
+            );
           }
 
           const finishPayload = {
-            id: responseId, object: "chat.completion.chunk", created, model,
+            id: responseId,
+            object: "chat.completion.chunk",
+            created,
+            model,
             choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
           };
           if (promptTokens > 0 || completionTokens > 0) {
@@ -561,9 +603,11 @@ export class WindsurfExecutor extends BaseExecutor {
           emit("data: [DONE]\n\n");
         } catch (err) {
           const msg = err?.message ? String(err.message) : String(err);
-          emit(`data: ${JSON.stringify({
-            error: { message: `Windsurf stream error: ${msg}`, type: "windsurf_error" },
-          })}\n\n`);
+          emit(
+            `data: ${JSON.stringify({
+              error: { message: `Windsurf stream error: ${msg}`, type: "windsurf_error" },
+            })}\n\n`,
+          );
           emit("data: [DONE]\n\n");
         }
 

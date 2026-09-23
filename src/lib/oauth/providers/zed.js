@@ -39,7 +39,9 @@ const zed = {
     let userInfo = null;
     try {
       userInfo = await fetchZedAuthenticatedUser(credentials, { config: ZED_HOSTED_CONFIG });
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
     const organizationId = resolveZedOrganizationId(credentials, userInfo);
     return {
       userInfo,

@@ -6,7 +6,10 @@ import { dirname, join } from "node:path";
 
 import { getModelUpstreamId } from "../../open-sse/config/providerModels.js";
 import { AntigravityExecutor } from "../../open-sse/executors/antigravity.js";
-import { applyThinking, stripThinkingSuffix } from "../../open-sse/translator/concerns/thinkingUnified.js";
+import {
+  applyThinking,
+  stripThinkingSuffix,
+} from "../../open-sse/translator/concerns/thinkingUnified.js";
 import gemini from "../../open-sse/providers/registry/gemini.js";
 import { MODEL_PRICING } from "../../open-sse/providers/pricing.js";
 import { MITM_TOOLS } from "../../src/shared/constants/cliTools.js";
@@ -34,12 +37,10 @@ describe("Gemini 3.8 Antigravity tiers", () => {
       };
 
       applyThinking("antigravity", upstreamModel, body, "antigravity");
-      const finalBody = new AntigravityExecutor().transformRequest(
-        publicModel,
-        body,
-        true,
-        { projectId: "project", connectionId: "connection" }
-      );
+      const finalBody = new AntigravityExecutor().transformRequest(publicModel, body, true, {
+        projectId: "project",
+        connectionId: "connection",
+      });
 
       expect(upstreamModel).toBe(`gemini-3.8-flash-${tier}(${tier})`);
       expect(finalBody.model).toBe(`gemini-3.8-flash-${tier}`);
@@ -47,31 +48,42 @@ describe("Gemini 3.8 Antigravity tiers", () => {
         thinkingLevel: tier,
         includeThoughts: true,
       });
-    }
+    },
   );
 });
 
 describe("Gemini 3.8 MITM model extraction", () => {
-  it.each(["high", "medium", "low"])("extracts the %s thinking tier for gemini-3.8-flash-tiered", (tier) => {
-    const body = Buffer.from(JSON.stringify({
-      request: { generationConfig: { thinkingConfig: { thinkingLevel: tier } } },
-    }));
+  it.each(["high", "medium", "low"])(
+    "extracts the %s thinking tier for gemini-3.8-flash-tiered",
+    (tier) => {
+      const body = Buffer.from(
+        JSON.stringify({
+          request: { generationConfig: { thinkingConfig: { thinkingLevel: tier } } },
+        }),
+      );
 
-    expect(mitmConfig.extractModel(
-      "/v1internal/models/gemini-3.8-flash-tiered:streamGenerateContent",
-      body
-    )).toBe(`gemini-3.8-flash-${tier}`);
-  });
+      expect(
+        mitmConfig.extractModel(
+          "/v1internal/models/gemini-3.8-flash-tiered:streamGenerateContent",
+          body,
+        ),
+      ).toBe(`gemini-3.8-flash-${tier}`);
+    },
+  );
 
   it("defaults invalid or missing thinking levels to medium", () => {
-    const body = Buffer.from(JSON.stringify({
-      request: { generationConfig: { thinkingConfig: { thinkingLevel: "unknown" } } },
-    }));
+    const body = Buffer.from(
+      JSON.stringify({
+        request: { generationConfig: { thinkingConfig: { thinkingLevel: "unknown" } } },
+      }),
+    );
 
-    expect(mitmConfig.extractModel(
-      "/v1internal/models/gemini-3.8-flash-tiered:streamGenerateContent",
-      body
-    )).toBe("gemini-3.8-flash-medium");
+    expect(
+      mitmConfig.extractModel(
+        "/v1internal/models/gemini-3.8-flash-tiered:streamGenerateContent",
+        body,
+      ),
+    ).toBe("gemini-3.8-flash-medium");
   });
 });
 
@@ -91,7 +103,7 @@ describe("Gemini 3.8 MITM tools and catalog", () => {
 
   it("keeps the standalone CLI Antigravity catalog synchronized", () => {
     const source = readFileSync(join(here, "../../cli/src/cli/menus/providers.js"), "utf8");
-    const agCatalog = source.match(/\n  ag: \[([\s\S]*?)\n  \],/)?.[1] || "";
+    const agCatalog = source.match(/\n {2}ag: \[([\s\S]*?)\n {2}\],/)?.[1] || "";
 
     expect(agCatalog).toContain("gemini-3.8-flash-high");
     expect(agCatalog).toContain("gemini-3.8-flash-medium");

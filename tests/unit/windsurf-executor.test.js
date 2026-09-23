@@ -13,7 +13,10 @@ import { PROVIDERS } from "open-sse/config/providers.js";
 function encodeVarint(value) {
   const bytes = [];
   let v = value >>> 0;
-  while (v > 0x7f) { bytes.push((v & 0x7f) | 0x80); v >>>= 7; }
+  while (v > 0x7f) {
+    bytes.push((v & 0x7f) | 0x80);
+    v >>>= 7;
+  }
   bytes.push(v & 0x7f);
   return new Uint8Array(bytes);
 }
@@ -21,7 +24,9 @@ function encodeLenField(fieldNum, payload) {
   const tag = encodeVarint((fieldNum << 3) | 2);
   const len = encodeVarint(payload.length);
   const out = new Uint8Array(tag.length + len.length + payload.length);
-  out.set(tag, 0); out.set(len, tag.length); out.set(payload, tag.length + len.length);
+  out.set(tag, 0);
+  out.set(len, tag.length);
+  out.set(payload, tag.length + len.length);
   return out;
 }
 function encodeStringField(fieldNum, str) {
@@ -88,7 +93,8 @@ describe("buildGetChatMessageRequest", () => {
       let offset = 0;
       let count = 0;
       while (offset < buf.length) {
-        let result = 0, shift = 0;
+        let result = 0,
+          shift = 0;
         while (offset < buf.length) {
           const b = buf[offset++];
           result |= (b & 0x7f) << shift;
@@ -98,7 +104,8 @@ describe("buildGetChatMessageRequest", () => {
         const fieldNum = result >>> 3;
         const wireType = result & 0x07;
         if (wireType === 2) {
-          let len = 0, ls = 0;
+          let len = 0,
+            ls = 0;
           while (offset < buf.length) {
             const b = buf[offset++];
             len |= (b & 0x7f) << ls;
@@ -147,7 +154,12 @@ describe("decodeCompletionChunk", () => {
 
   it("decodes a DoneChunk (field 3 → UsageStats with prompt/completion tokens)", () => {
     // UsageStats: field 1 = prompt_tokens (varint), field 2 = completion_tokens (varint)
-    const usage = new Uint8Array([...encodeVarint((1 << 3) | 0), ...encodeVarint(42), ...encodeVarint((2 << 3) | 0), ...encodeVarint(99)]);
+    const usage = new Uint8Array([
+      ...encodeVarint((1 << 3) | 0),
+      ...encodeVarint(42),
+      ...encodeVarint((2 << 3) | 0),
+      ...encodeVarint(99),
+    ]);
     const doneChunk = encodeLenField(3, encodeLenField(1, usage));
     const decoded = decodeCompletionChunk(doneChunk);
     expect(decoded.kind).toBe("done");
@@ -187,12 +199,14 @@ describe("WindsurfExecutor class", () => {
 
   it("buildUrl returns the GetChatMessage endpoint", () => {
     const ex = new WindsurfExecutor();
-    expect(ex.buildUrl()).toBe("https://server.self-serve.windsurf.com/exa.language_server_pb.LanguageServerService/GetChatMessage");
+    expect(ex.buildUrl()).toBe(
+      "https://server.self-serve.windsurf.com/exa.language_server_pb.LanguageServerService/GetChatMessage",
+    );
   });
 
   it("PROVIDERS.windsurf baseUrl is the chat endpoint (registry in sync)", () => {
     expect(PROVIDERS.windsurf.baseUrl).toBe(
-      "https://server.self-serve.windsurf.com/exa.language_server_pb.LanguageServerService/GetChatMessage"
+      "https://server.self-serve.windsurf.com/exa.language_server_pb.LanguageServerService/GetChatMessage",
     );
   });
 });

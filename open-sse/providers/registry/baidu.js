@@ -13,8 +13,7 @@ export default {
     textIcon: "BD",
     website: "https://cloud.baidu.com/product/qianfan.html",
     notice: {
-      apiKeyUrl:
-        "https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application",
+      apiKeyUrl: "https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application",
     },
   },
   transport: {

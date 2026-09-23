@@ -7,7 +7,14 @@ import {
   getProxyPoolById,
 } from "@/models";
 import { APIKEY_PROVIDERS } from "@/shared/constants/config";
-import { AI_PROVIDERS, FREE_TIER_PROVIDERS, WEB_COOKIE_PROVIDERS, isOpenAICompatibleProvider, isAnthropicCompatibleProvider, isCustomEmbeddingProvider } from "@/shared/constants/providers";
+import {
+  AI_PROVIDERS,
+  FREE_TIER_PROVIDERS,
+  WEB_COOKIE_PROVIDERS,
+  isOpenAICompatibleProvider,
+  isAnthropicCompatibleProvider,
+  isCustomEmbeddingProvider,
+} from "@/shared/constants/providers";
 import { normalizeProviderId, normalizeProviderSpecificData } from "@/lib/providerNormalization";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +36,12 @@ function normalizeProxyConfig(body = {}) {
 }
 
 async function normalizeProxyPoolId(proxyPoolId) {
-  if (proxyPoolId === undefined || proxyPoolId === null || proxyPoolId === "" || proxyPoolId === "__none__") {
+  if (
+    proxyPoolId === undefined ||
+    proxyPoolId === null ||
+    proxyPoolId === "" ||
+    proxyPoolId === "__none__"
+  ) {
     return { proxyPoolId: null };
   }
 
@@ -52,19 +64,20 @@ export async function GET() {
     const connections = await getProviderConnections();
 
     // Build nodeNameMap for compatible providers (id → name)
-    let nodeNameMap = {};
+    const nodeNameMap = {};
     try {
       const nodes = await getProviderNodes();
       for (const node of nodes) {
         if (node.id && node.name) nodeNameMap[node.id] = node.name;
       }
-    } catch { }
+    } catch {}
 
     // Hide sensitive fields, enrich name for compatible providers
-    const safeConnections = connections.map(c => {
-      const isCompatible = isOpenAICompatibleProvider(c.provider) || isAnthropicCompatibleProvider(c.provider);
+    const safeConnections = connections.map((c) => {
+      const isCompatible =
+        isOpenAICompatibleProvider(c.provider) || isAnthropicCompatibleProvider(c.provider);
       const name = isCompatible
-        ? (c.name || nodeNameMap[c.provider] || c.providerSpecificData?.nodeName || c.provider)
+        ? c.name || nodeNameMap[c.provider] || c.providerSpecificData?.nodeName || c.provider
         : c.name;
       return {
         ...c,
@@ -105,7 +118,8 @@ export async function POST(request) {
     // Dual-auth providers (e.g. codebuddy-cn, xai) live under category "oauth" but also
     // accept an API key via authModes — they aren't in APIKEY_PROVIDERS, so allow them here.
     const supportsApiKeyMode = !!AI_PROVIDERS[provider]?.authModes?.includes("apikey");
-    const isValidProvider = APIKEY_PROVIDERS[provider] ||
+    const isValidProvider =
+      APIKEY_PROVIDERS[provider] ||
       FREE_TIER_PROVIDERS[provider] ||
       supportsApiKeyMode ||
       isWebCookieProvider ||
@@ -117,14 +131,21 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
     }
     if (!apiKey && provider !== "ollama-local") {
-      return NextResponse.json({ error: `${isWebCookieProvider ? "Cookie value" : "API Key"} is required` }, { status: 400 });
+      return NextResponse.json(
+        { error: `${isWebCookieProvider ? "Cookie value" : "API Key"} is required` },
+        { status: 400 },
+      );
     }
     const connectionName = name || displayName || AI_PROVIDERS[provider]?.name;
     if (!connectionName) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    let providerSpecificData = normalizeProviderSpecificData(provider, body, body.providerSpecificData);
+    let providerSpecificData = normalizeProviderSpecificData(
+      provider,
+      body,
+      body.providerSpecificData,
+    );
 
     // Compatible LLM nodes support multiple API-key connections (key pool); runtime
     // rotates/fails over via getProviderCredentials. Embedding nodes stay single-connection.

@@ -19,19 +19,19 @@ const candidateDevinPaths = () => {
   // package-manager locations so detection matches runtime resolution.
   return isWin
     ? [
-      path.join(localAppData, "devin", "cli", "bin", "devin.exe"),
-      path.join(home, ".local", "bin", "devin.exe"),
-      path.join(home, "scoop", "shims", "devin.exe"),
-      path.join(localAppData, "Programs", "devin", "devin.exe"),
-    ]
+        path.join(localAppData, "devin", "cli", "bin", "devin.exe"),
+        path.join(home, ".local", "bin", "devin.exe"),
+        path.join(home, "scoop", "shims", "devin.exe"),
+        path.join(localAppData, "Programs", "devin", "devin.exe"),
+      ]
     : [
-      path.join(home, ".local", "share", "devin", "bin", "devin"),
-      path.join(home, ".devin", "bin", "devin"),
-      path.join(home, ".local", "bin", "devin"),
-      "/opt/homebrew/bin/devin",
-      "/usr/local/bin/devin",
-      "/usr/bin/devin",
-    ];
+        path.join(home, ".local", "share", "devin", "bin", "devin"),
+        path.join(home, ".devin", "bin", "devin"),
+        path.join(home, ".local", "bin", "devin"),
+        "/opt/homebrew/bin/devin",
+        "/usr/local/bin/devin",
+        "/usr/bin/devin",
+      ];
 };
 
 const checkDevinInstalled = async () => {
@@ -49,7 +49,9 @@ const checkDevinInstalled = async () => {
     try {
       await fs.access(candidate);
       return { installed: true, source: candidate };
-    } catch { /* keep probing */ }
+    } catch {
+      /* keep probing */
+    }
   }
   return { installed: false, source: null };
 };
@@ -70,7 +72,8 @@ export async function GET() {
     if (!installed) {
       return NextResponse.json({
         installed: false,
-        message: "Devin CLI is not installed. Install it from https://cli.devin.ai and run `devin auth login`.",
+        message:
+          "Devin CLI is not installed. Install it from https://cli.devin.ai and run `devin auth login`.",
         installUrl: "https://cli.devin.ai",
       });
     }

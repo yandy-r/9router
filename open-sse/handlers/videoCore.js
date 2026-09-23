@@ -45,7 +45,8 @@ function buildHeaders({ token, contentType, idempotencyKey }) {
 }
 
 function combineSignals(signal, timeoutMs) {
-  const timeoutSignal = typeof AbortSignal?.timeout === "function" ? AbortSignal.timeout(timeoutMs) : null;
+  const timeoutSignal =
+    typeof AbortSignal?.timeout === "function" ? AbortSignal.timeout(timeoutMs) : null;
   if (signal && timeoutSignal && typeof AbortSignal.any === "function") {
     return AbortSignal.any([signal, timeoutSignal]);
   }
@@ -89,7 +90,10 @@ export async function handleVideoProxyCore({
 }) {
   const config = getVideoConfig(provider);
   if (!config) {
-    return createErrorResult(HTTP_STATUS.BAD_REQUEST, `Provider '${provider}' does not support video generation`);
+    return createErrorResult(
+      HTTP_STATUS.BAD_REQUEST,
+      `Provider '${provider}' does not support video generation`,
+    );
   }
   if (!requestId && !VIDEO_ACTIONS.has(action)) {
     return createErrorResult(HTTP_STATUS.BAD_REQUEST, `Unknown video action: ${action}`);
@@ -117,7 +121,14 @@ export async function handleVideoProxyCore({
   const doFetch = async () => {
     const plan = adapter
       ? await adapter.buildRequest({
-          config, action, requestId, rawBody, contentType, idempotencyKey, credentials, log,
+          config,
+          action,
+          requestId,
+          rawBody,
+          contentType,
+          idempotencyKey,
+          credentials,
+          log,
           token: credentials?.accessToken || credentials?.apiKey,
         })
       : defaultPlan();
@@ -136,14 +147,21 @@ export async function handleVideoProxyCore({
   let upstream;
   try {
     const first = await doFetch();
-    if (first.planError) return createErrorResult(HTTP_STATUS.BAD_REQUEST, `[${provider}] ${first.planError}`);
+    if (first.planError)
+      return createErrorResult(HTTP_STATUS.BAD_REQUEST, `[${provider}] ${first.planError}`);
     upstream = first.response;
   } catch (error) {
     if (error?.name === "AbortError" || error?.name === "TimeoutError") {
-      return createErrorResult(HTTP_STATUS.REQUEST_TIMEOUT, `[${provider}] video ${method} aborted: ${error.message}`);
+      return createErrorResult(
+        HTTP_STATUS.REQUEST_TIMEOUT,
+        `[${provider}] video ${method} aborted: ${error.message}`,
+      );
     }
     // Never re-send a creation POST on network error — the job may already exist upstream.
-    return createErrorResult(HTTP_STATUS.BAD_GATEWAY, sanitizeSecrets(`[${provider}] video upstream fetch failed: ${error.message}`, credentials));
+    return createErrorResult(
+      HTTP_STATUS.BAD_GATEWAY,
+      sanitizeSecrets(`[${provider}] video upstream fetch failed: ${error.message}`, credentials),
+    );
   }
 
   // 401/403 → refresh once → retry once (OAuth accounts only; API keys can't refresh)
@@ -155,7 +173,10 @@ export async function handleVideoProxyCore({
     try {
       refreshed = await refreshTokenByProvider(provider, credentials, log);
     } catch (error) {
-      log?.warn?.("TOKEN", `${provider} | video refresh error: ${sanitizeSecrets(error.message, credentials)}`);
+      log?.warn?.(
+        "TOKEN",
+        `${provider} | video refresh error: ${sanitizeSecrets(error.message, credentials)}`,
+      );
     }
     if (refreshed?.accessToken) {
       log?.info?.("TOKEN", `${provider.toUpperCase()} | refreshed for video ${method}`);
@@ -163,16 +184,28 @@ export async function handleVideoProxyCore({
       if (onCredentialsRefreshed) await onCredentialsRefreshed(refreshed);
       try {
         await upstream.body?.cancel?.();
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
       try {
         const retry = await doFetch();
-        if (retry.planError) return createErrorResult(HTTP_STATUS.BAD_REQUEST, `[${provider}] ${retry.planError}`);
+        if (retry.planError)
+          return createErrorResult(HTTP_STATUS.BAD_REQUEST, `[${provider}] ${retry.planError}`);
         upstream = retry.response;
       } catch (error) {
-        return createErrorResult(HTTP_STATUS.BAD_GATEWAY, sanitizeSecrets(`[${provider}] video retry after refresh failed: ${error.message}`, credentials));
+        return createErrorResult(
+          HTTP_STATUS.BAD_GATEWAY,
+          sanitizeSecrets(
+            `[${provider}] video retry after refresh failed: ${error.message}`,
+            credentials,
+          ),
+        );
       }
     } else {
-      log?.warn?.("TOKEN", `${provider.toUpperCase()} | video refresh failed — account needs re-auth`);
+      log?.warn?.(
+        "TOKEN",
+        `${provider.toUpperCase()} | video refresh failed — account needs re-auth`,
+      );
     }
   }
 

@@ -63,8 +63,8 @@ export async function getKiroUsage(accessToken, providerSpecificData, proxyOptio
   // CodeWhisperer 403s a request whose profileArn isn't owned by the key's
   // account. Only send a profileArn actually resolved for this connection.
   const profileArn = isApiKey
-    ? (providerSpecificData?.profileArn || "")
-    : (providerSpecificData?.profileArn || resolveDefaultProfileArn(authMethod));
+    ? providerSpecificData?.profileArn || ""
+    : providerSpecificData?.profileArn || resolveDefaultProfileArn(authMethod);
 
   const getUsageParams = new URLSearchParams({
     isEmailRequired: "true",
@@ -76,40 +76,46 @@ export async function getKiroUsage(accessToken, providerSpecificData, proxyOptio
   const attempts = [
     {
       name: "codewhisperer-get",
-      run: async () => proxyAwareFetch(
-        `${U("kiro").cwHost}${U("kiro").limitsPath}?${getUsageParams.toString()}`,
-        {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Accept": "application/json",
-            "x-amz-user-agent": "aws-sdk-js/1.0.0 KiroIDE",
-            "user-agent": "aws-sdk-js/1.0.0 KiroIDE",
-            ...apiKeyHeaders,
-            ...externalIdpHeaders,
+      run: async () =>
+        proxyAwareFetch(
+          `${U("kiro").cwHost}${U("kiro").limitsPath}?${getUsageParams.toString()}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              Accept: "application/json",
+              "x-amz-user-agent": "aws-sdk-js/1.0.0 KiroIDE",
+              "user-agent": "aws-sdk-js/1.0.0 KiroIDE",
+              ...apiKeyHeaders,
+              ...externalIdpHeaders,
+            },
           },
-        },
-        proxyOptions
-      ),
+          proxyOptions,
+        ),
     },
     {
       name: "codewhisperer-post",
-      run: async () => proxyAwareFetch(U("kiro").cwHost, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/x-amz-json-1.0",
-          "x-amz-target": "AmazonCodeWhispererService.GetUsageLimits",
-          "Accept": "application/json",
-          ...apiKeyHeaders,
-          ...externalIdpHeaders,
-        },
-        body: JSON.stringify({
-          origin: "AI_EDITOR",
-          ...(profileArn ? { profileArn } : {}),
-          resourceType: "AGENTIC_REQUEST",
-        }),
-      }, proxyOptions),
+      run: async () =>
+        proxyAwareFetch(
+          U("kiro").cwHost,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/x-amz-json-1.0",
+              "x-amz-target": "AmazonCodeWhispererService.GetUsageLimits",
+              Accept: "application/json",
+              ...apiKeyHeaders,
+              ...externalIdpHeaders,
+            },
+            body: JSON.stringify({
+              origin: "AI_EDITOR",
+              ...(profileArn ? { profileArn } : {}),
+              resourceType: "AGENTIC_REQUEST",
+            }),
+          },
+          proxyOptions,
+        ),
     },
     {
       name: "q-get",
@@ -119,15 +125,19 @@ export async function getKiroUsage(accessToken, providerSpecificData, proxyOptio
           ...(profileArn ? { profileArn } : {}),
           resourceType: "AGENTIC_REQUEST",
         });
-        return proxyAwareFetch(`${U("kiro").qHost}${U("kiro").limitsPath}?${params}`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Accept": "application/json",
-            ...apiKeyHeaders,
-            ...externalIdpHeaders,
+        return proxyAwareFetch(
+          `${U("kiro").qHost}${U("kiro").limitsPath}?${params}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              Accept: "application/json",
+              ...apiKeyHeaders,
+              ...externalIdpHeaders,
+            },
           },
-        }, proxyOptions);
+          proxyOptions,
+        );
       },
     },
   ];
@@ -156,7 +166,8 @@ export async function getKiroUsage(accessToken, providerSpecificData, proxyOptio
 
   if (sawAuthError && authMethod === "idc") {
     return {
-      message: "Kiro quota API is unavailable for the current AWS IAM Identity Center session. Chat may still work. If this persists after renewing your session, reconnect Kiro.",
+      message:
+        "Kiro quota API is unavailable for the current AWS IAM Identity Center session. Chat may still work. If this persists after renewing your session, reconnect Kiro.",
       quotas: {},
     };
   }

@@ -2,9 +2,7 @@ export default {
   id: "byteplus",
   priority: 70,
   alias: "byteplus",
-  aliases: [
-    "bpm",
-  ],
+  aliases: ["bpm"],
   uiAlias: "bpm",
   display: {
     name: "BytePlus ModelArk",

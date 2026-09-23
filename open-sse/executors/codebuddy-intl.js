@@ -29,9 +29,13 @@ export class CodeBuddyIntlExecutor extends DefaultExecutor {
     const source = Array.isArray(transformed.messages) ? transformed.messages : [];
     transformed.messages = [{ role: "system", content: "You are CodeBuddy Code." }];
     for (const message of source) {
-      if (!message || typeof message !== "object" || ["system", "developer"].includes(message.role)) continue;
+      if (!message || typeof message !== "object" || ["system", "developer"].includes(message.role))
+        continue;
       if (message.role === "user" && typeof message.content === "string") {
-        transformed.messages.push({ ...message, content: [{ type: "text", text: message.content }] });
+        transformed.messages.push({
+          ...message,
+          content: [{ type: "text", text: message.content }],
+        });
       } else {
         transformed.messages.push({ ...message });
       }

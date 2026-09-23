@@ -12,11 +12,14 @@ import { mergeWithDefaults } from "../../src/lib/db/repos/settingsRepo.js";
 describe("SAML 2.0 Auth Engine Utilities", () => {
   describe("formatX509Certificate", () => {
     it("formats raw Base64 string into standard 64-column PEM block", () => {
-      const rawBase64 = "MIIC1234567890123456789012345678901234567890123456789012345678901234567890";
+      const rawBase64 =
+        "MIIC1234567890123456789012345678901234567890123456789012345678901234567890";
       const formatted = formatX509Certificate(rawBase64);
       expect(formatted).toContain("-----BEGIN CERTIFICATE-----");
       expect(formatted).toContain("-----END CERTIFICATE-----");
-      expect(formatted).toContain("MIIC123456789012345678901234567890123456789012345678901234567890");
+      expect(formatted).toContain(
+        "MIIC123456789012345678901234567890123456789012345678901234567890",
+      );
       expect(formatted).toContain("\n1234567890\n");
     });
 
@@ -45,7 +48,7 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
         isSamlConfigured({
           samlEntryPoint: "https://idp.example.com/sso",
           samlCert: "dummy-cert",
-        })
+        }),
       ).toBe(true);
     });
 
@@ -75,22 +78,24 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
       const settings = { samlCert: "dummy-cert" };
       const rawXml = Buffer.from('<Response ID="123"></Response>').toString("base64");
       await expect(
-        validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", settings)
+        validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", settings),
       ).rejects.toThrow(/InResponseTo mismatch/);
     });
 
     it("throws error when expectedRequestId is supplied but InResponseTo does not match", async () => {
       const settings = { samlCert: "dummy-cert" };
-      const rawXml = Buffer.from('<Response InResponseTo="wrong-id"></Response>').toString("base64");
+      const rawXml = Buffer.from('<Response InResponseTo="wrong-id"></Response>').toString(
+        "base64",
+      );
       await expect(
-        validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", settings)
+        validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", settings),
       ).rejects.toThrow(/InResponseTo mismatch/);
     });
 
     it("throws error if samlCert is not configured", async () => {
       const rawXml = Buffer.from('<Response ID="123"></Response>').toString("base64");
       await expect(
-        validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", {})
+        validateSamlResponse(null, { SAMLResponse: rawXml }, "req-123", {}),
       ).rejects.toThrow(/Certificate/);
     });
   });
@@ -106,28 +111,28 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
 
     it("pickSamlEmail extracts custom attribute or common claims", () => {
       expect(pickSamlEmail(mockProfile, {})).toBe("user@example.com");
-      expect(
-        pickSamlEmail(mockProfile, { samlAttributeEmail: "customEmail" })
-      ).toBe("custom-email@example.com");
+      expect(pickSamlEmail(mockProfile, { samlAttributeEmail: "customEmail" })).toBe(
+        "custom-email@example.com",
+      );
       expect(
         pickSamlEmail(
-          { "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": ["custom@example.com"] },
-          {}
-        )
+          {
+            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress": [
+              "custom@example.com",
+            ],
+          },
+          {},
+        ),
       ).toBe("custom@example.com");
     });
 
     it("pickSamlDisplayName extracts custom attribute, common names, or falls back to email", () => {
       expect(pickSamlDisplayName(mockProfile, {})).toBe("Jane Doe");
-      expect(
-        pickSamlDisplayName(mockProfile, { samlAttributeName: "customName" })
-      ).toBe("Custom User");
-      expect(
-        pickSamlDisplayName({ email: "user@example.com" }, {})
-      ).toBe("user@example.com");
-      expect(
-        pickSamlDisplayName({ givenName: "Alice", surname: "Smith" }, {})
-      ).toBe("Alice Smith");
+      expect(pickSamlDisplayName(mockProfile, { samlAttributeName: "customName" })).toBe(
+        "Custom User",
+      );
+      expect(pickSamlDisplayName({ email: "user@example.com" }, {})).toBe("user@example.com");
+      expect(pickSamlDisplayName({ givenName: "Alice", surname: "Smith" }, {})).toBe("Alice Smith");
     });
   });
 

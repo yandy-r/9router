@@ -5,10 +5,7 @@ vi.mock("../../open-sse/services/oauthCredentialManager.js", () => ({
 }));
 
 import { refreshProviderCredentials } from "../../open-sse/services/oauthCredentialManager.js";
-import {
-  parseGrokCliModels,
-  resolveGrokCliModels,
-} from "../../open-sse/services/grokCliModels.js";
+import { parseGrokCliModels, resolveGrokCliModels } from "../../open-sse/services/grokCliModels.js";
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -21,15 +18,19 @@ describe("Grok CLI live models", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("normalizes official model metadata", () => {
-    expect(parseGrokCliModels({
-      models: [{
-        model_id: "grok-build",
-        display_name: "Grok Build",
-        context_window: 500000,
-        max_output_tokens: 64000,
-        supported_in_api: false,
-      }],
-    })).toEqual([
+    expect(
+      parseGrokCliModels({
+        models: [
+          {
+            model_id: "grok-build",
+            display_name: "Grok Build",
+            context_window: 500000,
+            max_output_tokens: 64000,
+            supported_in_api: false,
+          },
+        ],
+      }),
+    ).toEqual([
       expect.objectContaining({
         id: "grok-build",
         name: "Grok Build",
@@ -41,7 +42,8 @@ describe("Grok CLI live models", () => {
   });
 
   it("refreshes and retries through selected proxy", async () => {
-    const fetchFn = vi.fn()
+    const fetchFn = vi
+      .fn()
       .mockResolvedValueOnce(jsonResponse({ error: "expired" }, 401))
       .mockResolvedValueOnce(jsonResponse({ data: [{ id: "grok-build" }] }));
     const onCredentialsRefreshed = vi.fn();
@@ -52,11 +54,14 @@ describe("Grok CLI live models", () => {
     };
     refreshProviderCredentials.mockResolvedValue({ accessToken: "new-token" });
 
-    const result = await resolveGrokCliModels({
-      accessToken: "old-token",
-      refreshToken: "refresh-token",
-      providerSpecificData: { email: "user@example.com" },
-    }, { fetchFn, proxyOptions, onCredentialsRefreshed });
+    const result = await resolveGrokCliModels(
+      {
+        accessToken: "old-token",
+        refreshToken: "refresh-token",
+        providerSpecificData: { email: "user@example.com" },
+      },
+      { fetchFn, proxyOptions, onCredentialsRefreshed },
+    );
 
     expect(result.models).toEqual([
       expect.objectContaining({

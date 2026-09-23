@@ -87,16 +87,22 @@ describe("CursorExecutor AgentService exec_request handling", () => {
     let closed = false;
     executor.openAgentHttp2Stream = () => ({
       responseHeaders: Promise.resolve({ ":status": 200 }),
-      write() { throw new Error("write failed"); },
-      close() { closed = true; },
+      write() {
+        throw new Error("write failed");
+      },
+      close() {
+        closed = true;
+      },
     });
 
-    await expect(executor.executeAgent({
-      model: "gpt-5.2",
-      body: { messages: [{ role: "user", content: "hi" }] },
-      stream: false,
-      credentials,
-    })).rejects.toThrow("write failed");
+    await expect(
+      executor.executeAgent({
+        model: "gpt-5.2",
+        body: { messages: [{ role: "user", content: "hi" }] },
+        stream: false,
+        credentials,
+      }),
+    ).rejects.toThrow("write failed");
     expect(closed).toBe(true);
   });
 
@@ -167,10 +173,7 @@ describe("CursorExecutor AgentService exec_request handling", () => {
   it("streams Composer visible content from thinking_delta after </think>", async () => {
     const { result } = await runAgent({
       model: "composer-2.5",
-      frames: [
-        thinkingFrame("private reasoning that must not leak</think>OK"),
-        turnEndedFrame(),
-      ],
+      frames: [thinkingFrame("private reasoning that must not leak</think>OK"), turnEndedFrame()],
       stream: true,
     });
 
@@ -194,10 +197,19 @@ describe("CursorExecutor AgentService exec_request handling", () => {
 
   it("maps a Connect trailer Update Required to an account-neutral 400", async () => {
     const { result } = await runAgent({
-      frames: [trailerErrorFrame({
-        code: "resource_exhausted",
-        details: [{ debug: { error: "ERROR_GPT_4_VISION_PREVIEW_RATE_LIMIT", details: { title: "Update Required" } } }],
-      })],
+      frames: [
+        trailerErrorFrame({
+          code: "resource_exhausted",
+          details: [
+            {
+              debug: {
+                error: "ERROR_GPT_4_VISION_PREVIEW_RATE_LIMIT",
+                details: { title: "Update Required" },
+              },
+            },
+          ],
+        }),
+      ],
       stream: false,
     });
 
@@ -218,7 +230,11 @@ describe("CursorExecutor AgentService exec_request handling", () => {
   it("does not treat thinking as visible output for non-Composer models when text_delta exists", async () => {
     const { result } = await runAgent({
       model: "gpt-5.3-codex",
-      frames: [thinkingFrame("private reasoning</think>SHOULD_NOT_APPEAR"), textFrame("reply OK"), turnEndedFrame()],
+      frames: [
+        thinkingFrame("private reasoning</think>SHOULD_NOT_APPEAR"),
+        textFrame("reply OK"),
+        turnEndedFrame(),
+      ],
       stream: true,
     });
 

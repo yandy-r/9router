@@ -27,7 +27,12 @@ vi.mock("open-sse/services/usage/google.js", () => ({
 }));
 vi.mock("@/sse/utils/logger.js", () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn() }));
 
-const { getAntigravityQuotaCache, handleAntigravityQuotaError, refreshAntigravityQuota, clearAntigravityStrikes } = await import("@/sse/services/antigravityQuota.js");
+const {
+  getAntigravityQuotaCache,
+  handleAntigravityQuotaError,
+  refreshAntigravityQuota,
+  clearAntigravityStrikes,
+} = await import("@/sse/services/antigravityQuota.js");
 const { getProviderCredentials } = await import("@/sse/services/auth.js");
 
 const MODEL = "claude-opus-4-6-thinking";
@@ -44,13 +49,16 @@ describe("Antigravity quota-aware routing", () => {
   it("records exhausted upstream quota after 429 and returns its exact reset time", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-26T00:00:00.000Z"));
-    mocks.getAntigravityUsage.mockResolvedValue({ quotas: {
-      [MODEL]: { remainingPercentage: 0, resetAt: FUTURE_RESET },
-    } });
+    mocks.getAntigravityUsage.mockResolvedValue({
+      quotas: {
+        [MODEL]: { remainingPercentage: 0, resetAt: FUTURE_RESET },
+      },
+    });
 
     try {
-      await expect(handleAntigravityQuotaError("ag-a", 429, MODEL, "token", {}))
-        .resolves.toBe(Date.parse(FUTURE_RESET));
+      await expect(handleAntigravityQuotaError("ag-a", 429, MODEL, "token", {})).resolves.toBe(
+        Date.parse(FUTURE_RESET),
+      );
       expect(getAntigravityQuotaCache().get("ag-a")[MODEL]).toEqual({
         remainingPercentage: 0,
         resetAt: FUTURE_RESET,
@@ -84,7 +92,9 @@ describe("Antigravity quota-aware routing", () => {
   it("reports retry time when every account is cache-blocked", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-26T00:00:00.000Z"));
-    mocks.getProviderConnections.mockResolvedValue([{ id: "ag-a", email: "a@example.com", isActive: true }]);
+    mocks.getProviderConnections.mockResolvedValue([
+      { id: "ag-a", email: "a@example.com", isActive: true },
+    ]);
     getAntigravityQuotaCache().set("ag-a", {
       [MODEL]: { remainingPercentage: 0, resetAt: FUTURE_RESET },
     });
@@ -102,7 +112,9 @@ describe("Antigravity quota-aware routing", () => {
   it("lets account back into rotation once reset time has passed", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-01T00:00:01.000Z"));
-    mocks.getProviderConnections.mockResolvedValue([{ id: "ag-a", email: "a@example.com", isActive: true }]);
+    mocks.getProviderConnections.mockResolvedValue([
+      { id: "ag-a", email: "a@example.com", isActive: true },
+    ]);
     getAntigravityQuotaCache().set("ag-a", {
       [MODEL]: { remainingPercentage: 0, resetAt: FUTURE_RESET },
     });
@@ -119,7 +131,11 @@ describe("Antigravity quota-aware routing", () => {
 
   it("coalesces concurrent quota refreshes for one account", async () => {
     let resolveUsage;
-    mocks.getAntigravityUsage.mockReturnValue(new Promise(resolve => { resolveUsage = resolve; }));
+    mocks.getAntigravityUsage.mockReturnValue(
+      new Promise((resolve) => {
+        resolveUsage = resolve;
+      }),
+    );
 
     const first = refreshAntigravityQuota("ag-concurrent", "token", {});
     const second = refreshAntigravityQuota("ag-concurrent", "token", {});
@@ -138,9 +154,13 @@ describe("Antigravity quota-aware routing", () => {
 
     await refreshAntigravityQuota("ag-strict-proxy", "token", {});
 
-    expect(mocks.getAntigravityUsage).toHaveBeenCalledWith("token", {}, expect.objectContaining({
-      strictProxy: true,
-    }));
+    expect(mocks.getAntigravityUsage).toHaveBeenCalledWith(
+      "token",
+      {},
+      expect.objectContaining({
+        strictProxy: true,
+      }),
+    );
   });
 
   it("keeps known cache when quota endpoint returns an error payload", async () => {
@@ -174,9 +194,11 @@ describe("Antigravity quota-aware routing", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-26T00:00:00.000Z"));
     // Quota API lies: reports 90% remaining while generation keeps 429ing.
-    mocks.getAntigravityUsage.mockResolvedValue({ quotas: {
-      [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
-    } });
+    mocks.getAntigravityUsage.mockResolvedValue({
+      quotas: {
+        [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
+      },
+    });
 
     try {
       const first = await handleAntigravityQuotaError("ag-strike", 429, MODEL, "token", {});
@@ -194,9 +216,11 @@ describe("Antigravity quota-aware routing", () => {
   it("resets the strike counter when strikes fall outside the 60s window", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-26T00:00:00.000Z"));
-    mocks.getAntigravityUsage.mockResolvedValue({ quotas: {
-      [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
-    } });
+    mocks.getAntigravityUsage.mockResolvedValue({
+      quotas: {
+        [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
+      },
+    });
 
     try {
       await handleAntigravityQuotaError("ag-window", 429, MODEL, "token", {});
@@ -228,9 +252,11 @@ describe("Antigravity quota-aware routing", () => {
   it("persists the block into the shared cache so the next request skips the pair", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-26T00:00:00.000Z"));
-    mocks.getAntigravityUsage.mockResolvedValue({ quotas: {
-      [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
-    } });
+    mocks.getAntigravityUsage.mockResolvedValue({
+      quotas: {
+        [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
+      },
+    });
 
     try {
       await handleAntigravityQuotaError("ag-persist", 429, MODEL, "token", {});
@@ -255,9 +281,11 @@ describe("Antigravity quota-aware routing", () => {
   it("clears strike state and the synthesized block after a successful request", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-26T00:00:00.000Z"));
-    mocks.getAntigravityUsage.mockResolvedValue({ quotas: {
-      [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
-    } });
+    mocks.getAntigravityUsage.mockResolvedValue({
+      quotas: {
+        [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
+      },
+    });
 
     try {
       await handleAntigravityQuotaError("ag-clear", 429, MODEL, "token", {});
@@ -271,7 +299,9 @@ describe("Antigravity quota-aware routing", () => {
 
       // Two more 429s do NOT inherit earlier strikes: no block on the third-in-episode.
       await handleAntigravityQuotaError("ag-clear", 429, MODEL, "token", {});
-      await expect(handleAntigravityQuotaError("ag-clear", 429, MODEL, "token", {})).resolves.toBeNull();
+      await expect(
+        handleAntigravityQuotaError("ag-clear", 429, MODEL, "token", {}),
+      ).resolves.toBeNull();
     } finally {
       vi.useRealTimers();
     }
@@ -280,14 +310,16 @@ describe("Antigravity quota-aware routing", () => {
   it("anchors the window at the first strike: 3 strikes spread over 90s do not trip", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-26T00:00:00.000Z"));
-    mocks.getAntigravityUsage.mockResolvedValue({ quotas: {
-      [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
-    } });
+    mocks.getAntigravityUsage.mockResolvedValue({
+      quotas: {
+        [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
+      },
+    });
 
     try {
-      await handleAntigravityQuotaError("ag-anchor", 429, MODEL, "token", {});      // t=0
+      await handleAntigravityQuotaError("ag-anchor", 429, MODEL, "token", {}); // t=0
       await vi.advanceTimersByTimeAsync(45_000);
-      await handleAntigravityQuotaError("ag-anchor", 429, MODEL, "token", {});      // t=45s
+      await handleAntigravityQuotaError("ag-anchor", 429, MODEL, "token", {}); // t=45s
       await vi.advanceTimersByTimeAsync(45_000);
       // t=90s: within 60s of strike #2 but outside 60s of strike #1 => new window
       const result = await handleAntigravityQuotaError("ag-anchor", 429, MODEL, "token", {});
@@ -298,12 +330,15 @@ describe("Antigravity quota-aware routing", () => {
   });
 
   it("keeps the optimistic path null without touching the quota cache", async () => {
-    mocks.getAntigravityUsage.mockResolvedValue({ quotas: {
-      [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
-    } });
+    mocks.getAntigravityUsage.mockResolvedValue({
+      quotas: {
+        [MODEL]: { remainingPercentage: 90, resetAt: FUTURE_RESET },
+      },
+    });
 
-    await expect(handleAntigravityQuotaError("ag-optimistic", 429, MODEL, "token", {}))
-      .resolves.toBeNull();
+    await expect(
+      handleAntigravityQuotaError("ag-optimistic", 429, MODEL, "token", {}),
+    ).resolves.toBeNull();
     // Optimistic reading must NOT poison the shared cache (auth pre-filter
     // treats cached 0% as exhausted).
     expect(getAntigravityQuotaCache().get("ag-optimistic")?.[MODEL]?.remainingPercentage).toBe(90);

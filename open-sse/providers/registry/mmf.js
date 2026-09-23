@@ -13,7 +13,5 @@ export default {
     baseUrl: "https://api.xiaomimimo.com/api/free-ai/openai/chat",
     noAuth: true,
   },
-  models: [
-    { id: "mimo-auto", name: "MiMo Auto" },
-  ],
+  models: [{ id: "mimo-auto", name: "MiMo Auto" }],
 };

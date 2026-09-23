@@ -24,8 +24,16 @@ import { PROVIDER_MODELS, PROVIDER_ID_TO_ALIAS } from "../../open-sse/config/pro
 import { FREE_PROVIDERS } from "../../src/shared/constants/providers.js";
 
 const {
-  generateFingerprint, generateSessionId, bootstrapJwt, resetJwtCache, parseJwtExp,
-  injectSystemMarker, MIMO_SYSTEM_MARKER, SESSION_AFFINITY_PREFIX, BOOTSTRAP_URL, CHAT_URL,
+  generateFingerprint,
+  generateSessionId,
+  bootstrapJwt,
+  resetJwtCache,
+  parseJwtExp,
+  injectSystemMarker,
+  MIMO_SYSTEM_MARKER,
+  SESSION_AFFINITY_PREFIX,
+  BOOTSTRAP_URL,
+  CHAT_URL,
 } = __test__;
 
 function jsonResponse(data, { ok = true, status = 200 } = {}) {
@@ -102,7 +110,10 @@ describe("injectSystemMarker", () => {
         { role: "user", content: "hi" },
       ],
     });
-    const sys = out.messages.filter((m) => m.role === "system").map((m) => m.content).join("\n");
+    const sys = out.messages
+      .filter((m) => m.role === "system")
+      .map((m) => m.content)
+      .join("\n");
     expect(sys).toContain(MIMO_SYSTEM_MARKER);
     expect(sys).toContain("You are a pirate.");
   });
@@ -115,7 +126,7 @@ describe("injectSystemMarker", () => {
       ],
     });
     const count = out.messages.filter(
-      (m) => m.role === "system" && m.content.includes(MIMO_SYSTEM_MARKER)
+      (m) => m.role === "system" && m.content.includes(MIMO_SYSTEM_MARKER),
     ).length;
     expect(count).toBe(1);
   });
@@ -128,7 +139,9 @@ describe("injectSystemMarker", () => {
 
 describe("bootstrapJwt", () => {
   it("returns the jwt from the bootstrap response", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }),
+    );
     const jwt = await bootstrapJwt();
     expect(jwt).toMatch(/\./);
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -136,14 +149,18 @@ describe("bootstrapJwt", () => {
   });
 
   it("sends the machine fingerprint as the bootstrap client", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }),
+    );
     await bootstrapJwt();
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.client).toBe(generateFingerprint());
   });
 
   it("caches the jwt and does not re-fetch while still valid", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }),
+    );
     const first = await bootstrapJwt();
     const second = await bootstrapJwt();
     expect(first).toBe(second);
@@ -152,7 +169,9 @@ describe("bootstrapJwt", () => {
 
   it("re-fetches once the cached jwt is within the expiry buffer", async () => {
     // exp 100s out < 300s buffer → treated as near-expiry.
-    fetchMock.mockResolvedValueOnce(jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 100) }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 100) }),
+    );
     await bootstrapJwt();
     const fresh = makeJwt(Math.floor(Date.now() / 1000) + 3600);
     fetchMock.mockResolvedValueOnce(jsonResponse({ jwt: fresh }));
@@ -191,7 +210,9 @@ describe("MimoFreeExecutor", () => {
   });
 
   it("execute injects the marker and sends a Bearer JWT to the chat endpoint", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }),
+    );
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200 });
     const { url, headers, transformedBody } = await exec.execute({
       model: "mimo-auto",
@@ -208,9 +229,13 @@ describe("MimoFreeExecutor", () => {
   });
 
   it("re-bootstraps and retries once on a 403 from the chat endpoint", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }),
+    );
     fetchMock.mockResolvedValueOnce({ ok: false, status: 403 });
-    fetchMock.mockResolvedValueOnce(jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ jwt: makeJwt(Math.floor(Date.now() / 1000) + 3600) }),
+    );
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200 });
     const { response } = await exec.execute({
       model: "mimo-auto",

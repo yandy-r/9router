@@ -72,14 +72,16 @@ describe("web fetch account state", () => {
   });
 
   it("clears a stale provider lock after a successful fetch", async () => {
-    const response = await handleFetch(new Request("http://localhost/v1/web/fetch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider: "jina-reader",
-        url: "https://example.com/article",
+    const response = await handleFetch(
+      new Request("http://localhost/v1/web/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "jina-reader",
+          url: "https://example.com/article",
+        }),
       }),
-    }));
+    );
 
     expect(response.status).toBe(200);
     expect(mocks.clearAccountError).toHaveBeenCalledWith(
@@ -103,14 +105,16 @@ describe("web fetch account state", () => {
     });
     mocks.markAccountUnavailable.mockResolvedValue({ shouldFallback: false });
 
-    const response = await handleFetch(new Request("http://localhost/v1/web/fetch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        provider: "jina-reader",
-        url: "https://example.com/article",
+    const response = await handleFetch(
+      new Request("http://localhost/v1/web/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "jina-reader",
+          url: "https://example.com/article",
+        }),
       }),
-    }));
+    );
 
     expect(response.status).toBe(429);
     expect(mocks.markAccountUnavailable).toHaveBeenCalledWith(

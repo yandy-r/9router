@@ -9,7 +9,12 @@
 const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
-const { getRuntimeDir, getRuntimeNodeModules, runNpmInstall, summarizeNpmError } = require("./sqliteRuntime");
+const {
+  getRuntimeDir,
+  getRuntimeNodeModules,
+  runNpmInstall,
+  summarizeNpmError,
+} = require("./sqliteRuntime");
 
 const SYSTRAY_PKG = "systray2";
 const SYSTRAY_VERSION = "2.1.4";
@@ -28,7 +33,7 @@ function cleanupLegacySystray({ silent = false } = {}) {
   //    __dirname here = <pkg root>/hooks → up 1 = pkg root
   const targets = [
     path.join(getRuntimeNodeModules(), LEGACY_SYSTRAY_PKG),
-    path.join(__dirname, "..", "node_modules", LEGACY_SYSTRAY_PKG)
+    path.join(__dirname, "..", "node_modules", LEGACY_SYSTRAY_PKG),
   ];
   for (const dir of targets) {
     if (fs.existsSync(dir)) {
@@ -62,11 +67,18 @@ function ensureRuntimeDir() {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const pkgPath = path.join(dir, "package.json");
   if (!fs.existsSync(pkgPath)) {
-    fs.writeFileSync(pkgPath, JSON.stringify({
-      name: "9router-runtime",
-      version: "1.0.0",
-      private: true
-    }, null, 2));
+    fs.writeFileSync(
+      pkgPath,
+      JSON.stringify(
+        {
+          name: "9router-runtime",
+          version: "1.0.0",
+          private: true,
+        },
+        null,
+        2,
+      ),
+    );
   }
   return dir;
 }

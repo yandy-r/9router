@@ -216,10 +216,7 @@ describe("probeFrameHeader", () => {
 
   it("reads frame header at non-zero offset", () => {
     const creditsInfo = encodeCreditsInfo({ usageRatio: 0.5 });
-    const buffer = Buffer.concat([
-      frameData(encodeTopLevelMessage(creditsInfo)),
-      frameTrailer(),
-    ]);
+    const buffer = Buffer.concat([frameData(encodeTopLevelMessage(creditsInfo)), frameTrailer()]);
     const first = probeFrameHeader(buffer);
     expect(first).toBeTruthy();
     const second = probeFrameHeader(buffer, first.payloadStart + first.payloadLength);

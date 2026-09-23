@@ -15,11 +15,14 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    return new Response(`<?xml version="1.0"?><Error>${error.message || "Failed to generate metadata"}</Error>`, {
-      status: 500,
-      headers: {
-        "Content-Type": "application/xml",
+    return new Response(
+      `<?xml version="1.0"?><Error>${error.message || "Failed to generate metadata"}</Error>`,
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/xml",
+        },
       },
-    });
+    );
   }
 }

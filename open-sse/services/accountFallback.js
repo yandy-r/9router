@@ -8,7 +8,7 @@ import { ERROR_RULES, BACKOFF_CONFIG, TRANSIENT_COOLDOWN_MS } from "../config/er
  */
 export function getQuotaCooldown(backoffLevel = 0) {
   const level = Math.max(0, backoffLevel - 1);
-  const cooldown = BACKOFF_CONFIG.base * Math.pow(2, level);
+  const cooldown = BACKOFF_CONFIG.base * 2 ** level;
   return Math.min(cooldown, BACKOFF_CONFIG.max);
 }
 
@@ -30,7 +30,11 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
     if (rule.text && lowerError && lowerError.includes(rule.text)) {
       if (rule.backoff) {
         const newLevel = Math.min(backoffLevel + 1, BACKOFF_CONFIG.maxLevel);
-        return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel };
+        return {
+          shouldFallback: true,
+          cooldownMs: getQuotaCooldown(newLevel),
+          newBackoffLevel: newLevel,
+        };
       }
       return { shouldFallback: true, cooldownMs: rule.cooldownMs };
     }
@@ -39,7 +43,11 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
     if (rule.status && rule.status === status) {
       if (rule.backoff) {
         const newLevel = Math.min(backoffLevel + 1, BACKOFF_CONFIG.maxLevel);
-        return { shouldFallback: true, cooldownMs: getQuotaCooldown(newLevel), newBackoffLevel: newLevel };
+        return {
+          shouldFallback: true,
+          cooldownMs: getQuotaCooldown(newLevel),
+          newBackoffLevel: newLevel,
+        };
       }
       return { shouldFallback: true, cooldownMs: rule.cooldownMs };
     }
@@ -55,7 +63,14 @@ export function checkFallbackError(status, errorText, backoffLevel = 0) {
   // same limit. Hand the upstream error back for this request instead.
   // Account-scoped statuses keep their rules above (401/402/403/404/429), and the
   // text rules still win for rate-limit / quota / capacity wording.
-  if (status >= 400 && status < 500 && status !== 401 && status !== 402 && status !== 403 && status !== 429) {
+  if (
+    status >= 400 &&
+    status < 500 &&
+    status !== 401 &&
+    status !== 402 &&
+    status !== 403 &&
+    status !== 429
+  ) {
     return { shouldFallback: false, cooldownMs: 0 };
   }
 
@@ -179,7 +194,7 @@ export function buildClearModelLocksUpdate(connection) {
  */
 export function filterAvailableAccounts(accounts, excludeId = null) {
   const now = Date.now();
-  return accounts.filter(acc => {
+  return accounts.filter((acc) => {
     if (excludeId && acc.id === excludeId) return false;
     if (acc.rateLimitedUntil) {
       const until = new Date(acc.rateLimitedUntil).getTime();
@@ -202,7 +217,7 @@ export function resetAccountState(account) {
     rateLimitedUntil: null,
     backoffLevel: 0,
     lastError: null,
-    status: "active"
+    status: "active",
   };
 }
 
@@ -224,6 +239,6 @@ export function applyErrorState(account, status, errorText) {
     rateLimitedUntil: cooldownMs > 0 ? getUnavailableUntil(cooldownMs) : null,
     backoffLevel: newBackoffLevel ?? backoffLevel,
     lastError: { status, message: errorText, timestamp: new Date().toISOString() },
-    status: "error"
+    status: "error",
   };
 }

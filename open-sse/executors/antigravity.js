@@ -1,18 +1,27 @@
 import crypto from "crypto";
 import { BaseExecutor } from "./base.js";
 import { PROVIDERS } from "../config/providers.js";
-import { OAUTH_ENDPOINTS, ANTIGRAVITY_HEADERS, AG_DEFAULT_TOOLS, AG_TOOL_SUFFIX, ANTIGRAVITY_PROMPT_REWRITES } from "../config/appConstants.js";
+import {
+  OAUTH_ENDPOINTS,
+  ANTIGRAVITY_HEADERS,
+  AG_DEFAULT_TOOLS,
+  AG_TOOL_SUFFIX,
+  ANTIGRAVITY_PROMPT_REWRITES,
+} from "../config/appConstants.js";
 import { HTTP_STATUS } from "../config/runtimeConfig.js";
 import { resolveSessionId, toNumericSessionId } from "../utils/sessionManager.js";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
-import { cleanJSONSchemaForAntigravity, normalizeGeminiContents } from "../translator/formats/gemini.js";
+import {
+  cleanJSONSchemaForAntigravity,
+  normalizeGeminiContents,
+} from "../translator/formats/gemini.js";
 import { DEFAULT_THINKING_AG_SIGNATURE } from "../config/defaultThinkingSignature.js";
 import { getGeminiThoughtSignatureSync } from "../services/thoughtSignatureStore.js";
 
 // Sanitize function name: Gemini requires [a-zA-Z_][a-zA-Z0-9_.:\-]{0,63}
 function sanitizeFunctionName(name) {
   if (!name) return "_unknown";
-  let s = name.replace(/[^a-zA-Z0-9_.:\-]/g, "_");
+  let s = name.replace(/[^a-zA-Z0-9_.:-]/g, "_");
   if (!/^[a-zA-Z_]/.test(s)) s = "_" + s;
   return s.substring(0, 64);
 }
@@ -51,21 +60,17 @@ const ANTIGRAVITY_REQUEST_BLACKLIST = [
 ];
 
 // Strip blacklisted fields from an object (used for both body.request and top-level body)
-const stripBlacklisted = obj => {
+const stripBlacklisted = (obj) => {
   for (const key of ANTIGRAVITY_REQUEST_BLACKLIST) delete obj[key];
 };
 
 // Image generation model name patterns
-const IMAGE_MODEL_PATTERNS = [
-  /image/i,
-  /imagen/i,
-  /image-generation/i,
-];
+const IMAGE_MODEL_PATTERNS = [/image/i, /imagen/i, /image-generation/i];
 
 // Detect if a model is an image generation model
 function isImageModel(model) {
   if (!model) return false;
-  return IMAGE_MODEL_PATTERNS.some(p => p.test(model));
+  return IMAGE_MODEL_PATTERNS.some((p) => p.test(model));
 }
 
 // Parse aspect ratio / resolution from model name suffixes
@@ -81,16 +86,20 @@ function parseImageConfig(model) {
       config.aspectRatio = `${w}:${h}`;
     } else {
       // Resolution like 1024x768 — derive aspect ratio
-      const gcd = (a, b) => b ? gcd(b, a % b) : a;
+      const gcd = (a, b) => (b ? gcd(b, a % b) : a);
       const d = gcd(w, h);
-      config.aspectRatio = `${w/d}:${h/d}`;
+      config.aspectRatio = `${w / d}:${h / d}`;
     }
   }
   return config;
 }
 
 function uuidFromSeed(seed) {
-  const bytes = crypto.createHash("sha256").update(String(seed || "antigravity")).digest().subarray(0, 16);
+  const bytes = crypto
+    .createHash("sha256")
+    .update(String(seed || "antigravity"))
+    .digest()
+    .subarray(0, 16);
   bytes[6] = (bytes[6] & 0x0f) | 0x50;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = bytes.toString("hex");
@@ -102,7 +111,13 @@ function buildIdeRequestId({ body, request, credentials, model, requestType }) {
     return body.requestId;
   }
 
-  const sessionId = request?.sessionId || body?.request?.sessionId || credentials?._clientSessionId || credentials?.connectionId || credentials?.email || "anonymous";
+  const sessionId =
+    request?.sessionId ||
+    body?.request?.sessionId ||
+    credentials?._clientSessionId ||
+    credentials?.connectionId ||
+    credentials?.email ||
+    "anonymous";
   const conversationId = uuidFromSeed(`antigravity:conversation:${sessionId}`);
   const trajectoryId = uuidFromSeed(`antigravity:trajectory:${sessionId}:${model}:${requestType}`);
   const contentCount = Array.isArray(request?.contents) ? request.contents.length : 1;
@@ -120,7 +135,7 @@ export class AntigravityExecutor extends BaseExecutor {
     const baseUrl = baseUrls[urlIndex] || baseUrls[0];
     // Image generation MUST use non-streaming generateContent
     const forceNonStream = isImageModel(model);
-    const action = (stream && !forceNonStream) ? "streamGenerateContent?alt=sse" : "generateContent";
+    const action = stream && !forceNonStream ? "streamGenerateContent?alt=sse" : "generateContent";
     return `${baseUrl}/v1internal:${action}`;
   }
 
@@ -129,7 +144,7 @@ export class AntigravityExecutor extends BaseExecutor {
   buildHeaders(credentials, stream = true, sessionId = null) {
     return {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${credentials.accessToken}`,
+      Authorization: `Bearer ${credentials.accessToken}`,
       "User-Agent": this.config.headers?.["User-Agent"] || ANTIGRAVITY_HEADERS["User-Agent"],
     };
   }
@@ -151,7 +166,9 @@ export class AntigravityExecutor extends BaseExecutor {
       const contents = [];
       const srcContents = body.request?.contents || body.contents || [];
       for (const c of srcContents) {
-        const textParts = (c.parts || []).filter(p => p.text !== undefined).map(p => ({ text: p.text }));
+        const textParts = (c.parts || [])
+          .filter((p) => p.text !== undefined)
+          .map((p) => ({ text: p.text }));
         if (textParts.length > 0) {
           contents.push({ role: c.role || "user", parts: textParts });
         }
@@ -183,24 +200,37 @@ export class AntigravityExecutor extends BaseExecutor {
         model: cleanModel,
         userAgent: "antigravity",
         requestType: "image_gen",
-        requestId: buildIdeRequestId({ body, request, credentials, model: cleanModel, requestType: "image_gen" }),
+        requestId: buildIdeRequestId({
+          body,
+          request,
+          credentials,
+          model: cleanModel,
+          requestType: "image_gen",
+        }),
         request,
       };
     }
 
-    const rawSessionId = body.request?.sessionId || resolveSessionId({ headers: credentials?.rawHeaders, body, connectionId: credentials?.email || credentials?.connectionId, scope: "antigravity" });
+    const rawSessionId =
+      body.request?.sessionId ||
+      resolveSessionId({
+        headers: credentials?.rawHeaders,
+        body,
+        connectionId: credentials?.email || credentials?.connectionId,
+        scope: "antigravity",
+      });
     const sessionId = toNumericSessionId(rawSessionId) || rawSessionId;
 
     // ─── Standard (non-image) request ───
     // Fix contents for Claude models via Antigravity
-    const rawContents = (body.request?.contents || []).map(c => {
+    const rawContents = (body.request?.contents || []).map((c) => {
       let role = c.role;
       // functionResponse must be role "user" for Claude models
-      if (c.parts?.some(p => p.functionResponse)) {
+      if (c.parts?.some((p) => p.functionResponse)) {
         role = "user";
       }
       // Strip thought-only parts, keep thoughtSignature on functionCall parts (Gemini 3+ requires it)
-      const parts = c.parts?.filter(p => {
+      const parts = c.parts?.filter((p) => {
         if (p.thought && !p.functionCall) return false;
         if (p.thoughtSignature && !p.functionCall && !p.text) return false;
         return true;
@@ -209,11 +239,16 @@ export class AntigravityExecutor extends BaseExecutor {
       // don't persist thoughtSignature in their history, so backfill from cache or default signature.
       // In parallel function calls, only the first call needs a signature; siblings stay unsigned.
       let firstFunctionCallSeen = false;
-      const modifiedParts = parts?.map(p => {
+      const modifiedParts = parts?.map((p) => {
         if (!p.functionCall) return p;
         const callId = p.functionCall.id;
-        const cachedSig = callId ? getGeminiThoughtSignatureSync(callId, sessionId, body.model || model) : null;
-        const callSig = p.thoughtSignature || cachedSig || (!firstFunctionCallSeen ? DEFAULT_THINKING_AG_SIGNATURE : undefined);
+        const cachedSig = callId
+          ? getGeminiThoughtSignatureSync(callId, sessionId, body.model || model)
+          : null;
+        const callSig =
+          p.thoughtSignature ||
+          cachedSig ||
+          (!firstFunctionCallSeen ? DEFAULT_THINKING_AG_SIGNATURE : undefined);
         firstFunctionCallSeen = true;
         if (callSig) {
           return { ...p, thoughtSignature: callSig };
@@ -251,7 +286,11 @@ export class AntigravityExecutor extends BaseExecutor {
             name,
             parameters: fn.parameters
               ? cleanJSONSchemaForAntigravity(structuredClone(fn.parameters))
-              : { type: "object", properties: { reason: { type: "string", description: "Brief explanation" } }, required: ["reason"] }
+              : {
+                  type: "object",
+                  properties: { reason: { type: "string", description: "Brief explanation" } },
+                  required: ["reason"],
+                },
           });
         }
       }
@@ -259,9 +298,13 @@ export class AntigravityExecutor extends BaseExecutor {
     }
 
     // Strip tools/toolConfig (handled separately) and blacklisted fields that Google rejects
-    const { tools: _originalTools, toolConfig: _originalToolConfig, ...requestWithoutTools } = body.request || {};
+    const {
+      tools: _originalTools,
+      toolConfig: _originalToolConfig,
+      ...requestWithoutTools
+    } = body.request || {};
     stripBlacklisted(requestWithoutTools);
-    
+
     // Rewrite competing-client branding in system prompts (e.g. Zed's Claude prompt,
     // OpenCode naming) so Antigravity doesn't flag the request with a 429 Quota Exhausted.
     if (requestWithoutTools.systemInstruction?.parts) {
@@ -285,7 +328,7 @@ export class AntigravityExecutor extends BaseExecutor {
       ...(tools && { tools }),
       sessionId,
       safetySettings: undefined,
-      ...(tools?.length > 0 && { toolConfig: { functionCallingConfig: { mode: "VALIDATED" } } })
+      ...(tools?.length > 0 && { toolConfig: { functionCallingConfig: { mode: "VALIDATED" } } }),
     };
 
     // Strip blacklisted thinking fields from top-level body (set by thinkingUnified.js at root, not body.request)
@@ -299,8 +342,14 @@ export class AntigravityExecutor extends BaseExecutor {
       model: body.model || model,
       userAgent: "antigravity",
       requestType: "agent",
-      requestId: buildIdeRequestId({ body, request: transformedRequest, credentials, model, requestType: "agent" }),
-      request: transformedRequest
+      requestId: buildIdeRequestId({
+        body,
+        request: transformedRequest,
+        credentials,
+        model,
+        requestType: "agent",
+      }),
+      request: transformedRequest,
     };
   }
 
@@ -308,16 +357,23 @@ export class AntigravityExecutor extends BaseExecutor {
     if (!credentials.refreshToken) return null;
 
     try {
-      const response = await proxyAwareFetch(OAUTH_ENDPOINTS.google.token, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json" },
-        body: new URLSearchParams({
-          grant_type: "refresh_token",
-          refresh_token: credentials.refreshToken,
-          client_id: this.config.clientId,
-          client_secret: this.config.clientSecret
-        })
-      }, proxyOptions);
+      const response = await proxyAwareFetch(
+        OAUTH_ENDPOINTS.google.token,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Accept: "application/json",
+          },
+          body: new URLSearchParams({
+            grant_type: "refresh_token",
+            refresh_token: credentials.refreshToken,
+            client_id: this.config.clientId,
+            client_secret: this.config.clientSecret,
+          }),
+        },
+        proxyOptions,
+      );
 
       if (!response.ok) return null;
 
@@ -328,7 +384,7 @@ export class AntigravityExecutor extends BaseExecutor {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token || credentials.refreshToken,
         expiresIn: tokens.expires_in,
-        projectId: credentials.projectId
+        projectId: credentials.projectId,
       };
     } catch (error) {
       log?.error?.("TOKEN", `Antigravity refresh error: ${error.message}`);
@@ -349,7 +405,7 @@ export class AntigravityExecutor extends BaseExecutor {
   parseRetryHeaders(headers) {
     if (!headers?.get) return null;
 
-    const retryAfter = headers.get('retry-after');
+    const retryAfter = headers.get("retry-after");
     if (retryAfter) {
       const seconds = parseInt(retryAfter, 10);
       if (!isNaN(seconds) && seconds > 0) return seconds * 1000;
@@ -361,13 +417,13 @@ export class AntigravityExecutor extends BaseExecutor {
       }
     }
 
-    const resetAfter = headers.get('x-ratelimit-reset-after');
+    const resetAfter = headers.get("x-ratelimit-reset-after");
     if (resetAfter) {
       const seconds = parseInt(resetAfter, 10);
       if (!isNaN(seconds) && seconds > 0) return seconds * 1000;
     }
 
-    const resetTimestamp = headers.get('x-ratelimit-reset');
+    const resetTimestamp = headers.get("x-ratelimit-reset");
     if (resetTimestamp) {
       const ts = parseInt(resetTimestamp, 10) * 1000;
       const diff = ts - Date.now();
@@ -394,18 +450,16 @@ export class AntigravityExecutor extends BaseExecutor {
   }
 
   extractErrorMessage(errorJson, bodyText = "") {
-    return [
-      errorJson?.error?.message,
-      errorJson?.message,
-      errorJson?.error,
-      bodyText,
-    ].filter(Boolean).map(v => typeof v === "string" ? v : JSON.stringify(v)).join("\n");
+    return [errorJson?.error?.message, errorJson?.message, errorJson?.error, bodyText]
+      .filter(Boolean)
+      .map((v) => (typeof v === "string" ? v : JSON.stringify(v)))
+      .join("\n");
   }
 
   isTransientAntigravityError(status, message) {
     if (status === HTTP_STATUS.RATE_LIMITED) return true;
     if (ANTIGRAVITY_TRANSIENT_STATUSES.has(status)) return true;
-    return ANTIGRAVITY_TRANSIENT_ERROR_PATTERNS.some(pattern => pattern.test(message || ""));
+    return ANTIGRAVITY_TRANSIENT_ERROR_PATTERNS.some((pattern) => pattern.test(message || ""));
   }
 
   // Hook called by BaseExecutor.tryRetry: derive delay from Retry-After (header → body),
@@ -432,10 +486,11 @@ export class AntigravityExecutor extends BaseExecutor {
 
     if (!this.isTransientAntigravityError(response.status, errorMessage)) return false;
 
-    const cap = response.status === HTTP_STATUS.RATE_LIMITED
-      ? MAX_RETRY_AFTER_MS
-      : ANTIGRAVITY_TRANSIENT_RETRY_MAX_MS;
-    return Math.min(1000 * (2 ** attempt), cap); // exponential backoff
+    const cap =
+      response.status === HTTP_STATUS.RATE_LIMITED
+        ? MAX_RETRY_AFTER_MS
+        : ANTIGRAVITY_TRANSIENT_RETRY_MAX_MS;
+    return Math.min(1000 * 2 ** attempt, cap); // exponential backoff
   }
 
   /**
@@ -453,7 +508,7 @@ export class AntigravityExecutor extends BaseExecutor {
     const isCopilot = clientTool === "github-copilot";
     const toolNameMap = new Map();
     const clientDeclarations = [];
-    const decoyNames = new Set(AG_DECOY_TOOLS.map(tool => tool.name));
+    const decoyNames = new Set(AG_DECOY_TOOLS.map((tool) => tool.name));
 
     // First: collect renamed client tools
     for (const toolGroup of tools) {
@@ -493,35 +548,35 @@ export class AntigravityExecutor extends BaseExecutor {
     }
 
     // Rename tool names in conversation history (contents)
-    const cloakedContents = body.request?.contents?.map(msg => {
+    const cloakedContents = body.request?.contents?.map((msg) => {
       if (!msg.parts) return msg;
-      
-      const cloakedParts = msg.parts.map(part => {
+
+      const cloakedParts = msg.parts.map((part) => {
         // Rename functionCall.name
         if (part.functionCall && !AG_DEFAULT_TOOLS.has(part.functionCall.name)) {
           return {
             ...part,
             functionCall: {
               ...part.functionCall,
-              name: `${part.functionCall.name}${AG_TOOL_SUFFIX}`
-            }
+              name: `${part.functionCall.name}${AG_TOOL_SUFFIX}`,
+            },
           };
         }
-        
+
         // Rename functionResponse.name
         if (part.functionResponse && !AG_DEFAULT_TOOLS.has(part.functionResponse.name)) {
           return {
             ...part,
             functionResponse: {
               ...part.functionResponse,
-              name: `${part.functionResponse.name}${AG_TOOL_SUFFIX}`
-            }
+              name: `${part.functionResponse.name}${AG_TOOL_SUFFIX}`,
+            },
           };
         }
-        
+
         return part;
       });
-      
+
       return { ...msg, parts: cloakedParts };
     });
 
@@ -532,10 +587,10 @@ export class AntigravityExecutor extends BaseExecutor {
         request: {
           ...body.request,
           tools: [{ functionDeclarations: allDeclarations }],
-          contents: cloakedContents || body.request.contents
-        }
+          contents: cloakedContents || body.request.contents,
+        },
       },
-      toolNameMap
+      toolNameMap,
     };
   }
 }
@@ -545,108 +600,108 @@ const AG_DECOY_TOOLS = [
   {
     name: "browser_subagent",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "command_status",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "find_by_name",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "generate_image",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "grep_search",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "list_dir",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "list_resources",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "mcp_sequential-thinking_sequentialthinking",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "multi_replace_file_content",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "notify_user",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "read_resource",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "read_terminal",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "read_url_content",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "replace_file_content",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "run_command",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "search_web",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "send_command_input",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "task_boundary",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "view_content_chunk",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "view_file",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
   },
   {
     name: "write_to_file",
     description: "This tool is currently unavailable.",
-    parameters: { type: "OBJECT", properties: {}, required: [] }
-  }
+    parameters: { type: "OBJECT", properties: {}, required: [] },
+  },
 ];
 
 export default AntigravityExecutor;

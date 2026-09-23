@@ -3,12 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/usageDb.js", () => ({
   appendRequestLog: vi.fn(async () => {}),
   saveRequestDetail: vi.fn(async () => {}),
-  saveRequestUsage: vi.fn(async () => {})
+  saveRequestUsage: vi.fn(async () => {}),
 }));
 
 const { FORMATS } = await import("../../open-sse/translator/formats.js");
-const { translateNonStreamingResponse } = await import("../../open-sse/handlers/chatCore/nonStreamingHandler.js");
-const { handleForcedSSEToJson } = await import("../../open-sse/handlers/chatCore/sseToJsonHandler.js");
+const { translateNonStreamingResponse } = await import(
+  "../../open-sse/handlers/chatCore/nonStreamingHandler.js"
+);
+const { handleForcedSSEToJson } = await import(
+  "../../open-sse/handlers/chatCore/sseToJsonHandler.js"
+);
 
 // A chat.completion body as returned by a chat-native upstream (e.g. op-ericding)
 const CHAT_TOOL_BODY = {
@@ -16,29 +20,41 @@ const CHAT_TOOL_BODY = {
   object: "chat.completion",
   created: 1700000000,
   model: "cl/claude-haiku-4-5",
-  choices: [{
-    index: 0,
-    message: {
-      role: "assistant",
-      content: null,
-      tool_calls: [{ id: "call_1", type: "function", function: { name: "shell", arguments: "{\"cmd\":\"ls\"}" } }]
+  choices: [
+    {
+      index: 0,
+      message: {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          {
+            id: "call_1",
+            type: "function",
+            function: { name: "shell", arguments: '{"cmd":"ls"}' },
+          },
+        ],
+      },
+      finish_reason: "tool_calls",
     },
-    finish_reason: "tool_calls"
-  }],
-  usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }
+  ],
+  usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
 };
 
 describe("non-stream Chat upstream for a Responses-API client (op-ericding bug)", () => {
   it("translates chat.completion tool_calls into Responses function_call output", () => {
     // translateNonStreamingResponse(body, targetFormat=PROVIDER format, sourceFormat=CLIENT format)
-    const out = translateNonStreamingResponse(CHAT_TOOL_BODY, FORMATS.OPENAI, FORMATS.OPENAI_RESPONSES);
+    const out = translateNonStreamingResponse(
+      CHAT_TOOL_BODY,
+      FORMATS.OPENAI,
+      FORMATS.OPENAI_RESPONSES,
+    );
     expect(out.object).toBe("response");
     expect(out).not.toHaveProperty("choices");
     const fc = (out.output || []).find((o) => o.type === "function_call");
     expect(fc).toBeTruthy();
     expect(fc.call_id).toBe("call_1");
     expect(fc.name).toBe("shell");
-    expect(fc.arguments).toBe("{\"cmd\":\"ls\"}");
+    expect(fc.arguments).toBe('{"cmd":"ls"}');
   });
 
   it("translates marked Chat tools into Responses custom_tool_call output", () => {
@@ -48,20 +64,20 @@ describe("non-stream Chat upstream for a Responses-API client (op-ericding bug)"
       type: "function",
       function: {
         name: "exec",
-        arguments: "{\"input\":\"return await tools.shell({command: 'pwd'});\"}"
-      }
+        arguments: '{"input":"return await tools.shell({command: \'pwd\'});"}',
+      },
     };
     const out = translateNonStreamingResponse(
       customBody,
       FORMATS.OPENAI,
       FORMATS.OPENAI_RESPONSES,
-      new Set(["exec"])
+      new Set(["exec"]),
     );
     const call = (out.output || []).find((item) => item.type === "custom_tool_call");
     expect(call).toMatchObject({
       call_id: "call_exec",
       name: "exec",
-      input: "return await tools.shell({command: 'pwd'});"
+      input: "return await tools.shell({command: 'pwd'});",
     });
     expect(out.output.some((item) => item.type === "function_call")).toBe(false);
   });
@@ -69,7 +85,9 @@ describe("non-stream Chat upstream for a Responses-API client (op-ericding bug)"
   it("keeps chat.completion text content as a Responses message item", () => {
     const body = {
       ...CHAT_TOOL_BODY,
-      choices: [{ index: 0, message: { role: "assistant", content: "hello" }, finish_reason: "stop" }]
+      choices: [
+        { index: 0, message: { role: "assistant", content: "hello" }, finish_reason: "stop" },
+      ],
     };
     const out = translateNonStreamingResponse(body, FORMATS.OPENAI, FORMATS.OPENAI_RESPONSES);
     const msg = (out.output || []).find((o) => o.type === "message");
@@ -93,12 +111,18 @@ describe("forced-SSE JSON path for a Responses-API client behind a chat upstream
       'data: {"id":"chatcmpl-sse","object":"chat.completion.chunk","created":1700000000,"model":"gpt-x","choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\\"cmd\\":\\"pwd\\"}"}}]},"finish_reason":null}]}',
       'data: {"id":"chatcmpl-sse","object":"chat.completion.chunk","created":1700000000,"model":"gpt-x","choices":[{"delta":{},"finish_reason":"tool_calls"}]}',
       "data: [DONE]",
-      ""
+      "",
     ].join("\n\n");
     return {
-      providerResponse: new Response(new ReadableStream({
-        start(controller) { controller.enqueue(encoder.encode(raw)); controller.close(); }
-      }), { headers: { "content-type": "text/event-stream" } }),
+      providerResponse: new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(raw));
+            controller.close();
+          },
+        }),
+        { headers: { "content-type": "text/event-stream" } },
+      ),
       sourceFormat,
       targetFormat,
       provider: "op-test-chat",
@@ -109,7 +133,7 @@ describe("forced-SSE JSON path for a Responses-API client behind a chat upstream
       connectionId: "test-connection",
       clientRawRequest: { endpoint: "/v1/responses" },
       trackDone: vi.fn(),
-      appendLog: vi.fn()
+      appendLog: vi.fn(),
     };
   };
 
@@ -121,7 +145,7 @@ describe("forced-SSE JSON path for a Responses-API client behind a chat upstream
     const fc = (json.output || []).find((o) => o.type === "function_call");
     expect(fc).toBeTruthy();
     expect(fc.name).toBe("shell");
-    expect(fc.arguments).toBe("{\"cmd\":\"pwd\"}");
+    expect(fc.arguments).toBe('{"cmd":"pwd"}');
   });
 
   it("returns a custom_tool_call for a marked tool", async () => {
@@ -134,7 +158,7 @@ describe("forced-SSE JSON path for a Responses-API client behind a chat upstream
     expect(call).toMatchObject({
       call_id: "call_9",
       name: "shell",
-      input: "{\"cmd\":\"pwd\"}"
+      input: '{"cmd":"pwd"}',
     });
   });
 

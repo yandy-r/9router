@@ -20,9 +20,7 @@ describe("codex auto-review routing (#1398)", () => {
   });
 
   it("exposes Codex auto-review as a review-quota Codex model", () => {
-    const autoReview = getProviderModels("cx").find(
-      (model) => model.id === "codex-auto-review",
-    );
+    const autoReview = getProviderModels("cx").find((model) => model.id === "codex-auto-review");
 
     expect(autoReview).toBeTruthy();
     expect(autoReview.name).toBe("Codex Auto Review");
@@ -32,9 +30,7 @@ describe("codex auto-review routing (#1398)", () => {
   // getModelUpstreamId strips CODEX_REVIEW_SUFFIX from unregistered "cx" ids, which would send
   // "codex-auto" upstream. This model is not a derived review variant, so it must go out verbatim.
   it("forwards the id upstream without stripping the -review suffix", () => {
-    expect(getModelUpstreamId("cx", "codex-auto-review")).toBe(
-      "codex-auto-review",
-    );
+    expect(getModelUpstreamId("cx", "codex-auto-review")).toBe("codex-auto-review");
   });
 
   // Registering it must not push it to the front of the cx list — getDefaultModel takes models[0].

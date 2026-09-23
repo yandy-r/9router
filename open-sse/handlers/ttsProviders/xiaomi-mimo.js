@@ -16,7 +16,9 @@ export default {
 };
 
 export async function synthesizeMiMo(text, model, apiKey, style, language) {
-  const { modelId, voiceId } = parseModelVoice(model, DEFAULT_MODEL, DEFAULT_VOICE, [DEFAULT_MODEL]);
+  const { modelId, voiceId } = parseModelVoice(model, DEFAULT_MODEL, DEFAULT_VOICE, [
+    DEFAULT_MODEL,
+  ]);
 
   // Language and style are soft instructions → prepend as a role:user message.
   // MiMo auto-detects the spoken language of the text; the hint only nudges it
@@ -32,7 +34,7 @@ export async function synthesizeMiMo(text, model, apiKey, style, language) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model: modelId,
@@ -48,7 +50,11 @@ export async function synthesizeMiMo(text, model, apiKey, style, language) {
   const rawText = await res.text();
   let data = {};
   if (rawText) {
-    try { data = JSON.parse(rawText); } catch { data = {}; }
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = {};
+    }
   }
 
   if (!res.ok) {

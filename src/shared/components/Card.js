@@ -26,10 +26,13 @@ export default function Card({
     <div
       className={cn(
         "bg-surface border border-border-subtle",
-        elev ? "rounded-[14px] shadow-[var(--shadow-elev)]" : "rounded-[14px] shadow-[var(--shadow-soft)]",
-        hover && "hover:shadow-[var(--shadow-warm)] hover:border-brand-500/30 transition-all cursor-pointer",
+        elev
+          ? "rounded-[14px] shadow-[var(--shadow-elev)]"
+          : "rounded-[14px] shadow-[var(--shadow-soft)]",
+        hover &&
+          "hover:shadow-[var(--shadow-warm)] hover:border-brand-500/30 transition-all cursor-pointer",
         paddings[padding],
-        className
+        className,
       )}
       {...props}
     >
@@ -42,12 +45,8 @@ export default function Card({
               </div>
             )}
             <div>
-              {title && (
-                <h3 className="text-text-main font-semibold">{title}</h3>
-              )}
-              {subtitle && (
-                <p className="text-sm text-text-muted">{subtitle}</p>
-              )}
+              {title && <h3 className="text-text-main font-semibold">{title}</h3>}
+              {subtitle && <p className="text-sm text-text-muted">{subtitle}</p>}
             </div>
           </div>
           {action}
@@ -61,11 +60,7 @@ export default function Card({
 Card.Section = function CardSection({ children, className, ...props }) {
   return (
     <div
-      className={cn(
-        "p-4 rounded-[10px]",
-        "bg-bg border border-border-subtle",
-        className
-      )}
+      className={cn("p-4 rounded-[10px]", "bg-bg border border-border-subtle", className)}
       {...props}
     >
       {children}
@@ -80,7 +75,7 @@ Card.Row = function CardRow({ children, className, ...props }) {
         "p-3 -mx-3 px-3 transition-colors",
         "border-b border-border-subtle last:border-b-0",
         "hover:bg-surface-2/50",
-        className
+        className,
       )}
       {...props}
     >
@@ -89,19 +84,14 @@ Card.Row = function CardRow({ children, className, ...props }) {
   );
 };
 
-Card.ListItem = function CardListItem({
-  children,
-  actions,
-  className,
-  ...props
-}) {
+Card.ListItem = function CardListItem({ children, actions, className, ...props }) {
   return (
     <div
       className={cn(
         "group flex items-center justify-between p-3 -mx-3 px-3",
         "border-b border-border-subtle last:border-b-0",
         "hover:bg-surface-2/50 transition-colors",
-        className
+        className,
       )}
       {...props}
     >

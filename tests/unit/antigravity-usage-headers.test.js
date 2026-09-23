@@ -3,11 +3,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const proxyAwareFetch = vi.fn(async (url) => ({
   ok: true,
   status: 200,
-  json: async () => url.includes(":loadCodeAssist")
-    ? { cloudaicompanionProject: "project-1", currentTier: { name: "Pro" }, paidTier: { id: "g1-pro-tier", name: "Google AI Pro" } }
-    : url.includes(":retrieveUserQuotaSummary")
-      ? { groups: [] }
-      : { models: {} },
+  json: async () =>
+    url.includes(":loadCodeAssist")
+      ? {
+          cloudaicompanionProject: "project-1",
+          currentTier: { name: "Pro" },
+          paidTier: { id: "g1-pro-tier", name: "Google AI Pro" },
+        }
+      : url.includes(":retrieveUserQuotaSummary")
+        ? { groups: [] }
+        : { models: {} },
   text: async () => "{}",
 }));
 

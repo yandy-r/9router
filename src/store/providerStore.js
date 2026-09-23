@@ -11,14 +11,11 @@ const useProviderStore = create((set, get) => ({
 
   setProviders: (providers) => set({ providers, lastFetched: Date.now() }),
 
-  addProvider: (provider) =>
-    set((state) => ({ providers: [provider, ...state.providers] })),
+  addProvider: (provider) => set((state) => ({ providers: [provider, ...state.providers] })),
 
   updateProvider: (id, updates) =>
     set((state) => ({
-      providers: state.providers.map((p) =>
-        p._id === id ? { ...p, ...updates } : p
-      ),
+      providers: state.providers.map((p) => (p._id === id ? { ...p, ...updates } : p)),
     })),
 
   removeProvider: (id) =>
@@ -41,7 +38,11 @@ const useProviderStore = create((set, get) => ({
       const response = await fetch("/api/providers");
       const data = await response.json();
       if (response.ok) {
-        set({ providers: data.connections || data.providers || [], loading: false, lastFetched: Date.now() });
+        set({
+          providers: data.connections || data.providers || [],
+          loading: false,
+          lastFetched: Date.now(),
+        });
       } else {
         set({ error: data.error, loading: false });
       }
@@ -52,4 +53,3 @@ const useProviderStore = create((set, get) => ({
 }));
 
 export default useProviderStore;
-

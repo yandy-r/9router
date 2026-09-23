@@ -70,58 +70,74 @@ async function callChat(body) {
 
   const text = await res.text();
   let json = null;
-  try { json = JSON.parse(text); } catch { /* non-json */ }
+  try {
+    json = JSON.parse(text);
+  } catch {
+    /* non-json */
+  }
 
   return { status: res.status, text, json };
 }
 
 describe.skipIf(!RUN_REAL).concurrent("antigravity models — real", () => {
   for (const model of AG_MODELS) {
-    it(`${model}: simple prompt`, async () => {
-      const { status, json, text } = await callChat(SIMPLE_BODY(model));
+    it(
+      `${model}: simple prompt`,
+      async () => {
+        const { status, json, text } = await callChat(SIMPLE_BODY(model));
 
-      // Credential/quota issues are not translation bugs → warn and pass
-      if ([401, 402, 403, 429].includes(status)) {
-        console.warn(`[skip] ${model}: ${status} (credential/quota)`);
-        return;
-      }
-
-      // Provider-side 400 (e.g. stream_options, model quirks) → skip
-      if (status === 400) {
-        console.warn(`[skip] ${model}: 400 (provider quirk): ${text.slice(0, 200)}`);
-        return;
-      }
-
-      expect(status, `${model} simple: ${text.slice(0, 300)}`).toBe(200);
-      // Accept either OpenAI-shaped or raw Gemini-shaped response
-      const hasContent =
-        json?.choices?.[0]?.message?.content ||
-        json?.choices?.[0]?.message?.tool_calls ||
-        json?.candidates?.[0]?.content?.parts?.length > 0 ||
-        json?.choices?.[0]?.finish_reason;
-      expect(hasContent, `${model} simple: no content in ${text.slice(0, 300)}`).toBeTruthy();
-    }, TIMEOUT_MS);
-
-    it(`${model}: tool call with optional field in schema`, async () => {
-      const { status, json, text } = await callChat(TOOL_BODY(model));
-
-      if ([401, 402, 403, 429].includes(status)) {
-        console.warn(`[skip] ${model}: ${status} (credential/quota)`);
-        return;
-      }
-
-      // 400 with "optional" + "Cannot find field" = the specific bug
-      if (status === 400) {
-        const errMsg = json?.error?.message || text;
-        if (/optional.*Cannot find field|Cannot find field.*optional|Unknown name.*optional/i.test(errMsg)) {
-          throw new Error(`BUG: ${model} — 400 due to optional field: ${errMsg.slice(0, 300)}`);
+        // Credential/quota issues are not translation bugs → warn and pass
+        if ([401, 402, 403, 429].includes(status)) {
+          console.warn(`[skip] ${model}: ${status} (credential/quota)`);
+          return;
         }
-        // Other 400 (e.g. model doesn't support tools, stream_options issue) → skip
-        console.warn(`[skip] ${model}: 400 non-optional error: ${errMsg.slice(0, 200)}`);
-        return;
-      }
 
-      expect(status, `${model} tool: ${text.slice(0, 300)}`).toBe(200);
-    }, TIMEOUT_MS);
+        // Provider-side 400 (e.g. stream_options, model quirks) → skip
+        if (status === 400) {
+          console.warn(`[skip] ${model}: 400 (provider quirk): ${text.slice(0, 200)}`);
+          return;
+        }
+
+        expect(status, `${model} simple: ${text.slice(0, 300)}`).toBe(200);
+        // Accept either OpenAI-shaped or raw Gemini-shaped response
+        const hasContent =
+          json?.choices?.[0]?.message?.content ||
+          json?.choices?.[0]?.message?.tool_calls ||
+          json?.candidates?.[0]?.content?.parts?.length > 0 ||
+          json?.choices?.[0]?.finish_reason;
+        expect(hasContent, `${model} simple: no content in ${text.slice(0, 300)}`).toBeTruthy();
+      },
+      TIMEOUT_MS,
+    );
+
+    it(
+      `${model}: tool call with optional field in schema`,
+      async () => {
+        const { status, json, text } = await callChat(TOOL_BODY(model));
+
+        if ([401, 402, 403, 429].includes(status)) {
+          console.warn(`[skip] ${model}: ${status} (credential/quota)`);
+          return;
+        }
+
+        // 400 with "optional" + "Cannot find field" = the specific bug
+        if (status === 400) {
+          const errMsg = json?.error?.message || text;
+          if (
+            /optional.*Cannot find field|Cannot find field.*optional|Unknown name.*optional/i.test(
+              errMsg,
+            )
+          ) {
+            throw new Error(`BUG: ${model} — 400 due to optional field: ${errMsg.slice(0, 300)}`);
+          }
+          // Other 400 (e.g. model doesn't support tools, stream_options issue) → skip
+          console.warn(`[skip] ${model}: 400 non-optional error: ${errMsg.slice(0, 200)}`);
+          return;
+        }
+
+        expect(status, `${model} tool: ${text.slice(0, 300)}`).toBe(200);
+      },
+      TIMEOUT_MS,
+    );
   }
 });

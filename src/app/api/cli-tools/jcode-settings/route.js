@@ -81,8 +81,10 @@ const readProviderEnv = async () => {
         const key = trimmed.slice(0, eqIndex).trim();
         let value = trimmed.slice(eqIndex + 1).trim();
 
-        if ((value.startsWith('"') && value.endsWith('"')) ||
-            (value.startsWith("'") && value.endsWith("'"))) {
+        if (
+          (value.startsWith('"') && value.endsWith('"')) ||
+          (value.startsWith("'") && value.endsWith("'"))
+        ) {
           value = value.slice(1, -1);
         }
 
@@ -113,7 +115,8 @@ export async function GET() {
   if (!isInstalled) {
     return NextResponse.json({
       installed: false,
-      message: "jcode not installed. Install via: curl -fsSL https://raw.githubusercontent.com/1jehuang/jcode/master/scripts/install.sh | bash",
+      message:
+        "jcode not installed. Install via: curl -fsSL https://raw.githubusercontent.com/1jehuang/jcode/master/scripts/install.sh | bash",
     });
   }
 
@@ -133,17 +136,12 @@ export async function POST(request) {
     const { baseUrl, apiKey, models } = await request.json();
 
     if (!baseUrl || !apiKey) {
-      return NextResponse.json(
-        { error: "baseUrl and apiKey are required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "baseUrl and apiKey are required" }, { status: 400 });
     }
 
-    const normalizedBaseUrl = baseUrl.endsWith("/v1")
-      ? baseUrl
-      : `${baseUrl}/v1`;
+    const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
 
-    let config = await readConfig();
+    const config = await readConfig();
 
     if (!config.providers) {
       config.providers = {};
@@ -179,10 +177,7 @@ export async function POST(request) {
     });
   } catch (error) {
     console.error("Error configuring jcode:", error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
@@ -208,9 +203,6 @@ export async function DELETE() {
     });
   } catch (error) {
     console.error("Error removing jcode configuration:", error);
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

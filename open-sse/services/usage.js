@@ -5,7 +5,11 @@
 import { getGitHubUsage } from "./usage/github.js";
 import { getGeminiUsage, getAntigravityUsage } from "./usage/google.js";
 import { getClaudeUsage } from "./usage/claude.js";
-import { getCodexUsage, consumeCodexRateLimitResetCredit, getCodexRateLimitResetCredits } from "./usage/codex.js";
+import {
+  getCodexUsage,
+  consumeCodexRateLimitResetCredit,
+  getCodexRateLimitResetCredits,
+} from "./usage/codex.js";
 
 export { consumeCodexRateLimitResetCredit, getCodexRateLimitResetCredits };
 import { getKiroUsage } from "./usage/kiro.js";
@@ -54,8 +58,10 @@ const USAGE_HANDLERS = {
   minimax: (c) => getMiniMaxUsage(c.apiKey, c.provider, c.proxyOptions),
   "minimax-cn": (c) => getMiniMaxUsage(c.apiKey, c.provider, c.proxyOptions),
   "vercel-ai-gateway": (c) => getVercelAiGatewayUsage(c.apiKey, c.proxyOptions),
-  "codebuddy-cn": (c) => getCodeBuddyCnUsage(c.accessToken, c.apiKey, c.providerSpecificData, c.proxyOptions),
-  "codebuddy-intl": (c) => getCodeBuddyIntlUsage(c.accessToken, c.apiKey, c.providerSpecificData, c.proxyOptions),
+  "codebuddy-cn": (c) =>
+    getCodeBuddyCnUsage(c.accessToken, c.apiKey, c.providerSpecificData, c.proxyOptions),
+  "codebuddy-intl": (c) =>
+    getCodeBuddyIntlUsage(c.accessToken, c.apiKey, c.providerSpecificData, c.proxyOptions),
   "grok-cli": (c) => getGrokCliUsage(c.accessToken, c.providerSpecificData, c.proxyOptions),
   kimi: (c) => getKimiUsage(c.accessToken, c.apiKey, c.proxyOptions, c.providerSpecificData),
   "opencode-go": (c) => getOpenCodeGoUsage(c.apiKey, c.proxyOptions),

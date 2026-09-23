@@ -132,10 +132,12 @@ function isBlockedIpv6Groups(g) {
   // blocklist regardless of which prefix wraps it.
   const low32 = ((g[6] << 16) | g[7]) >>> 0;
   if ([0, 1, 2, 3, 4].every(isZero) && g[5] === 0xffff) return isBlockedIpv4Int(low32);
-  if (g[0] === 0x0064 && g[1] === 0xff9b && [2, 3, 4, 5].every(isZero)) return isBlockedIpv4Int(low32);
+  if (g[0] === 0x0064 && g[1] === 0xff9b && [2, 3, 4, 5].every(isZero))
+    return isBlockedIpv4Int(low32);
   // IPv4-compatible ::a.b.c.d/96 (deprecated, still parseable) — excludes :: and ::1
   // which already matched above.
-  if ([0, 1, 2, 3, 4, 5].every(isZero) && low32 !== 0 && low32 !== 1) return isBlockedIpv4Int(low32);
+  if ([0, 1, 2, 3, 4, 5].every(isZero) && low32 !== 0 && low32 !== 1)
+    return isBlockedIpv4Int(low32);
   return false;
 }
 
@@ -188,7 +190,9 @@ export async function assertPublicUrlResolved(rawUrl) {
     return;
   }
   for (const { address, family } of addresses) {
-    if (family === 4 ? isBlockedIpv4(address) : isBlockedIpv6Groups(parseIPv6ToGroups(address) || [])) {
+    if (
+      family === 4 ? isBlockedIpv4(address) : isBlockedIpv6Groups(parseIPv6ToGroups(address) || [])
+    ) {
       throw new Error("Blocked URL: hostname resolves to an internal host");
     }
   }

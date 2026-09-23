@@ -69,11 +69,11 @@ describe("grokBuildConfig", () => {
 
   it("preserves unrelated config sections", () => {
     const result = applyGrokBuildConfig(BASE_CONFIG, APPLY_INPUT);
-    expect(result).toContain("[cli]\ninstaller = \"internal\"");
+    expect(result).toContain('[cli]\ninstaller = "internal"');
     expect(result).toContain("[ui]\nyolo = false");
-    expect(result).toContain("default_reasoning_effort = \"high\"");
+    expect(result).toContain('default_reasoning_effort = "high"');
     expect(result).toContain("[mcp_servers.example]");
-    expect(result).toContain("url = \"https://example.com/mcp\"");
+    expect(result).toContain('url = "https://example.com/mcp"');
   });
 
   it("is idempotent and updates owned slots without duplicate sections", () => {

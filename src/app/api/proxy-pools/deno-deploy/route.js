@@ -85,12 +85,12 @@ export async function POST(request) {
       if (createAppRes.status === 409) {
         return NextResponse.json(
           { error: `App "${projectName}" already exists. Choose a different name.` },
-          { status: 409 }
+          { status: 409 },
         );
       }
       return NextResponse.json(
         { error: `Failed to create app (${createAppRes.status}): ${text}` },
-        { status: createAppRes.status }
+        { status: createAppRes.status },
       );
     }
 
@@ -119,7 +119,7 @@ export async function POST(request) {
       }).catch(() => {});
       return NextResponse.json(
         { error: `Deploy failed (${deployRes.status}): ${text}` },
-        { status: deployRes.status }
+        { status: deployRes.status },
       );
     }
 
@@ -148,10 +148,7 @@ export async function POST(request) {
         method: "DELETE",
         headers: { Authorization: `Bearer ${denoToken}` },
       }).catch(() => {});
-      return NextResponse.json(
-        { error: `Deploy failed with status: ${status}` },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: `Deploy failed with status: ${status}` }, { status: 500 });
     }
 
     const orgSlug = orgDomain.split(".")[0];

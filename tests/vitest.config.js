@@ -13,7 +13,12 @@ export default defineConfig({
     // Don't scan into git worktrees nested under .claude/ — they carry their
     // own copies of the test files but lack an installed node_modules (open-sse,
     // etc.), which makes provider imports fail during collection.
-    exclude: ["**/node_modules/**", "**/.claude/**", "**/.config/opencode/worktrees/**", "**/dist/**"],
+    exclude: [
+      "**/node_modules/**",
+      "**/.claude/**",
+      "**/.config/opencode/worktrees/**",
+      "**/dist/**",
+    ],
     // Every test file gets its own temp DATA_DIR + HOME under one parent temp
     // dir that is removed after the run (see setup/).
     globalSetup: [resolve(__dirname, "setup/tempRoot.js")],

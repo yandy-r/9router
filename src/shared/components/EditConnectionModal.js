@@ -6,7 +6,11 @@ import Modal from "@/shared/components/Modal";
 import Input from "@/shared/components/Input";
 import Button from "@/shared/components/Button";
 import Badge from "@/shared/components/Badge";
-import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider, AI_PROVIDERS } from "@/shared/constants/providers";
+import {
+  isOpenAICompatibleProvider,
+  isAnthropicCompatibleProvider,
+  AI_PROVIDERS,
+} from "@/shared/constants/providers";
 import Select from "@/shared/components/Select";
 
 export default function EditConnectionModal({ isOpen, connection, proxyPools, onSave, onClose }) {
@@ -51,7 +55,11 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
       // Load region for providers that support it (e.g. xiaomi-tokenplan)
       const providerCfg = AI_PROVIDERS?.[connection.provider];
       if (providerCfg?.regions) {
-        const savedRegion = connection.providerSpecificData?.region || providerCfg.defaultRegion || providerCfg.regions[0]?.id || "";
+        const savedRegion =
+          connection.providerSpecificData?.region ||
+          providerCfg.defaultRegion ||
+          providerCfg.regions[0]?.id ||
+          "";
         setRegion(savedRegion);
       }
       setTestResult(null);
@@ -63,13 +71,14 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
   const isAzure = connection?.provider === "azure";
   const isCloudflareAi = connection?.provider === "cloudflare-ai";
   const isCompatible = connection
-    ? (isOpenAICompatibleProvider(connection.provider) || isAnthropicCompatibleProvider(connection.provider))
+    ? isOpenAICompatibleProvider(connection.provider) ||
+      isAnthropicCompatibleProvider(connection.provider)
     : false;
-  const providerRegions = connection ? (AI_PROVIDERS?.[connection.provider]?.regions || null) : null;
+  const providerRegions = connection ? AI_PROVIDERS?.[connection.provider]?.regions || null : null;
 
   // Build providerSpecificData for region-aware providers
   const buildRegionSpecificData = () => {
-    if (providerRegions && region) return { ...((connection?.providerSpecificData) || {}), region };
+    if (providerRegions && region) return { ...(connection?.providerSpecificData || {}), region };
     return undefined;
   };
 
@@ -154,7 +163,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
           updates.lastErrorAt = null;
         }
       }
-      
+
       // Add Azure-specific data if this is an Azure connection
       if (isAzure) {
         updates.providerSpecificData = {
@@ -171,7 +180,7 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
       if (providerRegions && region) {
         updates.providerSpecificData = buildRegionSpecificData();
       }
-      
+
       await onSave(updates);
     } finally {
       setSaving(false);
@@ -199,7 +208,9 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
           label="Priority"
           type="number"
           value={formData.priority}
-          onChange={(e) => setFormData({ ...formData, priority: Number.parseInt(e.target.value, 10) || 1 })}
+          onChange={(e) =>
+            setFormData({ ...formData, priority: Number.parseInt(e.target.value, 10) || 1 })
+          }
         />
 
         {!isOAuth && (
@@ -215,7 +226,11 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
                 className="flex-1"
               />
               <div className="pt-6">
-                <Button onClick={handleValidate} disabled={!formData.apiKey || validating || saving} variant="secondary">
+                <Button
+                  onClick={handleValidate}
+                  disabled={!formData.apiKey || validating || saving}
+                  variant="secondary"
+                >
                   {validating ? "Checking..." : "Check"}
                 </Button>
               </div>
@@ -287,8 +302,12 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         )}
 
         <div className="flex gap-2">
-          <Button onClick={handleSubmit} fullWidth disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
-          <Button onClick={onClose} variant="ghost" fullWidth>Cancel</Button>
+          <Button onClick={handleSubmit} fullWidth disabled={saving}>
+            {saving ? "Saving..." : "Save"}
+          </Button>
+          <Button onClick={onClose} variant="ghost" fullWidth>
+            Cancel
+          </Button>
         </div>
       </div>
     </Modal>
@@ -306,11 +325,12 @@ EditConnectionModal.propTypes = {
     provider: PropTypes.string,
     providerSpecificData: PropTypes.object,
   }),
-  proxyPools: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.string,
-    name: PropTypes.string,
-  })),
+  proxyPools: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      name: PropTypes.string,
+    }),
+  ),
   onSave: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
 };
-

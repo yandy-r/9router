@@ -40,8 +40,7 @@ function makeFakeChild() {
     child.killed = true;
   };
 
-  const send = (obj) =>
-    child.stdout.emit("data", Buffer.from(JSON.stringify(obj) + "\n"));
+  const send = (obj) => child.stdout.emit("data", Buffer.from(JSON.stringify(obj) + "\n"));
 
   function handle(msg) {
     if (msg.method === "initialize") {
@@ -54,13 +53,21 @@ function makeFakeChild() {
         send({
           jsonrpc: "2.0",
           id: msg.id,
-          error: { code: -32602, message: "Invalid params", data: { error: "missing field `mcpServers`" } },
+          error: {
+            code: -32602,
+            message: "Invalid params",
+            data: { error: "missing field `mcpServers`" },
+          },
         });
       } else {
         send({
           jsonrpc: "2.0",
           id: msg.id,
-          error: { code: -32602, message: "Invalid params", data: { error: "invalid type: map, expected a sequence" } },
+          error: {
+            code: -32602,
+            message: "Invalid params",
+            data: { error: "invalid type: map, expected a sequence" },
+          },
         });
       }
     } else if (msg.method === "session/prompt") {
@@ -83,20 +90,40 @@ function makeFakeChild() {
         send({
           jsonrpc: "2.0",
           method: "session/update",
-          params: { sessionId: "fake-session", update: { sessionUpdate: "agent_thought_chunk", content: { type: "text", text: "(thinking)" } } },
+          params: {
+            sessionId: "fake-session",
+            update: {
+              sessionUpdate: "agent_thought_chunk",
+              content: { type: "text", text: "(thinking)" },
+            },
+          },
         });
         send({
           jsonrpc: "2.0",
           method: "session/update",
-          params: { sessionId: "fake-session", update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "hello world" } } },
+          params: {
+            sessionId: "fake-session",
+            update: {
+              sessionUpdate: "agent_message_chunk",
+              content: { type: "text", text: "hello world" },
+            },
+          },
         });
         // Stop signal: _cognition.ai/agent_stopped notification.
-        send({ jsonrpc: "2.0", method: "_cognition.ai/agent_stopped", params: { cause: "complete" } });
+        send({
+          jsonrpc: "2.0",
+          method: "_cognition.ai/agent_stopped",
+          params: { cause: "complete" },
+        });
       } else {
         send({
           jsonrpc: "2.0",
           id: msg.id,
-          error: { code: -32602, message: "Invalid params", data: { error: "missing field `prompt`" } },
+          error: {
+            code: -32602,
+            message: "Invalid params",
+            data: { error: "missing field `prompt`" },
+          },
         });
       }
     }
@@ -221,7 +248,7 @@ describe("DevinCliExecutor ACP session/new", () => {
       // Capture config at spawn time (finish() cleans the temp dir).
       if (opts?.env?.XDG_CONFIG_HOME) {
         capturedCfg = JSON.parse(
-          fs.readFileSync(opts.env.XDG_CONFIG_HOME + "/devin/config.json", "utf8")
+          fs.readFileSync(opts.env.XDG_CONFIG_HOME + "/devin/config.json", "utf8"),
         );
       }
       return child;
@@ -289,30 +316,54 @@ describe("DevinCliExecutor ACP session/new", () => {
     child.writes = [];
     child.stdin = new EventEmitter();
     child.stdin.destroyed = false;
-    child.stdin.write = (data) => { child.writes.push(String(data)); handle(JSON.parse(String(data).trim())); return true; };
-    child.stdin.end = () => { child.stdin.destroyed = true; };
+    child.stdin.write = (data) => {
+      child.writes.push(String(data));
+      handle(JSON.parse(String(data).trim()));
+      return true;
+    };
+    child.stdin.end = () => {
+      child.stdin.destroyed = true;
+    };
     child.stdout = new EventEmitter();
     child.stderr = new EventEmitter();
     child.killed = false;
-    child.kill = () => { child.killed = true; };
+    child.kill = () => {
+      child.killed = true;
+    };
     child.args = ["acp"];
     child.opts = { env: {} };
     spawnMock.mockReturnValue(child);
     const send = (o) => child.stdout.emit("data", Buffer.from(JSON.stringify(o) + "\n"));
     function handle(msg) {
-      if (msg.method === "initialize") send({ jsonrpc: "2.0", id: msg.id, result: { protocolVersion: 1 } });
-      else if (msg.method === "session/new") send({ jsonrpc: "2.0", id: msg.id, result: { sessionId: "s1" } });
+      if (msg.method === "initialize")
+        send({ jsonrpc: "2.0", id: msg.id, result: { protocolVersion: 1 } });
+      else if (msg.method === "session/new")
+        send({ jsonrpc: "2.0", id: msg.id, result: { sessionId: "s1" } });
       else if (msg.method === "session/prompt") {
         // Mirror real ACP: title on first event, rawInput on a later update.
         send({
           jsonrpc: "2.0",
           method: "session/update",
-          params: { sessionId: "s1", update: { sessionUpdate: "tool_call", toolCallId: "call_abc", title: "Calling mcp_get_weather from clientTools" } },
+          params: {
+            sessionId: "s1",
+            update: {
+              sessionUpdate: "tool_call",
+              toolCallId: "call_abc",
+              title: "Calling mcp_get_weather from clientTools",
+            },
+          },
         });
         send({
           jsonrpc: "2.0",
           method: "session/update",
-          params: { sessionId: "s1", update: { sessionUpdate: "tool_call_update", toolCallId: "call_abc", rawInput: { city: "Paris" } } },
+          params: {
+            sessionId: "s1",
+            update: {
+              sessionUpdate: "tool_call_update",
+              toolCallId: "call_abc",
+              rawInput: { city: "Paris" },
+            },
+          },
         });
       }
     }
@@ -322,7 +373,9 @@ describe("DevinCliExecutor ACP session/new", () => {
       model: "swe-1.6-fast",
       body: {
         messages: [{ role: "user", content: "weather?" }],
-        tools: [{ type: "function", function: { name: "get_weather", parameters: { type: "object" } } }],
+        tools: [
+          { type: "function", function: { name: "get_weather", parameters: { type: "object" } } },
+        ],
       },
       credentials: {},
       log: { info() {}, debug() {} },
@@ -418,7 +471,14 @@ describe("DevinCliExecutor ACP session/new", () => {
       body: {
         messages: [{ role: "user", content: "weather?" }],
         tools: [
-          { type: "function", function: { name: "get_weather", description: "Get weather", parameters: { type: "object", properties: { city: { type: "string" } } } } },
+          {
+            type: "function",
+            function: {
+              name: "get_weather",
+              description: "Get weather",
+              parameters: { type: "object", properties: { city: { type: "string" } } },
+            },
+          },
         ],
       },
       credentials: {},

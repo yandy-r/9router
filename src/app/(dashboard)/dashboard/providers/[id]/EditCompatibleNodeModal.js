@@ -23,7 +23,9 @@ export default function EditCompatibleNodeModal({ isOpen, node, onSave, onClose,
         name: node.name || "",
         prefix: node.prefix || "",
         apiType: node.apiType || "chat",
-        baseUrl: node.baseUrl || (isAnthropic ? "https://api.anthropic.com/v1" : "https://api.openai.com/v1"),
+        baseUrl:
+          node.baseUrl ||
+          (isAnthropic ? "https://api.anthropic.com/v1" : "https://api.openai.com/v1"),
       });
     }
   }, [node, isAnthropic]);
@@ -61,7 +63,7 @@ export default function EditCompatibleNodeModal({ isOpen, node, onSave, onClose,
           baseUrl: formData.baseUrl,
           apiKey: checkKey,
           type: isAnthropic ? "anthropic-compatible" : "openai-compatible",
-          modelId: checkModelId.trim() || undefined
+          modelId: checkModelId.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -76,7 +78,11 @@ export default function EditCompatibleNodeModal({ isOpen, node, onSave, onClose,
   if (!node) return null;
 
   return (
-    <Modal isOpen={isOpen} title={`Edit ${isAnthropic ? "Anthropic" : "OpenAI"} Compatible`} onClose={onClose}>
+    <Modal
+      isOpen={isOpen}
+      title={`Edit ${isAnthropic ? "Anthropic" : "OpenAI"} Compatible`}
+      onClose={onClose}
+    >
       <div className="flex flex-col gap-4">
         <Input
           label="Name"
@@ -116,7 +122,11 @@ export default function EditCompatibleNodeModal({ isOpen, node, onSave, onClose,
             className="flex-1"
           />
           <div className="pt-6">
-            <Button onClick={handleValidate} disabled={!checkKey || validating || !formData.baseUrl.trim()} variant="secondary">
+            <Button
+              onClick={handleValidate}
+              disabled={!checkKey || validating || !formData.baseUrl.trim()}
+              variant="secondary"
+            >
               {validating ? "Checking..." : "Check"}
             </Button>
           </div>
@@ -134,7 +144,13 @@ export default function EditCompatibleNodeModal({ isOpen, node, onSave, onClose,
           </Badge>
         )}
         <div className="flex gap-2">
-          <Button onClick={handleSubmit} fullWidth disabled={!formData.name.trim() || !formData.prefix.trim() || !formData.baseUrl.trim() || saving}>
+          <Button
+            onClick={handleSubmit}
+            fullWidth
+            disabled={
+              !formData.name.trim() || !formData.prefix.trim() || !formData.baseUrl.trim() || saving
+            }
+          >
             {saving ? "Saving..." : "Save"}
           </Button>
           <Button onClick={onClose} variant="ghost" fullWidth>

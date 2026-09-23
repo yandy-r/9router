@@ -16,7 +16,14 @@ async function runOllamaStream(input) {
   });
 
   const output = stream.pipeThrough(
-    createSSETransformStreamWithLogger(FORMATS.OLLAMA, FORMATS.OPENAI, "ollama", null, null, "gpt-oss:120b"),
+    createSSETransformStreamWithLogger(
+      FORMATS.OLLAMA,
+      FORMATS.OPENAI,
+      "ollama",
+      null,
+      null,
+      "gpt-oss:120b",
+    ),
   );
 
   const reader = output.getReader();
@@ -30,23 +37,27 @@ async function runOllamaStream(input) {
   return text + decoder.decode();
 }
 
-const chunk = (content, done = false) => JSON.stringify({
-  model: "gpt-oss:120b",
-  created_at: "2026-08-25T00:00:00Z",
-  message: { role: "assistant", content },
-  done,
-  ...(done ? { done_reason: "stop", prompt_eval_count: 11, eval_count: 7 } : {}),
-});
+const chunk = (content, done = false) =>
+  JSON.stringify({
+    model: "gpt-oss:120b",
+    created_at: "2026-08-25T00:00:00Z",
+    message: { role: "assistant", content },
+    done,
+    ...(done ? { done_reason: "stop", prompt_eval_count: 11, eval_count: 7 } : {}),
+  });
 
-const deltas = (sse) => sse
-  .split("\n")
-  .filter((l) => l.startsWith("data: ") && l !== "data: [DONE]")
-  .map((l) => JSON.parse(l.slice(6)));
+const deltas = (sse) =>
+  sse
+    .split("\n")
+    .filter((l) => l.startsWith("data: ") && l !== "data: [DONE]")
+    .map((l) => JSON.parse(l.slice(6)));
 
 describe("Ollama NDJSON stream: the tail left in the line buffer", () => {
   it("delivers a content chunk that arrived without its newline", async () => {
     const out = await runOllamaStream([chunk("hello"), chunk(" world")].join("\n"));
-    const content = deltas(out).map((c) => c.choices?.[0]?.delta?.content || "").join("");
+    const content = deltas(out)
+      .map((c) => c.choices?.[0]?.delta?.content || "")
+      .join("");
     expect(content).toBe("hello world");
   });
 
@@ -58,7 +69,9 @@ describe("Ollama NDJSON stream: the tail left in the line buffer", () => {
   });
 
   it("is unchanged when every line is newline-terminated", async () => {
-    const out = await runOllamaStream(`${[chunk("hello"), chunk(" world"), chunk("", true)].join("\n")}\n`);
+    const out = await runOllamaStream(
+      `${[chunk("hello"), chunk(" world"), chunk("", true)].join("\n")}\n`,
+    );
     const parsed = deltas(out);
     expect(parsed.map((c) => c.choices?.[0]?.delta?.content || "").join("")).toBe("hello world");
     expect(parsed.at(-1).choices[0].finish_reason).toBe("stop");
@@ -71,14 +84,23 @@ describe("SSE providers keep their sentinel handling", () => {
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
-        controller.enqueue(encoder.encode(
-          `data: ${JSON.stringify({ choices: [{ delta: { content: "hi" } }] })}\ndata: [DONE]`,
-        ));
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({ choices: [{ delta: { content: "hi" } }] })}\ndata: [DONE]`,
+          ),
+        );
         controller.close();
       },
     });
     const out = stream.pipeThrough(
-      createSSETransformStreamWithLogger(FORMATS.OPENAI, FORMATS.OPENAI, "openai", null, null, "gpt-4o"),
+      createSSETransformStreamWithLogger(
+        FORMATS.OPENAI,
+        FORMATS.OPENAI,
+        "openai",
+        null,
+        null,
+        "gpt-4o",
+      ),
     );
     const reader = out.getReader();
     const decoder = new TextDecoder();

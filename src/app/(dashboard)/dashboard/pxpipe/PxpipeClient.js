@@ -109,7 +109,10 @@ export default function PxpipeClient() {
           PXPIPE Dashboard
         </h2>
         <div className="flex items-center gap-2">
-          <a href="/dashboard/token-saver" className="text-xs text-primary underline hover:opacity-80">
+          <a
+            href="/dashboard/token-saver"
+            className="text-xs text-primary underline hover:opacity-80"
+          >
             Token Saver settings
           </a>
           <Button size="sm" variant="ghost" onClick={refresh} disabled={loading}>
@@ -122,13 +125,27 @@ export default function PxpipeClient() {
         <SummaryCard
           label="Status"
           value={statusLabel}
-          tone={health?.healthy ? "text-success" : status?.installed ? "text-warning" : "text-text-muted"}
+          tone={
+            health?.healthy
+              ? "text-success"
+              : status?.installed
+                ? "text-warning"
+                : "text-text-muted"
+          }
           sub={status?.enabled ? "Enabled in pipeline" : "Disabled in pipeline"}
         />
-        <SummaryCard label="Version" value={status?.version ? `v${status.version}` : "—"} sub="pxpipe-proxy" />
+        <SummaryCard
+          label="Version"
+          value={status?.version ? `v${status.version}` : "—"}
+          sub="pxpipe-proxy"
+        />
         <SummaryCard label="Uptime" value={fmtUptime(status?.uptimeMs)} sub="module loaded" />
         <SummaryCard label="Requests" value={w ? w.requests.toLocaleString() : "—"} />
-        <SummaryCard label="Compressed" value={w ? w.compressed.toLocaleString() : "—"} tone="text-success" />
+        <SummaryCard
+          label="Compressed"
+          value={w ? w.compressed.toLocaleString() : "—"}
+          tone="text-success"
+        />
         <SummaryCard label="Bypassed" value={w ? w.bypassed.toLocaleString() : "—"} />
       </div>
 
@@ -162,7 +179,9 @@ export default function PxpipeClient() {
           </div>
           <div>
             <p className="text-xs text-text-muted">Saved</p>
-            <p className="text-lg font-semibold text-success">{w ? fmtTokens(w.tokensSavedEst) : "—"}</p>
+            <p className="text-lg font-semibold text-success">
+              {w ? fmtTokens(w.tokensSavedEst) : "—"}
+            </p>
           </div>
           <div>
             <p className="text-xs text-text-muted">Reduction</p>
@@ -170,8 +189,8 @@ export default function PxpipeClient() {
           </div>
         </div>
         <p className="text-xs text-text-muted mt-3">
-          Estimates from body size before/after imaging; billed usage per request
-          (recorded on the Usage page) remains the ground truth. Images generated:{" "}
+          Estimates from body size before/after imaging; billed usage per request (recorded on the
+          Usage page) remains the ground truth. Images generated:{" "}
           {w ? w.imagesGenerated.toLocaleString() : "—"} · avg compression time:{" "}
           {w ? `${w.avgCompressionMs}ms` : "—"} · errors: {w ? w.errors : "—"}
         </p>
@@ -191,13 +210,23 @@ export default function PxpipeClient() {
               <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(d) => d.slice(5)} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={fmtTokens} width={48} />
-              <Tooltip formatter={(v) => [fmtTokens(v), "Tokens saved"]} labelFormatter={(d) => d} />
-              <Area type="monotone" dataKey="tokensSavedEst" stroke="#10b981" fill="url(#gradPxpipe)" strokeWidth={2} />
+              <Tooltip
+                formatter={(v) => [fmtTokens(v), "Tokens saved"]}
+                labelFormatter={(d) => d}
+              />
+              <Area
+                type="monotone"
+                dataKey="tokensSavedEst"
+                stroke="#10b981"
+                fill="url(#gradPxpipe)"
+                strokeWidth={2}
+              />
             </AreaChart>
           </ResponsiveContainer>
         ) : (
           <div className="h-32 flex items-center justify-center text-text-muted text-sm">
-            No savings recorded yet — enable PXPIPE in the Token Saver and route a large Claude-format request.
+            No savings recorded yet — enable PXPIPE in the Token Saver and route a large
+            Claude-format request.
           </div>
         )}
       </Card>
@@ -224,7 +253,9 @@ export default function PxpipeClient() {
                   <td className="py-1.5 pr-3 whitespace-nowrap text-text-muted">
                     {new Date(ev.ts).toLocaleString()}
                   </td>
-                  <td className="py-1.5 pr-3 font-mono text-xs">{ev.provider ? `${ev.provider}/${ev.model}` : ev.model || "—"}</td>
+                  <td className="py-1.5 pr-3 font-mono text-xs">
+                    {ev.provider ? `${ev.provider}/${ev.model}` : ev.model || "—"}
+                  </td>
                   <td className="py-1.5 pr-3 text-right font-mono text-xs">
                     {ev.applied ? fmtTokens(ev.tokensBeforeEst) : "—"}
                   </td>

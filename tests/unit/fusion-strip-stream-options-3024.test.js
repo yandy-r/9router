@@ -25,10 +25,13 @@ describe("Fusion strips stream_options (#3024)", () => {
       if (isPanel) capturedPanelBody = panelBody;
       // Simulate a successful non-stream JSON answer for the panel.
       if (isPanel) {
-        return new Response(JSON.stringify({ choices: [{ message: { content: `ans-${model}` } }] }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ choices: [{ message: { content: `ans-${model}` } }] }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
       }
       // Judge leg: return a final answer.
       return new Response(JSON.stringify({ choices: [{ message: { content: "final" } }] }), {

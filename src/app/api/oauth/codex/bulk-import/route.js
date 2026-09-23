@@ -21,10 +21,7 @@ export async function POST(request) {
   try {
     body = await request.json();
   } catch (err) {
-    return NextResponse.json(
-      { error: `Invalid JSON body: ${err.message}` },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: `Invalid JSON body: ${err.message}` }, { status: 400 });
   }
 
   // Normalize to array
@@ -40,10 +37,7 @@ export async function POST(request) {
   }
 
   if (!Array.isArray(accounts) || accounts.length === 0) {
-    return NextResponse.json(
-      { error: "No accounts provided" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "No accounts provided" }, { status: 400 });
   }
 
   const results = [];

@@ -40,7 +40,7 @@ export async function createApiKey(name, machineId) {
   };
   db.run(
     `INSERT INTO apiKeys(id, key, name, machineId, isActive, createdAt) VALUES(?, ?, ?, ?, ?, ?)`,
-    [apiKey.id, apiKey.key, apiKey.name, apiKey.machineId, 1, apiKey.createdAt]
+    [apiKey.id, apiKey.key, apiKey.name, apiKey.machineId, 1, apiKey.createdAt],
   );
   return apiKey;
 }
@@ -52,10 +52,13 @@ export async function updateApiKey(id, data) {
     const row = db.get(`SELECT * FROM apiKeys WHERE id = ?`, [id]);
     if (!row) return;
     const merged = { ...rowToKey(row), ...data };
-    db.run(
-      `UPDATE apiKeys SET key = ?, name = ?, machineId = ?, isActive = ? WHERE id = ?`,
-      [merged.key, merged.name, merged.machineId, merged.isActive ? 1 : 0, id]
-    );
+    db.run(`UPDATE apiKeys SET key = ?, name = ?, machineId = ?, isActive = ? WHERE id = ?`, [
+      merged.key,
+      merged.name,
+      merged.machineId,
+      merged.isActive ? 1 : 0,
+      id,
+    ]);
     result = merged;
   });
   return result;

@@ -6,13 +6,19 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { CATALOG_FILE, CATALOG_RAW_FILE, CATALOG_VERSION, invalidateCatalog, installCatalogSource } from "open-sse/providers/catalogOverride.js";
+import {
+  CATALOG_FILE,
+  CATALOG_RAW_FILE,
+  CATALOG_VERSION,
+  invalidateCatalog,
+  installCatalogSource,
+} from "open-sse/providers/catalogOverride.js";
 
 const CATALOG_URL = "https://models.dev/api.json";
 const FETCH_TIMEOUT_MS = 60000;
 
 export const SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const STARTUP_DELAY_MS = 60 * 1000;   // let the server boot and serve first requests
+const STARTUP_DELAY_MS = 60 * 1000; // let the server boot and serve first requests
 const RETRY_DELAY_MS = 30 * 60 * 1000;
 
 const MODALITY_BY_INPUT = { image: "vision", pdf: "pdf", audio: "audioInput", video: "videoInput" };
@@ -24,21 +30,28 @@ const LIMIT_TOLERANCE = 0.1;
 // while building rather than on every lookup. Providers absent here keep whatever
 // the local pattern table resolves; names that already match need no entry.
 export const PROVIDER_ALIASES = {
-  "glm": "zai",
+  glm: "zai",
   "glm-cn": "zhipuai",
-  "claude": "anthropic",
-  "gemini": "google",
-  "kimi": "moonshotai",
+  claude: "anthropic",
+  gemini: "google",
+  kimi: "moonshotai",
   "kimi-cn": "moonshotai-cn",
-  "qwen": "alibaba",
+  qwen: "alibaba",
   "qwen-cn": "alibaba-cn",
-  "zhipu": "zhipuai",
-  "hunyuan": "tencent",
-  "doubao": "volcengine",
+  zhipu: "zhipuai",
+  hunyuan: "tencent",
+  doubao: "volcengine",
   "cloudflare-ai": "cloudflare-workers-ai",
 };
 
-let state = { running: false, lastSync: null, lastError: null, lastResult: null, etag: null, fileVersion: null };
+const state = {
+  running: false,
+  lastSync: null,
+  lastError: null,
+  lastResult: null,
+  etag: null,
+  fileVersion: null,
+};
 let timer = null;
 
 export function getSyncState() {
@@ -134,21 +147,24 @@ export function build(catalog, entries) {
   const providers = {};
   for (const { provider, model, contextLength, current } of entries) {
     const alias = PROVIDER_ALIASES[provider];
-    const upstream = catalog[provider] ? provider : (alias && catalog[alias] ? alias : null);
+    const upstream = catalog[provider] ? provider : alias && catalog[alias] ? alias : null;
     const entry = upstream && byProvider[upstream]?.[baseId(model)];
     if (!entry) continue;
 
     const delta = {};
     const { context, output } = entry.limit || {};
-    if (context > 0 && !contextLength
-      && Math.abs(context - current.contextWindow) / current.contextWindow > LIMIT_TOLERANCE) {
+    if (
+      context > 0 &&
+      !contextLength &&
+      Math.abs(context - current.contextWindow) / current.contextWindow > LIMIT_TOLERANCE
+    ) {
       delta.contextWindow = context;
     }
-    if (output > 0
-      && Math.abs(output - current.maxOutput) / current.maxOutput > LIMIT_TOLERANCE) {
+    if (output > 0 && Math.abs(output - current.maxOutput) / current.maxOutput > LIMIT_TOLERANCE) {
       delta.maxOutput = output;
     }
-    if (Object.keys(delta).length) (providers[provider] || (providers[provider] = {}))[model] = delta;
+    if (Object.keys(delta).length)
+      (providers[provider] || (providers[provider] = {}))[model] = delta;
   }
 
   return { models, providers };
@@ -190,7 +206,10 @@ export async function syncModelCatalog() {
     // A file written by an older schema has to be rebuilt even when upstream is
     // unchanged, so only ask upstream for a 304 when the file is current.
     if (state.etag && state.fileVersion === CATALOG_VERSION) headers["if-none-match"] = state.etag;
-    const response = await fetch(CATALOG_URL, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    const response = await fetch(CATALOG_URL, {
+      headers,
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
 
     let result;
     if (response.status === 304) {
@@ -204,7 +223,13 @@ export async function syncModelCatalog() {
       const etag = response.headers.get("etag") || null;
       const entries = await collectEntries();
       const { models, providers } = build(catalog, entries);
-      const serialized = JSON.stringify({ v: CATALOG_VERSION, etag, syncedAt: Date.now(), models, providers });
+      const serialized = JSON.stringify({
+        v: CATALOG_VERSION,
+        etag,
+        syncedAt: Date.now(),
+        models,
+        providers,
+      });
 
       writeAtomic(CATALOG_FILE, serialized);
       writeAtomic(CATALOG_RAW_FILE, JSON.stringify(slim(catalog)));
@@ -219,7 +244,9 @@ export async function syncModelCatalog() {
         models: Object.keys(models).length,
         providers: Object.keys(providers).length,
       };
-      console.log(`[modelCatalog] ${result.models} models, ${result.providers} providers, ${(result.bytes / 1024).toFixed(1)}KB`);
+      console.log(
+        `[modelCatalog] ${result.models} models, ${result.providers} providers, ${(result.bytes / 1024).toFixed(1)}KB`,
+      );
     }
 
     state.lastSync = Date.now();

@@ -25,7 +25,7 @@ export function ollamaToOpenAIResponse(chunk, state) {
     state.ollama = {
       id: `chatcmpl-${Date.now()}`,
       created: Math.floor(Date.now() / 1000),
-      model: chunk.model || state.model
+      model: chunk.model || state.model,
     };
   }
 
@@ -34,7 +34,7 @@ export function ollamaToOpenAIResponse(chunk, state) {
   // Final chunk with done=true
   if (chunk.done) {
     const usage = extractUsage(chunk);
-    
+
     // Determine finish_reason: map upstream done_reason, override to tool_calls if tools used
     let finishReason = toOpenAIFinish(chunk.done_reason, "ollama");
     if (chunk.done_reason === OPENAI_FINISH.TOOL_CALLS || state.hadToolCalls) {
@@ -68,7 +68,7 @@ export function ollamaToOpenAIResponse(chunk, state) {
   const delta = {};
   if (content) delta.content = content;
   if (thinking) delta.reasoning_content = thinking;
-  
+
   // Convert Ollama tool_calls to OpenAI format
   if (toolCalls) {
     state.hadToolCalls = true;
@@ -95,10 +95,11 @@ function convertToolCalls(toolCalls) {
     type: OPENAI_BLOCK.FUNCTION,
     function: {
       name: tc.function?.name || "",
-      arguments: typeof tc.function?.arguments === "string"
-        ? tc.function.arguments
-        : JSON.stringify(tc.function?.arguments || {})
-    }
+      arguments:
+        typeof tc.function?.arguments === "string"
+          ? tc.function.arguments
+          : JSON.stringify(tc.function?.arguments || {}),
+    },
   }));
 }
 
@@ -126,7 +127,7 @@ export function ollamaBodyToOpenAI(body) {
     created: Math.floor(Date.now() / 1000),
     model: body.model || "ollama",
     choices: [{ index: 0, message, finish_reason: finishReason }],
-    usage: extractUsage(body)
+    usage: extractUsage(body),
   };
 }
 

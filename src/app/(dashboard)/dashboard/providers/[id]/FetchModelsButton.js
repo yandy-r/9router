@@ -62,7 +62,10 @@ export default function FetchModelsButton({
       disabled={fetching}
       className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-blue-500/40 px-3 py-2 text-xs text-blue-600 dark:text-blue-400 transition-colors hover:border-blue-500 hover:bg-blue-500/5 sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      <span className="material-symbols-outlined text-sm" style={fetching ? { animation: "spin 1s linear infinite" } : undefined}>
+      <span
+        className="material-symbols-outlined text-sm"
+        style={fetching ? { animation: "spin 1s linear infinite" } : undefined}
+      >
         {fetching ? "progress_activity" : "download"}
       </span>
       {fetching ? translate("Fetching...") : translate("Fetch Models")}

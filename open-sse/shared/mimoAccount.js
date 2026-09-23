@@ -36,12 +36,38 @@ const _inflight = new Map(); // key -> Promise<cookie|null>
 function desktopCookiePath() {
   const home = os.homedir();
   if (process.platform === "win32") {
-    return path.join(home, "AppData", "Roaming", "Xiaomi MiMo", "Partitions", "xiaomi-account", "Network", "Cookies");
+    return path.join(
+      home,
+      "AppData",
+      "Roaming",
+      "Xiaomi MiMo",
+      "Partitions",
+      "xiaomi-account",
+      "Network",
+      "Cookies",
+    );
   }
   if (process.platform === "darwin") {
-    return path.join(home, "Library", "Application Support", "Xiaomi MiMo", "Partitions", "xiaomi-account", "Network", "Cookies");
+    return path.join(
+      home,
+      "Library",
+      "Application Support",
+      "Xiaomi MiMo",
+      "Partitions",
+      "xiaomi-account",
+      "Network",
+      "Cookies",
+    );
   }
-  return path.join(home, ".config", "Xiaomi MiMo", "Partitions", "xiaomi-account", "Network", "Cookies");
+  return path.join(
+    home,
+    ".config",
+    "Xiaomi MiMo",
+    "Partitions",
+    "xiaomi-account",
+    "Network",
+    "Cookies",
+  );
 }
 
 /**
@@ -53,7 +79,10 @@ function desktopCookiePath() {
 async function readDesktopAccountCookies() {
   const src = desktopCookiePath();
   if (!fs.existsSync(src)) return null;
-  const tmp = path.join(os.tmpdir(), `9r-mimo-cookies-${process.pid}-${crypto.randomBytes(4).toString("hex")}.db`);
+  const tmp = path.join(
+    os.tmpdir(),
+    `9r-mimo-cookies-${process.pid}-${crypto.randomBytes(4).toString("hex")}.db`,
+  );
   try {
     fs.copyFileSync(src, tmp);
   } catch {
@@ -62,7 +91,9 @@ async function readDesktopAccountCookies() {
   try {
     const { DatabaseSync } = await import("node:sqlite");
     const db = new DatabaseSync(tmp, { readOnly: true });
-    const rows = db.prepare("SELECT name, value FROM cookies WHERE host_key = ?").all("." + ACCOUNT_HOST);
+    const rows = db
+      .prepare("SELECT name, value FROM cookies WHERE host_key = ?")
+      .all("." + ACCOUNT_HOST);
     db.close();
     const jar = Object.fromEntries(rows.map((r) => [r.name, r.value]));
     return jar.passToken ? jar : null;
@@ -180,7 +211,11 @@ async function acquireServiceCookie(passJar, proxyOptions) {
  */
 async function getServiceCookie(providerSpecificData, proxyOptions) {
   const passJar = providerSpecificData?.mimoPassToken
-    ? { passToken: providerSpecificData.mimoPassToken, userId: providerSpecificData.mimoUserId, cUserId: providerSpecificData.mimoCUserId }
+    ? {
+        passToken: providerSpecificData.mimoPassToken,
+        userId: providerSpecificData.mimoUserId,
+        cUserId: providerSpecificData.mimoCUserId,
+      }
     : await readDesktopAccountCookies();
   if (!passJar) return { cookie: null, reason: "no-pass-token" };
 
@@ -251,13 +286,20 @@ export async function getMimoAccountUsage(providerSpecificData = null, proxyOpti
   try {
     const res = await proxyAwareFetch(
       `${API_BASE}/api/user/usage`,
-      { headers: { "User-Agent": API_UA, Cookie: cookie, Accept: "application/json" }, signal: AbortSignal.timeout(10000) },
+      {
+        headers: { "User-Agent": API_UA, Cookie: cookie, Accept: "application/json" },
+        signal: AbortSignal.timeout(10000),
+      },
       proxyOptions,
     );
     if (!res.ok) return { error: `http-${res.status}` };
     const data = await res.json().catch(() => null);
     if (!data || data.code !== 0 || !data.data) return { error: "bad-response" };
-    return { percent: data.data.percent, resetDate: data.data.resetDate, resetAt: data.data.resetAt };
+    return {
+      percent: data.data.percent,
+      resetDate: data.data.resetDate,
+      resetAt: data.data.resetAt,
+    };
   } catch (e) {
     return { error: e.message };
   }

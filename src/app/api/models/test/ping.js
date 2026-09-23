@@ -52,7 +52,11 @@ async function getInternalHeaders() {
   return headers;
 }
 
-export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:${process.env.PORT || UPDATER_CONFIG.appPort}`) {
+export async function pingModelByKind(
+  model,
+  kind,
+  baseUrl = `http://127.0.0.1:${process.env.PORT || UPDATER_CONFIG.appPort}`,
+) {
   const headers = await getInternalHeaders();
   const start = Date.now();
 
@@ -66,15 +70,30 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
     const latencyMs = Date.now() - start;
     const rawText = await res.text().catch(() => "");
     let parsed = null;
-    try { parsed = rawText ? JSON.parse(rawText) : null; } catch {}
+    try {
+      parsed = rawText ? JSON.parse(rawText) : null;
+    } catch {}
 
     if (!res.ok) {
       const detail = parsed?.error?.message || parsed?.error || rawText;
-      return { ok: false, latencyMs, error: `HTTP ${res.status}${detail ? `: ${String(detail).slice(0, 240)}` : ""}`, status: res.status };
+      return {
+        ok: false,
+        latencyMs,
+        error: `HTTP ${res.status}${detail ? `: ${String(detail).slice(0, 240)}` : ""}`,
+        status: res.status,
+      };
     }
-    const hasEmbedding = Array.isArray(parsed?.data) && parsed.data.length > 0 && Array.isArray(parsed.data[0]?.embedding);
+    const hasEmbedding =
+      Array.isArray(parsed?.data) &&
+      parsed.data.length > 0 &&
+      Array.isArray(parsed.data[0]?.embedding);
     if (!hasEmbedding) {
-      return { ok: false, latencyMs, status: res.status, error: "Provider returned no embedding data" };
+      return {
+        ok: false,
+        latencyMs,
+        status: res.status,
+        error: "Provider returned no embedding data",
+      };
     }
     return { ok: true, latencyMs, error: null, status: res.status };
   }
@@ -89,16 +108,29 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
     const latencyMs = Date.now() - start;
     const rawText = await res.text().catch(() => "");
     let parsed = null;
-    try { parsed = rawText ? JSON.parse(rawText) : null; } catch {}
+    try {
+      parsed = rawText ? JSON.parse(rawText) : null;
+    } catch {}
 
     if (!res.ok) {
-      const detail = parsed?.error?.message || parsed?.msg || parsed?.message || parsed?.error || rawText;
-      return { ok: false, latencyMs, error: `HTTP ${res.status}${detail ? `: ${String(detail).slice(0, 240)}` : ""}`, status: res.status };
+      const detail =
+        parsed?.error?.message || parsed?.msg || parsed?.message || parsed?.error || rawText;
+      return {
+        ok: false,
+        latencyMs,
+        error: `HTTP ${res.status}${detail ? `: ${String(detail).slice(0, 240)}` : ""}`,
+        status: res.status,
+      };
     }
 
     const hasImages = Array.isArray(parsed?.data) && parsed.data.length > 0;
     if (!hasImages) {
-      return { ok: false, latencyMs, status: res.status, error: "Provider returned no image data for this model" };
+      return {
+        ok: false,
+        latencyMs,
+        status: res.status,
+        error: "Provider returned no image data for this model",
+      };
     }
     return { ok: true, latencyMs, error: null, status: res.status };
   }
@@ -111,23 +143,38 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
 
     const res = await fetch(`${baseUrl}/api/v1/audio/transcriptions`, {
       method: "POST",
-      headers: Object.fromEntries(Object.entries(headers).filter(([key]) => key.toLowerCase() !== "content-type")),
+      headers: Object.fromEntries(
+        Object.entries(headers).filter(([key]) => key.toLowerCase() !== "content-type"),
+      ),
       body: form,
       signal: AbortSignal.timeout(15000),
     });
     const latencyMs = Date.now() - start;
     const rawText = await res.text().catch(() => "");
     let parsed = null;
-    try { parsed = rawText ? JSON.parse(rawText) : null; } catch {}
+    try {
+      parsed = rawText ? JSON.parse(rawText) : null;
+    } catch {}
 
     if (!res.ok) {
-      const detail = parsed?.error?.message || parsed?.msg || parsed?.message || parsed?.error || rawText;
-      return { ok: false, latencyMs, error: `HTTP ${res.status}${detail ? `: ${String(detail).slice(0, 240)}` : ""}`, status: res.status };
+      const detail =
+        parsed?.error?.message || parsed?.msg || parsed?.message || parsed?.error || rawText;
+      return {
+        ok: false,
+        latencyMs,
+        error: `HTTP ${res.status}${detail ? `: ${String(detail).slice(0, 240)}` : ""}`,
+        status: res.status,
+      };
     }
 
     const text = typeof parsed?.text === "string" ? parsed.text : "";
     if (!text.trim()) {
-      return { ok: false, latencyMs, status: res.status, error: "Provider returned no transcription text for this model" };
+      return {
+        ok: false,
+        latencyMs,
+        status: res.status,
+        error: "Provider returned no transcription text for this model",
+      };
     }
     return { ok: true, latencyMs, error: null, status: res.status };
   }
@@ -151,7 +198,9 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
 
   const rawText = await res.text().catch(() => "");
   let parsed = null;
-  try { parsed = rawText ? JSON.parse(rawText) : null; } catch {}
+  try {
+    parsed = rawText ? JSON.parse(rawText) : null;
+  } catch {}
 
   // Unwrap before the choices checks below. No-op for providers that do not
   // opt in via transport.quirks.clineEnvelope.
@@ -159,16 +208,23 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
   parsed = unwrapClineEnvelope(parsed, providerId);
 
   if (!res.ok) {
-    const detail = parsed?.error?.message || parsed?.msg || parsed?.message || parsed?.error || rawText;
-    return { ok: false, latencyMs, error: `HTTP ${res.status}${detail ? `: ${String(detail).slice(0, 500)}` : ""}`, status: res.status };
+    const detail =
+      parsed?.error?.message || parsed?.msg || parsed?.message || parsed?.error || rawText;
+    return {
+      ok: false,
+      latencyMs,
+      error: `HTTP ${res.status}${detail ? `: ${String(detail).slice(0, 500)}` : ""}`,
+      status: res.status,
+    };
   }
 
   const providerStatus = parsed?.status;
   const providerMsg = parsed?.msg || parsed?.message;
-  const hasProviderErrorStatus = providerStatus !== undefined
-    && providerStatus !== null
-    && String(providerStatus) !== "200"
-    && String(providerStatus) !== "0";
+  const hasProviderErrorStatus =
+    providerStatus !== undefined &&
+    providerStatus !== null &&
+    String(providerStatus) !== "200" &&
+    String(providerStatus) !== "0";
   if (hasProviderErrorStatus && providerMsg) {
     return {
       ok: false,
@@ -201,7 +257,13 @@ export async function pingModelByKind(model, kind, baseUrl = `http://127.0.0.1:$
     firstChoice.message?.thinking_content;
   const contentEmpty = !String(firstChoice.message?.content || "").trim();
   if (hasChoices && firstChoice.finish_reason === "length" && contentEmpty && hasReasoning) {
-    return { ok: true, latencyMs, error: null, status: res.status, note: "reasoning-only response (length-limited)" };
+    return {
+      ok: true,
+      latencyMs,
+      error: null,
+      status: res.status,
+      note: "reasoning-only response (length-limited)",
+    };
   }
 
   if (!hasChoices) {

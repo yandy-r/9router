@@ -6,7 +6,8 @@ const KEY = process.env.API_KEY || "sk-6581be4f05a82b6b-uxy6jn-c8190ea8";
 const COMBO = process.env.COMBO || "haha";
 
 // 16x16 PNG (valid image so vision providers accept it).
-const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGO4I2JDEmIY1TCqYfhqAAAeBCwQ8YdREQAAAABJRU5ErkJggg==";
+const PNG =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGO4I2JDEmIY1TCqYfhqAAAeBCwQ8YdREQAAAABJRU5ErkJggg==";
 
 function memberFromModel(model) {
   // Response model usually = upstream id; map back to a combo member by substring.
@@ -30,7 +31,11 @@ async function send(label, content, extra = {}) {
       body: JSON.stringify(body),
     });
     text = await res.text();
-    try { json = JSON.parse(text); } catch { /* keep text */ }
+    try {
+      json = JSON.parse(text);
+    } catch {
+      /* keep text */
+    }
   } catch (e) {
     console.log(`\n[${label}] NETWORK ERROR: ${e.message}`);
     return;
@@ -38,7 +43,9 @@ async function send(label, content, extra = {}) {
   const ms = Date.now() - t0;
   const model = json?.model || "(no model field)";
   const ok = res.ok;
-  const snippet = (json?.choices?.[0]?.message?.content || text || "").slice(0, 80).replace(/\n/g, " ");
+  const snippet = (json?.choices?.[0]?.message?.content || text || "")
+    .slice(0, 80)
+    .replace(/\n/g, " ");
   console.log(`\n[${label}] ${ok ? "OK" : "FAIL"} ${res.status} (${ms}ms)`);
   console.log(`  model executed: ${memberFromModel(model)}`);
   if (!ok) console.log(`  error: ${(json?.error?.message || text || "").slice(0, 160)}`);
@@ -48,7 +55,10 @@ async function send(label, content, extra = {}) {
 async function showCaps() {
   try {
     const r = await fetch(`${BASE}/api/models`, { headers: { Authorization: `Bearer ${KEY}` } });
-    if (!r.ok) { console.log("(/api/models needs dashboard auth, skipping caps table)"); return; }
+    if (!r.ok) {
+      console.log("(/api/models needs dashboard auth, skipping caps table)");
+      return;
+    }
     const { models } = await r.json();
     const map = {};
     for (const m of models || []) if (m.caps) map[m.fullModel] = m.caps;
@@ -57,7 +67,9 @@ async function showCaps() {
       const c = map[m] || {};
       console.log(`  ${m}: vision=${!!c.vision} search=${!!c.search}`);
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 (async () => {
@@ -80,5 +92,7 @@ async function showCaps() {
     tools: [{ type: "web_search_20250305", name: "web_search" }],
   });
 
-  console.log(`\n${"=".repeat(50)}\nDone. Compare 'model executed' across cases to verify auto-switch.`);
+  console.log(
+    `\n${"=".repeat(50)}\nDone. Compare 'model executed' across cases to verify auto-switch.`,
+  );
 })();

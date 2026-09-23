@@ -32,17 +32,19 @@ test("serves h2c POST requests as HTTP/1.1", async () => {
       const chunks = [];
       const socket = net.createConnection({ host: "127.0.0.1", port }, () => {
         const body = '{"model":"test","stream":true}';
-        socket.write([
-          "POST /v1/chat/completions HTTP/1.1",
-          `Host: 127.0.0.1:${port}`,
-          "Connection: Upgrade, HTTP2-Settings",
-          "Upgrade: h2c",
-          "HTTP2-Settings: AAEAAEAAAAIAAAAAAAMAAAAAAAQBAAAAAAUAAEAAAAYABgAA",
-          `Content-Length: ${Buffer.byteLength(body)}`,
-          "Content-Type: application/json",
-          "",
-          "",
-        ].join("\r\n"));
+        socket.write(
+          [
+            "POST /v1/chat/completions HTTP/1.1",
+            `Host: 127.0.0.1:${port}`,
+            "Connection: Upgrade, HTTP2-Settings",
+            "Upgrade: h2c",
+            "HTTP2-Settings: AAEAAEAAAAIAAAAAAAMAAAAAAAQBAAAAAAUAAEAAAAYABgAA",
+            `Content-Length: ${Buffer.byteLength(body)}`,
+            "Content-Type: application/json",
+            "",
+            "",
+          ].join("\r\n"),
+        );
         setImmediate(() => socket.write(body));
       });
       socket.setTimeout(2_000, () => {

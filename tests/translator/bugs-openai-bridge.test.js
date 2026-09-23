@@ -13,10 +13,15 @@ describe("bug: Claude → OpenAI bridge data loss", () => {
   // KNOWN BUG: it.fails passes while app drops the url; flips to failing once fixed.
   it.fails("image with source.type=url is preserved (NOT dropped)", () => {
     const out = T(FORMATS.CLAUDE, FORMATS.OPENAI, {
-      messages: [{ role: "user", content: [
-        { type: "text", text: "look" },
-        { type: "image", source: { type: "url", url: "https://x.com/a.png" } },
-      ] }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "look" },
+            { type: "image", source: { type: "url", url: "https://x.com/a.png" } },
+          ],
+        },
+      ],
     });
     const json = JSON.stringify(out);
     expect(json, "remote image url silently dropped").toContain("a.png");
@@ -25,10 +30,16 @@ describe("bug: Claude → OpenAI bridge data loss", () => {
   // claude-to-openai.js:128 switch — missing thinking/redacted_thinking case
   it("thinking block survives round-trip Claude→OpenAI→Claude", () => {
     const body = {
-      messages: [{ role: "assistant", content: [
-        { type: "thinking", thinking: "secret reasoning", signature: "sig" },
-        { type: "text", text: "answer" },
-      ] }, { role: "user", content: "go" }],
+      messages: [
+        {
+          role: "assistant",
+          content: [
+            { type: "thinking", thinking: "secret reasoning", signature: "sig" },
+            { type: "text", text: "answer" },
+          ],
+        },
+        { role: "user", content: "go" },
+      ],
     };
     const out = T(FORMATS.CLAUDE, FORMATS.CLAUDE, body);
     const json = JSON.stringify(out);
@@ -40,14 +51,22 @@ describe("bug: Claude → OpenAI bridge data loss", () => {
   it.fails("tool_result with image block is not turned into raw JSON / dropped", () => {
     const out = T(FORMATS.CLAUDE, FORMATS.OPENAI, {
       messages: [
-        { role: "assistant", content: [
-          { type: "tool_use", id: "call_1", name: "shot", input: {} },
-        ] },
-        { role: "user", content: [
-          { type: "tool_result", tool_use_id: "call_1", content: [
-            { type: "image", source: { type: "base64", media_type: "image/png", data: "ZZZ" } },
-          ] },
-        ] },
+        {
+          role: "assistant",
+          content: [{ type: "tool_use", id: "call_1", name: "shot", input: {} }],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "call_1",
+              content: [
+                { type: "image", source: { type: "base64", media_type: "image/png", data: "ZZZ" } },
+              ],
+            },
+          ],
+        },
       ],
     });
     const toolMsg = out.messages.find((m) => m.role === "tool");
@@ -61,9 +80,12 @@ describe("bug: Claude → OpenAI bridge data loss", () => {
     const out = T(FORMATS.CLAUDE, FORMATS.OPENAI, {
       messages: [
         { role: "assistant", content: [{ type: "tool_use", id: "call_1", name: "f", input: {} }] },
-        { role: "user", content: [
-          { type: "tool_result", tool_use_id: "call_1", is_error: true, content: "boom" },
-        ] },
+        {
+          role: "user",
+          content: [
+            { type: "tool_result", tool_use_id: "call_1", is_error: true, content: "boom" },
+          ],
+        },
       ],
     });
     const json = JSON.stringify(out);
@@ -90,9 +112,16 @@ describe("bug: tool_call id stability across bridge", () => {
   it("sanitized tool id stays matched between call and result", () => {
     const out = T(FORMATS.OPENAI, FORMATS.OPENAI, {
       messages: [
-        { role: "assistant", tool_calls: [
-          { id: "call/with:bad*chars", type: "function", function: { name: "f", arguments: "{}" } },
-        ] },
+        {
+          role: "assistant",
+          tool_calls: [
+            {
+              id: "call/with:bad*chars",
+              type: "function",
+              function: { name: "f", arguments: "{}" },
+            },
+          ],
+        },
         { role: "tool", tool_call_id: "call/with:bad*chars", content: "ok" },
       ],
     });
@@ -108,9 +137,13 @@ describe("bug: empty content message handling", () => {
     const out = T(FORMATS.OPENAI, FORMATS.OPENAI, {
       messages: [
         { role: "user", content: "do it" },
-        { role: "assistant", content: "", tool_calls: [
-          { id: "call_1", type: "function", function: { name: "f", arguments: "{}" } },
-        ] },
+        {
+          role: "assistant",
+          content: "",
+          tool_calls: [
+            { id: "call_1", type: "function", function: { name: "f", arguments: "{}" } },
+          ],
+        },
         { role: "tool", tool_call_id: "call_1", content: "done" },
       ],
     });

@@ -15,7 +15,9 @@ const RESPONSES_ID = "openai-compatible-responses-11111111-2222-3333-4444-555555
 const BASE = "https://api.ericding.io.vn/v1";
 
 function creds(apiType) {
-  return { providerSpecificData: apiType === undefined ? { baseUrl: BASE } : { baseUrl: BASE, apiType } };
+  return {
+    providerSpecificData: apiType === undefined ? { baseUrl: BASE } : { baseUrl: BASE, apiType },
+  };
 }
 
 describe("resolveOpenAICompatibleApiType", () => {
@@ -54,20 +56,29 @@ describe("getTargetFormat", () => {
 });
 
 describe("executor buildUrl endpoint path", () => {
-  for (const [name, Ex] of [["DefaultExecutor", DefaultExecutor], ["BaseExecutor", BaseExecutor]]) {
+  for (const [name, Ex] of [
+    ["DefaultExecutor", DefaultExecutor],
+    ["BaseExecutor", BaseExecutor],
+  ]) {
     describe(name, () => {
       const ex = new Ex(CHAT_ID);
 
       it("routes to /responses when stored apiType is responses, despite the -chat- ID", () => {
-        expect(ex.buildUrl("cx/gpt-5.6-sol", true, 0, creds("responses"))).toBe(`${BASE}/responses`);
+        expect(ex.buildUrl("cx/gpt-5.6-sol", true, 0, creds("responses"))).toBe(
+          `${BASE}/responses`,
+        );
       });
 
       it("routes to /chat/completions when apiType is chat", () => {
-        expect(ex.buildUrl("cx/gpt-5.6-sol", true, 0, creds("chat"))).toBe(`${BASE}/chat/completions`);
+        expect(ex.buildUrl("cx/gpt-5.6-sol", true, 0, creds("chat"))).toBe(
+          `${BASE}/chat/completions`,
+        );
       });
 
       it("falls back to the ID substring (legacy) when apiType is absent", () => {
-        expect(ex.buildUrl("cx/gpt-5.6-sol", true, 0, creds(undefined))).toBe(`${BASE}/chat/completions`);
+        expect(ex.buildUrl("cx/gpt-5.6-sol", true, 0, creds(undefined))).toBe(
+          `${BASE}/chat/completions`,
+        );
         const exResp = new Ex(RESPONSES_ID);
         expect(exResp.buildUrl("m", true, 0, creds(undefined))).toBe(`${BASE}/responses`);
       });

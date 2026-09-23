@@ -43,9 +43,15 @@ export function useLiveCatalog({ providerId, connections, enabled }) {
       })
       .catch((error) => {
         if (cancelled) return;
-        setCatalog({ key, models: [], error: error?.message || "Failed to reach the live model catalog." });
+        setCatalog({
+          key,
+          models: [],
+          error: error?.message || "Failed to reach the live model catalog.",
+        });
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [key, connectionId]);
 
   // Bypass the server cache and return the fresh catalog; throws on network/non-OK
