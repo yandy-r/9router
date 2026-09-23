@@ -54,7 +54,7 @@
     "prop-types": "^15.8.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-is": "^16.13.1",
+    "react-is": "^19.3.0",
     "recharts": "^3.7.0",
     "selfsigned": "^5.5.0",
     "socks-proxy-agent": "^8.0.5",
