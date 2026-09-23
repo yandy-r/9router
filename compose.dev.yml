@@ -1,0 +1,51 @@
+# Development container — live reload via bind-mounted source.
+# Secrets: decrypted inside the container by dotenvx from ./.env.encrypted.
+# Decryption key enters through Compose's env_file from the gitignored ./.env.keys.
+#
+# Usage: npm run dev:docker   (or: docker compose -f compose.dev.yml up)
+services:
+  9router-dev:
+    # Full (non-slim) image ships python3/make/g++ so better-sqlite3's node-gyp build succeeds.
+    image: node:22-bookworm
+    container_name: 9router-dev
+    # dotenvx needs the private key at runtime; host file is gitignored (never committed).
+    env_file:
+      - .env.keys
+    working_dir: /app
+    ports:
+      - "20127:20127"
+    environment:
+      NODE_ENV: development
+      PORT: "20127"
+      HOSTNAME: "0.0.0.0"
+      DATA_DIR: /app/data
+      HEADROOM_URL: http://headroom:8787
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Bind mounts on some hosts (macOS/Windows) don't propagate fs events.
+      WATCHPACK_POLLING: ${WATCHPACK_POLLING:-false}
+    volumes:
+      - .:/app
+      - 9router-dev-node-modules:/app/node_modules
+      # Keep container build cache off the host checkout (avoids root-owned .next).
+      - 9router-dev-next:/app/.next
+      - 9router-dev-data:/app/data
+    # npm ci keeps the mounted checkout reproducible; dev:env decrypts secrets before Next starts.
+    command: sh -c "npm ci && npm run dev:env -- --hostname 0.0.0.0"
+    depends_on:
+      - headroom
+
+  # Sidecar for the Headroom token-saver integration. No code changes needed here;
+  # it exists so dev changes can be verified against the Headroom proxy path.
+  headroom:
+    image: ghcr.io/chopratejas/headroom:latest
+    container_name: headroom-dev
+    ports:
+      - "8787:8787"
+
+volumes:
+  9router-dev-node-modules:
+    name: 9router-dev-node-modules
+  9router-dev-next:
+    name: 9router-dev-next
+  9router-dev-data:
+    name: 9router-dev-data
