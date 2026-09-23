@@ -288,6 +288,21 @@ describe("dashboard guard local-only access", () => {
     expect(response).toBe(mocks.nextResponse);
   });
 
+  it("restricts all CLI tools routes to local or CLI-token access", async () => {
+    mocks.getSettings.mockResolvedValue({ requireLogin: false });
+
+    const remoteResponse = await proxy(
+      request("/api/cli-tools/claude-settings", {
+        "x-9r-peer-token": PEER_TOKEN,
+        "x-9r-real-ip": "203.0.113.5",
+      }),
+    );
+    const localResponse = await proxy(localRequest("/api/cli-tools/claude-settings"));
+
+    expect(remoteResponse.status).toBe(403);
+    expect(localResponse).toBe(mocks.nextResponse);
+  });
+
   it("rejects local-only route from tunnel host even when requireLogin=false", async () => {
     mocks.getSettings.mockResolvedValue({ requireLogin: false });
 

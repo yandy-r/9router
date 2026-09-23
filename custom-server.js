@@ -13,6 +13,18 @@ const origCreate = http.createServer.bind(http);
 const PEER_TOKEN = crypto.randomBytes(24).toString("hex");
 process.env.NINEROUTER_PEER_TOKEN = PEER_TOKEN;
 
+// Same limit Next applies to normal requests (next.config.mjs proxyClientMaxBodySize), so the
+// h2c path below cannot buffer an unbounded body before auth runs.
+const DEFAULT_MAX_BODY_BYTES = 128 * 1024 * 1024;
+function parseBodySizeLimit(value) {
+  const match = /^(\d+(?:\.\d+)?)\s*(b|kb|mb|gb|tb)?$/i.exec(String(value || "").trim());
+  if (!match) return DEFAULT_MAX_BODY_BYTES;
+  const unit = { b: 0, kb: 1, mb: 2, gb: 3, tb: 4 }[(match[2] || "b").toLowerCase()];
+  const bytes = Math.floor(Number(match[1]) * 1024 ** unit);
+  return Number.isSafeInteger(bytes) ? bytes : DEFAULT_MAX_BODY_BYTES;
+}
+const MAX_H2C_BODY_BYTES = parseBodySizeLimit(process.env.NINEROUTER_PROXY_CLIENT_MAX_BODY_SIZE);
+
 let backgroundRefreshStarted = false;
 
 function startBackgroundTokenRefreshFromCustomServer() {
@@ -100,6 +112,12 @@ http.createServer = (...args) => {
     const contentLength = Number(req.headers["content-length"] || 0);
     if (!Number.isSafeInteger(contentLength) || contentLength < 0) {
       socket.destroy();
+      return true;
+    }
+    if (contentLength > MAX_H2C_BODY_BYTES) {
+      socket.end(
+        "HTTP/1.1 413 Payload Too Large\r\nConnection: close\r\nContent-Length: 0\r\n\r\n",
+      );
       return true;
     }
     const chunks = [head];

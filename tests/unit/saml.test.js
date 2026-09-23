@@ -74,6 +74,13 @@ describe("SAML 2.0 Auth Engine Utilities", () => {
   });
 
   describe("InResponseTo Replay Validation", () => {
+    it("throws error when saml_state cookie is missing", async () => {
+      const rawXml = Buffer.from('<Response InResponseTo="x"></Response>').toString("base64");
+      await expect(
+        validateSamlResponse(null, { SAMLResponse: rawXml }, "", { samlCert: "dummy-cert" }),
+      ).rejects.toThrow(/Missing SAML request state/);
+    });
+
     it("throws error when expectedRequestId is supplied but InResponseTo is missing", async () => {
       const settings = { samlCert: "dummy-cert" };
       const rawXml = Buffer.from('<Response ID="123"></Response>').toString("base64");

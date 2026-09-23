@@ -1,5 +1,20 @@
-import { SAML } from "@node-saml/node-saml";
+import { SAML, ValidateInResponseTo } from "@node-saml/node-saml";
+import { InMemoryCacheProvider } from "@node-saml/node-saml/lib/in-memory-cache-provider.js";
 import { getSettings } from "../db/repos/settingsRepo.js";
+
+const SAML_REQUEST_TTL_MS = 10 * 60 * 1000; // matches saml_state cookie maxAge (10 min)
+
+// ponytail: in-memory, single-process only; entries from unauthenticated /saml/start are bounded by
+// request rate x TTL. Upgrade path: DB-backed CacheProvider if 9router ever runs multi-process.
+if (!globalThis.__ninerouterSamlRequestCache) {
+  globalThis.__ninerouterSamlRequestCache = new InMemoryCacheProvider({
+    keyExpirationPeriodMs: SAML_REQUEST_TTL_MS,
+  });
+}
+const requestIdCache = globalThis.__ninerouterSamlRequestCache;
+// node-saml checks the request ID, then awaits signature work before removing it, so two concurrent
+// posts of one response could both pass. Claim the ID for the duration of validation.
+const inFlightRequestIds = new Set();
 
 /**
  * Formats a raw Base64 string or unformatted X.509 certificate into standard PEM format.
@@ -101,8 +116,9 @@ export function createSamlInstance(settings, origin) {
     callbackUrl: callbackUrl,
     acceptedClockSkewMs: 60000,
     wantAssertionsSigned: true,
-    validateInResponseTo: "never",
-    requestIdExpirationMs: 28800000, // 8 hours
+    validateInResponseTo: ValidateInResponseTo.always,
+    requestIdExpirationPeriodMs: SAML_REQUEST_TTL_MS,
+    cacheProvider: requestIdCache,
   });
 }
 
@@ -127,6 +143,8 @@ export async function buildSamlAuthorizeUrl(request, settings) {
 
 /**
  * Validates SAML POST response from IdP ACS callback and returns user profile.
+ * Fail-closed: a missing saml_state cookie (request ID) throws before parsing.
+ * IdP-initiated SSO (no InResponseTo) is intentionally unsupported.
  * @param {Request} request
  * @param {object} body - Parsed form body or object containing SAMLResponse
  * @param {string} expectedRequestId - Request ID stored in saml_state cookie
@@ -134,6 +152,10 @@ export async function buildSamlAuthorizeUrl(request, settings) {
  * @returns {Promise<object>}
  */
 export async function validateSamlResponse(request, body, expectedRequestId, settings) {
+  if (!expectedRequestId) {
+    throw new Error("Missing SAML request state (saml_state cookie); start sign-in again");
+  }
+
   if (!settings?.samlCert) {
     throw new Error("IdP X.509 Certificate (samlCert) is missing or not configured");
   }
@@ -148,23 +170,32 @@ export async function validateSamlResponse(request, body, expectedRequestId, set
     throw new Error("Missing SAMLResponse parameter in assertion POST body");
   }
 
-  // Parse response XML to inspect InResponseTo for replay protection
-  if (expectedRequestId) {
-    const xml = Buffer.from(rawSamlResponse, "base64").toString("utf8");
-    const match = xml.match(/InResponseTo=["']([^"']+)["']/i);
-    const inResponseTo = match ? match[1] : null;
+  // Bind response to this browser's outstanding request (replay protection)
+  const xml = Buffer.from(rawSamlResponse, "base64").toString("utf8");
+  const match = xml.match(/InResponseTo=["']([^"']+)["']/i);
+  const inResponseTo = match ? match[1] : null;
 
-    if (!inResponseTo || inResponseTo !== expectedRequestId) {
-      throw new Error(
-        `InResponseTo mismatch: expected ${expectedRequestId}, received ${inResponseTo || "none"}`,
-      );
-    }
+  if (!inResponseTo || inResponseTo !== expectedRequestId) {
+    throw new Error(
+      `InResponseTo mismatch: expected ${expectedRequestId}, received ${inResponseTo || "none"}`,
+    );
   }
 
-  const result = await samlInstance.validatePostResponseAsync({ SAMLResponse: rawSamlResponse });
-  const profile = result?.profile || result;
-
-  return profile;
+  if (inFlightRequestIds.has(expectedRequestId)) {
+    throw new Error("SAML response for this request is already being processed");
+  }
+  inFlightRequestIds.add(expectedRequestId);
+  try {
+    const result = await samlInstance.validatePostResponseAsync({ SAMLResponse: rawSamlResponse });
+    const profile = result?.profile || result;
+    // Re-check against the value node-saml parsed from the validated document, not the raw regex.
+    if (profile?.inResponseTo !== expectedRequestId) {
+      throw new Error("InResponseTo mismatch after validation");
+    }
+    return profile;
+  } finally {
+    inFlightRequestIds.delete(expectedRequestId);
+  }
 }
 
 /**
