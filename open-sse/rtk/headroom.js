@@ -263,9 +263,13 @@ export async function compressWithHeadroom(body, { enabled, url, model, format, 
   try {
     if (diagnostics) diagnostics.before = captureSizeSnapshot(body);
 
-    // Claude shape: translate → OpenAI → compress → translate back.
+    // Claude shape: translate → OpenAI → compress → translate back. Only
+    // messages[] round-trip; `system` is never sent or rewritten. The OpenAI hop
+    // strips the `x-anthropic-billing-header` block cloaking puts at system[0],
+    // and without it Anthropic bills an OAuth request to extra usage, failing
+    // with 400 "You're out of extra usage" once that is spent.
     if (format === "claude") {
-      const oai = claudeToOpenAIRequest(model, body, false);
+      const oai = claudeToOpenAIRequest(model, { ...body, system: undefined }, false);
       if (!Array.isArray(oai?.messages)) {
         setDiagnostic(diagnostics, "Claude request did not translate to messages[]");
         return null;
@@ -274,7 +278,6 @@ export async function compressWithHeadroom(body, { enabled, url, model, format, 
       if (!data) return null;
       const claudeBody = openaiToClaudeRequest(model, { ...oai, messages: data.messages }, false);
       if (Array.isArray(claudeBody?.messages)) body.messages = claudeBody.messages;
-      if (claudeBody?.system !== undefined) body.system = claudeBody.system;
       if (diagnostics) diagnostics.after = captureSizeSnapshot(body);
       return data;
     }
