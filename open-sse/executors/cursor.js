@@ -277,6 +277,8 @@ function createErrorResponse(jsonError) {
 export class CursorExecutor extends BaseExecutor {
   constructor() {
     super("cursor", PROVIDERS.cursor);
+    // No OAuth refresh mechanism (refreshCredentials → null).
+    this.supportsRefresh = false;
   }
 
   buildUrl() {

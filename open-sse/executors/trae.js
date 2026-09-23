@@ -44,6 +44,8 @@ function flattenQuery(messages) {
 export default class TraeExecutor extends BaseExecutor {
   constructor() {
     super("trae", PROVIDERS.trae);
+    // Cloud-IDE-JWT is long-lived; no chat-path refresh (refreshCredentials → null).
+    this.supportsRefresh = false;
   }
 
   base() {

@@ -553,6 +553,8 @@ async function wrapQoderSSE(response, model) {
 export class QoderExecutor extends BaseExecutor {
   constructor() {
     super("qoder", PROVIDERS.qoder);
+    // Qoder device tokens have no OAuth refresh (refreshCredentials → null).
+    this.supportsRefresh = false;
   }
 
   buildUrl(credentials) {

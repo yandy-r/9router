@@ -222,6 +222,10 @@ function wrapZedCompletionStream(response, provider, model) {
 class ZedExecutor extends BaseExecutor {
   constructor() {
     super("zed");
+    // Zed uses a long-lived RSA-decrypted access_token — no OAuth refresh.
+    // The short-lived LLM token refreshes inside zedLlmFetch. Skipping the
+    // generic 401/403 refresh path avoids ~3s of futile retries per account.
+    this.supportsRefresh = false;
   }
 
   async resolveModel(model, credentials, signal, log) {
