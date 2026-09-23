@@ -1,3 +1,5 @@
+# Failures on master from an isolated run (tests/setup/). Lines starting with # are ignored.
+# antigravity-oauth-client 'builds the auth URL' is a load flake: its cold import can hit the 5s timeout in a full run.
 tests/auth/saml.test.js :: <file>
 tests/translator/bugs-claudeCode-context.test.js :: Claude Code CLI context → OpenAI tool_result image block is preserved
 tests/translator/bugs-gemini-cursor-commandcode.test.js :: OpenAI → CommandCode image content is preserved as native CommandCode image blocks
@@ -12,6 +14,7 @@ tests/translator/claude-kiro-direct.test.js :: Claude → Kiro (direct route) ke
 tests/translator/claude-kiro-direct.test.js :: Claude → Kiro (direct route) maps output_config.effort high to Kiro CLI-style additionalModelRequestFields for effort models
 tests/translator/claude-kiro-direct.test.js :: Claude → Kiro (direct route) normalizes an unsupported Kiro intensity suffix while preserving agentic behavior
 tests/translator/claude-kiro-direct.test.js :: Claude → Kiro (direct route) sends Claude system as top-level systemPrompt and keeps a user-content fallback
+tests/unit/antigravity-oauth-client.test.js :: google oauth clients (env-sourced) OAuth login builds the auth URL with the env client id
 tests/unit/antigravity-oauth-client.test.js :: google oauth clients (env-sourced) OAuth login fails fast before building an auth URL when unconfigured
 tests/unit/claude-header-forwarding.test.js :: proxyAwareFetch — api.anthropic.com routing routes api.anthropic.com to gotScraping (non-streaming) and returns ok response
 tests/unit/cline-auth.test.js :: <file>

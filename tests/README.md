@@ -27,7 +27,7 @@ npx vitest run unit/capabilities.test.js # single file (path relative to tests/)
 Tests never read or write your real `~/.9router`. Two setup hooks in `vitest.config.js` handle it:
 
 - `setup/tempRoot.js` (`globalSetup`) records your real home in `NINEROUTER_TEST_REAL_HOME`, creates one parent temp dir (`<os.tmpdir()>/9router-test-XXXX`) and deletes it after the run, even when files are skipped or fail to load.
-- `setup/isolateDataDir.js` (`setupFiles`) runs before every test file's imports. It creates a fresh per-file root inside that parent, points `DATA_DIR` at `<root>/data`, and points `HOME`, `USERPROFILE`, `APPDATA` and `LOCALAPPDATA` inside `<root>/home`.
+- `setup/isolateDataDir.js` (`setupFiles`) runs before every test file's imports. It creates a fresh per-file root inside that parent, points `DATA_DIR` at `<root>/data`, and points `HOME`, `USERPROFILE`, `APPDATA`, `LOCALAPPDATA` and the `XDG_*` dirs inside `<root>/home`. It uses the `forks` pool, because a worker thread's `os.homedir()` ignores the override, and it throws if the override isn't honored.
 
 You don't need a `DATA_DIR=$(mktemp -d)` prefix. `unit/test-data-isolation.test.js` fails if the resolved data dir or home is outside the temp root.
 
@@ -42,10 +42,10 @@ RUN_REAL=1 npx vitest run translator/real/thinking
 The suite is not all-green on a plain checkout. Compare a run against the known failures in `__baseline__/known-fails.txt` instead of reading raw results:
 
 ```bash
-npx vitest run --reporter=json --outputFile=/tmp/9r-results.json; node __baseline__/verify-no-regression.mjs /tmp/9r-results.json
+npx vitest run --reporter=json --outputFile=results.json; node __baseline__/verify-no-regression.mjs results.json
 ```
 
-It reports tests (keyed by repo-relative path) and whole files that failed to load or ran no tests (keyed as `<path> :: <file>`) that are not in the baseline. Other `__baseline__/verify-*.mjs` scripts check provider, alias and OAuth URL snapshots. Run them after changing the provider registry or alias logic.
+It reports tests (keyed by repo-relative path) and whole-file failures such as load errors, empty suites or throwing hooks (keyed as `<path> :: <file>`) that are not in the baseline. Other `__baseline__/verify-*.mjs` scripts check provider, alias and OAuth URL snapshots. Run them after changing the provider registry or alias logic.
 
 ## Embeddings
 

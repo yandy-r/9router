@@ -9,7 +9,7 @@ const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 
 const knownFails = new Set(
   readFileSync(new URL("./known-fails.txt", import.meta.url), "utf8")
-    .split("\n").map(s => s.trim()).filter(Boolean)
+    .split("\n").map(s => s.trim()).filter(s => s && !s.startsWith("#"))
 );
 
 const resultsPath = process.argv[2];
@@ -19,12 +19,15 @@ if (!resultsPath) { console.error("Missing results.json path"); process.exit(2);
 const testKey = (file) => relative(repoRoot, file).split(sep).join("/");
 
 const r = JSON.parse(readFileSync(resultsPath, "utf8"));
-// A file can fail with no failed assertion (import error, empty suite, throwing
-// hook). Key those as `<path> :: <file>` so a broken setup can't pass the gate.
+// A file can also fail as a whole (import error, empty suite, throwing hook),
+// with or without failed assertions. Key that as `<path> :: <file>` so a broken
+// setup can't pass the gate.
 const nowFails = r.testResults.flatMap(f => {
   const failed = f.assertionResults.filter(a => a.status === "failed")
     .map(a => testKey(f.name) + " :: " + a.fullName);
-  return failed.length || f.status !== "failed" ? failed : [testKey(f.name) + " :: <file>"];
+  const fileFailed = f.message || (f.status === "failed" && !failed.length);
+  if (fileFailed) failed.push(testKey(f.name) + " :: <file>");
+  return failed;
 });
 
 // Regression = fail bây giờ NHƯNG không có trong baseline known-fails

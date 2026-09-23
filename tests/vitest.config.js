@@ -18,6 +18,8 @@ export default defineConfig({
     // dir that is removed after the run (see setup/).
     globalSetup: [resolve(__dirname, "setup/tempRoot.js")],
     setupFiles: [resolve(__dirname, "setup/isolateDataDir.js")],
+    // The HOME override only reaches os.homedir() in child processes.
+    pool: "forks",
     // Allow many it.concurrent cases (real provider smoke runs ~50 providers in parallel)
     maxConcurrency: 60,
     // Suppress noisy console output from handlers under test

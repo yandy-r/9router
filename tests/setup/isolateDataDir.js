@@ -7,6 +7,7 @@
 // Only files in the `real` vitest project may opt out, and only when a live
 // gate (RUN_REAL=1 / RUN_E2E=1) is set: they need the real credential DB.
 import { mkdtempSync, mkdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { join } from "node:path";
 
 const LIVE_GATES = ["RUN_REAL", "RUN_E2E"];
@@ -34,4 +35,13 @@ function isolateDataDir() {
   process.env.USERPROFILE = home;
   process.env.APPDATA = join(home, "AppData", "Roaming");
   process.env.LOCALAPPDATA = join(home, "AppData", "Local");
+  process.env.XDG_CONFIG_HOME = join(home, ".config");
+  process.env.XDG_DATA_HOME = join(home, ".local", "share");
+  process.env.XDG_CACHE_HOME = join(home, ".cache");
+
+  // os.homedir() ignores process.env inside worker threads (--pool=threads),
+  // so home-based paths would still hit the real home. Refuse to run then.
+  if (homedir() !== home) {
+    throw new Error(`HOME override not honored (os.homedir() = ${homedir()}); run tests with the forks pool`);
+  }
 }
