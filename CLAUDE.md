@@ -37,11 +37,12 @@ npm run cli:pack       # build + npm pack from root
 cd cli && npm run dev  # nodemon watch
 ```
 
-Tests (vitest, in `tests/`, an **independent** ESM package — not wired into root `npm test`):
+Tests (vitest, in `tests/`, an **independent** ESM package; root `npm test` runs it plus the regression gate, same as CI):
 
 ```bash
 npm install                             # ROOT deps first — tests import from src/ which needs `open`, `undici`, etc.
 cd tests && npm install                 # then tests' own deps (vitest) → tests/node_modules (allowed by tests/.gitignore)
+npm test                                # (from root) full run gated on known-fails.txt — what CI runs
 npx vitest run                          # all tests; auto-discovers tests/vitest.config.js
 npx vitest run unit/capabilities.test.js   # single file (path relative to tests/)
 ```

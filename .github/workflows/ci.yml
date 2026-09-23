@@ -33,15 +33,11 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm ci --no-audit --no-fund
         working-directory: tests
-      - name: Run vitest
-        working-directory: tests
-        # The suite is not all-green by design; the regression gate below decides.
-        # --update=new: CI=true blocks writing missing snapshots; upstream deliberately
-        # ships golden-url-header without one (71a0822b). Mismatches still fail.
-        run: npx vitest run --update=new --reporter=json --outputFile=results.json || true
-      - name: Regression gate
-        working-directory: tests
-        run: node __baseline__/verify-no-regression.mjs results.json
+      # vitest to JSON, then the known-fails regression gate decides (see the root `test` script).
+      - name: Tests + regression gate
+        run: npm test
+      - name: Provider registry baseline
+        run: node tests/__baseline__/verify-providers.mjs
       - name: Alias baseline
         run: node tests/__baseline__/verify-alias.mjs
       - name: OAuth URL baseline
@@ -59,3 +55,42 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run build
+
+  cli:
+    name: CLI package
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # cli/ has no lockfile; --ignore-scripts skips its postinstall, which provisions ~/.9router.
+      - run: npm --prefix cli install --no-audit --no-fund --no-package-lock --ignore-scripts
+      - run: npm run cli:pack
+
+  # Standalone rather than a workflow_call of docker-publish.yml, which would need
+  # packages: write on PR runs.
+  docker:
+    name: Docker build (linux/amd64)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          # Keep in sync with docker-publish.yml; the Dockerfile defaults to CN mirrors.
+          build-args: |
+            APK_MIRROR=dl-cdn.alpinelinux.org
+            NPM_REGISTRY=https://registry.npmjs.org
+          cache-from: type=gha,scope=linux-amd64
+          cache-to: type=gha,mode=max,scope=linux-amd64
+          provenance: false
+          sbom: false

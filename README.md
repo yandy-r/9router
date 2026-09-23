@@ -186,11 +186,14 @@ Tests live in `tests/` as a separate package:
 
 ```bash
 npm install && (cd tests && npm install)
-cd tests && npx vitest run
+npm test                                        # vitest + regression gate
+node tests/__baseline__/verify-providers.mjs    # also verify-alias.mjs, verify-oauth-urls.mjs
+npm --prefix cli install --ignore-scripts --no-package-lock && npm run cli:pack
 ```
 
-The suite is not all-green on a plain checkout (live-provider and environment-dependent
-tests fail); compare against the same run on `master` rather than expecting zero failures.
+The suite is not all-green on a plain checkout, so `npm test` fails only on failures not listed
+in `tests/__baseline__/known-fails.txt`. These are the checks CI runs, plus a `linux/amd64`
+Docker build on pull requests.
 
 Architecture notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (system overview) and
 [`open-sse/AGENTS.md`](open-sse/AGENTS.md) (routing/translation engine conventions).
@@ -210,4 +213,4 @@ npm run format     # format everything
 `*:modified`, `*:staged` and `*:unstaged` variants limit the run to changed files. Git hooks
 (lefthook) are installed by `npm install`: pre-commit formats and lints staged files, commit-msg
 enforces [Conventional Commits](https://www.conventionalcommits.org/). CI runs the same checks
-plus tests and a production build on every pull request.
+plus the tests above and a production build on every pull request.

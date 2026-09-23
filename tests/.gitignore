@@ -2,3 +2,5 @@ node_modules/
 .vite/
 coverage/
 results.json
+# Written by `npm test` (--update=new); upstream deliberately ships it absent (71a0822b).
+translator/__snapshots__/golden-url-header.test.js.snap
