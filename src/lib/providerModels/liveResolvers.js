@@ -8,6 +8,7 @@ import { ZED_HOSTED_CONFIG } from "@/lib/oauth/constants/oauth";
 import { refreshClaudeOAuthToken, updateProviderCredentials } from "@/sse/services/tokenRefresh";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { buildOAuthResolver } from "@/lib/providerModels/oauthResolver.js";
+import { resolveCodex } from "@/lib/providerModels/codexModels.js";
 import { ANTHROPIC_API_VERSION } from "open-sse/providers/shared.js";
 import { resolveKiroModels } from "open-sse/services/kiroModels.js";
 import { resolveKimchiModels } from "open-sse/services/kimchiModels.js";
@@ -238,6 +239,7 @@ const passthrough = (label, resolve) => async (connection, options) => {
 
 export const LIVE_MODEL_RESOLVERS = {
   claude: resolveClaude,
+  codex: resolveCodex,
   zed: resolveZed,
   kiro: resolveKiro,
   qoder: resolveQoder,
