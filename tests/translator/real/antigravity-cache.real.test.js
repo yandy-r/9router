@@ -11,13 +11,17 @@
 // (<DATA_DIR>/db/data.sqlite) via the app DB layer. Gated by RUN_REAL=1 so the
 // default `vitest run` never touches the network or the real ~/.9router.
 //
-//   RUN_REAL=1 npx vitest run --config tests/vitest.config.js tests/translator/real/antigravity-cache.real.test.js
+//   npx dotenvx run -f .env.encrypted -- npx vitest run --config tests/vitest.config.js tests/translator/real/antigravity-cache.real.test.js
 //
-// Requires ANTIGRAVITY_OAUTH_CLIENT_ID/_SECRET (via .env.encrypted / dotenvx);
-// without them, token refresh would fail with a cryptic provider error.
-// Tests skip cleanly when no usable Antigravity connection exists.
+// Requires RUN_REAL=1 (default skip) and ANTIGRAVITY_OAUTH_CLIENT_ID/_SECRET,
+// which live in the repo's encrypted env — hence the dotenvx wrapper (the env
+// is read at module load, before the test can inject it). Tests skip cleanly
+// when the DB is unavailable or no usable Antigravity connection exists.
 import { beforeAll, describe, it, expect } from "vitest";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { PROVIDERS } from "../../../open-sse/config/providers.js";
 import { ANTIGRAVITY_HEADERS, INTERNAL_REQUEST_HEADER } from "../../../open-sse/config/appConstants.js";
 import { assertOAuthClient } from "../../../open-sse/providers/shared.js";
@@ -45,6 +49,9 @@ async function refreshAccessToken(refreshToken) {
   const json = await res.json();
   if (typeof json.access_token !== "string" || !json.access_token.trim()) {
     throw new Error("Antigravity OAuth token refresh returned no access_token");
+  }
+  if (json.refresh_token && json.refresh_token !== refreshToken) {
+    console.warn("[warn] Google rotated the refresh token; the stored credential may be stale");
   }
   return json.access_token;
 }
@@ -75,7 +82,9 @@ async function callAg({ accessToken, projectId, sessionId, longText, userText })
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     body: JSON.stringify(body)
   });
-  const json = await res.json();
+  const text = await res.text();
+  let json = {};
+  try { json = JSON.parse(text); } catch { /* keep status-only result */ }
   const usage = json?.response?.usageMetadata || json?.usageMetadata || {};
   return {
     status: res.status,
@@ -90,18 +99,40 @@ describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
   let conns = [];
 
   // Loaded in beforeAll (not at collection time) so a skipped suite never
-  // touches the DB layer, and an empty result skips instead of crashing.
+  // touches the DB layer. Skipped when the DB is missing/unavailable so a
+  // gated run never bootstraps the real data dir as a side effect; DB errors
+  // are stored and reported per-test as skips rather than file failures.
+  let loadError = null;
   beforeAll(async () => {
-    const { getProviderConnections } = await import("../../../src/lib/localDb.js");
-    conns = (await getProviderConnections({ provider: "antigravity", isActive: true }))
-      .filter((c) => c.refreshToken && c.projectId);
+    try {
+      // Avoid getAdapter() creating an empty DB when none exists. Mirrors
+      // src/lib/dataDir.js defaultDir() resolution without its mkdir side effect.
+      const dataDir = process.env.DATA_DIR || (
+        process.platform === "win32"
+          ? path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "9router")
+          : path.join(os.homedir(), ".9router")
+      );
+      const dbSqlite = path.join(dataDir, "db", "data.sqlite");
+      if (!fs.existsSync(dbSqlite)) return;
+      const { getProviderConnections } = await import("../../../src/lib/localDb.js");
+      conns = (await getProviderConnections({ provider: "antigravity", isActive: true })).filter(
+        (c) => c.refreshToken && c.projectId
+      );
+    } catch (e) {
+      loadError = e;
+      return;
+    }
     if (conns.length > 0) {
       // Fail fast with a clear message naming the missing env vars.
       assertOAuthClient(PROVIDERS.antigravity, "antigravity");
     }
   });
 
-  const noConn = (ctx) => ctx.skip("No active Antigravity connection with refreshToken and projectId");
+  const noConn = (ctx) => ctx.skip(
+    loadError
+      ? `Antigravity credential DB unavailable: ${loadError.message}`
+      : "No active Antigravity connection with refreshToken and projectId"
+  );
 
   it("same sessionId → cache hit on repeated call", async (ctx) => {
     if (conns.length === 0) return noConn(ctx);
