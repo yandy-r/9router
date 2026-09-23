@@ -79,6 +79,7 @@ describe("resolver registry", () => {
   it("covers every provider moved out of the route files", () => {
     for (const id of [
       "claude",
+      "codex",
       "zed",
       "kiro",
       "qoder",

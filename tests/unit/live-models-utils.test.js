@@ -12,6 +12,7 @@ describe("LIVE_MODEL_PROVIDERS", () => {
       "claude",
       "cline",
       "clinepass",
+      "codex",
       "cursor",
       "qoder",
       "zed",
