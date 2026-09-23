@@ -30,6 +30,15 @@ function turnEndedFrame() {
   return Buffer.from(wrapConnectRPCFrame(encodeField(1, LEN, update)));
 }
 
+// Connect end-of-stream trailer (flag 0x02) with a JSON error body.
+function trailerErrorFrame(error) {
+  const payload = Buffer.from(JSON.stringify({ error }));
+  const header = Buffer.alloc(5);
+  header[0] = 0x02;
+  header.writeUInt32BE(payload.length, 1);
+  return Buffer.concat([header, payload]);
+}
+
 function stubAgentSession(executor, frames) {
   const written = [];
   const queue = [...frames];
@@ -163,5 +172,59 @@ describe("CursorExecutor AgentService exec_request handling", () => {
     const events = parseSSE(await result.response.text());
     const content = events.map((e) => e.choices?.[0]?.delta?.content || "").join("");
     expect(content).toBe("hello from grok");
+  });
+
+  it("maps a Connect trailer Update Required to an account-neutral 400", async () => {
+    const { result } = await runAgent({
+      frames: [trailerErrorFrame({
+        code: "resource_exhausted",
+        details: [{ debug: { error: "ERROR_GPT_4_VISION_PREVIEW_RATE_LIMIT", details: { title: "Update Required" } } }],
+      })],
+      stream: false,
+    });
+
+    expect(result.response.status).toBe(400);
+    const payload = await result.response.json();
+    expect(payload.error.code).toBe("cursor_client_update_required");
+  });
+
+  it("keeps genuine Connect trailer quota errors on 429", async () => {
+    const { result } = await runAgent({
+      frames: [trailerErrorFrame({ code: "resource_exhausted", message: "quota" })],
+      stream: false,
+    });
+
+    expect(result.response.status).toBe(429);
+  });
+
+  it("does not treat thinking as visible output for non-Composer models when text_delta exists", async () => {
+    const { result } = await runAgent({
+      model: "gpt-5.3-codex",
+      frames: [thinkingFrame("private reasoning</think>SHOULD_NOT_APPEAR"), textFrame("reply OK"), turnEndedFrame()],
+      stream: true,
+    });
+
+    const events = parseSSE(await result.response.text());
+    const content = events.map((e) => e.choices?.[0]?.delta?.content || "").join("");
+    expect(content).toBe("reply OK");
+    expect(content).not.toContain("SHOULD_NOT_APPEAR");
+  });
+
+  it("keeps Composer visible content only after </think> across split thinking frames", async () => {
+    const { result } = await runAgent({
+      model: "composer-2.5-fast",
+      frames: [
+        thinkingFrame("private reasoning"),
+        thinkingFrame(" that must not leak</think>O"),
+        thinkingFrame("K"),
+        turnEndedFrame(),
+      ],
+      stream: true,
+    });
+
+    const events = parseSSE(await result.response.text());
+    const content = events.map((e) => e.choices?.[0]?.delta?.content || "").join("");
+    expect(content).toBe("OK");
+    expect(JSON.stringify(events)).not.toContain("private reasoning");
   });
 });

@@ -222,8 +222,8 @@ describe("Cursor AgentService executor helpers (cursor.js)", () => {
       })).toBe(true);
     });
 
-    it("rejects non-text (image) content", () => {
-      expect(isAgentCapableRequest({ messages: [{ role: "user", content: [{ type: "image_url" }] }] })).toBe(false);
+    it("accepts image content (served via AgentService selected_context)", () => {
+      expect(isAgentCapableRequest({ messages: [{ role: "user", content: [{ type: "image_url" }] }] })).toBe(true);
     });
 
     it("rejects missing messages", () => {

@@ -1098,6 +1098,35 @@ export function encodeMcpResultToolNotFound(name) {
   );
 }
 
+// agent.v1.SelectedContext.selected_images (1) → SelectedImage.
+// Field numbers from the agent.proto descriptor (unkn0wncode/extract-cursor-protos).
+const SC_SELECTED_IMAGES = 1;
+const SI_UUID = 2;
+const SI_DIMENSION = 4;
+const SI_MIME_TYPE = 7;
+const SI_DATA = 8;
+const DIM_WIDTH = 1;
+const DIM_HEIGHT = 2;
+
+/**
+ * Encode agent.v1.SelectedContext body with inline images (raw bytes, never base64).
+ * @param {{uuid:string,data:Uint8Array,mimeType:string,width?:number,height?:number}[]} images
+ */
+export function encodeSelectedContextImages(images = []) {
+  return concatArrays(...images.map((image) => {
+    const hasDimension = image.width > 0 && image.height > 0;
+    return encodeField(SC_SELECTED_IMAGES, WIRE_TYPE.LEN, concatArrays(
+      encodeField(SI_UUID, WIRE_TYPE.LEN, image.uuid),
+      ...(hasDimension ? [encodeField(SI_DIMENSION, WIRE_TYPE.LEN, concatArrays(
+        encodeField(DIM_WIDTH, WIRE_TYPE.VARINT, image.width),
+        encodeField(DIM_HEIGHT, WIRE_TYPE.VARINT, image.height),
+      ))] : []),
+      encodeField(SI_MIME_TYPE, WIRE_TYPE.LEN, image.mimeType),
+      encodeField(SI_DATA, WIRE_TYPE.LEN, image.data),
+    ));
+  }));
+}
+
 // ==================== EXPORTS ====================
 
 export default {
@@ -1120,4 +1149,5 @@ export default {
   encodeMcpResultSuccess,
   encodeMcpResultError,
   encodeMcpResultToolNotFound,
+  encodeSelectedContextImages,
 };

@@ -24,9 +24,9 @@ describe("OpenAI → Gemini", () => {
 });
 
 describe("OpenAI → Cursor", () => {
-  // openai-to-cursor.js:12-24 — image content fully dropped (text only)
-  // KNOWN BUG
-  it.fails("image content is preserved", () => {
+  // Images are kept as image_url parts so the executor can send them as
+  // AgentService selected_context bytes (YAN-134).
+  it("image content is preserved", () => {
     const out = O2C({
       messages: [{ role: "user", content: [
         { type: "text", text: "look" },
