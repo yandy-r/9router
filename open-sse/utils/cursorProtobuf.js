@@ -230,7 +230,7 @@ export function encodeField(fieldNum, wireType, value) {
   return new Uint8Array(0);
 }
 
-function concatArrays(...arrays) {
+export function concatArrays(...arrays) {
   const totalLength = arrays.reduce((sum, arr) => sum + arr.length, 0);
   const result = new Uint8Array(totalLength);
   let offset = 0;
@@ -813,6 +813,12 @@ export function decodeField(buffer, offset) {
   return [fieldNum, wireType, value, pos];
 }
 
+/** UTF-8 string of the first occurrence of a field in a decodeMessage() map, or "". */
+export function decodeStringField(message, field) {
+  const value = message?.get(field)?.[0]?.value;
+  return value ? Buffer.from(value).toString("utf8") : "";
+}
+
 export function decodeMessage(data) {
   const fields = new Map();
   let pos = 0;
@@ -1004,6 +1010,10 @@ const MTD_TOOL_NAME = 5;
 
 const MCP_TOOLS_TOOL = 1;
 
+// McpToolDefinition.provider_identifier for client tools; AgentService asks for
+// this server's state (mcp_state_exec) before calling its tools.
+export const CURSOR_MCP_PROVIDER = "9router";
+
 const MCP_ARGS_NAME = 1;
 const MCP_ARGS_ENTRY = 2;
 const MCP_ARGS_CALL_ID = 3;
@@ -1115,7 +1125,7 @@ export function encodeMcpToolDefinition(tool) {
     encodeField(MTD_NAME, WIRE_TYPE.LEN, name),
     encodeField(MTD_DESCRIPTION, WIRE_TYPE.LEN, description),
     encodeField(MTD_INPUT_SCHEMA, WIRE_TYPE.LEN, encodeAgentValue(schema)),
-    encodeField(MTD_PROVIDER, WIRE_TYPE.LEN, "9router"),
+    encodeField(MTD_PROVIDER, WIRE_TYPE.LEN, CURSOR_MCP_PROVIDER),
     encodeField(MTD_TOOL_NAME, WIRE_TYPE.LEN, name),
   );
 }

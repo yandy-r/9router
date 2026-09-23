@@ -5,10 +5,13 @@ import {
   encodeField,
   wrapConnectRPCFrame,
   decodeMessage,
+  decodeStringField,
   encodeMcpTools,
   encodeSelectedContextImages,
   decodeMcpArgs,
+  concatArrays,
 } from "../utils/cursorProtobuf.js";
+import { AGENT_ENVIRONMENT_NOTE, EXEC_VARIANT, buildExecReply } from "../utils/cursorAgentExec.js";
 import { resolveCursorImages, CursorImageError } from "../utils/cursorImages.js";
 import { buildCursorHeaders } from "../utils/cursorChecksum.js";
 import { estimateUsage } from "../utils/usageTracking.js";
@@ -46,17 +49,6 @@ const COMPRESS_FLAG = {
 const AGENT_RUN_PATH = "/agent.v1.AgentService/Run";
 const PROTOBUF_LEN = 2;
 const PROTOBUF_VARINT = 0;
-
-function concatBuffers(...parts) {
-  const length = parts.reduce((total, part) => total + part.length, 0);
-  const result = new Uint8Array(length);
-  let offset = 0;
-  for (const part of parts) {
-    result.set(part, offset);
-    offset += part.length;
-  }
-  return result;
-}
 
 const agentString = (field, value) => encodeField(field, PROTOBUF_LEN, value);
 const agentMessage = (field, value) => encodeField(field, PROTOBUF_LEN, value);
@@ -136,36 +128,37 @@ export function buildAgentRunFrame(messages, model, tools = [], { images = [] } 
         })
         .join("\n")}`
     : "";
-  const userText = `${system ? `${system}\n\n` : ""}${rawUser}${imageRefs}`;
+  const preamble = [system, AGENT_ENVIRONMENT_NOTE].filter(Boolean).join("\n\n");
+  const userText = `${preamble}\n\n${rawUser}${imageRefs}`;
   const selectedContext = encodeSelectedContextImages(allImages);
 
   // agent.v1.UserMessageAction.user_message and its optional history.
   // selected_context (3) + mode=1 (4) match cursor-agent's wire format; without
   // them the server may accept the RPC and stream an empty turn.
-  const userMessage = concatBuffers(
+  const userMessage = concatArrays(
     agentString(1, userText),
     agentString(2, crypto.randomUUID()),
     agentMessage(3, selectedContext),
     encodeField(4, PROTOBUF_VARINT, 1),
   );
   const conversationHistory = history.length
-    ? concatBuffers(...history.map((entry) => agentMessage(1, entry)))
+    ? concatArrays(...history.map((entry) => agentMessage(1, entry)))
     : null;
-  const userAction = concatBuffers(
+  const userAction = concatArrays(
     agentMessage(1, userMessage),
     ...(conversationHistory ? [agentMessage(7, conversationHistory)] : []),
   );
   const conversationAction = agentMessage(1, userAction);
-  const requestedModel = concatBuffers(agentString(1, model), agentBool(7, true));
+  const requestedModel = concatArrays(agentString(1, model), agentBool(7, true));
   // ModelDetails (field 3): thinking variants (Composer, Grok, *-thinking)
   // return an empty turn when only RequestedModel (field 9) is set.
-  const modelDetails = concatBuffers(
+  const modelDetails = concatArrays(
     agentString(1, model),
     agentString(3, model),
     agentString(4, model),
   );
   const mcpTools = encodeMcpTools(tools);
-  const runRequest = concatBuffers(
+  const runRequest = concatArrays(
     // An empty ConversationStateStructure starts a fresh local agent session.
     agentMessage(1, new Uint8Array()),
     agentMessage(2, conversationAction),
@@ -176,11 +169,6 @@ export function buildAgentRunFrame(messages, model, tools = [], { images = [] } 
 
   // agent.v1.AgentClientMessage.run_request.
   return wrapConnectRPCFrame(agentMessage(1, runRequest));
-}
-
-function extractAgentString(message, field) {
-  const value = message?.get(field)?.[0]?.value;
-  return value ? Buffer.from(value).toString("utf8") : "";
 }
 
 // Split Connect frames. Data frames go to onFrame; the end-of-stream trailer
@@ -203,68 +191,21 @@ function decodeAgentFrames(buffer, onFrame, onTrailer) {
   return pending;
 }
 
-function execIds(execRequest) {
-  const id = Number(execRequest?.get(1)?.[0]?.value || 0);
-  const execId = extractAgentString(execRequest, 15);
-  return { id, execId };
-}
-
-function wrapExecClientMessage(execMsgId, execId, resultField, resultPayload) {
-  const parts = [];
-  if (execMsgId) parts.push(encodeField(1, PROTOBUF_VARINT, execMsgId));
-  parts.push(agentString(15, execId || ""));
-  parts.push(encodeField(resultField, PROTOBUF_LEN, resultPayload || new Uint8Array()));
-  return wrapConnectRPCFrame(agentMessage(2, concatBuffers(...parts)));
-}
-
-function createRequestContextResponse(execRequest) {
-  // Tools already go out on AgentRunRequest.mcp_tools. Echoing them again on
-  // this ack makes AgentService stall silently (0 SSE bytes until abort).
-  const { id, execId } = execIds(execRequest);
-  const requestContextSuccess = agentMessage(1, new Uint8Array());
-  const requestContextResult = agentMessage(1, requestContextSuccess);
-  return wrapExecClientMessage(id, execId, 10, requestContextResult);
-}
-
-// ExecServerMessage variant → ExecClientMessage result field (same numbers).
-const EXEC_RESULT_FIELD = {
-  2: 2,
-  3: 3,
-  4: 4,
-  5: 5,
-  7: 7,
-  8: 8,
-  9: 9,
-  16: 16,
-  20: 20,
-  23: 23,
-};
-
-function rejectExecRequest(execRequest) {
-  const { id, execId } = execIds(execRequest);
-  const variant = [...(execRequest?.keys?.() || [])].find((field) => field !== 1 && field !== 15);
-  const resultField = EXEC_RESULT_FIELD[variant];
-  if (!resultField) return null;
-  // Diagnostics has no rejected variant — empty success unblocks the stream.
-  if (variant === 9) return wrapExecClientMessage(id, execId, 9, new Uint8Array());
-  const rejected = agentMessage(
-    2,
-    agentString(2, "Tool not available in this environment. Use the MCP tools provided instead."),
-  );
-  return wrapExecClientMessage(id, execId, resultField, rejected);
-}
-
 function encodeKvClientMessage(kvId, resultField, resultPayload, metadata) {
   const parts = [];
   if (kvId) parts.push(encodeField(1, PROTOBUF_VARINT, kvId));
   parts.push(encodeField(resultField, PROTOBUF_LEN, resultPayload || new Uint8Array()));
   if (metadata && metadata.length) parts.push(encodeField(4, PROTOBUF_LEN, metadata));
-  return wrapConnectRPCFrame(agentMessage(3, concatBuffers(...parts)));
+  return wrapConnectRPCFrame(agentMessage(3, concatArrays(...parts)));
 }
 
-const CURSOR_STREAM_DEBUG = process.env.CURSOR_STREAM_DEBUG === "1";
-const debugLog = (...args) => {
-  if (CURSOR_STREAM_DEBUG) console.log(...args);
+// An exec request with no tool variant cannot be answered; end the turn with
+// a stable, request-scoped error instead of stalling the h2 stream.
+const UNSUPPORTED_EXEC_ERROR = {
+  status: HTTP_STATUS.BAD_REQUEST,
+  type: "api_error",
+  code: "cursor_unsupported_exec",
+  message: "Cursor AgentService sent an exec request without a tool variant",
 };
 
 function isComposerModel(model) {
@@ -575,7 +516,7 @@ export class CursorExecutor extends BaseExecutor {
               if (serverMessage.has(1)) {
                 const update = decodeMessage(serverMessage.get(1)[0].value);
                 if (update.has(1)) {
-                  const textDelta = extractAgentString(decodeMessage(update.get(1)[0].value), 1);
+                  const textDelta = decodeStringField(decodeMessage(update.get(1)[0].value), 1);
                   if (textDelta) {
                     emittedText = true;
                     onEvent({ type: "text", value: textDelta });
@@ -584,10 +525,7 @@ export class CursorExecutor extends BaseExecutor {
                 // thinking_delta (field 4). Composer (and some Grok variants) put
                 // the visible answer after </think> here and never send text_delta.
                 if (update.has(4)) {
-                  const thinkingDelta = extractAgentString(
-                    decodeMessage(update.get(4)[0].value),
-                    1,
-                  );
+                  const thinkingDelta = decodeStringField(decodeMessage(update.get(4)[0].value), 1);
                   if (thinkingDelta) {
                     thinkingAcc += thinkingDelta;
                     if (composerModel) {
@@ -623,59 +561,42 @@ export class CursorExecutor extends BaseExecutor {
                 }
               }
 
-              // AgentService requests IDE context before producing a response.
+              // ExecServerMessage: AgentService asks the "IDE" for context or to
+              // run a tool. Named MCP calls are the client's tool calls; every
+              // other exec is answered in-stream so the turn keeps going.
               if (serverMessage.has(2)) {
                 const execRequest = decodeMessage(serverMessage.get(2)[0].value);
-                if (execRequest.has(10)) {
-                  log?.info?.("CURSOR", "AgentService request_context ack");
-                  session.write(createRequestContextResponse(execRequest));
-                } else if (execRequest.has(11)) {
-                  const mcp = decodeMcpArgs(execRequest.get(11)[0].value);
-                  const name = mcp.toolName || mcp.name;
-                  if (name) {
-                    log?.info?.("CURSOR", `AgentService MCP tool_call ${name}`);
-                    finished = true;
-                    onEvent({
-                      type: "tool_call",
-                      value: {
-                        id: mcp.toolCallId || `call_${crypto.randomUUID()}`,
-                        name,
-                        arguments: JSON.stringify(mcp.args || {}),
-                      },
-                    });
-                    onEvent({ type: "done", finishReason: "tool_calls" });
-                  } else {
-                    debugLog(
-                      `[CURSOR AGENT] Unsupported exec request fields: ${[...execRequest.keys()].join(",")}`,
-                    );
-                    finished = true;
-                    onEvent({
-                      type: "error",
-                      value: "Cursor AgentService requested an unsupported IDE tool",
-                    });
-                  }
-                } else {
-                  // Auto/Composer often probe IDE builtins (shell/read/…). Reject
-                  // them so the model can continue with MCP tools or a text answer
-                  // instead of stalling the h2 stream.
-                  const rejection = rejectExecRequest(execRequest);
-                  if (rejection) {
-                    log?.info?.(
-                      "CURSOR",
-                      `AgentService rejected IDE exec fields=${[...execRequest.keys()].join(",")}`,
-                    );
-                    session.write(rejection);
-                  } else {
-                    debugLog(
-                      `[CURSOR AGENT] Unsupported exec request fields: ${[...execRequest.keys()].join(",")}`,
-                    );
-                    finished = true;
-                    onEvent({
-                      type: "error",
-                      value: "Cursor AgentService requested an unsupported IDE tool",
-                    });
-                  }
+                const mcp = execRequest.has(EXEC_VARIANT.MCP)
+                  ? decodeMcpArgs(execRequest.get(EXEC_VARIANT.MCP)[0].value)
+                  : null;
+                const toolName = mcp?.toolName || mcp?.name;
+                if (toolName) {
+                  log?.info?.("CURSOR", `AgentService MCP tool_call ${toolName}`);
+                  finished = true;
+                  onEvent({
+                    type: "tool_call",
+                    value: {
+                      id: mcp.toolCallId || `call_${crypto.randomUUID()}`,
+                      name: toolName,
+                      arguments: JSON.stringify(mcp.args || {}),
+                    },
+                  });
+                  onEvent({ type: "done", finishReason: "tool_calls" });
+                  return;
                 }
+                const reply = buildExecReply(execRequest, { tools });
+                if (!reply) {
+                  log?.warn?.(
+                    "CURSOR",
+                    `AgentService exec request has no tool variant fields=${[...execRequest.keys()].join(",")}`,
+                  );
+                  finished = true;
+                  onEvent({ type: "error", value: UNSUPPORTED_EXEC_ERROR });
+                  return;
+                }
+                if (reply.level === "warn") log?.warn?.("CURSOR", reply.message);
+                else log?.info?.("CURSOR", reply.message);
+                session.write(reply.frame);
               }
             },
             (trailer) => {
