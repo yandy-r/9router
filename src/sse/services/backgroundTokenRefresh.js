@@ -25,11 +25,7 @@ function isTruthyEnv(value) {
 function isNonServerRuntime() {
   if (typeof window !== "undefined") return true;
   const phase = process.env.NEXT_PHASE || "";
-  if (
-    phase === "phase-production-build" ||
-    phase === "phase-export" ||
-    phase === "phase-static"
-  ) {
+  if (phase === "phase-production-build" || phase === "phase-export" || phase === "phase-static") {
     return true;
   }
   // Next.js build / static generation markers
@@ -52,7 +48,9 @@ export function selectConnectionsNeedingRefresh(connections, nowMs = Date.now())
   for (const conn of connections) {
     if (!conn) continue;
 
-    const authType = String(conn.authType || "").toLowerCase().replace(/_/g, "");
+    const authType = String(conn.authType || "")
+      .toLowerCase()
+      .replace(/_/g, "");
     if (authType !== "oauth") continue;
     if (!conn.refreshToken) continue;
 
@@ -62,7 +60,7 @@ export function selectConnectionsNeedingRefresh(connections, nowMs = Date.now())
     const providerLead = getRefreshLeadMs(conn.provider);
     const leadMs = Math.max(
       Number.isFinite(providerLead) ? providerLead : 0,
-      BACKGROUND_REFRESH_LEAD_MS
+      BACKGROUND_REFRESH_LEAD_MS,
     );
 
     if (expiresAtMs - nowMs < leadMs) {

@@ -38,9 +38,7 @@ export default function Footer() {
                   />
                 </svg>
               </div>
-              <span className="text-xl font-bold text-text-main">
-                {APP_CONFIG.name}
-              </span>
+              <span className="text-xl font-bold text-text-main">{APP_CONFIG.name}</span>
             </div>
             <p className="text-text-muted mb-6 max-w-sm font-light">
               The unified interface for modern AI infrastructure. Secure, observable, and scalable.
@@ -129,4 +127,3 @@ export default function Footer() {
     </footer>
   );
 }
-

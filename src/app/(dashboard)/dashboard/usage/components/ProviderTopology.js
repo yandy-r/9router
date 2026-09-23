@@ -2,14 +2,7 @@
 
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import PropTypes from "prop-types";
-import {
-  ReactFlow,
-  Handle,
-  Position,
-  Controls,
-  BaseEdge,
-  getBezierPath,
-} from "@xyflow/react";
+import { ReactFlow, Handle, Position, Controls, BaseEdge, getBezierPath } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
@@ -43,10 +36,30 @@ function ProviderNode({ data }) {
         minWidth: "150px",
       }}
     >
-      <Handle type="target" position={Position.Top} id="top" className="!bg-transparent !border-0 !w-0 !h-0" />
-      <Handle type="target" position={Position.Bottom} id="bottom" className="!bg-transparent !border-0 !w-0 !h-0" />
-      <Handle type="target" position={Position.Left} id="left" className="!bg-transparent !border-0 !w-0 !h-0" />
-      <Handle type="target" position={Position.Right} id="right" className="!bg-transparent !border-0 !w-0 !h-0" />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top"
+        className="!bg-transparent !border-0 !w-0 !h-0"
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="bottom"
+        className="!bg-transparent !border-0 !w-0 !h-0"
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left"
+        className="!bg-transparent !border-0 !w-0 !h-0"
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="right"
+        className="!bg-transparent !border-0 !w-0 !h-0"
+      />
 
       {/* Provider icon */}
       <div
@@ -67,7 +80,9 @@ function ProviderNode({ data }) {
             }}
           />
         ) : (
-          <span className="text-sm font-bold" style={{ color }}>{textIcon}</span>
+          <span className="text-sm font-bold" style={{ color }}>
+            {textIcon}
+          </span>
         )}
       </div>
 
@@ -82,8 +97,14 @@ function ProviderNode({ data }) {
       {/* Active indicator */}
       {active && (
         <span className="relative flex h-2 w-2 shrink-0">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: color }} />
-          <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: color }} />
+          <span
+            className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+            style={{ backgroundColor: color }}
+          />
+          <span
+            className="relative inline-flex rounded-full h-2 w-2"
+            style={{ backgroundColor: color }}
+          />
         </span>
       )}
     </div>
@@ -105,10 +126,30 @@ function RouterNode({ data }) {
           : "border-primary bg-primary/5 shadow-md"
       }`}
     >
-      <Handle type="source" position={Position.Top} id="top" className="!bg-transparent !border-0 !w-0 !h-0" />
-      <Handle type="source" position={Position.Bottom} id="bottom" className="!bg-transparent !border-0 !w-0 !h-0" />
-      <Handle type="source" position={Position.Left} id="left" className="!bg-transparent !border-0 !w-0 !h-0" />
-      <Handle type="source" position={Position.Right} id="right" className="!bg-transparent !border-0 !w-0 !h-0" />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="top"
+        className="!bg-transparent !border-0 !w-0 !h-0"
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom"
+        className="!bg-transparent !border-0 !w-0 !h-0"
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="left"
+        className="!bg-transparent !border-0 !w-0 !h-0"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
+        className="!bg-transparent !border-0 !w-0 !h-0"
+      />
 
       <img
         src="/favicon.svg"
@@ -117,7 +158,9 @@ function RouterNode({ data }) {
         loading="lazy"
         decoding="async"
       />
-      <span className={`text-sm font-bold ${powering ? "topology-router-label text-yellow-300" : "text-primary"}`}>
+      <span
+        className={`text-sm font-bold ${powering ? "topology-router-label text-yellow-300" : "text-primary"}`}
+      >
         9Router
       </span>
       {data.activeCount > 0 && (
@@ -165,10 +208,27 @@ function TopologyEdge({
     <g className="topology-edge-electric">
       <defs>
         <filter id={filterId} x="-40%" y="-40%" width="180%" height="180%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="2" result="noise">
-            <animate attributeName="baseFrequency" values="0.8;1.4;0.8" dur="0.25s" repeatCount="indefinite" />
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.9"
+            numOctaves="2"
+            seed="2"
+            result="noise"
+          >
+            <animate
+              attributeName="baseFrequency"
+              values="0.8;1.4;0.8"
+              dur="0.25s"
+              repeatCount="indefinite"
+            />
           </feTurbulence>
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.5" xChannelSelector="R" yChannelSelector="G" />
+          <feDisplacementMap
+            in="SourceGraphic"
+            in2="noise"
+            scale="3.5"
+            xChannelSelector="R"
+            yChannelSelector="G"
+          />
         </filter>
       </defs>
       {/* Outer electric halo */}
@@ -219,12 +279,7 @@ function TopologyEdge({
       ))}
       {/* Electric sparks (short-lived blink along path) */}
       {Array.from({ length: SPARK_COUNT }, (_, i) => (
-        <circle
-          key={`${id}-s-${i}`}
-          r={1.8}
-          fill="#e0f2fe"
-          opacity={0}
-        >
+        <circle key={`${id}-s-${i}`} r={1.8} fill="#e0f2fe" opacity={0}>
           <animate
             attributeName="opacity"
             values="0;1;0;0;1;0"
@@ -275,7 +330,15 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
   const ry = Math.max(200, rx * 0.55); // ellipse ratio ~0.55
   if (count === 0) {
     return {
-      nodes: [{ id: "router", type: "router", position: { x: 0, y: 0 }, data: { activeCount: 0 }, draggable: false }],
+      nodes: [
+        {
+          id: "router",
+          type: "router",
+          position: { x: 0, y: 0 },
+          data: { activeCount: 0 },
+          draggable: false,
+        },
+      ],
       edges: [],
     };
   }
@@ -305,7 +368,8 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
     const error = !active && errorSet.has(p.provider?.toLowerCase());
     const nodeId = `provider-${p.provider}`;
     const data = {
-      label: (config.name !== p.provider ? config.name : null) || p.nodeName || p.name || p.provider,
+      label:
+        (config.name !== p.provider ? config.name : null) || p.nodeName || p.name || p.provider,
       color: config.color || "#6b7280",
       imageUrl: getProviderImageUrl(p.provider),
       textIcon: config.textIcon || (p.provider || "?").slice(0, 2).toUpperCase(),
@@ -319,14 +383,21 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
 
     // Pick router handle closest to the node direction
     let sourceHandle, targetHandle;
-    if (Math.abs(angle + Math.PI / 2) < Math.PI / 4 || Math.abs(angle - 3 * Math.PI / 2) < Math.PI / 4) {
-      sourceHandle = "top"; targetHandle = "bottom";
+    if (
+      Math.abs(angle + Math.PI / 2) < Math.PI / 4 ||
+      Math.abs(angle - (3 * Math.PI) / 2) < Math.PI / 4
+    ) {
+      sourceHandle = "top";
+      targetHandle = "bottom";
     } else if (Math.abs(angle - Math.PI / 2) < Math.PI / 4) {
-      sourceHandle = "bottom"; targetHandle = "top";
+      sourceHandle = "bottom";
+      targetHandle = "top";
     } else if (cx > 0) {
-      sourceHandle = "right"; targetHandle = "left";
+      sourceHandle = "right";
+      targetHandle = "left";
     } else {
-      sourceHandle = "left"; targetHandle = "right";
+      sourceHandle = "left";
+      targetHandle = "right";
     }
 
     nodes.push({
@@ -354,11 +425,21 @@ function buildLayout(providers, activeSet, lastSet, errorSet) {
   return { nodes, edges };
 }
 
-export default function ProviderTopology({ providers = [], activeRequests = [], lastProvider = "", errorProvider = "" }) {
+export default function ProviderTopology({
+  providers = [],
+  activeRequests = [],
+  lastProvider = "",
+  errorProvider = "",
+}) {
   // Serialize to stable string keys so useMemo only re-runs when values actually change
   const activeKey = useMemo(
-    () => activeRequests.map((r) => r.provider?.toLowerCase()).filter(Boolean).sort().join(","),
-    [activeRequests]
+    () =>
+      activeRequests
+        .map((r) => r.provider?.toLowerCase())
+        .filter(Boolean)
+        .sort()
+        .join(","),
+    [activeRequests],
   );
   const lastKey = lastProvider?.toLowerCase() || "";
   const errorKey = errorProvider?.toLowerCase() || "";
@@ -400,13 +481,17 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
 
   const { nodes, edges } = useMemo(
     () => buildLayout(providers, activeSet, lastSet, errorSet),
-    [providers, activeSet, lastSet, errorSet]
+    [providers, activeSet, lastSet, errorSet],
   );
 
   // Stable key — only remount when provider list changes
   const providersKey = useMemo(
-    () => providers.map((p) => p.provider).sort().join(","),
-    [providers]
+    () =>
+      providers
+        .map((p) => p.provider)
+        .sort()
+        .join(","),
+    [providers],
   );
 
   const rfInstance = useRef(null);
@@ -437,7 +522,10 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
   }, [nodes.length]);
 
   return (
-    <div ref={containerRef} className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]">
+    <div
+      ref={containerRef}
+      className="h-[320px] w-full min-w-0 rounded-lg border border-border bg-bg-subtle/30 sm:h-[480px]"
+    >
       {providers.length === 0 ? (
         <div className="h-full flex items-center justify-center text-text-muted text-sm">
           No providers connected
@@ -472,16 +560,20 @@ export default function ProviderTopology({ providers = [], activeRequests = [], 
 }
 
 ProviderTopology.propTypes = {
-  providers: PropTypes.arrayOf(PropTypes.shape({
-    id: PropTypes.string,
-    provider: PropTypes.string,
-    name: PropTypes.string,
-  })),
-  activeRequests: PropTypes.arrayOf(PropTypes.shape({
-    provider: PropTypes.string,
-    model: PropTypes.string,
-    account: PropTypes.string,
-  })),
+  providers: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.string,
+      provider: PropTypes.string,
+      name: PropTypes.string,
+    }),
+  ),
+  activeRequests: PropTypes.arrayOf(
+    PropTypes.shape({
+      provider: PropTypes.string,
+      model: PropTypes.string,
+      account: PropTypes.string,
+    }),
+  ),
   lastProvider: PropTypes.string,
   errorProvider: PropTypes.string,
 };

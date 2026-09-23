@@ -6,9 +6,7 @@ import { isLocalRequest } from "@/dashboardGuard";
 const fetchWithTimeout = (url, options, timeout = 10000) => {
   return Promise.race([
     fetch(url, options),
-    new Promise((_, reject) => 
-      setTimeout(() => reject(new Error("Request timeout")), timeout)
-    )
+    new Promise((_, reject) => setTimeout(() => reject(new Error("Request timeout")), timeout)),
   ]);
 };
 
@@ -24,12 +22,16 @@ const isValidUrl = (url) => {
 
 // Parse error details for user-friendly messages
 const getErrorMessage = (error) => {
-  if (error.cause?.code === "ECONNREFUSED") return "Connection refused - provider node offline or unreachable";
-  if (error.cause?.code === "ENOTFOUND") return "DNS lookup failed - invalid domain or network issue";
+  if (error.cause?.code === "ECONNREFUSED")
+    return "Connection refused - provider node offline or unreachable";
+  if (error.cause?.code === "ENOTFOUND")
+    return "DNS lookup failed - invalid domain or network issue";
   if (error.cause?.code === "ETIMEDOUT") return "Connection timeout - provider node too slow";
-  if (error.message.includes("timeout")) return "Request timeout (>10s) - provider node not responding";
+  if (error.message.includes("timeout"))
+    return "Request timeout (>10s) - provider node not responding";
   if (error.cause?.code === "CERT_HAS_EXPIRED") return "SSL certificate expired";
-  if (error.cause?.code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE") return "SSL certificate verification failed";
+  if (error.cause?.code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE")
+    return "SSL certificate verification failed";
   if (error.cause?.code) return `Network error: ${error.cause.code}`;
   return "Network connection failed - check URL and network connectivity";
 };
@@ -79,19 +81,24 @@ export async function POST(request) {
     if (type === "custom-embedding") {
       const normalizedBase = baseUrl.trim().replace(/\/$/, "");
       if (!modelId?.trim()) {
-        return NextResponse.json({ valid: false, error: "Model ID required for embedding validation" });
+        return NextResponse.json({
+          valid: false,
+          error: "Model ID required for embedding validation",
+        });
       }
       const embedRes = await fetchWithTimeout(`${normalizedBase}/embeddings`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ model: modelId.trim(), input: "ping" })
+        body: JSON.stringify({ model: modelId.trim(), input: "ping" }),
       });
       if (embedRes.ok) {
         const data = await embedRes.json().catch(() => null);
-        const dims = Array.isArray(data?.data?.[0]?.embedding) ? data.data[0].embedding.length : null;
+        const dims = Array.isArray(data?.data?.[0]?.embedding)
+          ? data.data[0].embedding.length
+          : null;
         return NextResponse.json({ valid: true, method: "embeddings", dimensions: dims });
       }
       if (embedRes.status === 401 || embedRes.status === 403) {
@@ -101,7 +108,7 @@ export async function POST(request) {
       return NextResponse.json({
         valid: false,
         error: `Embeddings request failed (${embedRes.status})${errBody ? `: ${errBody.slice(0, 200)}` : ""}`,
-        method: "embeddings"
+        method: "embeddings",
       });
     }
 
@@ -118,8 +125,8 @@ export async function POST(request) {
         headers: {
           "x-api-key": apiKey,
           "anthropic-version": "2023-06-01",
-          "Authorization": `Bearer ${apiKey}`
-        }
+          Authorization: `Bearer ${apiKey}`,
+        },
       });
 
       if (res.ok) return NextResponse.json({ valid: true });
@@ -134,16 +141,16 @@ export async function POST(request) {
         const chatRes = await fetchWithTimeout(`${normalizedBase}/chat/completions`, {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
             "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01"
+            "anthropic-version": "2023-06-01",
           },
           body: JSON.stringify({
             model: modelId,
             messages: [{ role: "user", content: "ping" }],
-            max_tokens: 1
-          })
+            max_tokens: 1,
+          }),
         });
         if (chatRes.ok) {
           return NextResponse.json({ valid: true, method: "chat" });
@@ -151,7 +158,7 @@ export async function POST(request) {
         return NextResponse.json({
           valid: false,
           error: getChatErrorMessage(chatRes.status),
-          method: "chat"
+          method: "chat",
         });
       }
 
@@ -161,7 +168,7 @@ export async function POST(request) {
     // OpenAI Compatible Validation (Default)
     const modelsUrl = `${baseUrl.replace(/\/$/, "")}/models`;
     const res = await fetchWithTimeout(modelsUrl, {
-      headers: { "Authorization": `Bearer ${apiKey}` },
+      headers: { Authorization: `Bearer ${apiKey}` },
     });
 
     if (res.ok) return NextResponse.json({ valid: true });
@@ -176,14 +183,14 @@ export async function POST(request) {
       const chatRes = await fetchWithTimeout(`${baseUrl.replace(/\/$/, "")}/chat/completions`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           model: modelId,
           messages: [{ role: "user", content: "ping" }],
-          max_tokens: 1
-        })
+          max_tokens: 1,
+        }),
       });
       if (chatRes.ok) {
         return NextResponse.json({ valid: true, method: "chat" });
@@ -191,7 +198,7 @@ export async function POST(request) {
       return NextResponse.json({
         valid: false,
         error: getChatErrorMessage(chatRes.status),
-        method: "chat"
+        method: "chat",
       });
     }
 
@@ -202,11 +209,14 @@ export async function POST(request) {
       message: error.message,
       cause: error.cause,
       code: error.cause?.code,
-      userMessage: errorMessage
+      userMessage: errorMessage,
     });
-    return NextResponse.json({ 
-      valid: false,
-      error: errorMessage 
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        valid: false,
+        error: errorMessage,
+      },
+      { status: 500 },
+    );
   }
 }

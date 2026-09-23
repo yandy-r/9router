@@ -11,7 +11,16 @@ initDbHooks(getSettings, updateSettings);
 const EXTENDED_PATH = `/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:${process.env.PATH || ""}`;
 
 function hasBrew() {
-  try { execSync("which brew", { stdio: "ignore", windowsHide: true, env: { ...process.env, PATH: EXTENDED_PATH } }); return true; } catch { return false; }
+  try {
+    execSync("which brew", {
+      stdio: "ignore",
+      windowsHide: true,
+      env: { ...process.env, PATH: EXTENDED_PATH },
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(request) {
@@ -21,7 +30,8 @@ export async function POST(request) {
   const isBrew = platform === "darwin" && hasBrew();
   const needsPassword = !isWindows && !isBrew;
 
-  const sudoPassword = body.sudoPassword || getCachedPassword() || await loadEncryptedPassword() || "";
+  const sudoPassword =
+    body.sudoPassword || getCachedPassword() || (await loadEncryptedPassword()) || "";
 
   if (needsPassword && !sudoPassword.trim()) {
     return new Response(JSON.stringify({ error: "Sudo password is required" }), {
@@ -52,12 +62,17 @@ export async function POST(request) {
         send("done", { success: true, authUrl: result?.authUrl || null });
       } catch (error) {
         console.error("Tailscale install error:", error);
-        const msg = error.message?.includes("incorrect password") || error.message?.includes("Sorry")
-          ? "Wrong sudo password"
-          : error.message;
+        const msg =
+          error.message?.includes("incorrect password") || error.message?.includes("Sorry")
+            ? "Wrong sudo password"
+            : error.message;
         send("error", { error: msg });
       } finally {
-        if (!closed) { try { controller.close(); } catch {} }
+        if (!closed) {
+          try {
+            controller.close();
+          } catch {}
+        }
       }
     },
   });
@@ -66,7 +81,7 @@ export async function POST(request) {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
     },
   });
 }

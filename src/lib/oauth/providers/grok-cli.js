@@ -54,9 +54,7 @@ const grokCli = {
     }
 
     // Device flow: 400 + authorization_pending is expected while user authorizes
-    const pending =
-      data?.error === "authorization_pending" ||
-      data?.error === "slow_down";
+    const pending = data?.error === "authorization_pending" || data?.error === "slow_down";
     return {
       ok: response.ok || pending,
       data,
@@ -86,14 +84,9 @@ const grokCli = {
       extractEmailFromAccessToken(tokens.access_token) ||
       extra?.user?.email ||
       null;
-    const userId =
-      extra?.user?.userId ||
-      extra?.user?.principalId ||
-      null;
-    const displayName = [extra?.user?.firstName, extra?.user?.lastName]
-      .filter(Boolean)
-      .join(" ")
-      .trim() || null;
+    const userId = extra?.user?.userId || extra?.user?.principalId || null;
+    const displayName =
+      [extra?.user?.firstName, extra?.user?.lastName].filter(Boolean).join(" ").trim() || null;
 
     const expiresAt = tokens.expires_in
       ? new Date(Date.now() + tokens.expires_in * 1000).toISOString()

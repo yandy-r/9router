@@ -26,7 +26,7 @@ export async function GET(request) {
     return NextResponse.redirect(authorizeUrl);
   } catch (error) {
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error.message || "saml_start_failed")}`, origin)
+      new URL(`/login?error=${encodeURIComponent(error.message || "saml_start_failed")}`, origin),
     );
   }
 }

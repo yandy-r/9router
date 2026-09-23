@@ -12,7 +12,14 @@ vi.mock("../../open-sse/utils/proxyFetch.js", () => ({
 const FREE_13 = "muse-spark-1.3-contributor-free";
 const CREDS = { connectionId: "opencode-free-tool-choice-test" };
 const INPUT = [{ type: "message", role: "user", content: [{ type: "input_text", text: "hi" }] }];
-const TOOLS = [{ type: "function", name: "get_weather", description: "w", parameters: { type: "object", properties: {} } }];
+const TOOLS = [
+  {
+    type: "function",
+    name: "get_weather",
+    description: "w",
+    parameters: { type: "object", properties: {} },
+  },
+];
 
 function responsesBody(model, tool_choice) {
   const body = { model, input: structuredClone(INPUT), tools: structuredClone(TOOLS) };
@@ -43,14 +50,20 @@ describe("opencode Free 1.3 tool_choice auto-only", () => {
 
   it("giữ auto và absent; tools/input nguyên vẹn", () => {
     const autoOut = new OpenCodeExecutor().transformRequest(
-      FREE_13, responsesBody(FREE_13, "auto"), true, CREDS,
+      FREE_13,
+      responsesBody(FREE_13, "auto"),
+      true,
+      CREDS,
     );
     expect(autoOut.tool_choice).toBe("auto");
     expect(autoOut.tools).toEqual(TOOLS);
     expect(autoOut.input).toEqual(INPUT);
 
     const absentOut = new OpenCodeExecutor().transformRequest(
-      FREE_13, responsesBody(FREE_13, undefined), true, CREDS,
+      FREE_13,
+      responsesBody(FREE_13, undefined),
+      true,
+      CREDS,
     );
     expect("tool_choice" in absentOut).toBe(false);
     expect(absentOut.tools).toEqual(TOOLS);
@@ -74,7 +87,10 @@ describe("opencode Free 1.3 tool_choice auto-only", () => {
     const ex = new OpenCodeExecutor();
     const body = responsesBody(FREE_13, { type: "function", name: "get_weather" });
     const { url, transformedBody } = await ex.execute({
-      model: FREE_13, body, stream: true, credentials: CREDS,
+      model: FREE_13,
+      body,
+      stream: true,
+      credentials: CREDS,
     });
     expect(url).toBe("https://opencode.ai/zen/v1/responses");
     expect(transformedBody.tool_choice).toBe("auto");

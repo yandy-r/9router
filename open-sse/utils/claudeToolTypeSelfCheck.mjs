@@ -13,8 +13,12 @@ function run(name, fn) {
   }
 }
 const assert = {
-  equal(a, b, msg) { if (a !== b) throw new Error(`${msg || ""} expected ${b}, got ${a}`); },
-  ok(v, msg) { if (!v) throw new Error(msg || "expected truthy"); },
+  equal(a, b, msg) {
+    if (a !== b) throw new Error(`${msg || ""} expected ${b}, got ${a}`);
+  },
+  ok(v, msg) {
+    if (!v) throw new Error(msg || "expected truthy");
+  },
 };
 
 // 1. Tool without `type` property → defaults to "custom"
@@ -108,7 +112,7 @@ run("Array with null entry defaults to custom", () => {
 });
 
 // Summary
-const passed = results.filter(r => r.ok).length;
+const passed = results.filter((r) => r.ok).length;
 const total = results.length;
 for (const r of results) {
   console.log(`${r.ok ? "ok" : "FAIL"} - ${r.name}${r.ok ? "" : ` :: ${r.err}`}`);

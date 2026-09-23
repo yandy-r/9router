@@ -95,7 +95,14 @@ export async function GET() {
     // of the IDC region, so we normalize the region in the ARN to us-east-1.
     let profileArn = null;
     const kiroProfilePaths = [
-      join(process.env.APPDATA || join(homedir(), "AppData", "Roaming"), "Kiro", "User", "globalStorage", "kiro.kiroagent", "profile.json"),
+      join(
+        process.env.APPDATA || join(homedir(), "AppData", "Roaming"),
+        "Kiro",
+        "User",
+        "globalStorage",
+        "kiro.kiroagent",
+        "profile.json",
+      ),
       join(homedir(), ".config", "Kiro", "User", "globalStorage", "kiro.kiroagent", "profile.json"),
     ];
     for (const profilePath of kiroProfilePaths) {
@@ -104,7 +111,10 @@ export async function GET() {
         const profileData = JSON.parse(profileContent);
         if (profileData.arn) {
           // Normalize region to us-east-1 for the runtime gateway
-          profileArn = profileData.arn.replace(/arn:aws:codewhisperer:[^:]+:/, "arn:aws:codewhisperer:us-east-1:");
+          profileArn = profileData.arn.replace(
+            /arn:aws:codewhisperer:[^:]+:/,
+            "arn:aws:codewhisperer:us-east-1:",
+          );
           break;
         }
       } catch (error) {
@@ -124,9 +134,6 @@ export async function GET() {
     });
   } catch (error) {
     console.log("Kiro auto-import error:", error);
-    return NextResponse.json(
-      { found: false, error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ found: false, error: error.message }, { status: 500 });
   }
 }

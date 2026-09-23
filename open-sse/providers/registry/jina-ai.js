@@ -9,14 +9,12 @@ export default {
     website: "https://jina.ai",
     notice: {
       text: "10M free tokens on signup (non-commercial), no credit card required.",
-      apiKeyUrl: "https://jina.ai/?sui=apikey"
-    }
+      apiKeyUrl: "https://jina.ai/?sui=apikey",
+    },
   },
   category: "apikey",
   authType: "apikey",
-  serviceKinds: [
-    "embedding"
-  ],
+  serviceKinds: ["embedding"],
   embeddingConfig: {
     baseUrl: "https://api.jina.ai/v1/embeddings",
     authType: "apikey",
@@ -25,18 +23,18 @@ export default {
       {
         id: "jina-embeddings-v3",
         name: "Jina Embeddings v3",
-        dimensions: 1024
+        dimensions: 1024,
       },
       {
         id: "jina-embeddings-v2-base-en",
         name: "Jina Embeddings v2 Base EN",
-        dimensions: 768
+        dimensions: 768,
       },
       {
         id: "jina-embeddings-v2-base-code",
         name: "Jina Embeddings v2 Base Code",
-        dimensions: 768
-      }
-    ]
-  }
+        dimensions: 768,
+      },
+    ],
+  },
 };

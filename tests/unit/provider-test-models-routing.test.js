@@ -39,20 +39,30 @@ describe("provider test-models route kind routing", () => {
     mocks.getConsistentMachineId.mockResolvedValue("cli-token");
     global.fetch = vi.fn((url) => {
       if (String(url).includes("/api/v1/images/generations")) {
-        return Promise.resolve(new Response(JSON.stringify({
-          created: 1,
-          data: [{ b64_json: "abc" }],
-        }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }));
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              created: 1,
+              data: [{ b64_json: "abc" }],
+            }),
+            {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            },
+          ),
+        );
       }
-      return Promise.resolve(new Response(JSON.stringify({
-        choices: [{ message: { role: "assistant", content: "ok" } }],
-      }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }));
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { role: "assistant", content: "ok" } }],
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          },
+        ),
+      );
     });
   });
 
@@ -72,12 +82,14 @@ describe("provider test-models route kind routing", () => {
     const body = await res.json();
 
     expect(body.provider).toBe("huggingface");
-    expect(body.results.some((r) => r.modelId === "black-forest-labs/FLUX.1-schnell" && r.ok)).toBe(true);
+    expect(body.results.some((r) => r.modelId === "black-forest-labs/FLUX.1-schnell" && r.ok)).toBe(
+      true,
+    );
     expect(global.fetch).toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/images/generations"),
       expect.objectContaining({
         method: "POST",
-      })
+      }),
     );
   });
 });

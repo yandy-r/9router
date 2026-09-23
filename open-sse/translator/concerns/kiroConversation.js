@@ -76,13 +76,21 @@ function cleanSchemaValue(value) {
 function normalizeRootSchema(schema) {
   const cleaned = cleanSchemaValue(schema && typeof schema === "object" ? clone(schema) : {});
   cleaned.type = "object";
-  if (!cleaned.properties || typeof cleaned.properties !== "object" || Array.isArray(cleaned.properties)) {
+  if (
+    !cleaned.properties ||
+    typeof cleaned.properties !== "object" ||
+    Array.isArray(cleaned.properties)
+  ) {
     cleaned.properties = {};
   }
   if (Array.isArray(cleaned.required)) {
-    cleaned.required = [...new Set(cleaned.required.filter(
-      (name) => typeof name === "string" && Object.hasOwn(cleaned.properties, name)
-    ))];
+    cleaned.required = [
+      ...new Set(
+        cleaned.required.filter(
+          (name) => typeof name === "string" && Object.hasOwn(cleaned.properties, name),
+        ),
+      ),
+    ];
     if (cleaned.required.length === 0) delete cleaned.required;
   }
   return cleaned;
@@ -107,7 +115,7 @@ export function normalizeKiroToolSpecs(tools) {
     const rawDescription = tool.function?.description ?? tool.description ?? `Tool: ${rawName}`;
     const description = trimCodePoints(
       String(rawDescription || `Tool: ${rawName}`),
-      KIRO_TOOL_DESCRIPTION_MAX_LENGTH
+      KIRO_TOOL_DESCRIPTION_MAX_LENGTH,
     );
     const schema = tool.function?.parameters ?? tool.parameters ?? tool.input_schema ?? {};
     specs.push({
@@ -128,7 +136,10 @@ function toolCallText(toolUse) {
 
 function toolResultText(toolResult) {
   const content = Array.isArray(toolResult?.content)
-    ? toolResult.content.map((part) => text(part?.text ?? part)).filter(Boolean).join("\n")
+    ? toolResult.content
+        .map((part) => text(part?.text ?? part))
+        .filter(Boolean)
+        .join("\n")
     : text(toolResult?.content);
   return `[Tool result${toolResult?.status === "error" ? " (error)" : ""}: ${content}]`;
 }
@@ -187,8 +198,11 @@ function normalizeTurns(history, currentMessage, modelId) {
 
   for (const turn of turns) {
     if (turn.userInputMessage) {
-      turn.userInputMessage.content = text(turn.userInputMessage.content).trim()
-        || kiroEmptyUserContent(turn.userInputMessage.userInputMessageContext?.toolResults?.length > 0);
+      turn.userInputMessage.content =
+        text(turn.userInputMessage.content).trim() ||
+        kiroEmptyUserContent(
+          turn.userInputMessage.userInputMessageContext?.toolResults?.length > 0,
+        );
       turn.userInputMessage.modelId ||= modelId;
       if (turn.userInputMessage.userInputMessageContext?.tools) {
         delete turn.userInputMessage.userInputMessageContext.tools;
@@ -210,7 +224,7 @@ function reserveToolId(value, turnIndex, callIndex, name, usedIds) {
   const generated = `call_msg${turnIndex}_tc${callIndex}_${name || "tool"}`;
   const base = trimCodePoints(
     TOOL_ID_PATTERN.test(sanitized) && sanitized ? sanitized : generated,
-    KIRO_TOOL_ID_MAX_LENGTH
+    KIRO_TOOL_ID_MAX_LENGTH,
   );
   let candidate = base;
   let suffix = 2;
@@ -314,7 +328,7 @@ function reconcileToolPair(assistant, user, turnIndex, nameMap, specNames, usedI
       turnIndex,
       record.callIndex,
       record.mappedName,
-      usedIds
+      usedIds,
     );
     keptCalls.push({
       toolUseId,
@@ -350,7 +364,8 @@ export function validateKiroConversation(history, currentMessage, toolSpecs = []
     if (isUser !== expectedUser) errors.push(`role:${index}`);
     if (!isUser) {
       const calls = turns[index].assistantResponseMessage?.toolUses || [];
-      const results = turns[index + 1]?.userInputMessage?.userInputMessageContext?.toolResults || [];
+      const results =
+        turns[index + 1]?.userInputMessage?.userInputMessageContext?.toolResults || [];
       const callIds = calls.map((call) => call.toolUseId);
       const resultIds = results.map((result) => result.toolUseId);
       if (calls.length !== results.length || callIds.some((id) => !resultIds.includes(id))) {

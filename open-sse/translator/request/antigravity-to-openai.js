@@ -13,7 +13,7 @@ export function antigravityToOpenAIRequest(model, body, stream) {
   const result = {
     model: model,
     messages: [],
-    stream: stream
+    stream: stream,
   };
 
   // Generation config
@@ -73,8 +73,11 @@ export function antigravityToOpenAIRequest(model, body, stream) {
             function: {
               name: func.name,
               description: func.description || "",
-              parameters: normalizeSchemaTypes(func.parameters) || { type: "object", properties: {} }
-            }
+              parameters: normalizeSchemaTypes(func.parameters) || {
+                type: "object",
+                properties: {},
+              },
+            },
           });
         }
       }
@@ -91,14 +94,12 @@ function normalizeSchemaTypes(schema) {
 
   const result = Array.isArray(schema) ? [...schema] : { ...schema };
 
-
   if (typeof result.type === "string") {
     result.type = result.type.toLowerCase();
   }
 
   // Strip enumDescriptions — not supported by upstream APIs
   delete result.enumDescriptions;
-
 
   if (result.properties) {
     const normalized = {};
@@ -118,7 +119,12 @@ function normalizeSchemaTypes(schema) {
 // Convert Antigravity content to OpenAI message
 // Handles: text, thought, thoughtSignature, functionCall, functionResponse, inlineData
 function convertContent(content) {
-  const role = content.role === GEMINI_ROLE.MODEL ? ROLE.ASSISTANT : content.role === GEMINI_ROLE.USER ? ROLE.USER : content.role;
+  const role =
+    content.role === GEMINI_ROLE.MODEL
+      ? ROLE.ASSISTANT
+      : content.role === GEMINI_ROLE.USER
+        ? ROLE.USER
+        : content.role;
 
   if (!content.parts || !Array.isArray(content.parts)) {
     return null;
@@ -154,8 +160,8 @@ function convertContent(content) {
       textParts.push({
         type: OPENAI_BLOCK.IMAGE_URL,
         image_url: {
-          url: encodeDataUri(part.inlineData.mimeType, part.inlineData.data)
-        }
+          url: encodeDataUri(part.inlineData.mimeType, part.inlineData.data),
+        },
       });
     }
 
@@ -167,8 +173,8 @@ function convertContent(content) {
         type: OPENAI_BLOCK.FUNCTION,
         function: {
           name: part.functionCall.name,
-          arguments: JSON.stringify(part.functionCall.args || {})
-        }
+          arguments: JSON.stringify(part.functionCall.args || {}),
+        },
       });
     }
 
@@ -177,7 +183,9 @@ function convertContent(content) {
       toolResults.push({
         role: ROLE.TOOL,
         tool_call_id: part.functionResponse.id || `call_${part.functionResponse.name}`,
-        content: JSON.stringify(part.functionResponse.response?.result || part.functionResponse.response || {})
+        content: JSON.stringify(
+          part.functionResponse.response?.result || part.functionResponse.response || {},
+        ),
       });
     }
   }
@@ -233,7 +241,7 @@ function convertContent(content) {
 function extractText(instruction) {
   if (typeof instruction === "string") return instruction;
   if (instruction.parts && Array.isArray(instruction.parts)) {
-    return instruction.parts.map(p => p.text || "").join("");
+    return instruction.parts.map((p) => p.text || "").join("");
   }
   return "";
 }

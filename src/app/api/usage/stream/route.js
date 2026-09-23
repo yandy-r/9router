@@ -4,7 +4,13 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const encoder = new TextEncoder();
-  const state = { closed: false, keepalive: null, send: null, sendPending: null, cachedStats: null };
+  const state = {
+    closed: false,
+    keepalive: null,
+    send: null,
+    sendPending: null,
+    cachedStats: null,
+  };
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -15,7 +21,12 @@ export async function GET() {
           // Push lightweight update immediately so UI reflects changes fast
           if (state.cachedStats) {
             const { activeRequests, recentRequests, errorProvider } = await getActiveRequests();
-            const quickStats = { ...state.cachedStats, activeRequests, recentRequests, errorProvider };
+            const quickStats = {
+              ...state.cachedStats,
+              activeRequests,
+              recentRequests,
+              errorProvider,
+            };
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(quickStats)}\n\n`));
           }
           // Then do full recalc and update cache
@@ -51,7 +62,10 @@ export async function GET() {
       statsEmitter.on("pending", state.sendPending);
 
       state.keepalive = setInterval(() => {
-        if (state.closed) { clearInterval(state.keepalive); return; }
+        if (state.closed) {
+          clearInterval(state.keepalive);
+          return;
+        }
         try {
           controller.enqueue(encoder.encode(": ping\n\n"));
         } catch {

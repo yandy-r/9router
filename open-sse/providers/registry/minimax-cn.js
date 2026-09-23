@@ -68,8 +68,13 @@ export default {
     { id: "speech-01-hd", name: "Speech 01 HD", kind: "tts" },
     { id: "speech-01-turbo", name: "Speech 01 Turbo", kind: "tts" },
   ],
-  serviceKinds: ["llm","tts"],
-  ttsConfig: { baseUrl: "https://api.minimaxi.com/v1/t2a_v2", authType: "apikey", authHeader: "bearer", format: "minimax-tts" },
+  serviceKinds: ["llm", "tts"],
+  ttsConfig: {
+    baseUrl: "https://api.minimaxi.com/v1/t2a_v2",
+    authType: "apikey",
+    authHeader: "bearer",
+    format: "minimax-tts",
+  },
   features: {
     usage: true,
     usageApikey: true,

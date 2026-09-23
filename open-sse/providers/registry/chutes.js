@@ -2,9 +2,7 @@ export default {
   id: "chutes",
   priority: 70,
   alias: "chutes",
-  aliases: [
-    "ch",
-  ],
+  aliases: ["ch"],
   uiAlias: "ch",
   display: {
     name: "Chutes AI",

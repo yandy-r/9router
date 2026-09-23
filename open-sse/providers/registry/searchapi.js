@@ -8,14 +8,12 @@ export default {
     textIcon: "SA",
     website: "https://www.searchapi.io",
     notice: {
-      apiKeyUrl: "https://www.searchapi.io/dashboard"
-    }
+      apiKeyUrl: "https://www.searchapi.io/dashboard",
+    },
   },
   category: "apikey",
   authType: "apikey",
-  serviceKinds: [
-    "webSearch"
-  ],
+  serviceKinds: ["webSearch"],
   searchConfig: {
     baseUrl: "https://www.searchapi.io/api/v1/search",
     method: "GET",
@@ -23,13 +21,10 @@ export default {
     authHeader: "api_key",
     costPerQuery: 0.004,
     freeMonthlyQuota: 100,
-    searchTypes: [
-      "web",
-      "news"
-    ],
+    searchTypes: ["web", "news"],
     defaultMaxResults: 5,
     maxMaxResults: 100,
     timeoutMs: 10000,
-    cacheTTLMs: 300000
-  }
+    cacheTTLMs: 300000,
+  },
 };

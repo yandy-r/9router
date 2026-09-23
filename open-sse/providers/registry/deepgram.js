@@ -2,9 +2,7 @@ export default {
   id: "deepgram",
   priority: 20,
   alias: "deepgram",
-  aliases: [
-    "dg",
-  ],
+  aliases: ["dg"],
   uiAlias: "dg",
   display: {
     name: "Deepgram",
@@ -29,5 +27,10 @@ export default {
     { id: "nova", name: "Nova", kind: "stt" },
   ],
   serviceKinds: ["stt"],
-  sttConfig: { baseUrl: "https://api.deepgram.com/v1/listen", authType: "apikey", authHeader: "token", format: "deepgram" },
+  sttConfig: {
+    baseUrl: "https://api.deepgram.com/v1/listen",
+    authType: "apikey",
+    authHeader: "token",
+    format: "deepgram",
+  },
 };

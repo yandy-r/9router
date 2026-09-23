@@ -39,7 +39,7 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
     const numValue = parseFloat(value);
     if (isNaN(numValue) || numValue < 0) return;
 
-    setPricingData(prev => {
+    setPricingData((prev) => {
       const newData = { ...prev };
       if (!newData[provider]) newData[provider] = {};
       if (!newData[provider][model]) newData[provider][model] = {};
@@ -54,7 +54,7 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
       const response = await fetch("/api/pricing", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pricingData)
+        body: JSON.stringify(pricingData),
       });
 
       if (response.ok) {
@@ -123,7 +123,7 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
               </div>
 
               {/* Pricing Tables */}
-              {allProviders.map(provider => {
+              {allProviders.map((provider) => {
                 const models = Object.keys(pricingData[provider]).sort();
                 return (
                   <div key={provider} className="border border-border rounded-lg overflow-hidden">
@@ -143,17 +143,19 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                          {models.map(model => (
+                          {models.map((model) => (
                             <tr key={model} className="hover:bg-bg-subtle/50">
                               <td className="px-3 py-2 font-medium">{model}</td>
-                              {pricingFields.map(field => (
+                              {pricingFields.map((field) => (
                                 <td key={field} className="px-3 py-2">
                                   <input
                                     type="number"
                                     step="0.01"
                                     min="0"
                                     value={pricingData[provider][model][field] || 0}
-                                    onChange={(e) => handlePricingChange(provider, model, field, e.target.value)}
+                                    onChange={(e) =>
+                                      handlePricingChange(provider, model, field, e.target.value)
+                                    }
                                     className="w-20 px-2 py-1 text-right bg-bg-base border border-border rounded focus:outline-none focus:border-primary"
                                   />
                                 </td>
@@ -168,9 +170,7 @@ export default function PricingModal({ isOpen, onClose, onSave }) {
               })}
 
               {allProviders.length === 0 && (
-                <div className="text-center py-8 text-text-muted">
-                  No pricing data available
-                </div>
+                <div className="text-center py-8 text-text-muted">No pricing data available</div>
               )}
             </div>
           )}

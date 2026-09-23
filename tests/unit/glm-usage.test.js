@@ -99,7 +99,7 @@ describe("getGlmUsage and getUsageForProvider(glm)", () => {
       unlimited: false,
     });
     expect(usage.quotas["Weekly (7d)"]).toEqual({
-      used: 100 ? 10 : 10,
+      used: 10,
       total: 100,
       remaining: 90,
       remainingPercentage: 90,
@@ -144,7 +144,7 @@ describe("getGlmUsage and getUsageForProvider(glm)", () => {
           ],
           level: "pro",
         },
-      })
+      }),
     );
 
     const usage = await getGlmUsage("glm-key", "glm");

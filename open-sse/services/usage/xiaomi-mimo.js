@@ -19,7 +19,11 @@ const USAGE_URL = "https://aistudio.xiaomimimo.com/open-apis/v1/user/usage";
  * @param {object|null} providerSpecificData - may contain mimoPassToken, uid, etc.
  * @param {object|null} proxyOptions
  */
-export async function getXiaomiMimoUsage(accessToken = null, providerSpecificData = null, proxyOptions = null) {
+export async function getXiaomiMimoUsage(
+  accessToken = null,
+  providerSpecificData = null,
+  proxyOptions = null,
+) {
   // Preferred path: the weekly quota comes from the account service session
   // (mimo-server /api/user/usage), which the sk- key cannot reach. The session is
   // derived from MiMo Desktop's persisted passToken via the SSO/sts handshake.

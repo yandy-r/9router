@@ -18,7 +18,7 @@ export const PASTE_TOKEN_PROVIDERS = {
   windsurf: {
     label: "Windsurf API key",
     instructions:
-      "In the Windsurf/VS Code IDE, run the \"Windsurf: Provide Auth Token\" command, then copy the displayed sk-ws-... key.",
+      'In the Windsurf/VS Code IDE, run the "Windsurf: Provide Auth Token" command, then copy the displayed sk-ws-... key.',
     placeholder: "Paste sk-ws-... key here...",
     ideName: "Windsurf",
     ideOptional: false,
@@ -27,7 +27,9 @@ export const PASTE_TOKEN_PROVIDERS = {
 
 function modeTabClass(active) {
   return `flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${
-    active ? "border-primary bg-primary/10 text-primary" : "border-border text-text-muted hover:text-primary"
+    active
+      ? "border-primary bg-primary/10 text-primary"
+      : "border-border text-text-muted hover:text-primary"
   }`;
 }
 
@@ -60,10 +62,18 @@ export default function ProxyOAuthPanel({
     <>
       {pasteConfig && (
         <div className="flex gap-2">
-          <button type="button" onClick={onSelectBrowser} className={modeTabClass(authMode === "browser")}>
+          <button
+            type="button"
+            onClick={onSelectBrowser}
+            className={modeTabClass(authMode === "browser")}
+          >
             🌐 Sign in with browser
           </button>
-          <button type="button" onClick={onSelectPasteToken} className={modeTabClass(authMode === "paste-token")}>
+          <button
+            type="button"
+            onClick={onSelectPasteToken}
+            className={modeTabClass(authMode === "paste-token")}
+          >
             🔑 Paste token
           </button>
         </div>
@@ -73,22 +83,30 @@ export default function ProxyOAuthPanel({
         <>
           {step === "waiting" ? (
             <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg bg-sidebar/50">
-              <span className="material-symbols-outlined text-base text-primary animate-spin">progress_activity</span>
+              <span className="material-symbols-outlined text-base text-primary animate-spin">
+                progress_activity
+              </span>
               <span className="text-sm">Waiting for browser authorization…</span>
             </div>
           ) : (
-            <p className="text-sm text-text-muted">Popup was blocked. Open the sign-in URL below in your browser.</p>
+            <p className="text-sm text-text-muted">
+              Popup was blocked. Open the sign-in URL below in your browser.
+            </p>
           )}
 
           <div className="flex items-center gap-3 my-1">
             <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-text-muted uppercase tracking-wider">Or paste callback URL manually</span>
+            <span className="text-xs text-text-muted uppercase tracking-wider">
+              Or paste callback URL manually
+            </span>
             <div className="flex-1 h-px bg-border" />
           </div>
 
           <div className="space-y-4">
             <div>
-              <p className="text-sm font-medium mb-2">Step 1: Open this sign-in URL in your browser</p>
+              <p className="text-sm font-medium mb-2">
+                Step 1: Open this sign-in URL in your browser
+              </p>
               <div className="flex gap-2">
                 <Input value={authUrl || ""} readOnly className="flex-1 font-mono text-xs" />
                 <Button
@@ -104,9 +122,9 @@ export default function ProxyOAuthPanel({
             <div>
               <p className="text-sm font-medium mb-2">Step 2: Paste the callback URL here</p>
               <p className="text-xs text-text-muted mb-2">
-                After signing in, the browser is sent to a http://127.0.0.1:… address. If that page does not load
-                (for example when 9router runs in Docker or on another machine), copy the full URL from the address
-                bar and paste it here.
+                After signing in, the browser is sent to a http://127.0.0.1:… address. If that page
+                does not load (for example when 9router runs in Docker or on another machine), copy
+                the full URL from the address bar and paste it here.
               </p>
               <Input
                 value={callbackUrl}
@@ -118,8 +136,12 @@ export default function ProxyOAuthPanel({
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={onSubmit} fullWidth disabled={!callbackUrl.trim()}>Connect</Button>
-            <Button onClick={onCancel} variant="ghost" fullWidth>Cancel</Button>
+            <Button onClick={onSubmit} fullWidth disabled={!callbackUrl.trim()}>
+              Connect
+            </Button>
+            <Button onClick={onCancel} variant="ghost" fullWidth>
+              Cancel
+            </Button>
           </div>
         </>
       )}
@@ -127,7 +149,9 @@ export default function ProxyOAuthPanel({
       {authMode === "paste-token" && pasteConfig && (
         <div className="space-y-3">
           {ideStatus && !ideStatus.installed && (
-            <div className={`px-3 py-2 rounded-lg text-sm ${pasteConfig.ideOptional ? "bg-blue-500/10 text-blue-700 dark:text-blue-300" : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"}`}>
+            <div
+              className={`px-3 py-2 rounded-lg text-sm ${pasteConfig.ideOptional ? "bg-blue-500/10 text-blue-700 dark:text-blue-300" : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"}`}
+            >
               {pasteConfig.ideName} IDE not detected.
               {pasteConfig.ideOptional
                 ? " You can still grab the token from DevTools."
@@ -142,8 +166,12 @@ export default function ProxyOAuthPanel({
             className="font-mono text-xs"
           />
           <div className="flex gap-2">
-            <Button onClick={onSubmit} fullWidth disabled={!pasteToken.trim()}>Connect</Button>
-            <Button onClick={onCancel} variant="ghost" fullWidth>Cancel</Button>
+            <Button onClick={onSubmit} fullWidth disabled={!pasteToken.trim()}>
+              Connect
+            </Button>
+            <Button onClick={onCancel} variant="ghost" fullWidth>
+              Cancel
+            </Button>
           </div>
         </div>
       )}

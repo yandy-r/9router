@@ -26,7 +26,7 @@ describe("Antigravity IDE version override", () => {
     const result = applyAntigravityIdeVersionOverride(
       bodyBuffer,
       headers,
-      "/v1internal:fetchAvailableModels"
+      "/v1internal:fetchAvailableModels",
     );
 
     expect(result.applied).toBe(false);
@@ -45,25 +45,33 @@ describe("Antigravity IDE version override", () => {
       const result = applyAntigravityIdeVersionOverride(
         bodyBuffer,
         headers,
-        `/v1internal/models/gemini-3.7-flash-tiered${endpoint}`
+        `/v1internal/models/gemini-3.7-flash-tiered${endpoint}`,
       );
 
       expect(result.applied).toBe(true);
       expect(result.bodyBuffer).not.toBe(bodyBuffer);
       expect(result.headers["user-agent"]).toBe(`antigravity/${ANTIGRAVITY_IDE_VERSION}`);
-      expect(JSON.parse(result.bodyBuffer.toString()).metadata.ideVersion).toBe(ANTIGRAVITY_IDE_VERSION);
-    }
+      expect(JSON.parse(result.bodyBuffer.toString()).metadata.ideVersion).toBe(
+        ANTIGRAVITY_IDE_VERSION,
+      );
+    },
   );
 
   it("preserves malformed non-generation request content byte-for-byte", () => {
-    const bodyBuffer = Buffer.from([0xff, 0x00, 0x7b, 0x6e, 0x6f, 0x74, 0x2d, 0x6a, 0x73, 0x6f, 0x6e]);
+    const bodyBuffer = Buffer.from([
+      0xff, 0x00, 0x7b, 0x6e, 0x6f, 0x74, 0x2d, 0x6a, 0x73, 0x6f, 0x6e,
+    ]);
     const headers = {
       "content-type": "application/octet-stream",
       "content-length": String(bodyBuffer.length),
       "user-agent": `antigravity/${CURRENT_VERSION}`,
     };
 
-    const result = applyAntigravityIdeVersionOverride(bodyBuffer, headers, "/v1internal:loadCodeAssist");
+    const result = applyAntigravityIdeVersionOverride(
+      bodyBuffer,
+      headers,
+      "/v1internal:loadCodeAssist",
+    );
 
     expect(result.applied).toBe(false);
     expect(result.bodyBuffer).toBe(bodyBuffer);
@@ -72,12 +80,15 @@ describe("Antigravity IDE version override", () => {
 
   it("does not synthesize missing Antigravity identity", () => {
     const bodyBuffer = Buffer.from(JSON.stringify({ metadata: {}, request: { contents: [] } }));
-    const headers = { "content-type": "application/json", "content-length": String(bodyBuffer.length) };
+    const headers = {
+      "content-type": "application/json",
+      "content-length": String(bodyBuffer.length),
+    };
 
     const result = applyAntigravityIdeVersionOverride(
       bodyBuffer,
       headers,
-      "/v1internal/models/gemini-3.7-flash-tiered:generateContent"
+      "/v1internal/models/gemini-3.7-flash-tiered:generateContent",
     );
 
     expect(result.applied).toBe(false);

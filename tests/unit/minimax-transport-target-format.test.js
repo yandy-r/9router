@@ -7,11 +7,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  executeMock,
-  translateRequestMock,
-  handleNonStreamingResponseMock,
-} = vi.hoisted(() => ({
+const { executeMock, translateRequestMock, handleNonStreamingResponseMock } = vi.hoisted(() => ({
   executeMock: vi.fn(),
   translateRequestMock: vi.fn((sourceFormat, targetFormat, model, body) => ({
     ...body,
@@ -157,10 +153,12 @@ describe("MiniMax-M3 multi-transport routing", () => {
     const body = {
       model: "minimax-cn/MiniMax-M3",
       stream: false,
-      messages: [{
-        role: "user",
-        content: [{ type: "text", text: "Describe this image" }, imageBlock],
-      }],
+      messages: [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Describe this image" }, imageBlock],
+        },
+      ],
     };
 
     const { handleChatCore } = await import("../../open-sse/handlers/chatCore.js");

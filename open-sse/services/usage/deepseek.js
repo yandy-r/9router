@@ -13,24 +13,14 @@ function parseBalanceInfos(data) {
   const results = [];
   for (const item of list) {
     if (!item || typeof item !== "object") continue;
-    const currency =
-      typeof item.currency === "string" ? item.currency.toUpperCase() : "";
+    const currency = typeof item.currency === "string" ? item.currency.toUpperCase() : "";
     if (!currency) continue;
-    const totalBalance = toFiniteNumber(
-      item.total_balance ?? item.totalBalance,
-      0,
-    );
+    const totalBalance = toFiniteNumber(item.total_balance ?? item.totalBalance, 0);
     results.push({
       currency,
       totalBalance,
-      grantedBalance: toFiniteNumber(
-        item.granted_balance ?? item.grantedBalance,
-        0,
-      ),
-      toppedUpBalance: toFiniteNumber(
-        item.topped_up_balance ?? item.toppedUpBalance,
-        0,
-      ),
+      grantedBalance: toFiniteNumber(item.granted_balance ?? item.grantedBalance, 0),
+      toppedUpBalance: toFiniteNumber(item.topped_up_balance ?? item.toppedUpBalance, 0),
     });
   }
   return results;

@@ -33,7 +33,7 @@ export async function handleEmbeddingsCore({
   if (!adapter) {
     return createErrorResult(
       HTTP_STATUS.BAD_REQUEST,
-      `Provider '${provider}' does not support embeddings.`
+      `Provider '${provider}' does not support embeddings.`,
     );
   }
 
@@ -57,7 +57,10 @@ export async function handleEmbeddingsCore({
     return createErrorResult(HTTP_STATUS.BAD_REQUEST, `[${provider}/${model}] ${error.message}`);
   }
 
-  log?.debug?.("EMBEDDINGS", `${provider.toUpperCase()} | ${model} | input_type=${Array.isArray(input) ? `array[${input.length}]` : "string"}`);
+  log?.debug?.(
+    "EMBEDDINGS",
+    `${provider.toUpperCase()} | ${model} | input_type=${Array.isArray(input) ? `array[${input.length}]` : "string"}`,
+  );
 
   let providerResponse;
   try {
@@ -87,7 +90,7 @@ export async function handleEmbeddingsCore({
     const newCredentials = await refreshWithRetry(
       () => executor.refreshCredentials(credentials, log),
       3,
-      log
+      log,
     );
 
     if (newCredentials?.accessToken || newCredentials?.apiKey) {

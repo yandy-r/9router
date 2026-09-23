@@ -5,14 +5,7 @@
   "bin": {
     "9router": "./cli.js"
   },
-  "files": [
-    "cli.js",
-    "src",
-    "hooks",
-    "app",
-    "README.md",
-    "LICENSE"
-  ],
+  "files": ["cli.js", "src", "hooks", "app", "README.md", "LICENSE"],
   "scripts": {
     "dev": "nodemon -I --watch cli.js --watch src --watch hooks --ext js,json cli.js",
     "build": "node scripts/build-cli.js",
@@ -33,13 +26,7 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": [
-    "9router",
-    "cli",
-    "proxy",
-    "ai",
-    "api"
-  ],
+  "keywords": ["9router", "cli", "proxy", "ai", "api"],
   "license": "MIT",
   "devDependencies": {
     "esbuild": "^0.25.12",

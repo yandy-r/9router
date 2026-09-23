@@ -7,21 +7,21 @@ vi.mock("@/sse/services/model.js", () => ({
     if (modelId.startsWith("my-prefix/")) {
       return {
         provider: "openai-compatible-chat-abc123",
-        model: modelId.replace("my-prefix/", "")
+        model: modelId.replace("my-prefix/", ""),
       };
     }
     if (modelId.startsWith("acme/")) {
       return {
         provider: "anthropic-compatible-claude-xyz",
-        model: modelId.replace("acme/", "")
+        model: modelId.replace("acme/", ""),
       };
     }
     // Default: no prefix
     return {
       provider: modelId.split("/")[1] || "unknown",
-      model: modelId.split("/")[1] || modelId
+      model: modelId.split("/")[1] || modelId,
     };
-  })
+  }),
 }));
 
 describe("Translator custom provider prefix resolution", () => {

@@ -108,7 +108,13 @@ export function normalizeKiroExternalIdpAuth(rawAuth) {
   if (!profileArn) throw new Error("profile_arn is required");
 
   const payload = decodeJwtPayload(accessToken);
-  const email = input.email || payload?.email || payload?.preferred_username || payload?.upn || payload?.sub || null;
+  const email =
+    input.email ||
+    payload?.email ||
+    payload?.preferred_username ||
+    payload?.upn ||
+    payload?.sub ||
+    null;
 
   return {
     accessToken,
@@ -129,7 +135,9 @@ export function normalizeKiroExternalIdpAuth(rawAuth) {
 
 export function buildExternalIdpRefreshParams(refreshToken, providerSpecificData = {}) {
   const clientId = normalizeString(providerSpecificData.clientId || providerSpecificData.client_id);
-  const tokenEndpoint = validateMicrosoftTokenEndpoint(providerSpecificData.tokenEndpoint || providerSpecificData.token_endpoint);
+  const tokenEndpoint = validateMicrosoftTokenEndpoint(
+    providerSpecificData.tokenEndpoint || providerSpecificData.token_endpoint,
+  );
   const scope = normalizeScope(providerSpecificData.scope || providerSpecificData.scopes);
 
   if (!refreshToken) throw new Error("refresh token is required");

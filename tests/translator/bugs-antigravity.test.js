@@ -15,16 +15,20 @@ describe("Antigravity → OpenAI", () => {
   // previously returned toolResults early → dropped tool calls / text (fixed in #2225)
   it("functionResponse + functionCall in same content keeps both", () => {
     const out = AG2O({
-      contents: [{
-        role: "model",
-        parts: [
-          { functionResponse: { id: "c1", name: "prev", response: { result: "done" } } },
-          { functionCall: { id: "c2", name: "next", args: {} } },
-        ],
-      }],
+      contents: [
+        {
+          role: "model",
+          parts: [
+            { functionResponse: { id: "c1", name: "prev", response: { result: "done" } } },
+            { functionCall: { id: "c2", name: "next", args: {} } },
+          ],
+        },
+      ],
     });
     const json = JSON.stringify(out);
-    expect(json, "functionCall lost when sharing content with functionResponse").toContain("\"next\"");
+    expect(json, "functionCall lost when sharing content with functionResponse").toContain(
+      '"next"',
+    );
   });
 
   // antigravity-to-openai.js:167 — functionCall without id gets a random Date.now() id
@@ -33,12 +37,17 @@ describe("Antigravity → OpenAI", () => {
     const out = AG2O({
       contents: [
         { role: "model", parts: [{ functionCall: { name: "search", args: { q: "x" } } }] },
-        { role: "user", parts: [{ functionResponse: { name: "search", response: { result: "r" } } }] },
+        {
+          role: "user",
+          parts: [{ functionResponse: { name: "search", response: { result: "r" } } }],
+        },
       ],
     });
     const asst = out.messages.find((m) => m.tool_calls);
     const tool = out.messages.find((m) => m.role === "tool");
-    expect(tool?.tool_call_id, "id mismatch between call and response").toBe(asst?.tool_calls?.[0]?.id);
+    expect(tool?.tool_call_id, "id mismatch between call and response").toBe(
+      asst?.tool_calls?.[0]?.id,
+    );
   });
 
   // antigravity-to-openai.js:144-147 — signature-only part handling (regression guard)
@@ -58,23 +67,30 @@ describe("Antigravity → OpenAI", () => {
 describe("Antigravity → Claude", () => {
   it("tool call input_json_delta includes Anthropic index", () => {
     const state = initState(FORMATS.CLAUDE);
-    const events = translateResponse(FORMATS.ANTIGRAVITY, FORMATS.CLAUDE, {
-      response: {
-        responseId: "resp-1",
-        modelVersion: "gemini-pro-agent",
-        candidates: [{
-          content: {
-            role: "model",
-            parts: [{ functionCall: { name: "bash", args: { command: "git status" } } }],
-          },
-          finishReason: "STOP",
-          index: 0,
-        }],
+    const events = translateResponse(
+      FORMATS.ANTIGRAVITY,
+      FORMATS.CLAUDE,
+      {
+        response: {
+          responseId: "resp-1",
+          modelVersion: "gemini-pro-agent",
+          candidates: [
+            {
+              content: {
+                role: "model",
+                parts: [{ functionCall: { name: "bash", args: { command: "git status" } } }],
+              },
+              finishReason: "STOP",
+              index: 0,
+            },
+          ],
+        },
       },
-    }, state);
+      state,
+    );
 
     const jsonDelta = events.find(
-      (event) => event.type === "content_block_delta" && event.delta?.type === "input_json_delta"
+      (event) => event.type === "content_block_delta" && event.delta?.type === "input_json_delta",
     );
     expect(jsonDelta).toMatchObject({ index: expect.any(Number) });
     expect(JSON.parse(jsonDelta.delta.partial_json)).toEqual({ command: "git status" });
@@ -83,39 +99,53 @@ describe("Antigravity → Claude", () => {
 
 describe("Antigravity executor", () => {
   it("strips optional from nested tool schemas", () => {
-    const out = new AntigravityExecutor().transformRequest("gemini-2.5-pro", {
-      request: {
-        contents: [{ role: "user", parts: [{ text: "hi" }] }],
-        tools: [{
-          functionDeclarations: [{
-            name: "lookup",
-            description: "Lookup a value",
-            parameters: {
-              type: "object",
-              properties: {
-                query: {
-                  type: "string",
-                  description: "Search query",
-                  optional: true,
+    const out = new AntigravityExecutor().transformRequest(
+      "gemini-2.5-pro",
+      {
+        request: {
+          contents: [{ role: "user", parts: [{ text: "hi" }] }],
+          tools: [
+            {
+              functionDeclarations: [
+                {
+                  name: "lookup",
+                  description: "Lookup a value",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      query: {
+                        type: "string",
+                        description: "Search query",
+                        optional: true,
+                      },
+                    },
+                  },
                 },
-              },
+              ],
             },
-          }],
-        }],
+          ],
+        },
       },
-    }, true, { projectId: "project-1", connectionId: "conn-1" });
+      true,
+      { projectId: "project-1", connectionId: "conn-1" },
+    );
 
     const query = out.request.tools[0].functionDeclarations[0].parameters.properties.query;
     expect(query).toEqual({ type: "string", description: "Search query" });
   });
 
   it("does not inject the legacy Antigravity default system prompt for Gemini-backed models", () => {
-    const out = openaiToAntigravityRequest("gemini-3.5-flash-low", {
-      messages: [
-        { role: "system", content: "USER_SYSTEM_PROMPT" },
-        { role: "user", content: "hello" },
-      ],
-    }, true, { projectId: "project-1", connectionId: "conn-1" });
+    const out = openaiToAntigravityRequest(
+      "gemini-3.5-flash-low",
+      {
+        messages: [
+          { role: "system", content: "USER_SYSTEM_PROMPT" },
+          { role: "user", content: "hello" },
+        ],
+      },
+      true,
+      { projectId: "project-1", connectionId: "conn-1" },
+    );
 
     const system = JSON.stringify(out.request.systemInstruction);
     expect(system).toContain("USER_SYSTEM_PROMPT");
@@ -124,12 +154,17 @@ describe("Antigravity executor", () => {
   });
 
   it("does not inject the legacy Antigravity default system prompt for Claude-backed models", () => {
-    const out = openaiToAntigravityRequest("claude-opus-4-6-thinking", {
-      messages: [
-        { role: "system", content: "USER_SYSTEM_PROMPT" },
-        { role: "user", content: "hello" },
-      ],
-    }, true, { projectId: "project-1", connectionId: "conn-1" });
+    const out = openaiToAntigravityRequest(
+      "claude-opus-4-6-thinking",
+      {
+        messages: [
+          { role: "system", content: "USER_SYSTEM_PROMPT" },
+          { role: "user", content: "hello" },
+        ],
+      },
+      true,
+      { projectId: "project-1", connectionId: "conn-1" },
+    );
 
     const system = JSON.stringify(out.request.systemInstruction);
     expect(system).toContain("USER_SYSTEM_PROMPT");

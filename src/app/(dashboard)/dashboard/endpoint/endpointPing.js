@@ -12,7 +12,9 @@ export async function clientPingUrl(url) {
       signal: AbortSignal.timeout(CLIENT_PING_TIMEOUT_MS),
     });
     return res.ok;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 // Race multiple URLs: resolve true as soon as any one passes ping.
@@ -21,9 +23,11 @@ export async function clientPingAny(...urls) {
   if (!checks.length) return false;
   return new Promise((resolve) => {
     let pending = checks.length;
-    checks.forEach((p) => p.then((ok) => {
-      if (ok) resolve(true);
-      else if (--pending === 0) resolve(false);
-    }));
+    checks.forEach((p) => {
+      p.then((ok) => {
+        if (ok) resolve(true);
+        else if (--pending === 0) resolve(false);
+      });
+    });
   });
 }

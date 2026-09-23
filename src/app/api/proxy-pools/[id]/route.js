@@ -46,7 +46,9 @@ function normalizeProxyPoolUpdate(body = {}) {
 }
 
 function countBoundConnections(connections = [], proxyPoolId) {
-  return connections.filter((connection) => connection?.providerSpecificData?.proxyPoolId === proxyPoolId).length;
+  return connections.filter(
+    (connection) => connection?.providerSpecificData?.proxyPoolId === proxyPoolId,
+  ).length;
 }
 
 // GET /api/proxy-pools/[id] - Get proxy pool
@@ -110,7 +112,7 @@ export async function DELETE(request, { params }) {
           error: "Proxy pool is currently in use",
           boundConnectionCount,
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 

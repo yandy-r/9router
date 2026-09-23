@@ -6,13 +6,11 @@ export default {
     icon: "record_voice_over",
     color: "#10B981",
     textIcon: "CQ",
-    website: "https://github.com/coqui-ai/TTS"
+    website: "https://github.com/coqui-ai/TTS",
   },
   category: "freeTier",
   authType: "none",
-  serviceKinds: [
-    "tts"
-  ],
+  serviceKinds: ["tts"],
   noAuth: true,
   ttsConfig: {
     baseUrl: "http://localhost:5002/api/tts",
@@ -22,9 +20,9 @@ export default {
     models: [
       {
         id: "tts_models/en/ljspeech/tacotron2-DDC",
-        name: "Tacotron2 DDC (LJSpeech)"
-      }
-    ]
+        name: "Tacotron2 DDC (LJSpeech)",
+      },
+    ],
   },
-  hidden: true
+  hidden: true,
 };

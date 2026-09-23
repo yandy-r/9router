@@ -25,14 +25,22 @@ describe("compressWithPxpipe gates", () => {
   });
 
   it("skips when transform is unavailable (not installed)", async () => {
-    const { body, summary } = await compressWithPxpipe(claudeBody(), { enabled: true, format: "claude", transform: null });
+    const { body, summary } = await compressWithPxpipe(claudeBody(), {
+      enabled: true,
+      format: "claude",
+      transform: null,
+    });
     expect(body).toBeNull();
     expect(summary.reason).toBe("not_installed");
   });
 
   it("skips non-Claude formats", async () => {
     const transform = vi.fn();
-    const { body, summary } = await compressWithPxpipe(claudeBody(), { enabled: true, format: "openai", transform });
+    const { body, summary } = await compressWithPxpipe(claudeBody(), {
+      enabled: true,
+      format: "openai",
+      transform,
+    });
     expect(body).toBeNull();
     expect(summary.reason).toBe("unsupported_format");
     expect(transform).not.toHaveBeenCalled();
@@ -41,7 +49,12 @@ describe("compressWithPxpipe gates", () => {
   it("bypasses small prompts below minChars", async () => {
     const transform = vi.fn();
     const small = { model: "claude-fable-5", messages: [{ role: "user", content: "hi" }] };
-    const { body, summary } = await compressWithPxpipe(small, { enabled: true, format: "claude", minChars: 25000, transform });
+    const { body, summary } = await compressWithPxpipe(small, {
+      enabled: true,
+      format: "claude",
+      minChars: 25000,
+      transform,
+    });
     expect(body).toBeNull();
     expect(summary.reason).toBe("below_threshold");
     expect(transform).not.toHaveBeenCalled();
@@ -50,7 +63,10 @@ describe("compressWithPxpipe gates", () => {
   it("applies the transform and reports savings", async () => {
     const compressed = { model: "claude-fable-5", messages: [{ role: "user", content: "imaged" }] };
     const { body, summary } = await compressWithPxpipe(claudeBody(), {
-      enabled: true, format: "claude", minChars: 1000, transform: appliedTransform(compressed),
+      enabled: true,
+      format: "claude",
+      minChars: 1000,
+      transform: appliedTransform(compressed),
     });
     expect(body).toEqual(compressed);
     expect(summary.applied).toBe(true);
@@ -61,18 +77,31 @@ describe("compressWithPxpipe gates", () => {
   });
 
   it("passes through when the transform declines (not_profitable)", async () => {
-    const transform = async () => ({ applied: false, reason: "not_profitable", body: new Uint8Array(), info: {} });
+    const transform = async () => ({
+      applied: false,
+      reason: "not_profitable",
+      body: new Uint8Array(),
+      info: {},
+    });
     const { body, summary } = await compressWithPxpipe(claudeBody(), {
-      enabled: true, format: "claude", minChars: 1000, transform,
+      enabled: true,
+      format: "claude",
+      minChars: 1000,
+      transform,
     });
     expect(body).toBeNull();
     expect(summary.reason).toBe("not_profitable");
   });
 
   it("fails open when the transform throws", async () => {
-    const transform = async () => { throw new Error("boom"); };
+    const transform = async () => {
+      throw new Error("boom");
+    };
     const { body, summary } = await compressWithPxpipe(claudeBody(), {
-      enabled: true, format: "claude", minChars: 1000, transform,
+      enabled: true,
+      format: "claude",
+      minChars: 1000,
+      transform,
     });
     expect(body).toBeNull();
     expect(summary.reason).toBe("transform_error");
@@ -82,7 +111,11 @@ describe("compressWithPxpipe gates", () => {
   it("fails open on timeout", async () => {
     const transform = () => new Promise(() => {}); // never resolves
     const { body, summary } = await compressWithPxpipe(claudeBody(), {
-      enabled: true, format: "claude", minChars: 1000, timeoutMs: 50, transform,
+      enabled: true,
+      format: "claude",
+      minChars: 1000,
+      timeoutMs: 50,
+      transform,
     });
     expect(body).toBeNull();
     expect(summary.reason).toBe("timeout");

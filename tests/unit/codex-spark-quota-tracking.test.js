@@ -8,7 +8,12 @@ describe("Codex Spark Quota Tracking (#3431)", () => {
       quotas: {
         session: { used: 20, total: 100, remaining: 80, resetAt: "2026-08-22T05:00:00.000Z" },
         weekly: { used: 40, total: 100, remaining: 60, resetAt: "2026-08-28T05:00:00.000Z" },
-        review_session: { used: 0, total: 100, remaining: 100, resetAt: "2026-08-22T05:00:00.000Z" },
+        review_session: {
+          used: 0,
+          total: 100,
+          remaining: 100,
+          resetAt: "2026-08-22T05:00:00.000Z",
+        },
         spark_session: { used: 12, total: 100, remaining: 88, resetAt: "2026-08-22T05:00:00.000Z" },
         spark_weekly: { used: 25, total: 100, remaining: 75, resetAt: "2026-08-28T05:00:00.000Z" },
       },

@@ -30,9 +30,7 @@ export default {
       combined: true,
       header: "Authorization",
       scheme: "bearer",
-      hooks: [
-        "clineHeaders",
-      ],
+      hooks: ["clineHeaders"],
     },
   },
   models: [

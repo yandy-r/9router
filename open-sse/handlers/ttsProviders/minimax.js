@@ -13,7 +13,7 @@ function hexToBase64(audioHex) {
 export default async function minimaxTts({ baseUrl, apiKey, text, modelId, voiceId }) {
   const res = await fetch(baseUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: modelId || "speech-2.8-hd",
       text,
@@ -38,7 +38,11 @@ export default async function minimaxTts({ baseUrl, apiKey, text, modelId, voice
   const rawText = await res.text();
   let data = {};
   if (rawText) {
-    try { data = JSON.parse(rawText); } catch { data = {}; }
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = {};
+    }
   }
 
   const baseResp = data.base_resp || data.baseResp || {};

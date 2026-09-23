@@ -30,7 +30,12 @@ export default {
   // Voice is selected as "<model>/<voice>", the same convention the OpenAI TTS
   // adapter uses, so existing clients need no special casing.
   models: [
-    { id: "kokoro", name: "Kokoro (self-hosted)", params: ["voice", "response_format", "speed"], kind: "tts" },
+    {
+      id: "kokoro",
+      name: "Kokoro (self-hosted)",
+      params: ["voice", "response_format", "speed"],
+      kind: "tts",
+    },
   ],
   serviceKinds: ["tts"],
   ttsConfig: {

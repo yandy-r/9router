@@ -17,7 +17,8 @@ const encodeJobId = (name) => Buffer.from(name, "utf8").toString("base64url");
 // Operation name shape: projects/{p}/locations/{l}/publishers/{pub}/models/{m}/operations/{op}.
 // Anchored and single-segment-per-field so a decoded path can never carry `..` or a
 // host-changing prefix into the request URL.
-const OPERATION_NAME_RE = /^projects\/[^/]+\/locations\/[^/]+\/publishers\/[^/]+\/models\/[^/]+\/operations\/[^/]+$/;
+const OPERATION_NAME_RE =
+  /^projects\/[^/]+\/locations\/[^/]+\/publishers\/[^/]+\/models\/[^/]+\/operations\/[^/]+$/;
 
 function modelPathOf(operationName) {
   return operationName.slice(0, operationName.indexOf("/operations/"));
@@ -36,22 +37,28 @@ function decodeJobId(id) {
 async function resolveAuth(credentials, log) {
   const saJson = parseVertexSaJson(credentials?.apiKey);
   const projectId =
-    saJson?.project_id ||
-    credentials?.projectId ||
-    credentials?.providerSpecificData?.projectId;
+    saJson?.project_id || credentials?.projectId || credentials?.providerSpecificData?.projectId;
   const location = credentials?.providerSpecificData?.location || DEFAULT_LOCATION;
 
   if (!projectId) {
-    return { error: "Vertex video requires a project_id — use Service Account JSON or set providerSpecificData.projectId" };
+    return {
+      error:
+        "Vertex video requires a project_id — use Service Account JSON or set providerSpecificData.projectId",
+    };
   }
 
   let token = credentials?.accessToken;
   if (saJson) {
     const minted = await refreshVertexToken(saJson, log);
-    if (!minted?.accessToken) return { error: "Vertex video: failed to mint access token from service account JSON" };
+    if (!minted?.accessToken)
+      return { error: "Vertex video: failed to mint access token from service account JSON" };
     token = minted.accessToken;
   }
-  if (!token) return { error: "Vertex video requires Service Account JSON or an OAuth access token (raw API keys are not supported)" };
+  if (!token)
+    return {
+      error:
+        "Vertex video requires Service Account JSON or an OAuth access token (raw API keys are not supported)",
+    };
 
   return { token, projectId, location };
 }
@@ -97,9 +104,7 @@ function fromVertexOperation(json) {
     return { id, request_id: id, status: "pending" };
   }
   const samples =
-    json.response?.videos ||
-    json.response?.generateVideoResponse?.generatedSamples ||
-    [];
+    json.response?.videos || json.response?.generateVideoResponse?.generatedSamples || [];
   const videos = samples.map((s) => ({
     url: s.gcsUri || s.video?.uri || s.uri || null,
     b64_json: s.bytesBase64Encoded || s.video?.bytesBase64Encoded || null,
@@ -118,7 +123,11 @@ export default {
     if (auth.error) return { error: auth.error };
     const { token, projectId, location } = auth;
     const base = (config.baseUrl || "https://aiplatform.googleapis.com").replace(/\/$/, "");
-    const headers = { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+    const headers = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
 
     if (requestId) {
       const operationName = decodeJobId(requestId);
@@ -142,10 +151,12 @@ export default {
     } catch {
       return { error: "Invalid JSON body" };
     }
-    if (!body.model) return { error: "Vertex video requires a model (e.g. vertex/veo-3.1-generate-preview)" };
+    if (!body.model)
+      return { error: "Vertex video requires a model (e.g. vertex/veo-3.1-generate-preview)" };
     // Plain model id only — a path segment carrying "/" or ".." would rewrite the URL.
     if (!/^[A-Za-z0-9._-]+$/.test(body.model)) return { error: "Invalid Vertex video model id" };
-    if (!body.prompt && !body.image && !body.image_url) return { error: "Vertex video requires a prompt or an image" };
+    if (!body.prompt && !body.image && !body.image_url)
+      return { error: "Vertex video requires a prompt or an image" };
 
     return {
       method: "POST",

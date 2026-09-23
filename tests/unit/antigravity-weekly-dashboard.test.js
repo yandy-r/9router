@@ -74,8 +74,8 @@ describe("Antigravity dashboard normalization with weekly quotas", () => {
 
   it("weekly rows do NOT appear as otherModels", () => {
     const quotas = parseQuotaData("antigravity", data);
-    const weeklyRows = quotas.filter((q) =>
-      q.modelKey === "gemini_weekly" || q.modelKey === "claude_gpt_weekly"
+    const weeklyRows = quotas.filter(
+      (q) => q.modelKey === "gemini_weekly" || q.modelKey === "claude_gpt_weekly",
     );
     expect(weeklyRows).toHaveLength(2);
     expect(weeklyRows[0].name).toMatch(/Weekly/);

@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getModelsByProviderId, getModelType, isValidModel } from "../../open-sse/config/providerModels.js";
+import {
+  getModelsByProviderId,
+  getModelType,
+  isValidModel,
+} from "../../open-sse/config/providerModels.js";
 import { getModelInfoCore } from "../../open-sse/services/model.js";
 import { handleImageGenerationCore } from "../../open-sse/handlers/imageGenerationCore.js";
 
@@ -24,13 +28,25 @@ describe("Codex GPT-5.6 image models", () => {
 
   it.each(models)("routes %s-image edits and streams image events", async (model) => {
     const events = [
-      ["response.image_generation_call.partial_image", { partial_image_b64: "cGFydGlhbA==", partial_image_index: 0 }],
-      ["response.output_item.done", { item: { type: "image_generation_call", result: "ZmluYWw=" } }],
+      [
+        "response.image_generation_call.partial_image",
+        { partial_image_b64: "cGFydGlhbA==", partial_image_index: 0 },
+      ],
+      [
+        "response.output_item.done",
+        { item: { type: "image_generation_call", result: "ZmluYWw=" } },
+      ],
     ];
-    const fetchMock = vi.fn().mockResolvedValue(new Response(
-      events.map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`).join(""),
-      { headers: { "Content-Type": "text/event-stream" } },
-    ));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          events
+            .map(([event, data]) => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+            .join(""),
+          { headers: { "Content-Type": "text/event-stream" } },
+        ),
+      );
     vi.stubGlobal("fetch", fetchMock);
     const onRequestSuccess = vi.fn();
     const modelInfo = await getModelInfoCore(`cx/${model}-image`);
@@ -60,12 +76,19 @@ describe("Codex GPT-5.6 image models", () => {
     expect(url).toBe("https://chatgpt.com/backend-api/codex/responses");
     const upstreamBody = JSON.parse(options.body);
     expect(upstreamBody.model).toBe(model);
-    expect(upstreamBody.tools).toEqual([{
-      type: "image_generation", output_format: "webp", size: "1024x1024",
-      quality: "high", background: "transparent",
-    }]);
+    expect(upstreamBody.tools).toEqual([
+      {
+        type: "image_generation",
+        output_format: "webp",
+        size: "1024x1024",
+        quality: "high",
+        background: "transparent",
+      },
+    ]);
     expect(upstreamBody.input[0].content).toContainEqual({
-      type: "input_image", image_url: "data:image/png;base64,cmVmZXJlbmNl", detail: "low",
+      type: "input_image",
+      image_url: "data:image/png;base64,cmVmZXJlbmNl",
+      detail: "low",
     });
     const stream = await result.response.text();
     expect(stream).toContain('event: partial_image\ndata: {"b64_json":"cGFydGlhbA==","index":0}');

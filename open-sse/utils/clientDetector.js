@@ -5,10 +5,10 @@
 
 // Map of CLI tool identifiers to provider IDs they are "native" to
 const NATIVE_PAIRS = {
-  "claude": ["claude", "anthropic"],
+  claude: ["claude", "anthropic"],
   "gemini-cli": ["gemini-cli"],
-  "antigravity": ["antigravity"],
-  "codex": ["codex"],
+  antigravity: ["antigravity"],
+  codex: ["codex"],
 };
 
 /**
@@ -28,7 +28,11 @@ export function detectClientTool(headers = {}, body = {}) {
   if (body.userAgent === "antigravity") return "antigravity";
 
   // GitHub Copilot / OAI compatible extension using Copilot chat headers
-  if (ua.includes("githubcopilotchat") || openaiIntent === "conversation-panel" || initiator === "user") {
+  if (
+    ua.includes("githubcopilotchat") ||
+    openaiIntent === "conversation-panel" ||
+    initiator === "user"
+  ) {
     return "github-copilot";
   }
 
@@ -40,8 +44,14 @@ export function detectClientTool(headers = {}, body = {}) {
 
   // Codex CLI/Desktop — codex-tui is the current Rust CLI, codex-cli/codex_cli_rs legacy;
   // Codex Desktop identifies via UA "Codex Desktop" or originator "codex_work_desktop"
-  if (ua.includes("codex-tui") || ua.includes("codex-cli") || ua.includes("codex_cli_rs") ||
-      ua.includes("codex desktop") || originator.startsWith("codex_")) return "codex";
+  if (
+    ua.includes("codex-tui") ||
+    ua.includes("codex-cli") ||
+    ua.includes("codex_cli_rs") ||
+    ua.includes("codex desktop") ||
+    originator.startsWith("codex_")
+  )
+    return "codex";
 
   // DeepSeek TUI
   if (ua.includes("deepseek-tui")) return "deepseek-tui";
@@ -59,8 +69,6 @@ export function isNativePassthrough(clientTool, provider) {
   const nativeProviders = NATIVE_PAIRS[clientTool];
   if (!nativeProviders) return false;
   // Support anthropic-compatible-* variants
-  const normalizedProvider = provider.startsWith("anthropic-compatible")
-    ? "anthropic"
-    : provider;
+  const normalizedProvider = provider.startsWith("anthropic-compatible") ? "anthropic" : provider;
   return nativeProviders.includes(normalizedProvider);
 }

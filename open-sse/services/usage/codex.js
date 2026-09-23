@@ -14,9 +14,10 @@ const CODEX_CONFIG = {
 
 function toIsoDate(value) {
   if (!value) return null;
-  const date = value instanceof Date
-    ? value
-    : new Date(typeof value === "number" && value < 1e12 ? value * 1000 : value);
+  const date =
+    value instanceof Date
+      ? value
+      : new Date(typeof value === "number" && value < 1e12 ? value * 1000 : value);
   const time = date.getTime();
   return Number.isFinite(time) ? date.toISOString() : null;
 }
@@ -29,7 +30,12 @@ function errorMessage(value, fallback) {
 }
 
 function getCodexAccountId(providerSpecificData) {
-  return providerSpecificData?.workspaceId || providerSpecificData?.accountId || providerSpecificData?.chatgptAccountId || null;
+  return (
+    providerSpecificData?.workspaceId ||
+    providerSpecificData?.accountId ||
+    providerSpecificData?.chatgptAccountId ||
+    null
+  );
 }
 
 function getCodexRateLimitBody(snapshot) {
@@ -40,7 +46,10 @@ function getCodexRateLimitBody(snapshot) {
 }
 
 function formatCodexWindow(window) {
-  const used = Math.max(0, Math.min(100, toFiniteNumber(window?.used_percent ?? window?.percent_used, 0)));
+  const used = Math.max(
+    0,
+    Math.min(100, toFiniteNumber(window?.used_percent ?? window?.percent_used, 0)),
+  );
   return {
     used,
     total: 100,
@@ -54,8 +63,13 @@ function appendCodexQuotaWindows(quotas, prefix, snapshot) {
   const rateLimit = getCodexRateLimitBody(snapshot);
   if (!rateLimit) return false;
 
-  const primary = rateLimit.primary_window || rateLimit.primary || snapshot.primary_window || snapshot.primary;
-  const secondary = rateLimit.secondary_window || rateLimit.secondary || snapshot.secondary_window || snapshot.secondary;
+  const primary =
+    rateLimit.primary_window || rateLimit.primary || snapshot.primary_window || snapshot.primary;
+  const secondary =
+    rateLimit.secondary_window ||
+    rateLimit.secondary ||
+    snapshot.secondary_window ||
+    snapshot.secondary;
   let added = false;
 
   if (primary) {
@@ -81,10 +95,16 @@ function getCodexReviewRateLimit(data) {
   }
 
   const additional = Array.isArray(data.additional_rate_limits) ? data.additional_rate_limits : [];
-  return additional.find((entry) => {
-    const id = String(entry?.limit_name || entry?.metered_feature || entry?.id || "").toLowerCase();
-    return id === "code_review" || id === "codex_review" || id === "review" || id.includes("review");
-  }) || null;
+  return (
+    additional.find((entry) => {
+      const id = String(
+        entry?.limit_name || entry?.metered_feature || entry?.id || "",
+      ).toLowerCase();
+      return (
+        id === "code_review" || id === "codex_review" || id === "review" || id.includes("review")
+      );
+    }) || null
+  );
 }
 
 function getCodexSparkRateLimit(data) {
@@ -94,35 +114,51 @@ function getCodexSparkRateLimit(data) {
 
   const byLimitId = data.rate_limits_by_limit_id;
   if (byLimitId && typeof byLimitId === "object" && !Array.isArray(byLimitId)) {
-    return byLimitId["gpt-5.3-codex-spark"] || byLimitId.gpt_5_3_codex_spark || byLimitId.spark || null;
+    return (
+      byLimitId["gpt-5.3-codex-spark"] || byLimitId.gpt_5_3_codex_spark || byLimitId.spark || null
+    );
   }
 
   const additional = Array.isArray(data.additional_rate_limits) ? data.additional_rate_limits : [];
-  return additional.find((entry) => {
-    const id = String(entry?.limit_name || entry?.metered_feature || entry?.id || "").toLowerCase();
-    return id.includes("spark") || id.includes("5.3-codex-spark");
-  }) || null;
+  return (
+    additional.find((entry) => {
+      const id = String(
+        entry?.limit_name || entry?.metered_feature || entry?.id || "",
+      ).toLowerCase();
+      return id.includes("spark") || id.includes("5.3-codex-spark");
+    }) || null
+  );
 }
 
 export async function getCodexUsage(accessToken, proxyOptions = null) {
   try {
-    const response = await proxyAwareFetch(CODEX_CONFIG.usageUrl, {
-      method: "GET",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "application/json",
+    const response = await proxyAwareFetch(
+      CODEX_CONFIG.usageUrl,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+        },
       },
-    }, proxyOptions);
+      proxyOptions,
+    );
 
     if (!response.ok) {
-      return { message: `Codex connected. Usage API temporarily unavailable (${response.status}).` };
+      return {
+        message: `Codex connected. Usage API temporarily unavailable (${response.status}).`,
+      };
     }
 
     const data = await response.json();
-    const normalRateLimit = data.rate_limit || data.rate_limits || data.rate_limits_by_limit_id?.codex || {};
+    const normalRateLimit =
+      data.rate_limit || data.rate_limits || data.rate_limits_by_limit_id?.codex || {};
     const reviewRateLimit = getCodexReviewRateLimit(data);
     const sparkRateLimit = getCodexSparkRateLimit(data);
-    const availableResetCredits = Math.max(0, toFiniteNumber(data.rate_limit_reset_credits?.available_count, 0));
+    const availableResetCredits = Math.max(
+      0,
+      toFiniteNumber(data.rate_limit_reset_credits?.available_count, 0),
+    );
     const quotas = {};
 
     appendCodexQuotaWindows(quotas, "", normalRateLimit);
@@ -142,24 +178,32 @@ export async function getCodexUsage(accessToken, proxyOptions = null) {
   }
 }
 
-export async function getCodexRateLimitResetCredits(accessToken, proxyOptions = null, providerSpecificData = null) {
+export async function getCodexRateLimitResetCredits(
+  accessToken,
+  proxyOptions = null,
+  providerSpecificData = null,
+) {
   if (!accessToken) {
     throw new Error("No Codex access token available. Please re-authorize the connection.");
   }
 
   const accountId = getCodexAccountId(providerSpecificData);
   const headers = {
-    "Authorization": `Bearer ${accessToken}`,
-    "Accept": "application/json",
+    Authorization: `Bearer ${accessToken}`,
+    Accept: "application/json",
     "OpenAI-Beta": "codex-1",
-    "originator": "codex_cli_rs",
+    originator: "codex_cli_rs",
   };
   if (accountId) headers["ChatGPT-Account-ID"] = accountId;
 
-  const response = await proxyAwareFetch(CODEX_CONFIG.resetCreditsUrl, {
-    method: "GET",
-    headers,
-  }, proxyOptions);
+  const response = await proxyAwareFetch(
+    CODEX_CONFIG.resetCreditsUrl,
+    {
+      method: "GET",
+      headers,
+    },
+    proxyOptions,
+  );
 
   let data = null;
   try {
@@ -169,7 +213,10 @@ export async function getCodexRateLimitResetCredits(accessToken, proxyOptions = 
   }
 
   if (!response.ok) {
-    const message = errorMessage(data?.message || data?.error || data?.detail, `Codex reset credits API unavailable (${response.status}).`);
+    const message = errorMessage(
+      data?.message || data?.error || data?.detail,
+      `Codex reset credits API unavailable (${response.status}).`,
+    );
     throw new Error(message);
   }
 
@@ -185,7 +232,11 @@ export async function getCodexRateLimitResetCredits(accessToken, proxyOptions = 
 }
 
 // Consume one Codex rate-limit reset credit (irreversible, spends 1 credit)
-export async function consumeCodexRateLimitResetCredit(accessToken, redeemRequestId, proxyOptions = null) {
+export async function consumeCodexRateLimitResetCredit(
+  accessToken,
+  redeemRequestId,
+  proxyOptions = null,
+) {
   if (!accessToken) {
     throw new Error("No Codex access token available. Please re-authorize the connection.");
   }
@@ -196,15 +247,19 @@ export async function consumeCodexRateLimitResetCredit(accessToken, redeemReques
   let response;
   let data = null;
   try {
-    response = await proxyAwareFetch(CODEX_CONFIG.resetCreditsConsumeUrl, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "application/json",
-        "Content-Type": "application/json",
+    response = await proxyAwareFetch(
+      CODEX_CONFIG.resetCreditsConsumeUrl,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ redeem_request_id: redeemRequestId }),
       },
-      body: JSON.stringify({ redeem_request_id: redeemRequestId }),
-    }, proxyOptions);
+      proxyOptions,
+    );
 
     const text = await response.text();
     data = text ? JSON.parse(text) : null;

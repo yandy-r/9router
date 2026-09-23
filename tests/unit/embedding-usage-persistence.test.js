@@ -28,7 +28,12 @@ vi.mock("../../open-sse/utils/error.js", () => ({
   unavailableResponse: (status, message) => Response.json({ error: message }, { status }),
 }));
 vi.mock("../../src/sse/utils/logger.js", () => ({
-  request: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn(), info: vi.fn(), maskKey: vi.fn(),
+  request: vi.fn(),
+  debug: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  maskKey: vi.fn(),
 }));
 vi.mock("../../src/sse/services/tokenRefresh.js", () => ({
   updateProviderCredentials: vi.fn(),
@@ -50,20 +55,24 @@ describe("embedding usage persistence", () => {
   });
 
   it("records exact provider usage for successful embedding requests", async () => {
-    await handleEmbeddings(new Request("http://localhost/v1/embeddings", {
-      method: "POST",
-      body: JSON.stringify({ model: "openai/text-embedding-3-small", input: "hello" }),
-    }));
+    await handleEmbeddings(
+      new Request("http://localhost/v1/embeddings", {
+        method: "POST",
+        body: JSON.stringify({ model: "openai/text-embedding-3-small", input: "hello" }),
+      }),
+    );
 
-    expect(mocks.saveRequestUsage).toHaveBeenCalledWith(expect.objectContaining({
-      provider: "openai",
-      model: "text-embedding-3-small",
-      connectionId: "connection-a",
-      apiKey: "client-key",
-      endpoint: "/v1/embeddings",
-      status: "success",
-      tokens: { prompt_tokens: 12, completion_tokens: 0, total_tokens: 12 },
-    }));
+    expect(mocks.saveRequestUsage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: "openai",
+        model: "text-embedding-3-small",
+        connectionId: "connection-a",
+        apiKey: "client-key",
+        endpoint: "/v1/embeddings",
+        status: "success",
+        tokens: { prompt_tokens: 12, completion_tokens: 0, total_tokens: 12 },
+      }),
+    );
   });
 
   it.each([
@@ -81,10 +90,12 @@ describe("embedding usage persistence", () => {
       response: Response.json({ data: [] }),
     });
 
-    await handleEmbeddings(new Request("http://localhost/v1/embeddings", {
-      method: "POST",
-      body: JSON.stringify({ model: "openai/text-embedding-3-small", input: "hello" }),
-    }));
+    await handleEmbeddings(
+      new Request("http://localhost/v1/embeddings", {
+        method: "POST",
+        body: JSON.stringify({ model: "openai/text-embedding-3-small", input: "hello" }),
+      }),
+    );
 
     expect(mocks.saveRequestUsage).not.toHaveBeenCalled();
   });

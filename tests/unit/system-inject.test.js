@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { injectSystemPrompt } from "../../open-sse/rtk/systemInject.js";
 import { FORMATS } from "../../open-sse/translator/formats.js";
-import { OPENAI_BLOCK, CLAUDE_BLOCK, RESPONSES_ITEM } from "../../open-sse/translator/schema/blocks.js";
+import {
+  OPENAI_BLOCK,
+  CLAUDE_BLOCK,
+  RESPONSES_ITEM,
+} from "../../open-sse/translator/schema/blocks.js";
 import { ROLE } from "../../open-sse/translator/schema/roles.js";
 import { injectCaveman } from "../../open-sse/rtk/caveman.js";
 import { injectPonytail } from "../../open-sse/rtk/ponytail.js";
@@ -14,17 +18,24 @@ const P2 = "PONYTAIL_TEST_PROMPT_BBB";
 
 describe("system-inject chat messages", () => {
   it("appends TEXT block to existing system string with SEP", () => {
-    const body = { messages: [{ role: ROLE.SYSTEM, content: "hello" }, { role: ROLE.USER, content: "hi" }] };
+    const body = {
+      messages: [
+        { role: ROLE.SYSTEM, content: "hello" },
+        { role: ROLE.USER, content: "hi" },
+      ],
+    };
     injectSystemPrompt(body, FORMATS.OPENAI, P1);
     expect(body.messages[0].content).toBe(`hello${SEP}${P1}`);
   });
 
   it("appends TEXT block to existing system array with OPENAI_BLOCK.TEXT never input_text", () => {
-    const body = { messages: [{ role: ROLE.SYSTEM, content: [{ type: OPENAI_BLOCK.TEXT, text: "hello" }] }] };
+    const body = {
+      messages: [{ role: ROLE.SYSTEM, content: [{ type: OPENAI_BLOCK.TEXT, text: "hello" }] }],
+    };
     injectSystemPrompt(body, FORMATS.OPENAI, P1);
     const arr = body.messages[0].content;
     expect(arr[arr.length - 1]).toEqual({ type: OPENAI_BLOCK.TEXT, text: P1 });
-    expect(arr.some(c => c.type === "input_text")).toBe(false);
+    expect(arr.some((c) => c.type === "input_text")).toBe(false);
   });
 
   it("unshifts system message when no system/developer present", () => {
@@ -51,13 +62,15 @@ describe("system-inject chat messages", () => {
   });
 
   it("exact full-prompt idempotency for chat array", () => {
-    const body = { messages: [{ role: ROLE.SYSTEM, content: [{ type: OPENAI_BLOCK.TEXT, text: "hello" }] }] };
+    const body = {
+      messages: [{ role: ROLE.SYSTEM, content: [{ type: OPENAI_BLOCK.TEXT, text: "hello" }] }],
+    };
     injectSystemPrompt(body, FORMATS.OPENAI, P1);
     injectSystemPrompt(body, FORMATS.OPENAI, P1);
-    const texts = body.messages[0].content.filter(c => c.text === P1);
+    const texts = body.messages[0].content.filter((c) => c.text === P1);
     expect(texts.length).toBe(1);
     injectSystemPrompt(body, FORMATS.OPENAI, P2);
-    expect(body.messages[0].content.filter(c => c.text === P2).length).toBe(1);
+    expect(body.messages[0].content.filter((c) => c.text === P2).length).toBe(1);
   });
 
   it("never uses first-100 fingerprint: long prompt exact idempotency", () => {
@@ -80,7 +93,11 @@ describe("system-inject responses input[]", () => {
     const body = {
       input: [
         { type: RESPONSES_ITEM.FUNCTION_CALL, call_id: "c1", name: "fn" },
-        { type: RESPONSES_ITEM.MESSAGE, role: ROLE.SYSTEM, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "sys" }] },
+        {
+          type: RESPONSES_ITEM.MESSAGE,
+          role: ROLE.SYSTEM,
+          content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "sys" }],
+        },
         { type: RESPONSES_ITEM.REASONING, summary: "x" },
         { type: RESPONSES_ITEM.FUNCTION_CALL_OUTPUT, call_id: "c1", output: "ok" },
       ],
@@ -94,26 +111,64 @@ describe("system-inject responses input[]", () => {
     expect(body.input[3]).toEqual(before[3]);
     // system message got INPUT_TEXT appended
     const sys = body.input[1];
-    expect(sys.content[sys.content.length - 1]).toEqual({ type: RESPONSES_ITEM.INPUT_TEXT, text: P1 });
+    expect(sys.content[sys.content.length - 1]).toEqual({
+      type: RESPONSES_ITEM.INPUT_TEXT,
+      text: P1,
+    });
   });
 
   it("appends INPUT_TEXT to array content", () => {
-    const body = { input: [{ type: RESPONSES_ITEM.MESSAGE, role: ROLE.USER, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "hi" }] }, { type: RESPONSES_ITEM.MESSAGE, role: ROLE.SYSTEM, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "base" }] }] };
+    const body = {
+      input: [
+        {
+          type: RESPONSES_ITEM.MESSAGE,
+          role: ROLE.USER,
+          content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "hi" }],
+        },
+        {
+          type: RESPONSES_ITEM.MESSAGE,
+          role: ROLE.SYSTEM,
+          content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "base" }],
+        },
+      ],
+    };
     injectSystemPrompt(body, FORMATS.OPENAI, P1);
-    const sys = body.input.find(m => m.role === ROLE.SYSTEM);
+    const sys = body.input.find((m) => m.role === ROLE.SYSTEM);
     expect(sys.content[sys.content.length - 1].type).toBe(RESPONSES_ITEM.INPUT_TEXT);
     expect(sys.content[sys.content.length - 1].text).toBe(P1);
   });
 
   it("creates typed message at index 0 if absent preserving order", () => {
-    const body = { input: [{ type: RESPONSES_ITEM.MESSAGE, role: ROLE.USER, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "hi" }] }, { type: RESPONSES_ITEM.FUNCTION_CALL, call_id: "1", name: "a" }] };
+    const body = {
+      input: [
+        {
+          type: RESPONSES_ITEM.MESSAGE,
+          role: ROLE.USER,
+          content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "hi" }],
+        },
+        { type: RESPONSES_ITEM.FUNCTION_CALL, call_id: "1", name: "a" },
+      ],
+    };
     injectSystemPrompt(body, FORMATS.OPENAI, P1);
-    expect(body.input[0]).toEqual({ type: RESPONSES_ITEM.MESSAGE, role: ROLE.SYSTEM, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: P1 }] });
+    expect(body.input[0]).toEqual({
+      type: RESPONSES_ITEM.MESSAGE,
+      role: ROLE.SYSTEM,
+      content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: P1 }],
+    });
     expect(body.input[1].role).toBe(ROLE.USER);
   });
 
   it("instructions string takes precedence over input[]", () => {
-    const body = { instructions: "instr", input: [{ type: RESPONSES_ITEM.MESSAGE, role: ROLE.USER, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "hi" }] }] };
+    const body = {
+      instructions: "instr",
+      input: [
+        {
+          type: RESPONSES_ITEM.MESSAGE,
+          role: ROLE.USER,
+          content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "hi" }],
+        },
+      ],
+    };
     injectSystemPrompt(body, FORMATS.OPENAI, P1);
     expect(body.instructions).toBe(`instr${SEP}${P1}`);
     expect(body.input.length).toBe(1);
@@ -128,13 +183,21 @@ describe("system-inject responses input[]", () => {
   });
 
   it("exact idempotency for responses input", () => {
-    const body = { input: [{ type: RESPONSES_ITEM.MESSAGE, role: ROLE.SYSTEM, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "base" }] }] };
+    const body = {
+      input: [
+        {
+          type: RESPONSES_ITEM.MESSAGE,
+          role: ROLE.SYSTEM,
+          content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "base" }],
+        },
+      ],
+    };
     injectSystemPrompt(body, FORMATS.OPENAI, P1);
     injectSystemPrompt(body, FORMATS.OPENAI, P1);
     const sys = body.input[0];
-    expect(sys.content.filter(c => c.text === P1).length).toBe(1);
+    expect(sys.content.filter((c) => c.text === P1).length).toBe(1);
     injectSystemPrompt(body, FORMATS.OPENAI, P2);
-    expect(sys.content.filter(c => c.text === P2).length).toBe(1);
+    expect(sys.content.filter((c) => c.text === P2).length).toBe(1);
   });
 });
 
@@ -165,7 +228,15 @@ describe("system-inject dispatch by wire shape", () => {
     expect(body.messages[0].content).toBe(`hi${SEP}${P1}`);
   });
   it("input[] means Responses even when format is openai", () => {
-    const body = { input: [{ type: RESPONSES_ITEM.MESSAGE, role: ROLE.USER, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "hi" }] }] };
+    const body = {
+      input: [
+        {
+          type: RESPONSES_ITEM.MESSAGE,
+          role: ROLE.USER,
+          content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: "hi" }],
+        },
+      ],
+    };
     injectSystemPrompt(body, FORMATS.OPENAI, P1);
     expect(body.input[0].role).toBe(ROLE.SYSTEM);
     expect(body.input[0].content[0].type).toBe(RESPONSES_ITEM.INPUT_TEXT);
@@ -184,7 +255,13 @@ describe("system-inject claude", () => {
   });
 
   it("array system uses CLAUDE_BLOCK.TEXT and inserts before last cache_control", () => {
-    const body = { system: [{ type: CLAUDE_BLOCK.TEXT, text: "a" }, { type: CLAUDE_BLOCK.TEXT, text: "b", cache_control: { type: "ephemeral" } }, { type: CLAUDE_BLOCK.TEXT, text: "c", cache_control: { type: "ephemeral" } }] };
+    const body = {
+      system: [
+        { type: CLAUDE_BLOCK.TEXT, text: "a" },
+        { type: CLAUDE_BLOCK.TEXT, text: "b", cache_control: { type: "ephemeral" } },
+        { type: CLAUDE_BLOCK.TEXT, text: "c", cache_control: { type: "ephemeral" } },
+      ],
+    };
     injectSystemPrompt(body, FORMATS.CLAUDE, P1);
     // should be inserted before last cache_control (index 2)
     expect(body.system[2]).toEqual({ type: CLAUDE_BLOCK.TEXT, text: P1 });
@@ -202,7 +279,7 @@ describe("system-inject claude", () => {
     const body = { system: [{ type: CLAUDE_BLOCK.TEXT, text: "a" }] };
     injectSystemPrompt(body, FORMATS.CLAUDE, P1);
     injectSystemPrompt(body, FORMATS.CLAUDE, P1);
-    expect(body.system.filter(b => b.text === P1).length).toBe(1);
+    expect(body.system.filter((b) => b.text === P1).length).toBe(1);
   });
 
   it("creates system when absent", () => {
@@ -222,7 +299,7 @@ describe("system-inject claude", () => {
     const body = { messages: [{ role: ROLE.USER, content: "hi" }] };
     injectSystemPrompt(body, FORMATS.CLAUDE, P1);
     expect(body.system).toBe(P1);
-    expect(body.messages.some(m => m.role === ROLE.SYSTEM)).toBe(false);
+    expect(body.messages.some((m) => m.role === ROLE.SYSTEM)).toBe(false);
   });
 });
 
@@ -249,9 +326,9 @@ describe("system-inject gemini", () => {
     const body = { systemInstruction: { parts: [{ text: "base" }] } };
     injectSystemPrompt(body, FORMATS.GEMINI, P1);
     injectSystemPrompt(body, FORMATS.GEMINI, P1);
-    expect(body.systemInstruction.parts.filter(p => p.text === P1).length).toBe(1);
+    expect(body.systemInstruction.parts.filter((p) => p.text === P1).length).toBe(1);
     injectSystemPrompt(body, FORMATS.GEMINI, P2);
-    expect(body.systemInstruction.parts.filter(p => p.text === P2).length).toBe(1);
+    expect(body.systemInstruction.parts.filter((p) => p.text === P2).length).toBe(1);
   });
   it("creates when absent", () => {
     const body = {};
@@ -269,13 +346,18 @@ describe("system-inject kiro", () => {
     const historyUserContent = `${timeCtx}${SEP}${tail}`;
     const body = {
       conversationState: {
-        history: [{ userInputMessage: { content: historyUserContent, modelId: "m" } }, { assistantResponseMessage: { content: "..." } }],
+        history: [
+          { userInputMessage: { content: historyUserContent, modelId: "m" } },
+          { assistantResponseMessage: { content: "..." } },
+        ],
         currentMessage: { userInputMessage: { content: "current " + tail, modelId: "m" } },
       },
     };
     injectSystemPrompt(body, FORMATS.KIRO, P1);
     expect(body.systemPrompt).toBeUndefined();
-    expect(body.conversationState.history[0].userInputMessage.content).toBe(`${historyUserContent}${SEP}${P1}`);
+    expect(body.conversationState.history[0].userInputMessage.content).toBe(
+      `${historyUserContent}${SEP}${P1}`,
+    );
     // currentMessage must stay untouched
     expect(body.conversationState.currentMessage.userInputMessage.content).toBe("current " + tail);
   });
@@ -329,12 +411,17 @@ describe("system-inject kiro", () => {
     expect(body.conversationState.history[0].userInputMessage.content).toBe(after1);
     // different prompt both apply, in injection order
     injectSystemPrompt(body, FORMATS.KIRO, P2);
-    expect(body.conversationState.history[0].userInputMessage.content).toBe(`tail${SEP}${P1}${SEP}${P2}`);
+    expect(body.conversationState.history[0].userInputMessage.content).toBe(
+      `tail${SEP}${P1}${SEP}${P2}`,
+    );
   });
 
   it("preserves non-enumerable _kiroUpstreamModel", () => {
     const body = {
-      conversationState: { history: [{ userInputMessage: { content: "tail", modelId: "m" } }], currentMessage: { userInputMessage: { content: "tail2", modelId: "m" } } },
+      conversationState: {
+        history: [{ userInputMessage: { content: "tail", modelId: "m" } }],
+        currentMessage: { userInputMessage: { content: "tail2", modelId: "m" } },
+      },
     };
     Object.defineProperty(body, "_kiroUpstreamModel", { value: "m", enumerable: false });
     injectSystemPrompt(body, FORMATS.KIRO, P1);
@@ -360,8 +447,12 @@ describe("system-inject regression fixes", () => {
     const um = { content: "tail", modelId: "m" };
     const proxiedUm = new Proxy(um, {
       set(t, p, v) {
-        if (p === "content" && failNextWrite) { failNextWrite = false; throw new Error("transient"); }
-        t[p] = v; return true;
+        if (p === "content" && failNextWrite) {
+          failNextWrite = false;
+          throw new Error("transient");
+        }
+        t[p] = v;
+        return true;
       },
     });
     const body = { conversationState: { history: [{ userInputMessage: proxiedUm }] } };
@@ -399,7 +490,9 @@ describe("system-inject regression fixes", () => {
       },
     };
     injectSystemPrompt(body, FORMATS.KIRO, P1);
-    expect(body.conversationState.history[0].userInputMessage.content).toBe(`some ${P1} here${SEP}${P1}`);
+    expect(body.conversationState.history[0].userInputMessage.content).toBe(
+      `some ${P1} here${SEP}${P1}`,
+    );
   });
 });
 
@@ -413,7 +506,9 @@ describe("system-inject fail-open", () => {
   it("malformed messages array never throws", () => {
     expect(() => injectSystemPrompt({ messages: null }, FORMATS.OPENAI, P1)).not.toThrow();
     expect(() => injectSystemPrompt({ messages: "bad" }, FORMATS.OPENAI, P1)).not.toThrow();
-    expect(() => injectSystemPrompt({ messages: [{ role: null, content: null }] }, FORMATS.OPENAI, P1)).not.toThrow();
+    expect(() =>
+      injectSystemPrompt({ messages: [{ role: null, content: null }] }, FORMATS.OPENAI, P1),
+    ).not.toThrow();
   });
 
   it("frozen body never throws and does not partially mutate", () => {
@@ -426,17 +521,35 @@ describe("system-inject fail-open", () => {
   });
 
   it("Proxy throwing setter never throws", () => {
-    const throwingMsg = new Proxy({ role: ROLE.SYSTEM, content: "hello" }, {
-      set() { throw new Error("msg setter fail"); },
-    });
+    const throwingMsg = new Proxy(
+      { role: ROLE.SYSTEM, content: "hello" },
+      {
+        set() {
+          throw new Error("msg setter fail");
+        },
+      },
+    );
     const arrProxy = new Proxy([throwingMsg], {
-      get(t, p, r) { return Reflect.get(t, p, r); },
-      set() { throw new Error("arr setter fail"); },
+      get(t, p, r) {
+        return Reflect.get(t, p, r);
+      },
+      set() {
+        throw new Error("arr setter fail");
+      },
     });
-    const proxy = new Proxy({}, {
-      set(t, p, v) { if (p === "messages") throw new Error("setter fail"); return Reflect.set(t, p, v); },
-      get(t, p) { if (p === "messages") return arrProxy; return t[p]; },
-    });
+    const proxy = new Proxy(
+      {},
+      {
+        set(t, p, v) {
+          if (p === "messages") throw new Error("setter fail");
+          return Reflect.set(t, p, v);
+        },
+        get(t, p) {
+          if (p === "messages") return arrProxy;
+          return t[p];
+        },
+      },
+    );
     expect(() => injectSystemPrompt(proxy, FORMATS.OPENAI, P1)).not.toThrow();
     expect(() => injectSystemPrompt(proxy, FORMATS.OPENAI_RESPONSES, P1)).not.toThrow();
   });

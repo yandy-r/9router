@@ -5,8 +5,9 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 
-const DATA_DIR = process.env.DATA_DIR
-  || (process.platform === "win32"
+const DATA_DIR =
+  process.env.DATA_DIR ||
+  (process.platform === "win32"
     ? path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "9router")
     : path.join(os.homedir(), ".9router"));
 
@@ -36,7 +37,11 @@ export function writeAliasForTool(tool, mappings) {
   try {
     let current = {};
     if (fs.existsSync(CACHE_FILE)) {
-      try { current = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8")); } catch { /* corrupted → reset */ }
+      try {
+        current = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"));
+      } catch {
+        /* corrupted → reset */
+      }
     }
     current[tool] = mappings || {};
     writeAtomic(current);

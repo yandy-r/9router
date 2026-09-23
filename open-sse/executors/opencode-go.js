@@ -44,7 +44,9 @@ function translatedSession(sessionId, clientTool) {
 
 // Strip the thinking suffix "model(level)" so checks hit the base id.
 function baseModelId(model) {
-  return String(model || "").replace(/\([^()]+\)\s*$/, "").trim();
+  return String(model || "")
+    .replace(/\([^()]+\)\s*$/, "")
+    .trim();
 }
 
 // Responses-only per the provider registry (grok-4.6, gpt-5.6-luna, muse-spark, …).
@@ -61,17 +63,30 @@ function normalizeResponsesTools(body) {
   const validNames = new Set();
   body.tools = body.tools.filter((tool) => {
     if (!tool || typeof tool !== "object" || Array.isArray(tool)) return false;
-    const fn = tool.function && typeof tool.function === "object" && !Array.isArray(tool.function) ? tool.function : null;
-    const rawName = typeof tool.name === "string" ? tool.name : (typeof fn?.name === "string" ? fn.name : "");
+    const fn =
+      tool.function && typeof tool.function === "object" && !Array.isArray(tool.function)
+        ? tool.function
+        : null;
+    const rawName =
+      typeof tool.name === "string" ? tool.name : typeof fn?.name === "string" ? fn.name : "";
     const name = rawName.trim();
     if (!name) return false;
-    const description = typeof tool.description === "string" ? tool.description : (typeof fn?.description === "string" ? fn.description : "");
-    let parameters = (tool.parameters && typeof tool.parameters === "object" && !Array.isArray(tool.parameters))
-      ? tool.parameters
-      : (fn?.parameters && typeof fn.parameters === "object" && !Array.isArray(fn.parameters) ? fn.parameters : { type: "object", properties: {} });
+    const description =
+      typeof tool.description === "string"
+        ? tool.description
+        : typeof fn?.description === "string"
+          ? fn.description
+          : "";
+    let parameters =
+      tool.parameters && typeof tool.parameters === "object" && !Array.isArray(tool.parameters)
+        ? tool.parameters
+        : fn?.parameters && typeof fn.parameters === "object" && !Array.isArray(fn.parameters)
+          ? fn.parameters
+          : { type: "object", properties: {} };
     // Mirror the request translator: {type:"object"} without properties is rejected
     // by strict Responses backends, so fill in the empty properties map.
-    if (parameters.type === "object" && !parameters.properties) parameters = { ...parameters, properties: {} };
+    if (parameters.type === "object" && !parameters.properties)
+      parameters = { ...parameters, properties: {} };
     const strict = resolveFunctionToolStrict(tool);
     for (const k of Object.keys(tool)) delete tool[k];
     tool.type = "function";
@@ -82,7 +97,11 @@ function normalizeResponsesTools(body) {
     validNames.add(tool.name);
     return true;
   });
-  if (body.tool_choice && typeof body.tool_choice === "object" && !Array.isArray(body.tool_choice)) {
+  if (
+    body.tool_choice &&
+    typeof body.tool_choice === "object" &&
+    !Array.isArray(body.tool_choice)
+  ) {
     if (body.tool_choice.type === "function") {
       const n = typeof body.tool_choice.name === "string" ? body.tool_choice.name.trim() : "";
       if (!n || !validNames.has(n)) delete body.tool_choice;
@@ -133,12 +152,14 @@ export class OpenCodeGoExecutor extends DefaultExecutor {
   prepareRequestCredentials({ body, credentials, providerSessionId, clientTool } = {}) {
     const sourceCredentials = credentials || {};
     const native = nativeSession(sourceCredentials.rawHeaders);
-    const resolved = normalizeSession(providerSessionId) || resolveSessionId({
-      headers: sourceCredentials.rawHeaders,
-      body,
-      connectionId: sourceCredentials.connectionId,
-      scope: "opencode-go",
-    });
+    const resolved =
+      normalizeSession(providerSessionId) ||
+      resolveSessionId({
+        headers: sourceCredentials.rawHeaders,
+        body,
+        connectionId: sourceCredentials.connectionId,
+        scope: "opencode-go",
+      });
 
     return {
       ...sourceCredentials,
@@ -170,11 +191,14 @@ export class OpenCodeGoExecutor extends DefaultExecutor {
     const normalized = normalizeResponsesInput(out.input);
     if (normalized) out.input = normalized;
     if (!Array.isArray(out.input) || out.input.length === 0) {
-      out.input = [{ type: "message", role: "user", content: [{ type: "input_text", text: "..." }] }];
+      out.input = [
+        { type: "message", role: "user", content: [{ type: "input_text", text: "..." }] },
+      ];
     }
     // Responses names the output cap max_output_tokens, not max_tokens.
     if (out.max_output_tokens === undefined) {
-      if (out.max_completion_tokens !== undefined) out.max_output_tokens = out.max_completion_tokens;
+      if (out.max_completion_tokens !== undefined)
+        out.max_output_tokens = out.max_completion_tokens;
       else if (out.max_tokens !== undefined) out.max_output_tokens = out.max_tokens;
     }
     delete out.max_tokens;

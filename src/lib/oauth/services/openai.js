@@ -99,7 +99,7 @@ export class OpenAIService extends OAuthService {
       // Authenticate and get authorization code
       const { code, codeVerifier, redirectUri } = await this.authenticate(
         "OpenAI",
-        this.buildOpenAIAuthUrl.bind(this)
+        this.buildOpenAIAuthUrl.bind(this),
       );
 
       spinner.start("Exchanging code for tokens...");
@@ -120,4 +120,3 @@ export class OpenAIService extends OAuthService {
     }
   }
 }
-

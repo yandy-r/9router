@@ -30,9 +30,7 @@ describe("provider custom model rows", () => {
 
   it("keeps legacy alias-backed models visible without duplicating custom models", () => {
     const rows = getProviderCustomModelRows({
-      customModels: [
-        { providerAlias: "ollama", id: "custom-a", type: "llm", name: "Custom A" },
-      ],
+      customModels: [{ providerAlias: "ollama", id: "custom-a", type: "llm", name: "Custom A" }],
       modelAliases: {
         "custom-a": "ollama/custom-a",
         "legacy-b": "ollama/legacy-b",

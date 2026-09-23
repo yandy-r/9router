@@ -33,15 +33,25 @@ function collapseRepeated(text) {
   while (i < lines.length) {
     const line = lines[i];
     const m = line.match(/^(\s*)-\s*([a-zA-Z]+)\b/);
-    if (!m) { out.push(line); i++; continue; }
+    if (!m) {
+      out.push(line);
+      i++;
+      continue;
+    }
     const indent = m[1];
     const role = m[2];
     let j = i;
     while (j < lines.length) {
       const ln = lines[j];
       const mm = ln.match(/^(\s*)-\s*([a-zA-Z]+)\b/);
-      if (mm && mm[1] === indent && mm[2] === role) { j++; continue; }
-      if (ln.startsWith(`${indent} `) || ln.startsWith(`${indent}\t`)) { j++; continue; }
+      if (mm && mm[1] === indent && mm[2] === role) {
+        j++;
+        continue;
+      }
+      if (ln.startsWith(`${indent} `) || ln.startsWith(`${indent}\t`)) {
+        j++;
+        continue;
+      }
       break;
     }
     const groupLen = j - i;
@@ -49,7 +59,9 @@ function collapseRepeated(text) {
       const headEnd = findNthSiblingEnd(lines, i, indent, role, COLLAPSE_KEEP_HEAD);
       const tailStart = findLastNSiblingStart(lines, j, indent, role, COLLAPSE_KEEP_TAIL);
       for (let k = i; k < headEnd; k++) out.push(lines[k]);
-      out.push(`${indent}... [${groupLen - COLLAPSE_KEEP_HEAD - COLLAPSE_KEEP_TAIL} similar "${role}" items omitted by 9router bridge]`);
+      out.push(
+        `${indent}... [${groupLen - COLLAPSE_KEEP_HEAD - COLLAPSE_KEEP_TAIL} similar "${role}" items omitted by 9router bridge]`,
+      );
       for (let k = tailStart; k < j; k++) out.push(lines[k]);
     } else {
       for (let k = i; k < j; k++) out.push(lines[k]);
@@ -90,11 +102,16 @@ function filterFrame(line) {
     for (const item of content) {
       if (item?.type === "text" && typeof item.text === "string") {
         const filtered = smartFilterText(item.text);
-        if (filtered !== item.text) { item.text = filtered; mutated = true; }
+        if (filtered !== item.text) {
+          item.text = filtered;
+          mutated = true;
+        }
       }
     }
     return mutated ? JSON.stringify(msg) : line;
-  } catch { return line; }
+  } catch {
+    return line;
+  }
 }
 const getStore = () => {
   if (!globalThis[G_KEY]) globalThis[G_KEY] = new Map();
@@ -114,7 +131,10 @@ function getOrSpawn(name) {
   const plugin = findPlugin(name);
   if (!plugin) throw new Error(`Unknown local plugin: ${name}`);
 
-  const proc = spawn(plugin.command, plugin.args, { stdio: ["pipe", "pipe", "pipe"], env: process.env });
+  const proc = spawn(plugin.command, plugin.args, {
+    stdio: ["pipe", "pipe", "pipe"],
+    env: process.env,
+  });
   entry = { proc, sessions: new Map(), buffer: "" };
   store.set(name, entry);
 
@@ -128,7 +148,11 @@ function getOrSpawn(name) {
       if (!raw) continue;
       const line = filterFrame(raw);
       for (const send of entry.sessions.values()) {
-        try { send(`event: message\ndata: ${line}\n\n`); } catch { /* ignore broken pipe */ }
+        try {
+          send(`event: message\ndata: ${line}\n\n`);
+        } catch {
+          /* ignore broken pipe */
+        }
       }
     }
   });
@@ -155,7 +179,11 @@ function unregisterSession(name, sid) {
   entry.sessions.delete(sid);
   // No sessions left → kill child to avoid idle orphan process leak.
   if (entry.sessions.size === 0) {
-    try { entry.proc.kill(); } catch { /* ignore */ }
+    try {
+      entry.proc.kill();
+    } catch {
+      /* ignore */
+    }
     getStore().delete(name);
   }
 }
@@ -164,7 +192,11 @@ function unregisterSession(name, sid) {
 function killAllBridges() {
   const store = getStore();
   for (const [name, entry] of store) {
-    try { entry.proc.kill(); } catch { /* ignore */ }
+    try {
+      entry.proc.kill();
+    } catch {
+      /* ignore */
+    }
     store.delete(name);
   }
 }
@@ -180,4 +212,12 @@ function isRunning(name) {
   return !!(entry?.proc && !entry.proc.killed && entry.proc.exitCode === null);
 }
 
-module.exports = { getOrSpawn, registerSession, unregisterSession, sendToChild, isRunning, findPlugin, killAllBridges };
+module.exports = {
+  getOrSpawn,
+  registerSession,
+  unregisterSession,
+  sendToChild,
+  isRunning,
+  findPlugin,
+  killAllBridges,
+};

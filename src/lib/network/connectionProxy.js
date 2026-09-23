@@ -37,16 +37,11 @@ export function pickProxyPoolId(poolIds, strategy, providerId) {
  * Normalize legacy proxy configuration.
  */
 function normalizeLegacyProxy(providerSpecificData = {}) {
-  const connectionProxyEnabled =
-    providerSpecificData?.connectionProxyEnabled === true;
+  const connectionProxyEnabled = providerSpecificData?.connectionProxyEnabled === true;
 
-  const connectionProxyUrl = normalizeString(
-    providerSpecificData?.connectionProxyUrl
-  );
+  const connectionProxyUrl = normalizeString(providerSpecificData?.connectionProxyUrl);
 
-  const connectionNoProxy = normalizeString(
-    providerSpecificData?.connectionNoProxy
-  );
+  const connectionNoProxy = normalizeString(providerSpecificData?.connectionNoProxy);
 
   return {
     connectionProxyEnabled,
@@ -63,17 +58,12 @@ function normalizeLegacyProxy(providerSpecificData = {}) {
  * 2. Legacy Proxy
  * 3. No Proxy
  */
-export async function resolveConnectionProxyConfig(
-  providerSpecificData = {}
-) {
+export async function resolveConnectionProxyConfig(providerSpecificData = {}) {
   try {
-    const proxyPoolIdRaw = normalizeString(
-      providerSpecificData?.proxyPoolId
-    );
+    const proxyPoolIdRaw = normalizeString(providerSpecificData?.proxyPoolId);
 
     // "__none__" means explicitly disabled
-    const proxyPoolId =
-      proxyPoolIdRaw === "__none__" ? "" : proxyPoolIdRaw;
+    const proxyPoolId = proxyPoolIdRaw === "__none__" ? "" : proxyPoolIdRaw;
 
     const legacy = normalizeLegacyProxy(providerSpecificData);
 
@@ -88,17 +78,18 @@ export async function resolveConnectionProxyConfig(
       const proxyUrl = normalizeString(proxyPool?.proxyUrl);
       const noProxy = normalizeString(proxyPool?.noProxy);
 
-      const isValidPool =
-        proxyPool &&
-        proxyPool.isActive === true &&
-        proxyUrl;
+      const isValidPool = proxyPool && proxyPool.isActive === true && proxyUrl;
 
       if (isValidPool) {
         /**
          * Vercel/Cloudflare relay proxies use base URL rewriting
          * instead of HTTP_PROXY environment variables.
          */
-        if (proxyPool.type === "vercel" || proxyPool.type === "cloudflare" || proxyPool.type === "deno") {
+        if (
+          proxyPool.type === "vercel" ||
+          proxyPool.type === "cloudflare" ||
+          proxyPool.type === "deno"
+        ) {
           return {
             source: proxyPool.type,
 
@@ -138,10 +129,7 @@ export async function resolveConnectionProxyConfig(
      * Legacy Proxy Fallback
      * -----------------------------
      */
-    if (
-      legacy.connectionProxyEnabled &&
-      legacy.connectionProxyUrl
-    ) {
+    if (legacy.connectionProxyEnabled && legacy.connectionProxyUrl) {
       return {
         source: "legacy",
 
@@ -166,10 +154,7 @@ export async function resolveConnectionProxyConfig(
       ...legacy,
     };
   } catch (error) {
-    console.error(
-      "[resolveConnectionProxyConfig] Failed to resolve proxy config:",
-      error
-    );
+    console.error("[resolveConnectionProxyConfig] Failed to resolve proxy config:", error);
 
     return {
       source: "error",

@@ -4,9 +4,12 @@ import "./registerAll.js";
 import { translateRequest } from "../../open-sse/translator/index.js";
 import { FORMATS } from "../../open-sse/translator/formats.js";
 
-const O2G = (body) => translateRequest(FORMATS.OPENAI, FORMATS.GEMINI, "m", body, true, null, "gemini");
-const O2C = (body) => translateRequest(FORMATS.OPENAI, FORMATS.CURSOR, "m", body, true, null, "cursor");
-const O2CC = (body) => translateRequest(FORMATS.OPENAI, FORMATS.COMMANDCODE, "m", body, true, null, "commandcode");
+const O2G = (body) =>
+  translateRequest(FORMATS.OPENAI, FORMATS.GEMINI, "m", body, true, null, "gemini");
+const O2C = (body) =>
+  translateRequest(FORMATS.OPENAI, FORMATS.CURSOR, "m", body, true, null, "cursor");
+const O2CC = (body) =>
+  translateRequest(FORMATS.OPENAI, FORMATS.COMMANDCODE, "m", body, true, null, "commandcode");
 
 describe("OpenAI → Gemini", () => {
   // openai-to-gemini.js:92-96 — each system message overwrites systemInstruction → only last kept
@@ -28,10 +31,15 @@ describe("OpenAI → Cursor", () => {
   // AgentService selected_context bytes (YAN-134).
   it("image content is preserved", () => {
     const out = O2C({
-      messages: [{ role: "user", content: [
-        { type: "text", text: "look" },
-        { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } },
-      ] }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "look" },
+            { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } },
+          ],
+        },
+      ],
     });
     expect(JSON.stringify(out), "image dropped").toContain("AAAA");
   });
@@ -51,9 +59,11 @@ describe("OpenAI → CommandCode", () => {
     const out = O2CC({
       messages: [
         { role: "user", content: "go" },
-        { role: "assistant", content: "", tool_calls: [
-          { id: "c1", type: "function", function: { name: "f", arguments: "{bad" } },
-        ] },
+        {
+          role: "assistant",
+          content: "",
+          tool_calls: [{ id: "c1", type: "function", function: { name: "f", arguments: "{bad" } }],
+        },
         { role: "tool", tool_call_id: "c1", content: "r" },
       ],
     });
@@ -64,10 +74,15 @@ describe("OpenAI → CommandCode", () => {
 
   it("image content is preserved as native CommandCode image blocks", () => {
     const out = O2CC({
-      messages: [{ role: "user", content: [
-        { type: "text", text: "look" },
-        { type: "image_url", image_url: { url: "data:image/png;base64,BBBB" } },
-      ] }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "look" },
+            { type: "image_url", image_url: { url: "data:image/png;base64,BBBB" } },
+          ],
+        },
+      ],
     });
     expect(JSON.stringify(out)).toContain("BBBB");
     expect(JSON.stringify(out)).not.toContain("[image omitted]");

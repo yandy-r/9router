@@ -51,19 +51,40 @@ function getMiniMaxProvidedPercent(model, snakeKey, camelKey) {
 }
 
 function getMiniMaxSessionTotal(model) {
-  return Math.max(0, Number(getMiniMaxField(model, "current_interval_total_count", "currentIntervalTotalCount")) || 0);
+  return Math.max(
+    0,
+    Number(getMiniMaxField(model, "current_interval_total_count", "currentIntervalTotalCount")) ||
+      0,
+  );
 }
 
 function getMiniMaxWeeklyTotal(model) {
-  return Math.max(0, Number(getMiniMaxField(model, "current_weekly_total_count", "currentWeeklyTotalCount")) || 0);
+  return Math.max(
+    0,
+    Number(getMiniMaxField(model, "current_weekly_total_count", "currentWeeklyTotalCount")) || 0,
+  );
 }
 
 function hasMiniMaxQuota(model) {
   // Old format has real count totals; M3-era M-series buckets ship percent-only
   // (count fields are 0) so accept those too.
   if (getMiniMaxSessionTotal(model) > 0 || getMiniMaxWeeklyTotal(model) > 0) return true;
-  if (getMiniMaxProvidedPercent(model, "current_interval_remaining_percent", "currentIntervalRemainingPercent") !== null) return true;
-  if (getMiniMaxProvidedPercent(model, "current_weekly_remaining_percent", "currentWeeklyRemainingPercent") !== null) return true;
+  if (
+    getMiniMaxProvidedPercent(
+      model,
+      "current_interval_remaining_percent",
+      "currentIntervalRemainingPercent",
+    ) !== null
+  )
+    return true;
+  if (
+    getMiniMaxProvidedPercent(
+      model,
+      "current_weekly_remaining_percent",
+      "currentWeeklyRemainingPercent",
+    ) !== null
+  )
+    return true;
   return false;
 }
 
@@ -75,7 +96,9 @@ function getMiniMaxResetAt(model, capturedAtMs, remainsSnake, remainsCamel, endS
 
 function buildMiniMaxQuota(total, count, resetAt, countMeansRemaining, providedPercent = null) {
   const safeTotal = Math.max(0, total);
-  const used = countMeansRemaining ? Math.max(safeTotal - count, 0) : Math.min(Math.max(0, count), safeTotal);
+  const used = countMeansRemaining
+    ? Math.max(safeTotal - count, 0)
+    : Math.min(Math.max(0, count), safeTotal);
   const remaining = Math.max(safeTotal - used, 0);
   // M-series buckets ship percent-only (count = 0). Prefer the upstream value
   // when present, otherwise fall back to the computed percentage. When the
@@ -99,7 +122,18 @@ function providedPercentage(provided, remaining, total) {
   return total > 0 ? Math.max(0, Math.min(100, (remaining / total) * 100)) : 0;
 }
 
-function addMiniMaxQuota(quotas, key, model, getTotal, countSnake, countCamel, percentSnake, percentCamel, resetArgs, countMeansRemaining) {
+function addMiniMaxQuota(
+  quotas,
+  key,
+  model,
+  getTotal,
+  countSnake,
+  countCamel,
+  percentSnake,
+  percentCamel,
+  resetArgs,
+  countMeansRemaining,
+) {
   const total = getTotal(model);
   const providedPercent = getMiniMaxProvidedPercent(model, percentSnake, percentCamel);
   if (total <= 0 && providedPercent === null) return;
@@ -123,7 +157,7 @@ function addMiniMaxQuota(quotas, key, model, getTotal, countSnake, countCamel, p
     effectiveCount,
     getMiniMaxResetAt(model, ...resetArgs),
     countMeansRemaining,
-    providedPercent
+    providedPercent,
   );
 }
 
@@ -143,19 +177,27 @@ export async function getMiniMaxUsage(apiKey, provider, proxyOptions = null) {
     const canFallback = index < usageUrls.length - 1;
 
     try {
-      const response = await proxyAwareFetch(usageUrl, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          Accept: "application/json",
-          "Content-Type": "application/json",
+      const response = await proxyAwareFetch(
+        usageUrl,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
         },
-      }, proxyOptions);
+        proxyOptions,
+      );
 
       const rawText = await response.text();
       let payload = {};
       if (rawText) {
-        try { payload = JSON.parse(rawText); } catch { payload = {}; }
+        try {
+          payload = JSON.parse(rawText);
+        } catch {
+          payload = {};
+        }
       }
 
       const baseResp = (payload?.base_resp ?? payload?.baseResp) || {};
@@ -164,13 +206,24 @@ export async function getMiniMaxUsage(apiKey, provider, proxyOptions = null) {
       const combined = `${apiStatusMessage} ${rawText}`.trim();
       const authLike = /token plan|coding plan|invalid api key|invalid key|unauthorized|inactive/i;
 
-      if (response.status === 401 || response.status === 403 || apiStatusCode === 1004 || authLike.test(combined)) {
-        return { message: "MiniMax API key invalid or inactive. Use an active Token/Coding Plan key." };
+      if (
+        response.status === 401 ||
+        response.status === 403 ||
+        apiStatusCode === 1004 ||
+        authLike.test(combined)
+      ) {
+        return {
+          message: "MiniMax API key invalid or inactive. Use an active Token/Coding Plan key.",
+        };
       }
 
       if (!response.ok) {
         lastErrorMessage = `MiniMax usage endpoint error (${response.status})`;
-        if ((response.status === 404 || response.status === 405 || response.status >= 500) && canFallback) continue;
+        if (
+          (response.status === 404 || response.status === 405 || response.status >= 500) &&
+          canFallback
+        )
+          continue;
         return { message: `MiniMax connected. ${lastErrorMessage}` };
       }
 
@@ -202,7 +255,7 @@ export async function getMiniMaxUsage(apiKey, provider, proxyOptions = null) {
           "current_interval_remaining_percent",
           "currentIntervalRemainingPercent",
           [capturedAtMs, "remains_time", "remainsTime", "end_time", "endTime"],
-          countMeansRemaining
+          countMeansRemaining,
         );
 
         addMiniMaxQuota(
@@ -214,8 +267,14 @@ export async function getMiniMaxUsage(apiKey, provider, proxyOptions = null) {
           "currentWeeklyUsageCount",
           "current_weekly_remaining_percent",
           "currentWeeklyRemainingPercent",
-          [capturedAtMs, "weekly_remains_time", "weeklyRemainsTime", "weekly_end_time", "weeklyEndTime"],
-          countMeansRemaining
+          [
+            capturedAtMs,
+            "weekly_remains_time",
+            "weeklyRemainsTime",
+            "weekly_end_time",
+            "weeklyEndTime",
+          ],
+          countMeansRemaining,
         );
       }
 
@@ -230,5 +289,9 @@ export async function getMiniMaxUsage(apiKey, provider, proxyOptions = null) {
     }
   }
 
-  return { message: lastErrorMessage ? `MiniMax connected. Unable to fetch usage: ${lastErrorMessage}` : "MiniMax connected. Unable to fetch usage." };
+  return {
+    message: lastErrorMessage
+      ? `MiniMax connected. Unable to fetch usage: ${lastErrorMessage}`
+      : "MiniMax connected. Unable to fetch usage.",
+  };
 }

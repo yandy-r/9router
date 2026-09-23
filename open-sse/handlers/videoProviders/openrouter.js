@@ -21,7 +21,11 @@ export default {
     const base = config.baseUrl.replace(/\/$/, "");
 
     if (requestId) {
-      return { method: "GET", url: `${base}/${encodeURIComponent(requestId)}`, headers: headers(config, token) };
+      return {
+        method: "GET",
+        url: `${base}/${encodeURIComponent(requestId)}`,
+        headers: headers(config, token),
+      };
     }
     if (!SUPPORTED_ACTIONS.has(action)) {
       return { error: `OpenRouter video supports 'generations' only (got '${action}')` };

@@ -160,8 +160,8 @@ export default function LoginPage() {
             {samlAvailable
               ? "Sign in with SAML 2.0 Single Sign-On"
               : oidcAvailable
-              ? "Sign in with your OIDC provider to access the dashboard"
-              : "Enter your password to access the dashboard"}
+                ? "Sign in with your OIDC provider to access the dashboard"
+                : "Enter your password to access the dashboard"}
           </p>
         </div>
 
@@ -183,86 +183,107 @@ export default function LoginPage() {
                 />
                 {error && <p className="text-xs text-red-500">{error}</p>}
               </div>
-              <Button type="submit" variant="primary" className="w-full" loading={loading} disabled={!newPassword}>
+              <Button
+                type="submit"
+                variant="primary"
+                className="w-full"
+                loading={loading}
+                disabled={!newPassword}
+              >
                 Set password
               </Button>
             </form>
           ) : (
-          <div className="flex flex-col gap-4">
-            {samlAvailable && (
-              <Button type="button" variant="primary" className="w-full" onClick={handleSamlLogin}>
-                {samlLoginLabel}
-              </Button>
-            )}
-
-            {oidcAvailable && (
-              <Button type="button" variant="primary" className="w-full" onClick={handleOidcLogin}>
-                {oidcLoginLabel}
-              </Button>
-            )}
-
-            {ssoAvailable && passwordAvailable && <div className="h-px bg-border/60" />}
-
-            {passwordAvailable ? (
-              <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                {isSsoEnabled && !ssoAvailable && (
-                  <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
-                    {activeSsoType === "saml" ? "SAML SSO" : "OIDC"} login is enabled, but configuration is incomplete. Password login is still available for recovery.
-                  </p>
-                )}
-
-                {authMode === "both" && ssoAvailable && (
-                  <p className="text-xs text-text-muted text-center">
-                    Password and {activeSsoType === "saml" ? "SAML SSO" : "OIDC"} login are both enabled.
-                  </p>
-                )}
-
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium">Password</label>
-                  <Input
-                    type="password"
-                    placeholder="Enter password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    autoFocus={!oidcAvailable}
-                  />
-                  {error && <p className="text-xs text-red-500">{error}</p>}
-                  {retryAfter > 0 && (
-                    <p className="text-xs text-amber-600 dark:text-amber-400">
-                      Locked. Retry in <span className="font-mono">{retryAfter}s</span>.
-                    </p>
-                  )}
-                  {resetHint && (
-                    <p className="text-xs text-text-muted">
-                      Forgot password? Open <code className="bg-sidebar px-1 rounded">9router</code> CLI on the host → <b>Settings</b> → <b>Reset Password to Default</b>.
-                    </p>
-                  )}
-                </div>
-
+            <div className="flex flex-col gap-4">
+              {samlAvailable && (
                 <Button
-                  type="submit"
+                  type="button"
                   variant="primary"
                   className="w-full"
-                  loading={loading}
-                  disabled={retryAfter > 0}
+                  onClick={handleSamlLogin}
                 >
-                  {retryAfter > 0 ? `Wait ${retryAfter}s` : "Login"}
+                  {samlLoginLabel}
                 </Button>
+              )}
 
-                <p className="text-xs text-center text-text-muted mt-2">
-                  Default password is <code className="bg-sidebar px-1 rounded">123456</code>
-                </p>
-                {hasPassword === false && (
-                  <p className="text-xs text-center text-amber-600 dark:text-amber-400">
-                    Security risk: no password set. You will be asked to set one when logging in remotely.
+              {oidcAvailable && (
+                <Button
+                  type="button"
+                  variant="primary"
+                  className="w-full"
+                  onClick={handleOidcLogin}
+                >
+                  {oidcLoginLabel}
+                </Button>
+              )}
+
+              {ssoAvailable && passwordAvailable && <div className="h-px bg-border/60" />}
+
+              {passwordAvailable ? (
+                <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                  {isSsoEnabled && !ssoAvailable && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                      {activeSsoType === "saml" ? "SAML SSO" : "OIDC"} login is enabled, but
+                      configuration is incomplete. Password login is still available for recovery.
+                    </p>
+                  )}
+
+                  {authMode === "both" && ssoAvailable && (
+                    <p className="text-xs text-text-muted text-center">
+                      Password and {activeSsoType === "saml" ? "SAML SSO" : "OIDC"} login are both
+                      enabled.
+                    </p>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">Password</label>
+                    <Input
+                      type="password"
+                      placeholder="Enter password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoFocus={!oidcAvailable}
+                    />
+                    {error && <p className="text-xs text-red-500">{error}</p>}
+                    {retryAfter > 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        Locked. Retry in <span className="font-mono">{retryAfter}s</span>.
+                      </p>
+                    )}
+                    {resetHint && (
+                      <p className="text-xs text-text-muted">
+                        Forgot password? Open{" "}
+                        <code className="bg-sidebar px-1 rounded">9router</code> CLI on the host →{" "}
+                        <b>Settings</b> → <b>Reset Password to Default</b>.
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    className="w-full"
+                    loading={loading}
+                    disabled={retryAfter > 0}
+                  >
+                    {retryAfter > 0 ? `Wait ${retryAfter}s` : "Login"}
+                  </Button>
+
+                  <p className="text-xs text-center text-text-muted mt-2">
+                    Default password is <code className="bg-sidebar px-1 rounded">123456</code>
                   </p>
-                )}
-              </form>
-            ) : (
-              error && <p className="text-xs text-red-500">{error}</p>
-            )}
-          </div>
+                  {hasPassword === false && (
+                    <p className="text-xs text-center text-amber-600 dark:text-amber-400">
+                      Security risk: no password set. You will be asked to set one when logging in
+                      remotely.
+                    </p>
+                  )}
+                </form>
+              ) : (
+                error && <p className="text-xs text-red-500">{error}</p>
+              )}
+            </div>
           )}
         </Card>
       </div>

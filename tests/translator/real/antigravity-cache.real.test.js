@@ -23,14 +23,17 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { PROVIDERS } from "../../../open-sse/config/providers.js";
-import { ANTIGRAVITY_HEADERS, INTERNAL_REQUEST_HEADER } from "../../../open-sse/config/appConstants.js";
+import {
+  ANTIGRAVITY_HEADERS,
+  INTERNAL_REQUEST_HEADER,
+} from "../../../open-sse/config/appConstants.js";
 import { assertOAuthClient } from "../../../open-sse/providers/shared.js";
 
 const RUN_REAL = process.env.RUN_REAL === "1";
 const OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const FETCH_TIMEOUT_MS = 30000;
 const MIN_CACHE_TOKENS = 100; // AG implicit cache threshold observed ~1024-2048
-const LONG_TEXT = ("You are a careful assistant. Always follow these rules. ".repeat(300)).trim();
+const LONG_TEXT = "You are a careful assistant. Always follow these rules. ".repeat(300).trim();
 
 async function refreshAccessToken(refreshToken) {
   const { clientId, clientSecret } = PROVIDERS.antigravity;
@@ -42,8 +45,8 @@ async function refreshAccessToken(refreshToken) {
       grant_type: "refresh_token",
       refresh_token: refreshToken,
       client_id: clientId,
-      client_secret: clientSecret
-    })
+      client_secret: clientSecret,
+    }),
   });
   if (!res.ok) throw new Error(`Antigravity OAuth token refresh failed: HTTP ${res.status}`);
   const json = await res.json();
@@ -67,31 +70,35 @@ async function callAg({ accessToken, projectId, sessionId, longText, userText })
     request: {
       systemInstruction: { role: "system", parts: [{ text: longText }] },
       contents: [{ role: "user", parts: [{ text: userText }] }],
-      sessionId
-    }
+      sessionId,
+    },
   };
   const res = await fetch(`${baseUrl}/v1internal:generateContent`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken}`,
       "User-Agent": ANTIGRAVITY_HEADERS["User-Agent"],
       [INTERNAL_REQUEST_HEADER.name]: INTERNAL_REQUEST_HEADER.value,
-      "X-Machine-Session-Id": sessionId
+      "X-Machine-Session-Id": sessionId,
     },
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
   const text = await res.text();
   let json = {};
-  try { json = JSON.parse(text); } catch { /* keep status-only result */ }
+  try {
+    json = JSON.parse(text);
+  } catch {
+    /* keep status-only result */
+  }
   const usage = json?.response?.usageMetadata || json?.usageMetadata || {};
   return {
     status: res.status,
     promptTokens: usage.promptTokenCount || 0,
     cachedTokens: usage.cachedContentTokenCount || 0,
     totalTokens: usage.totalTokenCount || 0,
-    raw: json
+    raw: json,
   };
 }
 
@@ -107,16 +114,19 @@ describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
     try {
       // Avoid getAdapter() creating an empty DB when none exists. Mirrors
       // src/lib/dataDir.js defaultDir() resolution without its mkdir side effect.
-      const dataDir = process.env.DATA_DIR || (
-        process.platform === "win32"
-          ? path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "9router")
-          : path.join(os.homedir(), ".9router")
-      );
+      const dataDir =
+        process.env.DATA_DIR ||
+        (process.platform === "win32"
+          ? path.join(
+              process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
+              "9router",
+            )
+          : path.join(os.homedir(), ".9router"));
       const dbSqlite = path.join(dataDir, "db", "data.sqlite");
       if (!fs.existsSync(dbSqlite)) return;
       const { getProviderConnections } = await import("../../../src/lib/localDb.js");
       conns = (await getProviderConnections({ provider: "antigravity", isActive: true })).filter(
-        (c) => c.refreshToken && c.projectId
+        (c) => c.refreshToken && c.projectId,
       );
     } catch (e) {
       loadError = e;
@@ -128,11 +138,12 @@ describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
     }
   });
 
-  const noConn = (ctx) => ctx.skip(
-    loadError
-      ? `Antigravity credential DB unavailable: ${loadError.message}`
-      : "No active Antigravity connection with refreshToken and projectId"
-  );
+  const noConn = (ctx) =>
+    ctx.skip(
+      loadError
+        ? `Antigravity credential DB unavailable: ${loadError.message}`
+        : "No active Antigravity connection with refreshToken and projectId",
+    );
 
   it("same sessionId → cache hit on repeated call", async (ctx) => {
     if (conns.length === 0) return noConn(ctx);
@@ -140,10 +151,24 @@ describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
     const token = await refreshAccessToken(acc.refreshToken);
     const sessionId = `test-same-${crypto.randomUUID()}`;
 
-    const r1 = await callAg({ accessToken: token, projectId: acc.projectId, sessionId, longText: LONG_TEXT, userText: "Reply with OK only." });
-    const r2 = await callAg({ accessToken: token, projectId: acc.projectId, sessionId, longText: LONG_TEXT, userText: "Reply with OK only." });
+    const r1 = await callAg({
+      accessToken: token,
+      projectId: acc.projectId,
+      sessionId,
+      longText: LONG_TEXT,
+      userText: "Reply with OK only.",
+    });
+    const r2 = await callAg({
+      accessToken: token,
+      projectId: acc.projectId,
+      sessionId,
+      longText: LONG_TEXT,
+      userText: "Reply with OK only.",
+    });
 
-    console.log(`[same-session ${acc.email}] r1: prompt=${r1.promptTokens} cached=${r1.cachedTokens} | r2: prompt=${r2.promptTokens} cached=${r2.cachedTokens}`);
+    console.log(
+      `[same-session ${acc.email}] r1: prompt=${r1.promptTokens} cached=${r1.cachedTokens} | r2: prompt=${r2.promptTokens} cached=${r2.cachedTokens}`,
+    );
 
     expect(r1.status).toBe(200);
     expect(r2.status).toBe(200);
@@ -155,10 +180,24 @@ describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
     const [acc] = conns;
     const token = await refreshAccessToken(acc.refreshToken);
 
-    const r1 = await callAg({ accessToken: token, projectId: acc.projectId, sessionId: `test-diff-a-${crypto.randomUUID()}`, longText: LONG_TEXT, userText: "Reply with OK only." });
-    const r2 = await callAg({ accessToken: token, projectId: acc.projectId, sessionId: `test-diff-b-${crypto.randomUUID()}`, longText: LONG_TEXT, userText: "Reply with OK only." });
+    const r1 = await callAg({
+      accessToken: token,
+      projectId: acc.projectId,
+      sessionId: `test-diff-a-${crypto.randomUUID()}`,
+      longText: LONG_TEXT,
+      userText: "Reply with OK only.",
+    });
+    const r2 = await callAg({
+      accessToken: token,
+      projectId: acc.projectId,
+      sessionId: `test-diff-b-${crypto.randomUUID()}`,
+      longText: LONG_TEXT,
+      userText: "Reply with OK only.",
+    });
 
-    console.log(`[diff-session ${acc.email}] r1: cached=${r1.cachedTokens} | r2: cached=${r2.cachedTokens}`);
+    console.log(
+      `[diff-session ${acc.email}] r1: cached=${r1.cachedTokens} | r2: cached=${r2.cachedTokens}`,
+    );
 
     expect(r1.status).toBe(200);
     expect(r2.status).toBe(200);
@@ -172,15 +211,29 @@ describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
     const [accA, accB] = conns;
     const [tokenA, tokenB] = await Promise.all([
       refreshAccessToken(accA.refreshToken),
-      refreshAccessToken(accB.refreshToken)
+      refreshAccessToken(accB.refreshToken),
     ]);
 
     // Account A warmup with its own sessionId
-    const a1 = await callAg({ accessToken: tokenA, projectId: accA.projectId, sessionId: `cross-a-${crypto.randomUUID()}`, longText: LONG_TEXT, userText: "Reply with OK only." });
+    const a1 = await callAg({
+      accessToken: tokenA,
+      projectId: accA.projectId,
+      sessionId: `cross-a-${crypto.randomUUID()}`,
+      longText: LONG_TEXT,
+      userText: "Reply with OK only.",
+    });
     // Account B with DIFFERENT sessionId → if cache shares across accounts, it still hits
-    const b1 = await callAg({ accessToken: tokenB, projectId: accB.projectId, sessionId: `cross-b-${crypto.randomUUID()}`, longText: LONG_TEXT, userText: "Reply with OK only." });
+    const b1 = await callAg({
+      accessToken: tokenB,
+      projectId: accB.projectId,
+      sessionId: `cross-b-${crypto.randomUUID()}`,
+      longText: LONG_TEXT,
+      userText: "Reply with OK only.",
+    });
 
-    console.log(`[cross-account] A cached=${a1.cachedTokens} | B cached=${b1.cachedTokens} (${accA.email} → ${accB.email})`);
+    console.log(
+      `[cross-account] A cached=${a1.cachedTokens} | B cached=${b1.cachedTokens} (${accA.email} → ${accB.email})`,
+    );
 
     expect(a1.status).toBe(200);
     expect(b1.status).toBe(200);
@@ -203,7 +256,11 @@ describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
     const userText = "Reply with OK only.";
 
     // Codex-style: sess_${sha256(systemInstruction + userContent).slice(0,32)}
-    const hash = crypto.createHash("sha256").update(uniqueLong + "\n" + userText).digest("hex").slice(0, 32);
+    const hash = crypto
+      .createHash("sha256")
+      .update(uniqueLong + "\n" + userText)
+      .digest("hex")
+      .slice(0, 32);
     const codexStyleSessionId = `sess_${hash}`;
 
     const N = 4;
@@ -213,9 +270,11 @@ describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
     // Strategy A: random sessionId each call
     for (let i = 0; i < N; i++) {
       const r = await callAg({
-        accessToken: token, projectId: acc.projectId,
+        accessToken: token,
+        projectId: acc.projectId,
         sessionId: `rand-${crypto.randomUUID()}`,
-        longText: uniqueLong, userText
+        longText: uniqueLong,
+        userText,
       });
       randomResults.push(r);
       console.log(`[random   call ${i + 1}] cached=${r.cachedTokens}`);
@@ -224,20 +283,27 @@ describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
     // Strategy B: codex-style stable sessionId (same hash for every call)
     for (let i = 0; i < N; i++) {
       const r = await callAg({
-        accessToken: token, projectId: acc.projectId,
+        accessToken: token,
+        projectId: acc.projectId,
         sessionId: codexStyleSessionId,
-        longText: uniqueLong, userText
+        longText: uniqueLong,
+        userText,
       });
       codexResults.push(r);
       console.log(`[codex    call ${i + 1}] cached=${r.cachedTokens}`);
     }
 
-    const randomHitRate = randomResults.filter(r => r.cachedTokens >= MIN_CACHE_TOKENS).length / N;
-    const codexHitRate = codexResults.filter(r => r.cachedTokens >= MIN_CACHE_TOKENS).length / N;
+    const randomHitRate =
+      randomResults.filter((r) => r.cachedTokens >= MIN_CACHE_TOKENS).length / N;
+    const codexHitRate = codexResults.filter((r) => r.cachedTokens >= MIN_CACHE_TOKENS).length / N;
     console.log(`[summary] randomHitRate=${randomHitRate} codexHitRate=${codexHitRate}`);
 
-    randomResults.forEach(r => expect(r.status).toBe(200));
-    codexResults.forEach(r => expect(r.status).toBe(200));
+    randomResults.forEach((r) => {
+      expect(r.status).toBe(200);
+    });
+    codexResults.forEach((r) => {
+      expect(r.status).toBe(200);
+    });
     // No strict comparison — just report. AG cache is session-independent per prior tests.
   }, 180000);
 
@@ -251,14 +317,24 @@ describe.skipIf(!RUN_REAL)("Antigravity cache behavior (real API)", () => {
 
     const results = [];
     for (let i = 0; i < 5; i++) {
-      const r = await callAg({ accessToken: token, projectId: acc.projectId, sessionId, longText: uniqueLong, userText: "Reply with OK only." });
+      const r = await callAg({
+        accessToken: token,
+        projectId: acc.projectId,
+        sessionId,
+        longText: uniqueLong,
+        userText: "Reply with OK only.",
+      });
       results.push(r);
-      console.log(`[unique-prompt call ${i + 1}] prompt=${r.promptTokens} cached=${r.cachedTokens}`);
+      console.log(
+        `[unique-prompt call ${i + 1}] prompt=${r.promptTokens} cached=${r.cachedTokens}`,
+      );
     }
 
-    results.forEach(r => expect(r.status).toBe(200));
+    results.forEach((r) => {
+      expect(r.status).toBe(200);
+    });
     // Log whether any call ever hits cache — no strict assertion (exploratory)
-    const anyHit = results.some(r => r.cachedTokens >= MIN_CACHE_TOKENS);
+    const anyHit = results.some((r) => r.cachedTokens >= MIN_CACHE_TOKENS);
     console.log(`[unique-prompt] any-hit=${anyHit}`);
   }, 90000);
 });

@@ -10,17 +10,26 @@ import { translateRequest } from "../../open-sse/translator/index.js";
 const MODEL = "muse-spark-1.2-contributor-free";
 const PROVIDER = "opencode";
 
-const input = [{
-  type: "message",
-  role: "user",
-  content: [{ type: "input_text", text: "Think, then answer: 2 + 2?" }],
-}];
+const input = [
+  {
+    type: "message",
+    role: "user",
+    content: [{ type: "input_text", text: "Think, then answer: 2 + 2?" }],
+  },
+];
 
 describe("OpenCode Free Muse Spark thinking", () => {
   it("advertises reasoning and the requested model limits", () => {
     expect(PROVIDER_MODELS.oc?.some((model) => model.id === MODEL)).toBe(true);
-    expect(PROVIDER_MODELS.oc?.some((model) => model.id === "muse-spark-1.3-contributor-free")).toBe(true);
-    for (const m of [MODEL, "muse-spark-1.3-contributor-free", "muse-spark-1.4-contributor-free", "muse-spark-2.0-contributor-free"]) {
+    expect(
+      PROVIDER_MODELS.oc?.some((model) => model.id === "muse-spark-1.3-contributor-free"),
+    ).toBe(true);
+    for (const m of [
+      MODEL,
+      "muse-spark-1.3-contributor-free",
+      "muse-spark-1.4-contributor-free",
+      "muse-spark-2.0-contributor-free",
+    ]) {
       expect(getCapabilitiesForModel(PROVIDER, m)).toMatchObject({
         reasoning: true,
         thinkingFormat: "openai",
@@ -77,8 +86,9 @@ describe("OpenCode Free Muse Spark thinking", () => {
     expect(executor.buildHeaders({}, true, url)).toMatchObject({
       "anthropic-version": "2023-06-01",
     });
-    expect(executor.buildHeaders({}, true, executor.buildUrl("big-pickle")))
-      .not.toHaveProperty("anthropic-version");
+    expect(executor.buildHeaders({}, true, executor.buildUrl("big-pickle"))).not.toHaveProperty(
+      "anthropic-version",
+    );
 
     const translated = translateRequest(
       FORMATS.OPENAI,

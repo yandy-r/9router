@@ -14,9 +14,21 @@ import { DefaultExecutor } from "../../open-sse/executors/default.js";
 import { getExecutor } from "../../open-sse/executors/index.js";
 
 const TRANSPORTS = [
-  { format: "openai", baseUrl: "https://opencode.ai/zen/go/v1/chat/completions", auth: { combined: true, header: "Authorization", scheme: "bearer" } },
-  { format: "claude", baseUrl: "https://opencode.ai/zen/go/v1/messages", auth: { combined: true, header: "x-api-key", scheme: "raw", anthropicVersion: true } },
-  { format: "openai-responses", baseUrl: "https://opencode.ai/zen/go/v1/responses", auth: { combined: true, header: "Authorization", scheme: "bearer" } },
+  {
+    format: "openai",
+    baseUrl: "https://opencode.ai/zen/go/v1/chat/completions",
+    auth: { combined: true, header: "Authorization", scheme: "bearer" },
+  },
+  {
+    format: "claude",
+    baseUrl: "https://opencode.ai/zen/go/v1/messages",
+    auth: { combined: true, header: "x-api-key", scheme: "raw", anthropicVersion: true },
+  },
+  {
+    format: "openai-responses",
+    baseUrl: "https://opencode.ai/zen/go/v1/responses",
+    auth: { combined: true, header: "Authorization", scheme: "bearer" },
+  },
 ];
 
 function makeCredentials(overrides = {}) {
@@ -42,10 +54,12 @@ function prepare(executor, overrides = {}) {
 
 beforeEach(() => {
   fetchMock.mockReset();
-  fetchMock.mockResolvedValue(new Response("{}", {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  }));
+  fetchMock.mockResolvedValue(
+    new Response("{}", {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }),
+  );
 });
 
 describe("OpenCode Go x-opencode-session", () => {
@@ -95,8 +109,10 @@ describe("OpenCode Go x-opencode-session", () => {
 
   it("isolates different conversations", () => {
     const executor = getExecutor("opencode-go");
-    const a = prepare(executor, { providerSessionId: "conversation-a" }).prepared._opencodeGoSession;
-    const b = prepare(executor, { providerSessionId: "conversation-b" }).prepared._opencodeGoSession;
+    const a = prepare(executor, { providerSessionId: "conversation-a" }).prepared
+      ._opencodeGoSession;
+    const b = prepare(executor, { providerSessionId: "conversation-b" }).prepared
+      ._opencodeGoSession;
 
     expect(a).not.toBe(b);
   });
@@ -139,7 +155,9 @@ describe("OpenCode Go x-opencode-session", () => {
 
     expect(result.headers["x-opencode-session"]).toMatch(/^ses_[0-9a-f]{32}$/);
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock.mock.calls[0][1].headers["x-opencode-session"]).toBe(result.headers["x-opencode-session"]);
+    expect(fetchMock.mock.calls[0][1].headers["x-opencode-session"]).toBe(
+      result.headers["x-opencode-session"],
+    );
     expect(credentials).not.toHaveProperty("_opencodeGoSession");
   });
 
@@ -155,7 +173,9 @@ describe("chatCore provider session forwarding", () => {
       fileURLToPath(new URL("../../open-sse/handlers/chatCore.js", import.meta.url)),
       "utf8",
     );
-    const calls = [...source.matchAll(/executor\.execute\(\{([\s\S]*?)\}\)/g)].map((match) => match[1]);
+    const calls = [...source.matchAll(/executor\.execute\(\{([\s\S]*?)\}\)/g)].map(
+      (match) => match[1],
+    );
 
     expect(calls).toHaveLength(2);
     for (const call of calls) {

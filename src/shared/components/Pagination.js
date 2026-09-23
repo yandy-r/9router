@@ -38,7 +38,7 @@ export default function Pagination({
     <div
       className={cn(
         "flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-2",
-        className
+        className,
       )}
     >
       {/* Info text */}
@@ -61,9 +61,9 @@ export default function Pagination({
               className={cn(
                 "h-9 rounded-lg border border-black/10 dark:border-white/10 bg-surface",
                 "text-sm text-text-main focus:outline-none focus:ring-2 focus:ring-primary/20",
-                "cursor-pointer"
+                "cursor-pointer",
               )}
-              style={{ colorScheme: 'auto' }}
+              style={{ colorScheme: "auto" }}
             >
               {[10, 20, 50].map((size) => (
                 <option key={size} value={size}>
@@ -110,7 +110,7 @@ export default function Pagination({
                 onClick={() => onPageChange(page)}
                 className={cn(
                   "w-9 px-0",
-                  currentPage === page ? "inline-flex" : "hidden sm:inline-flex"
+                  currentPage === page ? "inline-flex" : "hidden sm:inline-flex",
                 )}
               >
                 {page}

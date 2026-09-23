@@ -38,14 +38,18 @@ export function backupFile(srcPath, destDir, destName = null) {
 // observability log, so the backup stays small regardless of DB size.
 export function backupDbLite(adapter, destDir, destName = "data.sqlite") {
   const dest = path.join(destDir, destName);
-  try { fs.rmSync(dest, { force: true }); } catch {}
+  try {
+    fs.rmSync(dest, { force: true });
+  } catch {}
   const escaped = dest.replace(/'/g, "''");
 
   adapter.exec(`ATTACH DATABASE '${escaped}' AS bak`);
   try {
     const excluded = new Set(BACKUP_EXCLUDE_TABLES);
     const tables = adapter
-      .all(`SELECT name, sql FROM main.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`)
+      .all(
+        `SELECT name, sql FROM main.sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`,
+      )
       .filter((t) => !excluded.has(t.name));
 
     adapter.transaction(() => {
@@ -57,19 +61,28 @@ export function backupDbLite(adapter, destDir, destName = "data.sqlite") {
       }
     });
   } finally {
-    try { adapter.exec("DETACH DATABASE bak"); } catch {}
+    try {
+      adapter.exec("DETACH DATABASE bak");
+    } catch {}
   }
   return dest;
 }
 
 export function pruneOldBackups() {
   if (!fs.existsSync(BACKUPS_DIR)) return;
-  const entries = fs.readdirSync(BACKUPS_DIR, { withFileTypes: true })
+  const entries = fs
+    .readdirSync(BACKUPS_DIR, { withFileTypes: true })
     .filter((e) => e.isDirectory())
-    .map((e) => ({ name: e.name, full: path.join(BACKUPS_DIR, e.name), mtime: fs.statSync(path.join(BACKUPS_DIR, e.name)).mtimeMs }))
+    .map((e) => ({
+      name: e.name,
+      full: path.join(BACKUPS_DIR, e.name),
+      mtime: fs.statSync(path.join(BACKUPS_DIR, e.name)).mtimeMs,
+    }))
     .sort((a, b) => b.mtime - a.mtime);
 
   for (const old of entries.slice(KEEP_BACKUPS)) {
-    try { fs.rmSync(old.full, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(old.full, { recursive: true, force: true });
+    } catch {}
   }
 }

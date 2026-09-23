@@ -18,7 +18,9 @@ const MAX_TOKENS = 32;
 const TIMEOUT_MS = 90000;
 // Optional comma-separated filter: REAL_PROVIDERS=kiro,codex,antigravity
 const PROVIDER_FILTER = (process.env.REAL_PROVIDERS || "")
-  .split(",").map((s) => s.trim()).filter(Boolean);
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 // Pick the first plain llm model for a provider (skip image/tts/embedding/etc).
 function firstLlmModel(providerId) {
@@ -54,7 +56,7 @@ describe.skipIf(!RUN_REAL).concurrent("REAL provider smoke", () => {
   });
 
   // One concurrent test per provider; resolved lazily inside the test.
-  for (const providerId of (RUN_REAL ? targetProviders() : [])) {
+  for (const providerId of RUN_REAL ? targetProviders() : []) {
     it.concurrent(
       `${providerId}: responds to a short prompt`,
       async () => {
@@ -93,9 +95,12 @@ describe.skipIf(!RUN_REAL).concurrent("REAL provider smoke", () => {
         const raw = await drainSSE(result.response);
         // Minimal sanity: got SSE data and a terminal signal or content.
         expect(raw.length, `${providerId}: empty response`).toBeGreaterThan(0);
-        expect(/data:|finish_reason|"delta"|"content"|event:/.test(raw), `${providerId}: not SSE`).toBe(true);
+        expect(
+          /data:|finish_reason|"delta"|"content"|event:/.test(raw),
+          `${providerId}: not SSE`,
+        ).toBe(true);
       },
-      TIMEOUT_MS
+      TIMEOUT_MS,
     );
   }
 });
@@ -112,7 +117,9 @@ function targetProviders() {
       ? path.join(process.env.DATA_DIR, "db", "data.sqlite")
       : path.join(os.homedir(), ".9router", "db", "data.sqlite");
     const db = new Database(dbPath, { readonly: true });
-    const rows = db.prepare("SELECT DISTINCT provider FROM providerConnections WHERE isActive = 1").all();
+    const rows = db
+      .prepare("SELECT DISTINCT provider FROM providerConnections WHERE isActive = 1")
+      .all();
     db.close();
     let list = rows.map((r) => r.provider).sort();
     if (PROVIDER_FILTER.length) list = list.filter((p) => PROVIDER_FILTER.includes(p));

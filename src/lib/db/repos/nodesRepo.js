@@ -34,7 +34,7 @@ function upsert(db, n) {
      VALUES(?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        type=excluded.type, name=excluded.name, data=excluded.data, updatedAt=excluded.updatedAt`,
-    [r.id, r.type, r.name, r.data, r.createdAt, r.updatedAt]
+    [r.id, r.type, r.name, r.data, r.createdAt, r.updatedAt],
   );
 }
 
@@ -42,7 +42,10 @@ export async function getProviderNodes(filter = {}) {
   const db = await getAdapter();
   const where = [];
   const params = [];
-  if (filter.type) { where.push("type = ?"); params.push(filter.type); }
+  if (filter.type) {
+    where.push("type = ?");
+    params.push(filter.type);
+  }
   const sql = `SELECT * FROM providerNodes${where.length ? ` WHERE ${where.join(" AND ")}` : ""}`;
   return db.all(sql, params).map(rowToNode);
 }

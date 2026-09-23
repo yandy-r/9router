@@ -58,7 +58,8 @@ describe("CLI build server artifacts", () => {
     },
     {
       name: "Next 16 workspace",
-      standalonePath: (appDir, buildDistDir) => path.join(buildDistDir, "standalone", path.basename(appDir)),
+      standalonePath: (appDir, buildDistDir) =>
+        path.join(buildDistDir, "standalone", path.basename(appDir)),
     },
   ]) {
     it(`merges complete API routes and provider chunks for the ${name} layout`, () => {
@@ -132,10 +133,10 @@ describe("CLI build server artifacts", () => {
 
     assert.throws(
       () => assertRequiredApiArtifacts(cliAppDir),
-      (error) => error.message.includes(path.join(
-        cliAppDir,
-        ".next-cli-build/server/app/api/v1/messages/route.js",
-      )),
+      (error) =>
+        error.message.includes(
+          path.join(cliAppDir, ".next-cli-build/server/app/api/v1/messages/route.js"),
+        ),
     );
   });
 });

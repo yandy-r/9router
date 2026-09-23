@@ -25,7 +25,8 @@ function imageDimensions(buf) {
   // WebP: RIFF....WEBP + VP8X(10B header) / VP8L(5B) / VP8 (10B)
   if (buf.length >= 30 && buf[0] === 0x52 && buf[8] === 0x57) {
     const fourcc = buf.toString("latin1", 12, 16);
-    if (fourcc === "VP8X") return { width: 1 + buf.readUIntLE(24, 3), height: 1 + buf.readUIntLE(27, 3) };
+    if (fourcc === "VP8X")
+      return { width: 1 + buf.readUIntLE(24, 3), height: 1 + buf.readUIntLE(27, 3) };
     if (fourcc === "VP8L" && buf[20] === 0x2f) {
       const b = buf.readUInt32LE(21);
       return { width: (b & 0x3fff) + 1, height: ((b >> 14) & 0x3fff) + 1 };
@@ -38,12 +39,24 @@ function imageDimensions(buf) {
   if (buf.length >= 4 && buf[0] === 0xff && buf[1] === 0xd8) {
     let off = 2;
     while (off + 9 <= buf.length) {
-      if (buf[off] !== 0xff) { off++; continue; }
+      if (buf[off] !== 0xff) {
+        off++;
+        continue;
+      }
       const marker = buf[off + 1];
-      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      if (
+        marker >= 0xc0 &&
+        marker <= 0xcf &&
+        marker !== 0xc4 &&
+        marker !== 0xc8 &&
+        marker !== 0xcc
+      ) {
         return { width: buf.readUInt16BE(off + 7), height: buf.readUInt16BE(off + 5) };
       }
-      if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd9)) { off += 2; continue; }
+      if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd9)) {
+        off += 2;
+        continue;
+      }
       off += 2 + buf.readUInt16BE(off + 2);
     }
   }
@@ -74,11 +87,14 @@ export async function resolveCursorImage(part, index, { signal } = {}) {
   if (!/^image\//i.test(parsed.mimeType)) {
     throw bad(index, `has non-image media type "${parsed.mimeType}"`);
   }
-  const estimated = Math.floor(parsed.base64.length * 3 / 4);
+  const estimated = Math.floor((parsed.base64.length * 3) / 4);
   if (estimated > MAX_IMAGE_BYTES + 3) throw bad(index, `exceeds ${MAX_IMAGE_BYTES} bytes`);
   const data = Buffer.from(parsed.base64.replace(/\s+/g, ""), "base64");
   // Node's decoder silently skips junk; re-encode must round-trip exactly.
-  if (data.toString("base64").replace(/=+$/, "") !== parsed.base64.replace(/\s+/g, "").replace(/=+$/, "")) {
+  if (
+    data.toString("base64").replace(/=+$/, "") !==
+    parsed.base64.replace(/\s+/g, "").replace(/=+$/, "")
+  ) {
     throw bad(index, "is not valid base64");
   }
   if (!data.length) throw bad(index, "decodes to zero bytes");

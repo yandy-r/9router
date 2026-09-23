@@ -1,15 +1,20 @@
 const { log, err } = require("../logger");
 
 const DEFAULT_LOCAL_ROUTER = "http://localhost:20128";
-const ROUTER_BASE = String(process.env.MITM_ROUTER_BASE || DEFAULT_LOCAL_ROUTER)
-  .trim()
-  .replace(/\/+$/, "") || DEFAULT_LOCAL_ROUTER;
+const ROUTER_BASE =
+  String(process.env.MITM_ROUTER_BASE || DEFAULT_LOCAL_ROUTER)
+    .trim()
+    .replace(/\/+$/, "") || DEFAULT_LOCAL_ROUTER;
 const API_KEY = process.env.ROUTER_API_KEY;
 
 // Headers that must not be forwarded to 9Router
 const STRIP_HEADERS = new Set([
-  "host", "content-length", "connection", "transfer-encoding",
-  "content-type", "authorization"
+  "host",
+  "content-length",
+  "connection",
+  "transfer-encoding",
+  "content-type",
+  "authorization",
 ]);
 
 /**
@@ -27,9 +32,9 @@ async function fetchRouter(openaiBody, path = "/v1/chat/completions", clientHead
     headers: {
       ...forwarded,
       "Content-Type": "application/json",
-      ...(API_KEY && { "Authorization": `Bearer ${API_KEY}` })
+      ...(API_KEY && { Authorization: `Bearer ${API_KEY}` }),
     },
-    body: JSON.stringify(openaiBody)
+    body: JSON.stringify(openaiBody),
   });
 
   // Forward response as-is (status + body). pipeSSE will propagate status.
@@ -43,14 +48,17 @@ async function fetchRouter(openaiBody, path = "/v1/chat/completions", clientHead
 async function pipeSSE(routerRes, res, dumper) {
   const ct = routerRes.headers.get("content-type") || "application/json";
   const status = routerRes.status || 200;
-  const resHeaders = { "Content-Type": ct, "Cache-Control": "no-cache", "Connection": "keep-alive" };
+  const resHeaders = { "Content-Type": ct, "Cache-Control": "no-cache", Connection: "keep-alive" };
   if (ct.includes("text/event-stream")) resHeaders["X-Accel-Buffering"] = "no";
   res.writeHead(status, resHeaders);
   if (dumper) dumper.writeHeader(routerRes.status, Object.fromEntries(routerRes.headers));
 
   if (!routerRes.body) {
     const text = await routerRes.text().catch(() => "");
-    if (dumper) { dumper.writeChunk(text); dumper.end(); }
+    if (dumper) {
+      dumper.writeChunk(text);
+      dumper.end();
+    }
     res.end(text);
     return;
   }
@@ -59,7 +67,11 @@ async function pipeSSE(routerRes, res, dumper) {
   const decoder = new TextDecoder();
   while (true) {
     const { done, value } = await reader.read();
-    if (done) { if (dumper) dumper.end(); res.end(); break; }
+    if (done) {
+      if (dumper) dumper.end();
+      res.end();
+      break;
+    }
     if (dumper) dumper.writeChunk(value);
     res.write(decoder.decode(value, { stream: true }));
   }
@@ -77,7 +89,7 @@ async function pipeSSE(routerRes, res, dumper) {
  */
 async function pipeTransformedSSE(routerRes, res, transformFn, state) {
   const ct = routerRes.headers.get("content-type") || "application/json";
-  const resHeaders = { "Content-Type": ct, "Cache-Control": "no-cache", "Connection": "keep-alive" };
+  const resHeaders = { "Content-Type": ct, "Cache-Control": "no-cache", Connection: "keep-alive" };
   if (ct.includes("text/event-stream")) resHeaders["X-Accel-Buffering"] = "no";
   res.writeHead(200, resHeaders);
 
@@ -117,7 +129,9 @@ async function pipeTransformedSSE(routerRes, res, transformFn, state) {
           for (const output of outputs) {
             if (process.env.DEBUG_MITM) {
               const len = output.length || output.byteLength || 0;
-              log(`[write binary frame] (${len}B) first 20B: ${Array.from(output.slice(0, 20)).join(',')}`);
+              log(
+                `[write binary frame] (${len}B) first 20B: ${Array.from(output.slice(0, 20)).join(",")}`,
+              );
             }
             res.write(Buffer.from(output));
           }
@@ -137,7 +151,9 @@ async function pipeTransformedSSE(routerRes, res, transformFn, state) {
         res.write(output);
       }
     }
-  } catch { /* ignore flush errors */ }
+  } catch {
+    /* ignore flush errors */
+  }
 
   res.end();
 }
@@ -158,7 +174,7 @@ async function pipeTransformedEventStream(routerRes, res, transformFn, state) {
   const resHeaders = {
     "Content-Type": "application/vnd.amazon.eventstream",
     "Cache-Control": "no-cache",
-    "Connection": "keep-alive"
+    Connection: "keep-alive",
   };
   res.writeHead(200, resHeaders);
 
@@ -198,7 +214,9 @@ async function pipeTransformedEventStream(routerRes, res, transformFn, state) {
           for (const output of outputs) {
             if (process.env.DEBUG_MITM) {
               const len = output.length || output.byteLength || 0;
-              log(`[write binary frame] (${len}B) first 20B: ${Array.from(output.slice(0, 20)).join(',')}`);
+              log(
+                `[write binary frame] (${len}B) first 20B: ${Array.from(output.slice(0, 20)).join(",")}`,
+              );
             }
             res.write(Buffer.from(output));
           }
@@ -218,7 +236,9 @@ async function pipeTransformedEventStream(routerRes, res, transformFn, state) {
         res.write(output);
       }
     }
-  } catch { /* ignore flush errors */ }
+  } catch {
+    /* ignore flush errors */
+  }
 
   res.end();
 }

@@ -11,9 +11,18 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const ENV_KEYS = ["CLAUDE_CLI_VERSION", "CLAUDE_CLI_SDK_VERSION", "CLAUDE_CLI_RUNTIME_VERSION", "CLAUDE_CLI_BETA_FLAGS"];
+const ENV_KEYS = [
+  "CLAUDE_CLI_VERSION",
+  "CLAUDE_CLI_SDK_VERSION",
+  "CLAUDE_CLI_RUNTIME_VERSION",
+  "CLAUDE_CLI_BETA_FLAGS",
+];
 const SESSION = "11111111-2222-4333-8444-555555555555";
-const USER_ID = JSON.stringify({ device_id: "d".repeat(64), account_uuid: "", session_id: SESSION });
+const USER_ID = JSON.stringify({
+  device_id: "d".repeat(64),
+  account_uuid: "",
+  session_id: SESSION,
+});
 
 let savedEnv;
 beforeEach(() => {
@@ -47,13 +56,21 @@ describe("Claude CLI fingerprint defaults", () => {
   it("includes the betas Claude Code sends on every request", async () => {
     const { selectAnthropicBeta } = await loadShared();
     const flags = selectAnthropicBeta("claude-haiku-4-5-20251001").split(",");
-    for (const f of ["thinking-token-count-2026-05-13", "mid-conversation-system-2026-04-07", "extended-cache-ttl-2025-04-11"]) {
+    for (const f of [
+      "thinking-token-count-2026-05-13",
+      "mid-conversation-system-2026-04-07",
+      "extended-cache-ttl-2025-04-11",
+    ]) {
       expect(flags).toContain(f);
     }
   });
 
-  it("sends the fast-mode beta only for speed:\"fast\" requests, once", async () => {
-    const { CLAUDE_CLI_SPOOF_HEADERS: h, selectAnthropicBeta, ANTHROPIC_BETA_FAST_MODE } = await loadShared();
+  it('sends the fast-mode beta only for speed:"fast" requests, once', async () => {
+    const {
+      CLAUDE_CLI_SPOOF_HEADERS: h,
+      selectAnthropicBeta,
+      ANTHROPIC_BETA_FAST_MODE,
+    } = await loadShared();
     expect(h["Anthropic-Beta"].split(",")).not.toContain(ANTHROPIC_BETA_FAST_MODE);
     expect(selectAnthropicBeta("claude-opus-5").split(",")).not.toContain(ANTHROPIC_BETA_FAST_MODE);
     const flags = selectAnthropicBeta("claude-opus-5", { speed: "fast" }).split(",");
@@ -81,24 +98,30 @@ describe("Claude CLI fingerprint env overrides", () => {
     expect(h["X-Stainless-Package-Version"]).toBe("0.120.0");
     expect(h["X-Stainless-Runtime-Version"]).toBe("v26.4.1");
     const body = applyCloaking({ messages: [] }, "sk-ant-oat-test", SESSION);
-    expect(body.system[0].text).toMatch(/^x-anthropic-billing-header: cc_version=2\.2\.0\.[0-9a-f]{3};/);
+    expect(body.system[0].text).toMatch(
+      /^x-anthropic-billing-header: cc_version=2\.2\.0\.[0-9a-f]{3};/,
+    );
   });
 
   it("replaces the beta base list with CLAUDE_CLI_BETA_FLAGS", async () => {
     process.env.CLAUDE_CLI_BETA_FLAGS = " claude-code-20250219 , oauth-2025-04-20 ";
     const { selectAnthropicBeta } = await loadShared();
-    expect(selectAnthropicBeta("claude-haiku-4-5-20251001")).toBe("claude-code-20250219,oauth-2025-04-20");
+    expect(selectAnthropicBeta("claude-haiku-4-5-20251001")).toBe(
+      "claude-code-20250219,oauth-2025-04-20",
+    );
     expect(selectAnthropicBeta("claude-opus-5")).toBe(
       "claude-code-20250219,oauth-2025-04-20,advanced-tool-use-2025-11-20,effort-2025-11-24",
     );
   });
 
-  it("sends a fast-mode flag listed in CLAUDE_CLI_BETA_FLAGS only for speed:\"fast\", once", async () => {
+  it('sends a fast-mode flag listed in CLAUDE_CLI_BETA_FLAGS only for speed:"fast", once', async () => {
     process.env.CLAUDE_CLI_BETA_FLAGS = "claude-code-20250219,fast-mode-2026-02-01";
     const { selectAnthropicBeta, CLAUDE_CLI_SPOOF_HEADERS } = await loadShared();
     expect(CLAUDE_CLI_SPOOF_HEADERS["Anthropic-Beta"]).not.toContain("fast-mode-2026-02-01");
     expect(selectAnthropicBeta("claude-haiku-4-5-20251001")).toBe("claude-code-20250219");
-    expect(selectAnthropicBeta("claude-haiku-4-5-20251001", { speed: "fast" })).toBe("claude-code-20250219,fast-mode-2026-02-01");
+    expect(selectAnthropicBeta("claude-haiku-4-5-20251001", { speed: "fast" })).toBe(
+      "claude-code-20250219,fast-mode-2026-02-01",
+    );
   });
 
   it.each([
@@ -123,7 +146,13 @@ describe("Claude CLI fingerprint env overrides", () => {
 describe("x-claude-code-session-id header", () => {
   const build = async (provider, body, credentials = { accessToken: "sk-ant-oat-x" }) => {
     const { DefaultExecutor } = await import("open-sse/executors/default.js");
-    return new DefaultExecutor(provider).buildHeaders(credentials, true, undefined, "claude-sonnet-5", body);
+    return new DefaultExecutor(provider).buildHeaders(
+      credentials,
+      true,
+      undefined,
+      "claude-sonnet-5",
+      body,
+    );
   };
 
   it("mirrors metadata.user_id session_id for the claude provider", async () => {
@@ -137,10 +166,14 @@ describe("x-claude-code-session-id header", () => {
   });
 
   it("is stripped for non-Anthropic anthropic-compatible hosts", async () => {
-    const headers = await build("anthropic-compatible-test", { metadata: { user_id: USER_ID } }, {
-      apiKey: "sk-third-party",
-      providerSpecificData: { baseUrl: "https://gateway.example.com/v1" },
-    });
+    const headers = await build(
+      "anthropic-compatible-test",
+      { metadata: { user_id: USER_ID } },
+      {
+        apiKey: "sk-third-party",
+        providerSpecificData: { baseUrl: "https://gateway.example.com/v1" },
+      },
+    );
     expect(headers).not.toHaveProperty("x-claude-code-session-id");
   });
 });

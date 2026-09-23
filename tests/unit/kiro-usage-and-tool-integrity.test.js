@@ -44,7 +44,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const fetchMock = vi.fn();
 
 vi.mock("../../open-sse/utils/proxyFetch.js", () => ({
-  proxyAwareFetch: (...args) => fetchMock(...args)
+  proxyAwareFetch: (...args) => fetchMock(...args),
 }));
 
 const { KiroExecutor } = await import("../../open-sse/executors/kiro.js");
@@ -58,7 +58,7 @@ const { validateKiroConversation, canonicalizeKiroConversation } = await import(
 const encoder = new TextEncoder();
 const credentials = {
   accessToken: "test-token",
-  providerSpecificData: { kiroToolCallRepair: true }
+  providerSpecificData: { kiroToolCallRepair: true },
 };
 
 function crc32(bytes) {
@@ -66,7 +66,7 @@ function crc32(bytes) {
   for (const byte of bytes) {
     crc ^= byte;
     for (let bit = 0; bit < 8; bit++) {
-      crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
     }
   }
   return (crc ^ 0xffffffff) >>> 0;
@@ -122,12 +122,15 @@ function frame(eventType, payload) {
 }
 
 function response(frames, status = 200) {
-  return new Response(new ReadableStream({
-    start(controller) {
-      for (const value of frames) controller.enqueue(value);
-      controller.close();
-    }
-  }), { status, statusText: status === 200 ? "OK" : "Upstream Error" });
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        for (const value of frames) controller.enqueue(value);
+        controller.close();
+      },
+    }),
+    { status, statusText: status === 200 ? "OK" : "Upstream Error" },
+  );
 }
 
 async function execute(executor = new KiroExecutor(), overrides = {}) {
@@ -136,7 +139,7 @@ async function execute(executor = new KiroExecutor(), overrides = {}) {
     body: { systemPrompt: "base", conversationState: {} },
     stream: true,
     credentials,
-    ...overrides
+    ...overrides,
   });
 }
 
@@ -153,7 +156,7 @@ async function run(frames) {
 async function runNoRepair(frames) {
   fetchMock.mockResolvedValueOnce(response(frames));
   const result = await execute(new KiroExecutor(), {
-    credentials: { accessToken: "test-token", providerSpecificData: { kiroToolCallRepair: false } }
+    credentials: { accessToken: "test-token", providerSpecificData: { kiroToolCallRepair: false } },
   });
   return await result.response.text();
 }
@@ -162,14 +165,14 @@ async function runNoRepair(frames) {
 // upstream reported no token totals of its own -- the exact production shape.
 const METERED = [
   frame("meteringEvent", { usage: 2, unit: "credit" }),
-  frame("contextUsageEvent", { contextUsagePercentage: 10 })
+  frame("contextUsageEvent", { contextUsagePercentage: 10 }),
 ];
 
 function usageFrom(body) {
   const usages = body
     .split("\n")
-    .filter(line => line.startsWith("data: ") && line.includes('"usage"'))
-    .map(line => JSON.parse(line.slice(6)).usage)
+    .filter((line) => line.startsWith("data: ") && line.includes('"usage"'))
+    .map((line) => JSON.parse(line.slice(6)).usage)
     .filter(Boolean);
   return usages[usages.length - 1];
 }
@@ -188,10 +191,13 @@ describe("A: tool-call bytes count as output tokens", () => {
       frame("toolUseEvent", {
         toolUseId: "call_a",
         name: "tool_call",
-        input: { name: "mcp_search", arguments: { query: "why is the router reporting zero output" } }
+        input: {
+          name: "mcp_search",
+          arguments: { query: "why is the router reporting zero output" },
+        },
       }),
       frame("metadataEvent", { stopReason: "tool_use" }),
-      ...METERED
+      ...METERED,
     ]);
 
     const usage = usageFrom(body);
@@ -205,7 +211,7 @@ describe("A: tool-call bytes count as output tokens", () => {
     const body = await run([
       frame("assistantResponseEvent", { content: "x".repeat(400) }),
       frame("metadataEvent", { stopReason: "end_turn" }),
-      ...METERED
+      ...METERED,
     ]);
     expect(usageFrom(body).completion_tokens).toBe(100);
   });
@@ -217,12 +223,16 @@ describe("C: one unusable tool fragment does not take the whole turn with it", (
       frame("toolUseEvent", {
         toolUseId: "good",
         name: "tool_call",
-        input: { name: "mcp_search", arguments: { q: "router" } }
+        input: { name: "mcp_search", arguments: { q: "router" } },
       }),
       // No nested MCP name -> unusable, cannot be forwarded to the client.
-      frame("toolUseEvent", { toolUseId: "bad", name: "tool_call", input: { arguments: { q: "router" } } }),
+      frame("toolUseEvent", {
+        toolUseId: "bad",
+        name: "tool_call",
+        input: { arguments: { q: "router" } },
+      }),
       frame("metadataEvent", { stopReason: "tool_use" }),
-      ...METERED
+      ...METERED,
     ]);
 
     expect(body).toContain('\\"name\\":\\"mcp_search\\"');
@@ -235,7 +245,7 @@ describe("C: one unusable tool fragment does not take the whole turn with it", (
       frame("assistantResponseEvent", { content: "Here is what I found." }),
       frame("toolUseEvent", { toolUseId: "bad", name: "tool_call", input: { arguments: {} } }),
       frame("metadataEvent", { stopReason: "tool_use" }),
-      ...METERED
+      ...METERED,
     ]);
 
     expect(body).toContain("Here is what I found.");
@@ -245,7 +255,7 @@ describe("C: one unusable tool fragment does not take the whole turn with it", (
   it("still hard-fails when nothing usable was produced at all", async () => {
     const body = await runNoRepair([
       frame("toolUseEvent", { toolUseId: "bad", name: "tool_call", input: { arguments: {} } }),
-      frame("metadataEvent", { stopReason: "tool_use" })
+      frame("metadataEvent", { stopReason: "tool_use" }),
     ]);
     expect(body).toContain("invalid_kiro_tool_call");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -257,7 +267,7 @@ describe("B: truncation after output closes as length, not as a failure", () => 
     const body = await run([
       frame("assistantResponseEvent", { content: "Partial but usable answer." }),
       frame("metadataEvent", { stopReason: "model_context_window_exceeded" }),
-      ...METERED
+      ...METERED,
     ]);
 
     expect(body).toContain("Partial but usable answer.");
@@ -267,7 +277,7 @@ describe("B: truncation after output closes as length, not as a failure", () => 
 
   it("still fails a truncation that produced nothing", async () => {
     const body = await run([
-      frame("metadataEvent", { stopReason: "model_context_window_exceeded" })
+      frame("metadataEvent", { stopReason: "model_context_window_exceeded" }),
     ]);
     expect(body).toContain("kiro_terminal_incomplete");
   });
@@ -276,7 +286,7 @@ describe("B: truncation after output closes as length, not as a failure", () => 
 describe("D: cache tokens survive the kiro -> claude translation", () => {
   const finishChunk = (usage) => ({
     choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
-    usage
+    usage,
   });
 
   function finalUsage(usage) {
@@ -284,65 +294,80 @@ describe("D: cache tokens survive the kiro -> claude translation", () => {
     // Usage rides an earlier chunk in the real stream; feed it the same way.
     kiroToClaudeResponse({ choices: [{ index: 0, delta: { content: "hi" } }], usage }, state);
     const events = kiroToClaudeResponse(finishChunk(usage), state) || [];
-    return events.find(e => e.type === "message_delta")?.usage;
+    return events.find((e) => e.type === "message_delta")?.usage;
   }
 
   it("forwards the flat Chat spelling the executor emits", () => {
-    expect(finalUsage({
-      prompt_tokens: 103000,
-      completion_tokens: 640,
-      cache_read_input_tokens: 98000,
-      cache_creation_input_tokens: 1912
-    })).toEqual({
+    expect(
+      finalUsage({
+        prompt_tokens: 103000,
+        completion_tokens: 640,
+        cache_read_input_tokens: 98000,
+        cache_creation_input_tokens: 1912,
+      }),
+    ).toEqual({
       input_tokens: 103000,
       output_tokens: 640,
       cache_read_input_tokens: 98000,
-      cache_creation_input_tokens: 1912
+      cache_creation_input_tokens: 1912,
     });
   });
 
   it("also accepts the nested details spelling used on passthrough", () => {
-    expect(finalUsage({
-      prompt_tokens: 500,
-      completion_tokens: 20,
-      prompt_tokens_details: { cached_tokens: 480, cache_creation_tokens: 20 }
-    })).toEqual({
+    expect(
+      finalUsage({
+        prompt_tokens: 500,
+        completion_tokens: 20,
+        prompt_tokens_details: { cached_tokens: 480, cache_creation_tokens: 20 },
+      }),
+    ).toEqual({
       input_tokens: 500,
       output_tokens: 20,
       cache_read_input_tokens: 480,
-      cache_creation_input_tokens: 20
+      cache_creation_input_tokens: 20,
     });
   });
 
   it("omits the cache keys when the upstream reported none", () => {
-    expect(finalUsage({ prompt_tokens: 500, completion_tokens: 20 }))
-      .toEqual({ input_tokens: 500, output_tokens: 20 });
+    expect(finalUsage({ prompt_tokens: 500, completion_tokens: 20 })).toEqual({
+      input_tokens: 500,
+      output_tokens: 20,
+    });
   });
 
   it("preserves cache on the non-streaming path too", () => {
     const message = kiroToClaudeNonStreaming({
       choices: [{ message: { content: "hi" } }],
-      usage: { prompt_tokens: 90, completion_tokens: 4, cache_read_input_tokens: 80 }
+      usage: { prompt_tokens: 90, completion_tokens: 4, cache_read_input_tokens: 80 },
     });
     expect(message.usage).toMatchObject({
       input_tokens: 90,
       output_tokens: 4,
-      cache_read_input_tokens: 80
+      cache_read_input_tokens: 80,
     });
     expect(message.usage).not.toHaveProperty("cache_creation_input_tokens");
   });
 });
 
 describe("E: the translator valid-guard is defence-in-depth", () => {
-  const SPECS = [{ toolSpecification: { name: "read_file", inputSchema: { json: { type: "object" } } } }];
+  const SPECS = [
+    { toolSpecification: { name: "read_file", inputSchema: { json: { type: "object" } } } },
+  ];
 
   it("validateKiroConversation names the offending turn", () => {
     // Hand-built, NOT normalized: assistant first, then a tool call with no
     // matching result and a name no spec declares.
     const result = validateKiroConversation(
-      [{ assistantResponseMessage: { content: "hi", toolUses: [{ toolUseId: "t1", name: "ghost" }] } }],
+      [
+        {
+          assistantResponseMessage: {
+            content: "hi",
+            toolUses: [{ toolUseId: "t1", name: "ghost" }],
+          },
+        },
+      ],
       { userInputMessage: { content: "go" } },
-      SPECS
+      SPECS,
     );
     expect(result.valid).toBe(false);
     expect(result.errors).toContain("role:0");
@@ -355,10 +380,17 @@ describe("E: the translator valid-guard is defence-in-depth", () => {
     // user-first/user-last alternation and non-empty content, and the
     // second-chance pass flattens every structured tool turn to text.
     const out = canonicalizeKiroConversation({
-      history: [{ assistantResponseMessage: { content: "hi", toolUses: [{ toolUseId: "t1", name: "ghost" }] } }],
+      history: [
+        {
+          assistantResponseMessage: {
+            content: "hi",
+            toolUses: [{ toolUseId: "t1", name: "ghost" }],
+          },
+        },
+      ],
       currentMessage: { userInputMessage: { content: "" } },
       modelId: "claude-sonnet-4-5",
-      toolSpecs: SPECS
+      toolSpecs: SPECS,
     });
 
     expect(out.valid).toBe(true);

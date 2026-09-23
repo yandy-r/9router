@@ -11,7 +11,9 @@ describe("Hermes Vision Image Detection", () => {
         {
           role: "user",
           content: "Please analyze this image from Hermes",
-          images: ["iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="],
+          images: [
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          ],
         },
       ],
     };
@@ -62,7 +64,8 @@ describe("Hermes Vision Image Detection", () => {
       messages: [
         {
           role: "user",
-          content: "Here is an inline image: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          content:
+            "Here is an inline image: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
         },
       ],
     };
@@ -90,7 +93,11 @@ describe("Hermes Vision Image Detection", () => {
       },
     };
 
-    const augmented = augmentModelsWithCapacityAdapter(["cmc/deepseek/deepseek-v4-pro"], reqCaps, settings);
+    const augmented = augmentModelsWithCapacityAdapter(
+      ["cmc/deepseek/deepseek-v4-pro"],
+      reqCaps,
+      settings,
+    );
     expect(augmented).toEqual(["cmc/moonshotai/Kimi-K3", "cmc/deepseek/deepseek-v4-pro"]);
   });
 
@@ -101,7 +108,9 @@ describe("Hermes Vision Image Detection", () => {
           role: "user",
           content: "Test text",
           images: ["base64..."],
-          experimental_attachments: [{ contentType: "image/png", url: "data:image/png;base64,..." }],
+          experimental_attachments: [
+            { contentType: "image/png", url: "data:image/png;base64,..." },
+          ],
         },
       ],
     };

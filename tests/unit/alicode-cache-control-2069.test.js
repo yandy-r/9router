@@ -7,15 +7,11 @@ import { filterToOpenAIFormat } from "../../open-sse/translator/formats/openai.j
 const msgWithCache = [
   {
     role: "user",
-    content: [
-      { type: "text", text: "large context", cache_control: { type: "ephemeral" } },
-    ],
+    content: [{ type: "text", text: "large context", cache_control: { type: "ephemeral" } }],
   },
   {
     role: "assistant",
-    content: [
-      { type: "text", text: "reply", cache_control: { type: "ephemeral" } },
-    ],
+    content: [{ type: "text", text: "reply", cache_control: { type: "ephemeral" } }],
   },
 ];
 

@@ -26,12 +26,22 @@ export async function runHealthCheck() {
   const fail = (error) => ({ healthy: false, checks, error });
 
   const install = getInstallInfo();
-  checks.push({ id: "installed", label: "PXPIPE installed", ok: install.installed, detail: install.version ? `v${install.version}` : null });
+  checks.push({
+    id: "installed",
+    label: "PXPIPE installed",
+    ok: install.installed,
+    detail: install.version ? `v${install.version}` : null,
+  });
   if (!install.installed) return fail("pxpipe not installed");
 
   try {
     await loadPxpipe();
-    checks.push({ id: "module", label: "Transform module loads", ok: true, detail: `v${install.version}` });
+    checks.push({
+      id: "module",
+      label: "Transform module loads",
+      ok: true,
+      detail: `v${install.version}`,
+    });
   } catch (e) {
     checks.push({ id: "module", label: "Transform module loads", ok: false, detail: e.message });
     return fail(`Cannot load module: ${e.message}`);
@@ -39,9 +49,19 @@ export async function runHealthCheck() {
 
   try {
     const test = await selfTest();
-    checks.push({ id: "transform", label: "Test request transforms", ok: true, detail: `${test.durationMs}ms (${test.reason})` });
+    checks.push({
+      id: "transform",
+      label: "Test request transforms",
+      ok: true,
+      detail: `${test.durationMs}ms (${test.reason})`,
+    });
   } catch (e) {
-    checks.push({ id: "transform", label: "Test request transforms", ok: false, detail: e.message });
+    checks.push({
+      id: "transform",
+      label: "Test request transforms",
+      ok: false,
+      detail: e.message,
+    });
     return fail(`Self-test failed: ${e.message}`);
   }
 

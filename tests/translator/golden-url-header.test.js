@@ -11,32 +11,56 @@ const OAUTH_CRED = { accessToken: "tok-test-ACCESS", providerSpecificData: {} };
 const SPECIAL_CRED = {
   apiKey: "sk-test-APIKEY",
   accessToken: "tok-test-ACCESS",
-  providerSpecificData: { accountId: "ACC123", region: "sgp", baseUrl: "https://custom.example.com/v1", orgId: "ORG9" },
+  providerSpecificData: {
+    accountId: "ACC123",
+    region: "sgp",
+    baseUrl: "https://custom.example.com/v1",
+    orgId: "ORG9",
+  },
 };
 
 // Provider cần executor riêng (buildUrl/buildHeaders không nằm ở DefaultExecutor) → bỏ qua ở golden này.
 // Chúng được lock riêng ở 11-provider edge tests / unit test chuyên biệt.
 const SPECIALIZED = new Set([
-  "antigravity", "azure", "gemini-cli", "github", "iflow", "qoder", "kiro",
-  "codex", "cursor", "vertex", "vertex-partner", "opencode",
-  "opencode-go", "grok-web", "perplexity-web", "ollama-local", "commandcode",
-  "xiaomi-tokenplan", "mimo-free",
+  "antigravity",
+  "azure",
+  "gemini-cli",
+  "github",
+  "iflow",
+  "qoder",
+  "kiro",
+  "codex",
+  "cursor",
+  "vertex",
+  "vertex-partner",
+  "opencode",
+  "opencode-go",
+  "grok-web",
+  "perplexity-web",
+  "ollama-local",
+  "commandcode",
+  "xiaomi-tokenplan",
+  "mimo-free",
 ]);
 
 // Sanitize header: khử token + field thời gian động (kimi X-Msh-Device-Id) để snapshot ổn định.
 function sanitize(headers) {
   const out = {};
   for (const [k, v] of Object.entries(headers)) {
-    out[k] = typeof v === "string"
-      ? v.replace(/Bearer .+/, "Bearer <TOK>")
-          .replace(/sk-test-APIKEY|tok-test-ACCESS/g, "<CRED>")
-          .replace(/kimi-\d{10,}/g, "kimi-<TS>")
-      : v;
+    out[k] =
+      typeof v === "string"
+        ? v
+            .replace(/Bearer .+/, "Bearer <TOK>")
+            .replace(/sk-test-APIKEY|tok-test-ACCESS/g, "<CRED>")
+            .replace(/kimi-\d{10,}/g, "kimi-<TS>")
+        : v;
   }
   return out;
 }
 
-const providerIds = Object.keys(PROVIDERS).filter((p) => !SPECIALIZED.has(p)).sort();
+const providerIds = Object.keys(PROVIDERS)
+  .filter((p) => !SPECIALIZED.has(p))
+  .sort();
 
 describe("GOLDEN buildUrl (default executor providers)", () => {
   for (const pid of providerIds) {
@@ -58,9 +82,13 @@ describe("GOLDEN buildHeaders (default executor providers)", () => {
     it(`${pid} → headers (apiKey / oauth)`, () => {
       const ex = new DefaultExecutor(pid);
       const snap = {
-        apiKey: safe(() => sanitize(ex.buildHeaders(PROVIDERS[pid].noAuth ? {} : API_KEY_CRED, true))),
+        apiKey: safe(() =>
+          sanitize(ex.buildHeaders(PROVIDERS[pid].noAuth ? {} : API_KEY_CRED, true)),
+        ),
         oauth: safe(() => sanitize(ex.buildHeaders(PROVIDERS[pid].noAuth ? {} : OAUTH_CRED, true))),
-        nonStream: safe(() => sanitize(ex.buildHeaders(PROVIDERS[pid].noAuth ? {} : API_KEY_CRED, false))),
+        nonStream: safe(() =>
+          sanitize(ex.buildHeaders(PROVIDERS[pid].noAuth ? {} : API_KEY_CRED, false)),
+        ),
       };
       expect(snap).toMatchSnapshot();
     });
@@ -68,5 +96,9 @@ describe("GOLDEN buildHeaders (default executor providers)", () => {
 });
 
 function safe(fn) {
-  try { return fn(); } catch (e) { return `THROW: ${e.message}`; }
+  try {
+    return fn();
+  } catch (e) {
+    return `THROW: ${e.message}`;
+  }
 }

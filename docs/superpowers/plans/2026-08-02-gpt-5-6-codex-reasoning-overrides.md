@@ -22,10 +22,12 @@
 ### Task 1: Provider-scoped GPT-5.6 level matrix
 
 **Files:**
+
 - Modify: `tests/unit/thinking-levels-gpt56-sol.test.js`
 - Modify: `open-sse/providers/thinkingLevels.js`
 
 **Interfaces:**
+
 - Consumes: `getThinkingLevels(provider, model)` and existing capability metadata.
 - Produces: `getThinkingLevels(provider, model): string[] | null` with Codex-only GPT-5.6 level overrides.
 
@@ -47,7 +49,12 @@ it.each([
 
 it("does not expose Codex-only GPT-5.6 overrides on Kiro", () => {
   expect(getThinkingLevels("kiro", "gpt-5.6-sol")).toEqual([
-    "none", "minimal", "low", "medium", "high", "xhigh",
+    "none",
+    "minimal",
+    "low",
+    "medium",
+    "high",
+    "xhigh",
   ]);
 });
 ```
@@ -78,8 +85,8 @@ const PATTERN_THINKING = [
   { pattern: "*codex*", levels: ["low", "medium", "high", "xhigh"] },
 ];
 
-const hit = PATTERN_THINKING.find((entry) =>
-  (!entry.provider || entry.provider === provider) && matchPattern(entry.pattern, model)
+const hit = PATTERN_THINKING.find(
+  (entry) => (!entry.provider || entry.provider === provider) && matchPattern(entry.pattern, model),
 );
 ```
 
@@ -103,10 +110,12 @@ git commit -m "feat(codex): expose GPT-5.6 reasoning overrides"
 ### Task 2: Model-aware shared thinking translation
 
 **Files:**
+
 - Modify: `tests/translator/thinking-unified.test.js`
 - Modify: `open-sse/translator/concerns/thinkingUnified.js`
 
 **Interfaces:**
+
 - Consumes: `getThinkingLevels(provider, cleanModel): string[] | null` from Task 1.
 - Produces: `parseSuffix(model)` support for `ultra` and `applyThinking(...)` output that preserves supported Codex levels.
 
@@ -141,7 +150,9 @@ Add a parenthesized override assertion and Kiro isolation assertion:
 
 ```js
 expect(apply("openai-responses", "gpt-5.6-sol(ultra)", {}, "codex").reasoning_effort).toBe("ultra");
-expect(apply("openai", "gpt-5.6-sol", { reasoning_effort: "max" }, "kiro").reasoning_effort).toBe("xhigh");
+expect(apply("openai", "gpt-5.6-sol", { reasoning_effort: "max" }, "kiro").reasoning_effort).toBe(
+  "xhigh",
+);
 ```
 
 - [ ] **Step 2: Run the translator test and verify it fails for Ultra parsing and preserved Max/Ultra**
@@ -191,10 +202,12 @@ git commit -m "feat(codex): preserve supported reasoning efforts"
 ### Task 3: Codex native passthrough normalization
 
 **Files:**
+
 - Modify: `tests/unit/codex-fast-capacity.test.js`
 - Modify: `open-sse/executors/codex.js`
 
 **Interfaces:**
+
 - Consumes: `getThinkingLevels("codex", upstreamModel): string[] | null` from Task 1.
 - Produces: `CodexExecutor.transformRequest(...)` payloads with model-supported upstream `reasoning.effort` values.
 
@@ -211,20 +224,30 @@ it.each([
   ["gpt-5.6-luna", "max", "max"],
   ["gpt-5.6-luna", "ultra", "max"],
 ])("normalizes %s effort %s to %s", (model, effort, expected) => {
-  const body = new CodexExecutor().transformRequest(model, {
+  const body = new CodexExecutor().transformRequest(
     model,
-    input: "hi",
-    reasoning: { effort },
-  }, true, {});
+    {
+      model,
+      input: "hi",
+      reasoning: { effort },
+    },
+    true,
+    {},
+  );
   expect(body.reasoning.effort).toBe(expected);
 });
 
 it("resolves review models before applying the reasoning matrix", () => {
-  const body = new CodexExecutor().transformRequest("gpt-5.6-terra-review", {
-    model: "gpt-5.6-terra-review",
-    input: "hi",
-    reasoning_effort: "ultra",
-  }, true, {});
+  const body = new CodexExecutor().transformRequest(
+    "gpt-5.6-terra-review",
+    {
+      model: "gpt-5.6-terra-review",
+      input: "hi",
+      reasoning_effort: "ultra",
+    },
+    true,
+    {},
+  );
   expect(body.model).toBe("gpt-5.6-terra");
   expect(body.reasoning.effort).toBe("ultra");
 });
@@ -278,9 +301,11 @@ git commit -m "feat(codex): forward GPT-5.6 max and ultra efforts"
 ### Task 4: Full verification and pull request
 
 **Files:**
+
 - Verify all changed production, test, design, and plan files.
 
 **Interfaces:**
+
 - Consumes: completed Tasks 1-3.
 - Produces: verified branch pushed to `origin` and a pull request targeting `yandy-r/9router:master`.
 

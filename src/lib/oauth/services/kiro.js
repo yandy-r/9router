@@ -273,8 +273,8 @@ export class KiroService {
       headers: {
         "Content-Type": "application/x-amz-json-1.0",
         "x-amz-target": "AmazonCodeWhispererService.ListAvailableProfiles",
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
       },
       body: JSON.stringify({ maxResults: 10 }),
     });
@@ -303,9 +303,9 @@ export class KiroService {
     const response = await fetch(endpoint, {
       method: "GET",
       headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "TokenType": "API_KEY",
-        "Accept": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        TokenType: "API_KEY",
+        Accept: "application/json",
         "User-Agent": "AWS-SDK-JS/3.0.0 kiro-ide/1.0.0",
         "X-Amz-User-Agent": "aws-sdk-js/3.0.0 kiro-ide/1.0.0",
       },
@@ -361,8 +361,8 @@ export class KiroService {
       headers: {
         "Content-Type": "application/x-amz-json-1.0",
         "x-amz-target": target,
-        "Authorization": `Bearer ${accessToken}`,
-        "Accept": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
       },
       body: JSON.stringify({
         origin: "AI_EDITOR",
@@ -376,7 +376,7 @@ export class KiroService {
     }
 
     const data = await response.json();
-    return (data.models || []).map(m => ({
+    return (data.models || []).map((m) => ({
       id: m.modelId,
       name: m.modelName || m.modelId,
       description: m.description,

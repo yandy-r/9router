@@ -32,7 +32,13 @@ describe("CodexExecutor tool normalization", () => {
     };
     const body = {
       model: "gpt-5.4-mini",
-      input: [{ type: "message", role: "user", content: [{ type: "input_text", text: "test for session title" }] }],
+      input: [
+        {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_text", text: "test for session title" }],
+        },
+      ],
       stream: true,
       metadata: { unsupported: true },
       text: {
@@ -136,11 +142,13 @@ describe("CodexExecutor tool normalization", () => {
       },
       allOf: [{ properties: { title: { type: "string", pattern: unicodePattern } } }],
     };
-    const tools = normalizeTools([{
-      type: "function",
-      name: "Artifact",
-      parameters: sourceParameters,
-    }]);
+    const tools = normalizeTools([
+      {
+        type: "function",
+        name: "Artifact",
+        parameters: sourceParameters,
+      },
+    ]);
 
     expect(tools[0].parameters.properties.artifact.properties.name.pattern).toBeUndefined();
     expect(tools[0].parameters.properties.artifact.properties.slug.pattern).toBe(validPattern);
@@ -165,18 +173,22 @@ describe("CodexExecutor tool normalization", () => {
   });
 
   it("sanitizes nested namespace function schemas", () => {
-    const tools = normalizeTools([{
-      type: "namespace",
-      name: "agent",
-      tools: [{
-        type: "function",
-        name: "Artifact",
-        parameters: {
-          type: "object",
-          properties: { name: { type: "string", pattern: "^\\p{Cc}+$" } },
-        },
-      }],
-    }]);
+    const tools = normalizeTools([
+      {
+        type: "namespace",
+        name: "agent",
+        tools: [
+          {
+            type: "function",
+            name: "Artifact",
+            parameters: {
+              type: "object",
+              properties: { name: { type: "string", pattern: "^\\p{Cc}+$" } },
+            },
+          },
+        ],
+      },
+    ]);
 
     expect(tools[0].tools[0].parameters.properties.name.pattern).toBeUndefined();
   });

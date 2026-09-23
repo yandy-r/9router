@@ -22,21 +22,38 @@ const upstream = {
 // the tables resolve on their own.
 const entries = [
   { provider: "glm", model: "glm-4.6v", current: { contextWindow: 200000, maxOutput: 128000 } },
-  { provider: "glm-cn", model: "glm-5-canary", current: { contextWindow: 200000, maxOutput: 128000 } },
-  { provider: "zhipu", model: "glm-5-canary", current: { contextWindow: 200000, maxOutput: 128000 } },
+  {
+    provider: "glm-cn",
+    model: "glm-5-canary",
+    current: { contextWindow: 200000, maxOutput: 128000 },
+  },
+  {
+    provider: "zhipu",
+    model: "glm-5-canary",
+    current: { contextWindow: 200000, maxOutput: 128000 },
+  },
   { provider: "kimi", model: "kimi-k3", current: { contextWindow: 128000, maxOutput: 32000 } },
 ];
 
-let build, getCatalogModalities, invalidateCatalog, syncModelCatalog, startModelCatalogSync, capabilities;
+let build,
+  getCatalogModalities,
+  invalidateCatalog,
+  syncModelCatalog,
+  startModelCatalogSync,
+  capabilities;
 
 beforeAll(async () => {
-  ({ build, syncModelCatalog, startModelCatalogSync } = await import("../../src/lib/modelCatalog/sync.js"));
+  ({ build, syncModelCatalog, startModelCatalogSync } = await import(
+    "../../src/lib/modelCatalog/sync.js"
+  ));
   // the builder is exercised directly; a missing export must fail loudly here
   // rather than skip every case below
   expect(typeof build).toBe("function");
   const { models, providers } = build(upstream, entries);
   fs.writeFileSync(catalogFile, JSON.stringify({ v: 2, models, providers }));
-  ({ getCatalogModalities, invalidateCatalog } = await import("../../open-sse/providers/catalogOverride.js"));
+  ({ getCatalogModalities, invalidateCatalog } = await import(
+    "../../open-sse/providers/catalogOverride.js"
+  ));
   capabilities = await import("../../open-sse/providers/capabilities.js");
 });
 
@@ -95,8 +112,12 @@ describe("model catalog", () => {
     });
     try {
       // "*laguna*" resolves from the pattern table, so refine() runs
-      expect(capabilities.getCapabilitiesForModel("gateway-a", "laguna-9-preview").vision).toBe(true);
-      expect(capabilities.getCapabilitiesForModel("gateway-b", "laguna-9-preview").vision).toBe(false);
+      expect(capabilities.getCapabilitiesForModel("gateway-a", "laguna-9-preview").vision).toBe(
+        true,
+      );
+      expect(capabilities.getCapabilitiesForModel("gateway-b", "laguna-9-preview").vision).toBe(
+        false,
+      );
       expect(seen).toContain("gateway-a");
     } finally {
       capabilities.setCatalogSource(null);
@@ -128,7 +149,10 @@ describe("catalog schema", () => {
   it("ignores a file written before the keys were scoped", () => {
     const scoped = fs.readFileSync(catalogFile);
     // v1: flat model keys, which is exactly the shape that collided
-    fs.writeFileSync(catalogFile, JSON.stringify({ v: 1, models: { "kimi-k3": { vision: true } }, providers: {} }));
+    fs.writeFileSync(
+      catalogFile,
+      JSON.stringify({ v: 1, models: { "kimi-k3": { vision: true } }, providers: {} }),
+    );
     invalidateCatalog();
     expect(getCatalogModalities("kimi", "kimi-k3")).toBeNull();
     fs.writeFileSync(catalogFile, scoped);
@@ -136,15 +160,23 @@ describe("catalog schema", () => {
   });
 
   it("rebuilds an older-schema file instead of trusting its etag", async () => {
-    fs.writeFileSync(catalogFile, JSON.stringify({ v: 1, etag: 'W/"old"', models: {}, providers: {} }));
+    fs.writeFileSync(
+      catalogFile,
+      JSON.stringify({ v: 1, etag: 'W/"old"', models: {}, providers: {} }),
+    );
     invalidateCatalog();
-    startModelCatalogSync();   // picks the file's etag + schema version back up
+    startModelCatalogSync(); // picks the file's etag + schema version back up
 
     const sent = [];
     const realFetch = globalThis.fetch;
     globalThis.fetch = async (_url, options) => {
       sent.push(options?.headers || {});
-      return { ok: true, status: 200, headers: new Map([["etag", 'W/"new"']]), json: async () => upstream };
+      return {
+        ok: true,
+        status: 200,
+        headers: new Map([["etag", 'W/"new"']]),
+        json: async () => upstream,
+      };
     };
     try {
       expect((await syncModelCatalog()).status).toBe("updated");

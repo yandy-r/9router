@@ -18,7 +18,9 @@ async function persistRefreshedCredentials(connection, newCredentials) {
   const providerSpecificUpdates = {
     ...(newCredentials.providerSpecificData || {}),
     ...(newCredentials.copilotToken ? { copilotToken: newCredentials.copilotToken } : {}),
-    ...(newCredentials.copilotTokenExpiresAt ? { copilotTokenExpiresAt: newCredentials.copilotTokenExpiresAt } : {}),
+    ...(newCredentials.copilotTokenExpiresAt
+      ? { copilotTokenExpiresAt: newCredentials.copilotTokenExpiresAt }
+      : {}),
   };
   if (Object.keys(providerSpecificUpdates).length > 0) {
     updateData.providerSpecificData = {
@@ -37,13 +39,19 @@ export async function POST(request) {
     const { provider, model, body } = await request.json();
 
     if (!provider || !model || !body) {
-      return Response.json({ success: false, error: "provider, model, and body required" }, { status: 400 });
+      return Response.json(
+        { success: false, error: "provider, model, and body required" },
+        { status: 400 },
+      );
     }
 
     const connections = await getProviderConnections({ provider });
-    const connection = connections.find(c => c.isActive !== false);
+    const connection = connections.find((c) => c.isActive !== false);
     if (!connection) {
-      return Response.json({ success: false, error: `No active connection for provider: ${provider}` }, { status: 400 });
+      return Response.json(
+        { success: false, error: `No active connection for provider: ${provider}` },
+        { status: 400 },
+      );
     }
 
     const credentials = {
@@ -56,7 +64,7 @@ export async function POST(request) {
       copilotToken: connection.providerSpecificData?.copilotToken,
       copilotTokenExpiresAt: connection.providerSpecificData?.copilotTokenExpiresAt,
       projectId: connection.projectId,
-      providerSpecificData: connection.providerSpecificData
+      providerSpecificData: connection.providerSpecificData,
     };
 
     const executor = getExecutor(provider);
@@ -77,15 +85,18 @@ export async function POST(request) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[Translator] Provider error ${response.status}:`, errorText.slice(0, 500));
-      return Response.json({ success: false, error: `Provider error: ${response.status}`, details: errorText }, { status: response.status });
+      return Response.json(
+        { success: false, error: `Provider error: ${response.status}`, details: errorText },
+        { status: response.status },
+      );
     }
 
     return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive"
-      }
+        Connection: "keep-alive",
+      },
     });
   } catch (error) {
     console.error("[Translator] Send error:", error);

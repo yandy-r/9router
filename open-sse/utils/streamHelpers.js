@@ -31,7 +31,9 @@ export function parseSSELine(line, format = null) {
     return JSON.parse(data);
   } catch (error) {
     if (data.length > 0 && data.length < 1000) {
-      console.log(`[WARN] Failed to parse SSE line (${data.length} chars): ${data.substring(0, 100)}...`);
+      console.log(
+        `[WARN] Failed to parse SSE line (${data.length} chars): ${data.substring(0, 100)}...`,
+      );
     }
     return null;
   }
@@ -42,11 +44,13 @@ export function hasValuableContent(chunk, format) {
   // OpenAI format
   if (format === FORMATS.OPENAI && chunk.choices?.[0]?.delta) {
     const delta = chunk.choices[0].delta;
-    return delta.content && delta.content !== "" ||
-           delta.reasoning_content && delta.reasoning_content !== "" ||
-           delta.tool_calls && delta.tool_calls.length > 0 ||
-           chunk.choices[0].finish_reason ||
-           delta.role;
+    return (
+      (delta.content && delta.content !== "") ||
+      (delta.reasoning_content && delta.reasoning_content !== "") ||
+      (delta.tool_calls && delta.tool_calls.length > 0) ||
+      chunk.choices[0].finish_reason ||
+      delta.role
+    );
   }
 
   // Claude format
@@ -55,7 +59,7 @@ export function hasValuableContent(chunk, format) {
     const hasText = chunk.delta?.text && chunk.delta.text !== "";
     const hasThinking = chunk.delta?.thinking && chunk.delta.thinking !== "";
     const hasInputJson = chunk.delta?.partial_json && chunk.delta.partial_json !== "";
-    
+
     if (isContentBlockDelta && !hasText && !hasThinking && !hasInputJson) {
       return false;
     }
@@ -68,9 +72,8 @@ export function hasValuableContent(chunk, format) {
 // Fix invalid id (generic or too short)
 export function fixInvalidId(parsed) {
   if (parsed.id && (parsed.id === "chat" || parsed.id === "completion" || parsed.id.length < 8)) {
-    const fallbackId = parsed.extend_fields?.requestId || 
-                      parsed.extend_fields?.traceId || 
-                      Date.now().toString(36);
+    const fallbackId =
+      parsed.extend_fields?.requestId || parsed.extend_fields?.traceId || Date.now().toString(36);
     parsed.id = `chatcmpl-${fallbackId}`;
     return true;
   }
@@ -94,7 +97,11 @@ function cleanUsagePayload(payload) {
     }
   }
 
-  if (cleaned.response && typeof cleaned.response === "object" && !Array.isArray(cleaned.response)) {
+  if (
+    cleaned.response &&
+    typeof cleaned.response === "object" &&
+    !Array.isArray(cleaned.response)
+  ) {
     const cleanedResponse = cleanUsagePayload(cleaned.response);
     if (cleanedResponse !== cleaned.response) {
       cleaned = { ...cleaned, response: cleanedResponse };
@@ -139,9 +146,10 @@ export function formatSSE(data, sourceFormat) {
 export function buildStreamErrorBytes(statusCode, message, clientFormat) {
   const { error } = buildErrorBody(statusCode, message);
 
-  const sse = clientFormat === FORMATS.CLAUDE
-    ? formatSSE({ type: "error", error }, FORMATS.CLAUDE)
-    : formatSSE({ error }, clientFormat) + SSE_DONE;
+  const sse =
+    clientFormat === FORMATS.CLAUDE
+      ? formatSSE({ type: "error", error }, FORMATS.CLAUDE)
+      : formatSSE({ error }, clientFormat) + SSE_DONE;
 
   return sharedEncoder.encode(sse);
 }

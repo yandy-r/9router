@@ -8,14 +8,12 @@ export default {
     textIcon: "CA",
     website: "https://cartesia.ai",
     notice: {
-      apiKeyUrl: "https://play.cartesia.ai/keys"
-    }
+      apiKeyUrl: "https://play.cartesia.ai/keys",
+    },
   },
   category: "apikey",
   authType: "apikey",
-  serviceKinds: [
-    "tts"
-  ],
+  serviceKinds: ["tts"],
   ttsConfig: {
     baseUrl: "https://api.cartesia.ai/tts/bytes",
     authType: "apikey",
@@ -24,13 +22,13 @@ export default {
     models: [
       {
         id: "sonic-2",
-        name: "Sonic 2"
+        name: "Sonic 2",
       },
       {
         id: "sonic-3",
-        name: "Sonic 3"
-      }
-    ]
+        name: "Sonic 3",
+      },
+    ],
   },
-  hidden: true
+  hidden: true,
 };

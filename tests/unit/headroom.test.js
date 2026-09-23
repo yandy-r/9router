@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { compressWithHeadroom, formatHeadroomLog, formatHeadroomSizeLog } from "../../open-sse/rtk/headroom.js";
+import {
+  compressWithHeadroom,
+  formatHeadroomLog,
+  formatHeadroomSizeLog,
+} from "../../open-sse/rtk/headroom.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -10,7 +14,10 @@ describe("compressWithHeadroom", () => {
     global.fetch = vi.fn();
     const body = { messages: [{ role: "user", content: "hello" }] };
 
-    const stats = await compressWithHeadroom(body, { enabled: false, url: "http://localhost:8787" });
+    const stats = await compressWithHeadroom(body, {
+      enabled: false,
+      url: "http://localhost:8787",
+    });
 
     expect(stats).toBeNull();
     expect(global.fetch).not.toHaveBeenCalled();
@@ -18,19 +25,32 @@ describe("compressWithHeadroom", () => {
   });
 
   it("compresses messages in-place", async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify({
-      messages: [{ role: "user", content: "short" }],
-      tokens_before: 100,
-      tokens_after: 20,
-      tokens_saved: 80,
-    }), { status: 200 }));
+    global.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            messages: [{ role: "user", content: "short" }],
+            tokens_before: 100,
+            tokens_after: 20,
+            tokens_saved: 80,
+          }),
+          { status: 200 },
+        ),
+    );
     const body = { messages: [{ role: "user", content: "long" }] };
 
-    const stats = await compressWithHeadroom(body, { enabled: true, url: "http://headroom:8787/", model: "gpt-4o" });
+    const stats = await compressWithHeadroom(body, {
+      enabled: true,
+      url: "http://headroom:8787/",
+      model: "gpt-4o",
+    });
 
     expect(body.messages[0].content).toBe("short");
     expect(stats.tokens_saved).toBe(80);
-    expect(global.fetch).toHaveBeenCalledWith("http://headroom:8787/v1/compress", expect.objectContaining({ method: "POST" }));
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://headroom:8787/v1/compress",
+      expect.objectContaining({ method: "POST" }),
+    );
     expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toMatchObject({
       model: "gpt-4o",
       messages: [{ role: "user", content: "long" }],
@@ -38,9 +58,15 @@ describe("compressWithHeadroom", () => {
   });
 
   it("compresses responses input in-place", async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify({
-      messages: [{ role: "user", content: "short" }],
-    }), { status: 200 }));
+    global.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            messages: [{ role: "user", content: "short" }],
+          }),
+          { status: 200 },
+        ),
+    );
     const body = { input: [{ role: "user", content: "long" }] };
 
     await compressWithHeadroom(body, { enabled: true, url: "http://localhost:8787" });
@@ -52,18 +78,35 @@ describe("compressWithHeadroom", () => {
     let requestPayload;
     global.fetch = vi.fn(async (_url, init) => {
       requestPayload = JSON.parse(init.body);
-      return new Response(JSON.stringify({
-        messages: [
-          { role: "user", content: "compressed earlier user" },
-          { role: "assistant", content: "compressed assistant", tool_calls: [{ id: "tool_1", type: "function", function: { name: "read_file", arguments: "{\"path\":\"a.js\"}" } }] },
-          { role: "system", content: "compressed system instruction" },
-          { role: "user", content: "compressed current user" },
-          { role: "tool", content: [{ type: "text", text: "compressed tool output" }], tool_call_id: "tool_1" },
-        ],
-        tokens_before: 100,
-        tokens_after: 40,
-        tokens_saved: 60,
-      }), { status: 200 });
+      return new Response(
+        JSON.stringify({
+          messages: [
+            { role: "user", content: "compressed earlier user" },
+            {
+              role: "assistant",
+              content: "compressed assistant",
+              tool_calls: [
+                {
+                  id: "tool_1",
+                  type: "function",
+                  function: { name: "read_file", arguments: '{"path":"a.js"}' },
+                },
+              ],
+            },
+            { role: "system", content: "compressed system instruction" },
+            { role: "user", content: "compressed current user" },
+            {
+              role: "tool",
+              content: [{ type: "text", text: "compressed tool output" }],
+              tool_call_id: "tool_1",
+            },
+          ],
+          tokens_before: 100,
+          tokens_after: 40,
+          tokens_saved: 60,
+        }),
+        { status: 200 },
+      );
     });
     const body = {
       profileArn: "arn:test",
@@ -131,7 +174,7 @@ describe("compressWithHeadroom", () => {
             {
               id: "tool_1",
               type: "function",
-              function: { name: "read_file", arguments: "{\"path\":\"a.js\"}" },
+              function: { name: "read_file", arguments: '{"path":"a.js"}' },
             },
           ],
         },
@@ -140,22 +183,39 @@ describe("compressWithHeadroom", () => {
         { role: "tool", content: "long tool output", tool_call_id: "tool_1" },
       ],
     });
-    expect(body.conversationState.history[0].userInputMessage.content).toBe("compressed earlier user");
-    expect(body.conversationState.history[1].assistantResponseMessage.content).toBe("compressed assistant");
-    expect(body.conversationState.currentMessage.userInputMessage.systemInstruction).toBe("compressed system instruction");
-    expect(body.conversationState.currentMessage.userInputMessage.content).toBe("compressed current user");
-    expect(body.conversationState.currentMessage.userInputMessage.userInputMessageContext.toolResults[0].content[0].text)
-      .toBe("compressed tool output");
+    expect(body.conversationState.history[0].userInputMessage.content).toBe(
+      "compressed earlier user",
+    );
+    expect(body.conversationState.history[1].assistantResponseMessage.content).toBe(
+      "compressed assistant",
+    );
+    expect(body.conversationState.currentMessage.userInputMessage.systemInstruction).toBe(
+      "compressed system instruction",
+    );
+    expect(body.conversationState.currentMessage.userInputMessage.content).toBe(
+      "compressed current user",
+    );
+    expect(
+      body.conversationState.currentMessage.userInputMessage.userInputMessageContext.toolResults[0]
+        .content[0].text,
+    ).toBe("compressed tool output");
     expect(body.profileArn).toBe("arn:test");
-    expect(body.conversationState.currentMessage.userInputMessage.userInputMessageContext.tools)
-      .toEqual([{ toolSpecification: { name: "read_file" } }]);
+    expect(
+      body.conversationState.currentMessage.userInputMessage.userInputMessageContext.tools,
+    ).toEqual([{ toolSpecification: { name: "read_file" } }]);
   });
 
   it("fails open when Kiro Headroom output does not preserve message order", async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify({
-      messages: [{ role: "assistant", content: "wrong role" }],
-      tokens_saved: 10,
-    }), { status: 200 }));
+    global.fetch = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            messages: [{ role: "assistant", content: "wrong role" }],
+            tokens_saved: 10,
+          }),
+          { status: 200 },
+        ),
+    );
     const body = {
       conversationState: {
         currentMessage: {
@@ -184,7 +244,9 @@ describe("compressWithHeadroom", () => {
   });
 
   it("fails open on bad response", async () => {
-    global.fetch = vi.fn(async () => new Response(JSON.stringify({ error: "bad" }), { status: 500 }));
+    global.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ error: "bad" }), { status: 500 }),
+    );
     const body = { messages: [{ role: "user", content: "long" }] };
 
     const stats = await compressWithHeadroom(body, { enabled: true, url: "http://localhost:8787" });
@@ -212,9 +274,7 @@ describe("compressWithHeadroom", () => {
     });
 
     function makeSuccessfulFetch() {
-      global.fetch = vi.fn(async () =>
-        new Response(mockResponse, { status: 200 })
-      );
+      global.fetch = vi.fn(async () => new Response(mockResponse, { status: 200 }));
     }
 
     function captureTimeoutCalls() {
@@ -232,7 +292,11 @@ describe("compressWithHeadroom", () => {
       const calls = captureTimeoutCalls();
       const body = { messages: [{ role: "user", content: "hello" }] };
 
-      await compressWithHeadroom(body, { enabled: true, url: "http://localhost:8787", timeoutMs: 5000 });
+      await compressWithHeadroom(body, {
+        enabled: true,
+        url: "http://localhost:8787",
+        timeoutMs: 5000,
+      });
 
       expect(calls).toContain(5000);
     });
@@ -242,7 +306,11 @@ describe("compressWithHeadroom", () => {
       const calls = captureTimeoutCalls();
       const body = { messages: [{ role: "user", content: "hello" }] };
 
-      await compressWithHeadroom(body, { enabled: true, url: "http://localhost:8787", timeoutMs: null });
+      await compressWithHeadroom(body, {
+        enabled: true,
+        url: "http://localhost:8787",
+        timeoutMs: null,
+      });
 
       expect(calls).toContain(3000);
     });
@@ -252,7 +320,11 @@ describe("compressWithHeadroom", () => {
       const calls = captureTimeoutCalls();
       const body = { messages: [{ role: "user", content: "hello" }] };
 
-      await compressWithHeadroom(body, { enabled: true, url: "http://localhost:8787", timeoutMs: 0 });
+      await compressWithHeadroom(body, {
+        enabled: true,
+        url: "http://localhost:8787",
+        timeoutMs: 0,
+      });
 
       expect(calls).toContain(3000);
     });
@@ -262,7 +334,11 @@ describe("compressWithHeadroom", () => {
       const calls = captureTimeoutCalls();
       const body = { messages: [{ role: "user", content: "hello" }] };
 
-      await compressWithHeadroom(body, { enabled: true, url: "http://localhost:8787", timeoutMs: -100 });
+      await compressWithHeadroom(body, {
+        enabled: true,
+        url: "http://localhost:8787",
+        timeoutMs: -100,
+      });
 
       expect(calls).toContain(3000);
     });
@@ -272,7 +348,11 @@ describe("compressWithHeadroom", () => {
       const calls = captureTimeoutCalls();
       const body = { messages: [{ role: "user", content: "hello" }] };
 
-      await compressWithHeadroom(body, { enabled: true, url: "http://localhost:8787", timeoutMs: NaN });
+      await compressWithHeadroom(body, {
+        enabled: true,
+        url: "http://localhost:8787",
+        timeoutMs: NaN,
+      });
 
       expect(calls).toContain(3000);
     });
@@ -282,7 +362,11 @@ describe("compressWithHeadroom", () => {
       const calls = captureTimeoutCalls();
       const body = { messages: [{ role: "user", content: "hello" }] };
 
-      await compressWithHeadroom(body, { enabled: true, url: "http://localhost:8787", timeoutMs: Infinity });
+      await compressWithHeadroom(body, {
+        enabled: true,
+        url: "http://localhost:8787",
+        timeoutMs: Infinity,
+      });
 
       expect(calls).toContain(3000);
     });
@@ -292,7 +376,11 @@ describe("compressWithHeadroom", () => {
       const calls = captureTimeoutCalls();
       const body = { messages: [{ role: "user", content: "hello" }] };
 
-      await compressWithHeadroom(body, { enabled: true, url: "http://localhost:8787", timeoutMs: "5000" });
+      await compressWithHeadroom(body, {
+        enabled: true,
+        url: "http://localhost:8787",
+        timeoutMs: "5000",
+      });
 
       expect(calls).toContain(3000);
     });
@@ -301,14 +389,17 @@ describe("compressWithHeadroom", () => {
 
 describe("formatHeadroomLog", () => {
   it("formats reported token deltas without implying provider billing savings", () => {
-    expect(formatHeadroomLog({ tokens_before: 100, tokens_after: 25, tokens_saved: 75 }))
-      .toBe("reported token delta=75 before=100 after=25 (75.0%)");
+    expect(formatHeadroomLog({ tokens_before: 100, tokens_after: 25, tokens_saved: 75 })).toBe(
+      "reported token delta=75 before=100 after=25 (75.0%)",
+    );
   });
 
   it("reports effective payload, tool-schema, and tool-history sizes", () => {
-    expect(formatHeadroomSizeLog({
-      before: { bodyBytes: 1000, messageBytes: 800, toolSchemaBytes: 100, toolHistoryBytes: 500 },
-      after: { bodyBytes: 900, messageBytes: 700, toolSchemaBytes: 100, toolHistoryBytes: 400 },
-    })).toContain("tools=100B→100B toolHistory=500B→400B effective=10.0%");
+    expect(
+      formatHeadroomSizeLog({
+        before: { bodyBytes: 1000, messageBytes: 800, toolSchemaBytes: 100, toolHistoryBytes: 500 },
+        after: { bodyBytes: 900, messageBytes: 700, toolSchemaBytes: 100, toolHistoryBytes: 400 },
+      }),
+    ).toContain("tools=100B→100B toolHistory=500B→400B effective=10.0%");
   });
 });

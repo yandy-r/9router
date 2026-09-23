@@ -6,13 +6,15 @@ import { convertOpenAIContentToParts } from "../../open-sse/translator/formats/g
 function userImage(detail) {
   return {
     model: "claude-sonnet-4-6",
-    messages: [{
-      role: "user",
-      content: [
-        { type: "text", text: "look" },
-        { type: "image_url", image_url: { url: "data:image/png;base64,AAAB", detail } },
-      ],
-    }],
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "look" },
+          { type: "image_url", image_url: { url: "data:image/png;base64,AAAB", detail } },
+        ],
+      },
+    ],
   };
 }
 
@@ -29,10 +31,15 @@ describe("openai→claude: image_url.detail is dropped (docs 11 §4)", () => {
   it("drops input_audio entirely (claude has no audio block)", () => {
     const body = {
       model: "claude-sonnet-4-6",
-      messages: [{ role: "user", content: [
-        { type: "text", text: "hi" },
-        { type: "input_audio", input_audio: { data: "ZZZ", format: "wav" } },
-      ] }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "hi" },
+            { type: "input_audio", input_audio: { data: "ZZZ", format: "wav" } },
+          ],
+        },
+      ],
     };
     const out = openaiToClaudeRequest("claude-sonnet-4-6", body, false);
     const blocks = out.messages[0].content;
@@ -42,17 +49,23 @@ describe("openai→claude: image_url.detail is dropped (docs 11 §4)", () => {
 
 describe("openai→gemini: input_audio is mapped to inlineData (docs 11 §4)", () => {
   it("maps wav → audio/wav inlineData", () => {
-    const parts = convertOpenAIContentToParts([{ type: "input_audio", input_audio: { data: "ZZZ", format: "wav" } }]);
+    const parts = convertOpenAIContentToParts([
+      { type: "input_audio", input_audio: { data: "ZZZ", format: "wav" } },
+    ]);
     expect(parts).toEqual([{ inlineData: { mime_type: "audio/wav", data: "ZZZ" } }]);
   });
 
   it("maps mp3 → audio/mpeg inlineData", () => {
-    const parts = convertOpenAIContentToParts([{ type: "input_audio", input_audio: { data: "ZZZ", format: "mp3" } }]);
+    const parts = convertOpenAIContentToParts([
+      { type: "input_audio", input_audio: { data: "ZZZ", format: "mp3" } },
+    ]);
     expect(parts[0].inlineData.mime_type).toBe("audio/mpeg");
   });
 
   it("drops image_url.detail (not carried into inlineData)", () => {
-    const parts = convertOpenAIContentToParts([{ type: "image_url", image_url: { url: "data:image/png;base64,AAAB", detail: "high" } }]);
+    const parts = convertOpenAIContentToParts([
+      { type: "image_url", image_url: { url: "data:image/png;base64,AAAB", detail: "high" } },
+    ]);
     expect(parts).toEqual([{ inlineData: { mime_type: "image/png", data: "AAAB" } }]);
   });
 });

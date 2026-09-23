@@ -5,13 +5,11 @@ export default {
     name: "Local Device",
     icon: "speaker",
     color: "#64748B",
-    textIcon: "LD"
+    textIcon: "LD",
   },
   category: "freeTier",
   authType: "none",
-  serviceKinds: [
-    "tts"
-  ],
+  serviceKinds: ["tts"],
   mediaPriority: 5,
   noAuth: true,
   ttsConfig: {
@@ -19,6 +17,6 @@ export default {
     authType: "none",
     authHeader: "none",
     format: "local-device",
-    models: []
-  }
+    models: [],
+  },
 };

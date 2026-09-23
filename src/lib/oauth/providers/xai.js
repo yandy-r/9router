@@ -12,12 +12,17 @@ async function discoverXaiEndpoints() {
     if (res.ok) {
       const data = await res.json();
       cachedXaiDiscovery = {
-        authorizeUrl: validateXaiOAuthEndpoint(data.authorization_endpoint, "authorization_endpoint"),
+        authorizeUrl: validateXaiOAuthEndpoint(
+          data.authorization_endpoint,
+          "authorization_endpoint",
+        ),
         tokenUrl: validateXaiOAuthEndpoint(data.token_endpoint, "token_endpoint"),
       };
       return cachedXaiDiscovery;
     }
-  } catch { /* fall through to static fallback */ }
+  } catch {
+    /* fall through to static fallback */
+  }
   cachedXaiDiscovery = { authorizeUrl: XAI_CONFIG.authorizeUrl, tokenUrl: XAI_CONFIG.tokenUrl };
   return cachedXaiDiscovery;
 }

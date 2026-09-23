@@ -13,19 +13,13 @@ export async function POST(request) {
     const { apiKey, region } = await request.json();
 
     if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) {
-      return NextResponse.json(
-        { error: "API key is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "API key is required" }, { status: 400 });
     }
 
     const kiroService = new KiroService();
 
     // Validate the key against the same Amazon Q surface used for inference.
-    const credential = await kiroService.validateApiKey(
-      apiKey,
-      region || "us-east-1"
-    );
+    const credential = await kiroService.validateApiKey(apiKey, region || "us-east-1");
 
     // Extract email from JWT if the key happens to be a JWT (optional display)
     const email = kiroService.extractEmailFromJWT(credential.accessToken);
@@ -59,9 +53,6 @@ export async function POST(request) {
   } catch (error) {
     console.log("Kiro API key import error:", error);
     // Do not reflect upstream response body to the client (SSRF hardening)
-    return NextResponse.json(
-      { error: "API key validation failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "API key validation failed" }, { status: 500 });
   }
 }

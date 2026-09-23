@@ -25,8 +25,8 @@ function mockMiMoAudioResponse() {
           },
         ],
       }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    )
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ),
   );
 }
 
@@ -107,7 +107,15 @@ describe("Xiaomi MiMo TTS", () => {
 
     const voices = getTtsVoicesForModel("xiaomi-mimo", "mimo-v2.5-tts");
     expect(voices.map((v) => v.id)).toEqual([
-      "mimo_default", "冰糖", "茉莉", "苏打", "白桦", "Mia", "Chloe", "Milo", "Dean",
+      "mimo_default",
+      "冰糖",
+      "茉莉",
+      "苏打",
+      "白桦",
+      "Mia",
+      "Chloe",
+      "Milo",
+      "Dean",
     ]);
     expect(voices.find((v) => v.id === "冰糖")).toMatchObject({ name: "冰糖" });
     expect(voices.find((v) => v.id === "Dean")).toMatchObject({ name: "Dean" });
@@ -136,10 +144,14 @@ describe("Xiaomi MiMo TTS", () => {
 
   it("wires the provider into media-providers TTS (serviceKind, adapter, UI config)", () => {
     expect(AI_PROVIDERS["xiaomi-mimo"].serviceKinds).toContain("tts");
-    expect(AI_PROVIDERS["xiaomi-mimo"].ttsConfig.baseUrl).toBe("https://api.xiaomimimo.com/v1/chat/completions");
+    expect(AI_PROVIDERS["xiaomi-mimo"].ttsConfig.baseUrl).toBe(
+      "https://api.xiaomimimo.com/v1/chat/completions",
+    );
     expect(getTtsAdapter("xiaomi-mimo")).toBeTruthy();
 
-    const ttsModels = PROVIDER_MODELS["xiaomi-mimo"].filter((m) => (m.kind || m.type) === "tts").map((m) => m.id);
+    const ttsModels = PROVIDER_MODELS["xiaomi-mimo"]
+      .filter((m) => (m.kind || m.type) === "tts")
+      .map((m) => m.id);
     expect(ttsModels).toEqual(["mimo-v2.5-tts"]);
 
     expect(TTS_PROVIDER_CONFIG["xiaomi-mimo"].hasStyleInput).toBe(true);

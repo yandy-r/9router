@@ -95,9 +95,11 @@ describe("Cursor live model catalog", () => {
   it("fails open when the Cursor catalog request fails", async () => {
     global.fetch = vi.fn().mockResolvedValue(new Response("no", { status: 403 }));
 
-    await expect(resolveCursorModels({
-      accessToken: "cursor-token",
-      providerSpecificData: { machineId: "machine-id" },
-    })).resolves.toBeNull();
+    await expect(
+      resolveCursorModels({
+        accessToken: "cursor-token",
+        providerSpecificData: { machineId: "machine-id" },
+      }),
+    ).resolves.toBeNull();
   });
 });

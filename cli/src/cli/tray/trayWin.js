@@ -33,15 +33,22 @@ function initWinTray(options) {
       "powershell.exe",
       [
         "-NoProfile",
-        "-ExecutionPolicy", "Bypass",
-        "-WindowStyle", "Hidden",
-        "-InputFormat", "Text",
-        "-OutputFormat", "Text",
-        "-File", scriptPath,
-        "-IconPath", iconPath,
-        "-Tooltip", tooltip
+        "-ExecutionPolicy",
+        "Bypass",
+        "-WindowStyle",
+        "Hidden",
+        "-InputFormat",
+        "Text",
+        "-OutputFormat",
+        "Text",
+        "-File",
+        scriptPath,
+        "-IconPath",
+        iconPath,
+        "-Tooltip",
+        tooltip,
       ],
-      { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] }
+      { windowsHide: true, stdio: ["pipe", "pipe", "pipe"] },
     );
   } catch (err) {
     return null;
@@ -78,11 +85,13 @@ function initWinTray(options) {
       } catch (e) {}
       setTimeout(() => {
         if (psProcess && !psProcess.killed) {
-          try { psProcess.kill(); } catch (e) {}
+          try {
+            psProcess.kill();
+          } catch (e) {}
         }
         psProcess = null;
       }, 300);
-    }
+    },
   };
 }
 

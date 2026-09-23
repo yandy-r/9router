@@ -22,10 +22,7 @@ import {
   getZedSessionStatus,
   clearZedSession,
 } from "@/lib/oauth/utils/server.js";
-import {
-  generateAuthData,
-  exchangeTokens,
-} from "@/lib/oauth/providers/index.js";
+import { generateAuthData, exchangeTokens } from "@/lib/oauth/providers/index.js";
 
 const realFetch = globalThis.fetch;
 
@@ -75,17 +72,13 @@ describe("criterion 4 — RSA decrypt works", () => {
   it("round-trips OAEP-SHA256 through the verifier slot", async () => {
     const auth = createZedNativeAuthData({}, { nativeAppPort: 1 });
     const encrypted = encryptForCallback(auth.publicKey, "plaintext-token-abc");
-    expect(decryptZedAccessToken(encrypted, auth.privateKeyVerifier)).toBe(
-      "plaintext-token-abc",
-    );
+    expect(decryptZedAccessToken(encrypted, auth.privateKeyVerifier)).toBe("plaintext-token-abc");
   });
 
   it("rejects a missing verifier instead of silently failing", () => {
     const auth = createZedNativeAuthData({}, { nativeAppPort: 1 });
     const encrypted = encryptForCallback(auth.publicKey, "x");
-    expect(() => decryptZedAccessToken(encrypted, null)).toThrow(
-      /private key verifier/i,
-    );
+    expect(() => decryptZedAccessToken(encrypted, null)).toThrow(/private key verifier/i);
   });
 
   it("parser keeps strict validation (no weakened acceptance)", () => {
@@ -93,9 +86,9 @@ describe("criterion 4 — RSA decrypt works", () => {
     expect(() => parseZedCallbackPayload("http://127.0.0.1:1/")).toThrow(
       /user_id and access_token/,
     );
-    expect(() =>
-      parseZedCallbackPayload("http://127.0.0.1:1/?user_id=only-user"),
-    ).toThrow(/user_id and access_token/);
+    expect(() => parseZedCallbackPayload("http://127.0.0.1:1/?user_id=only-user")).toThrow(
+      /user_id and access_token/,
+    );
   });
 });
 
@@ -320,7 +313,9 @@ describe("YAN-5 / #1 — manual callback-URL paste completes via /exchange", () 
         systemId: auth.systemId,
       }),
     });
-    const res = await POST(req, { params: Promise.resolve({ provider: "zed", action: "exchange" }) });
+    const res = await POST(req, {
+      params: Promise.resolve({ provider: "zed", action: "exchange" }),
+    });
     const data = await res.json();
     expect(res.status).toBe(200);
     expect(data.success).toBe(true);

@@ -8,14 +8,12 @@ export default {
     textIcon: "LK",
     website: "https://linkup.so",
     notice: {
-      apiKeyUrl: "https://app.linkup.so/api-keys"
-    }
+      apiKeyUrl: "https://app.linkup.so/api-keys",
+    },
   },
   category: "apikey",
   authType: "apikey",
-  serviceKinds: [
-    "webSearch"
-  ],
+  serviceKinds: ["webSearch"],
   searchConfig: {
     baseUrl: "https://api.linkup.so/v1/search",
     method: "POST",
@@ -23,12 +21,10 @@ export default {
     authHeader: "bearer",
     costPerQuery: 0.005,
     freeMonthlyQuota: 1000,
-    searchTypes: [
-      "web"
-    ],
+    searchTypes: ["web"],
     defaultMaxResults: 5,
     maxMaxResults: 50,
     timeoutMs: 10000,
-    cacheTTLMs: 300000
-  }
+    cacheTTLMs: 300000,
+  },
 };

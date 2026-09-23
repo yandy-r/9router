@@ -10,15 +10,15 @@ describe("xai/oauth service", () => {
   it("validates discovered endpoints are https x.ai URLs", async () => {
     const { validateOAuthEndpoint } = await import("../../src/lib/oauth/services/xai.js");
 
-    expect(validateOAuthEndpoint("https://auth.x.ai/oauth2/authorize", "authorization_endpoint")).toBe(
-      "https://auth.x.ai/oauth2/authorize"
-    );
-    expect(() => validateOAuthEndpoint("http://auth.x.ai/oauth2/authorize", "authorization_endpoint")).toThrow(
-      /must use https/
-    );
-    expect(() => validateOAuthEndpoint("https://example.com/oauth2/authorize", "authorization_endpoint")).toThrow(
-      /is not on x\.ai/
-    );
+    expect(
+      validateOAuthEndpoint("https://auth.x.ai/oauth2/authorize", "authorization_endpoint"),
+    ).toBe("https://auth.x.ai/oauth2/authorize");
+    expect(() =>
+      validateOAuthEndpoint("http://auth.x.ai/oauth2/authorize", "authorization_endpoint"),
+    ).toThrow(/must use https/);
+    expect(() =>
+      validateOAuthEndpoint("https://example.com/oauth2/authorize", "authorization_endpoint"),
+    ).toThrow(/is not on x\.ai/);
   });
 
   it("discovers endpoints without custom user-agent headers", async () => {
@@ -37,7 +37,7 @@ describe("xai/oauth service", () => {
     });
     expect(fetch).toHaveBeenCalledWith(
       "https://auth.x.ai/.well-known/openid-configuration",
-      expect.objectContaining({ headers: { Accept: "application/json" } })
+      expect.objectContaining({ headers: { Accept: "application/json" } }),
     );
   });
 
@@ -47,7 +47,7 @@ describe("xai/oauth service", () => {
       "http://127.0.0.1:56121/callback",
       "state-1",
       "challenge-1",
-      "https://auth.x.ai/oauth2/authorize"
+      "https://auth.x.ai/oauth2/authorize",
     );
     const parsed = new URL(authUrl);
 
@@ -77,7 +77,9 @@ describe("xai/oauth service", () => {
     const parsed = new URL(data.authUrl);
 
     expect(data.codeVerifier).toHaveLength(128);
-    expect(parsed.origin + parsed.pathname).toBe("https://auth.x.ai/oauth2/authorize-from-discovery");
+    expect(parsed.origin + parsed.pathname).toBe(
+      "https://auth.x.ai/oauth2/authorize-from-discovery",
+    );
     expect(parsed.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:56121/callback");
     expect(parsed.searchParams.get("code_challenge_method")).toBe("S256");
     expect(parsed.searchParams.get("plan")).toBe("generic");
@@ -109,7 +111,7 @@ describe("xai/oauth service", () => {
       "auth-code",
       "http://127.0.0.1:56121/callback",
       "verifier-1",
-      "state-1"
+      "state-1",
     );
 
     expect(fetchMock.mock.calls[1][0]).toBe("https://auth.x.ai/oauth2/token-from-discovery");

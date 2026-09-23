@@ -30,7 +30,9 @@ const checkGrokInstalled = async () => {
       try {
         await fs.access(candidate);
         return true;
-      } catch { /* try next */ }
+      } catch {
+        /* try next */
+      }
     }
     return false;
   }

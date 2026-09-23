@@ -103,7 +103,10 @@ async function parseStream(response, log, callbacks = {}) {
         try {
           const data = JSON.parse(dataStr);
           if (callbacks.onPartialImage && data?.partial_image_b64) {
-            callbacks.onPartialImage({ b64_json: data.partial_image_b64, index: data.partial_image_index });
+            callbacks.onPartialImage({
+              b64_json: data.partial_image_b64,
+              index: data.partial_image_index,
+            });
           }
         } catch {}
       }
@@ -136,7 +139,10 @@ function buildSseResponse(providerResponse, log, onSuccess) {
           onPartialImage: (info) => send("partial_image", info),
         });
         if (!b64) {
-          send("error", { message: "Codex did not return an image. Account may not be entitled (Plus/Pro required)." });
+          send("error", {
+            message:
+              "Codex did not return an image. Account may not be entitled (Plus/Pro required).",
+          });
         } else {
           if (onSuccess) await onSuccess();
           send("done", { created: nowSec(), data: [{ b64_json: b64 }] });
@@ -152,7 +158,7 @@ function buildSseResponse(providerResponse, log, onSuccess) {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
       "X-Accel-Buffering": "no",
       "Access-Control-Allow-Origin": "*",
     },
@@ -163,27 +169,35 @@ export default {
   stream: true,
   buildUrl: () => CODEX_RESPONSES_URL,
   buildHeaders: (creds) => {
-    const accountId = creds?.providerSpecificData?.chatgptAccountId || decodeAccountId(creds?.idToken);
+    const accountId =
+      creds?.providerSpecificData?.chatgptAccountId || decodeAccountId(creds?.idToken);
     return {
-      "accept": "text/event-stream, application/json",
-      "authorization": `Bearer ${creds?.accessToken || ""}`,
+      accept: "text/event-stream, application/json",
+      authorization: `Bearer ${creds?.accessToken || ""}`,
       "chatgpt-account-id": accountId || "",
       "content-type": "application/json",
-      "originator": CODEX_ORIGINATOR,
-      "session_id": randomUUID(),
+      originator: CODEX_ORIGINATOR,
+      session_id: randomUUID(),
       "user-agent": CODEX_USER_AGENT,
-      "version": CODEX_CLI_VERSION,
+      version: CODEX_CLI_VERSION,
       "x-client-request-id": randomUUID(),
     };
   },
   buildBody: (model, body) => {
     const refs = [];
-    if (Array.isArray(body.images)) body.images.forEach((i) => { const u = toDataUrl(i); if (u) refs.push(u); });
+    if (Array.isArray(body.images))
+      body.images.forEach((i) => {
+        const u = toDataUrl(i);
+        if (u) refs.push(u);
+      });
     const single = toDataUrl(body.image);
     if (single) refs.push(single);
     const detail = body.image_detail || CODEX_REF_DETAIL;
     const { responsesModel, toolModel } = resolveCodexImageModels(model);
-    const imgTool = { type: "image_generation", output_format: (body.output_format || "png").toLowerCase() };
+    const imgTool = {
+      type: "image_generation",
+      output_format: (body.output_format || "png").toLowerCase(),
+    };
     if (toolModel) {
       imgTool.action = refs.length > 0 ? "edit" : "generate";
       imgTool.model = toolModel;
@@ -211,7 +225,9 @@ export default {
     }
     const b64 = await parseStream(response, log);
     if (!b64) {
-      throw new Error("Codex did not return an image. Account may not be entitled (Plus/Pro required).");
+      throw new Error(
+        "Codex did not return an image. Account may not be entitled (Plus/Pro required).",
+      );
     }
     return { created: nowSec(), data: [{ b64_json: b64 }] };
   },

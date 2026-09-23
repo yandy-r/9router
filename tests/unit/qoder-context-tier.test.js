@@ -82,8 +82,12 @@ describe("getQoderContextTiers", () => {
 
 describe("estimateQoderPromptTokens", () => {
   it("counts CJK characters as ~1 token each instead of chars/4", () => {
-    const ascii = estimateQoderPromptTokens({ messages: [{ role: "user", content: "a".repeat(4000) }] });
-    const cjk = estimateQoderPromptTokens({ messages: [{ role: "user", content: "中".repeat(4000) }] });
+    const ascii = estimateQoderPromptTokens({
+      messages: [{ role: "user", content: "a".repeat(4000) }],
+    });
+    const cjk = estimateQoderPromptTokens({
+      messages: [{ role: "user", content: "中".repeat(4000) }],
+    });
     expect(ascii).toBeLessThan(1_200);
     expect(cjk).toBeGreaterThan(4_000);
   });
@@ -116,7 +120,9 @@ describe("resolveQoderContextTier (auto)", () => {
   });
 
   it("returns null for models without context_config", () => {
-    expect(resolveQoderContextTier({ max_input_tokens: 131072 }, promptOfTokens(500_000))).toBeNull();
+    expect(
+      resolveQoderContextTier({ max_input_tokens: 131072 }, promptOfTokens(500_000)),
+    ).toBeNull();
   });
 
   it("never escalates when the current limit is already the largest tier", () => {
@@ -133,18 +139,31 @@ describe("resolveQoderContextTier (forced via QODER_CONTEXT_TIER)", () => {
   });
 
   it("default picks the isDefault tier", () => {
-    const choice = resolveQoderContextTier(MODEL_CONFIG, promptOfTokens(10), { preference: "default" });
+    const choice = resolveQoderContextTier(MODEL_CONFIG, promptOfTokens(10), {
+      preference: "default",
+    });
     expect(choice.tier.name).toBe("200K");
   });
 
   it("a tier name or token count selects that tier", () => {
-    expect(resolveQoderContextTier(MODEL_CONFIG, promptOfTokens(10), { preference: "400k" }).tier.tokenCount).toBe(400_000);
-    expect(resolveQoderContextTier(MODEL_CONFIG, promptOfTokens(10), { preference: "1000000" }).tier.name).toBe("1M");
+    expect(
+      resolveQoderContextTier(MODEL_CONFIG, promptOfTokens(10), { preference: "400k" }).tier
+        .tokenCount,
+    ).toBe(400_000);
+    expect(
+      resolveQoderContextTier(MODEL_CONFIG, promptOfTokens(10), { preference: "1000000" }).tier
+        .name,
+    ).toBe("1M");
   });
 
   it("an unknown tier name falls back to auto", () => {
-    expect(resolveQoderContextTier(MODEL_CONFIG, promptOfTokens(10), { preference: "9M" })).toBeNull();
-    expect(resolveQoderContextTier(MODEL_CONFIG, promptOfTokens(250_000), { preference: "9M" }).tier.name).toBe("400K");
+    expect(
+      resolveQoderContextTier(MODEL_CONFIG, promptOfTokens(10), { preference: "9M" }),
+    ).toBeNull();
+    expect(
+      resolveQoderContextTier(MODEL_CONFIG, promptOfTokens(250_000), { preference: "9M" }).tier
+        .name,
+    ).toBe("400K");
   });
 });
 
@@ -157,7 +176,9 @@ describe("applyQoderContextTier", () => {
     };
     applyQoderContextTier(payload, { name: "1M", tokenCount: 1_000_000 });
     expect(payload.parameters).toEqual({ max_tokens: 32_768, context_length: 1_000_000 });
-    expect(payload.chat_context.extra.ideModelConfigOverride).toEqual({ max_input_tokens: 1_000_000 });
+    expect(payload.chat_context.extra.ideModelConfigOverride).toEqual({
+      max_input_tokens: 1_000_000,
+    });
     expect(payload.chat_context.extra.modelConfig).toEqual({ key: "qmodel_38max" });
     expect(payload.model_config.max_input_tokens).toBe(1_000_000);
     expect(payload.model_config.context_config).toHaveLength(3);

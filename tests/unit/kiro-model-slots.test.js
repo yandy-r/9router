@@ -35,40 +35,56 @@ describe("Kiro MITM model slots", () => {
 
   it("offers mappable slots for GPT-5.6 family models", () => {
     const models = new Map(kiro.defaultModels.map((m) => [m.id, m]));
-    expect(models.get("gpt-5.6-sol")).toMatchObject({ alias: "gpt-5.6-sol", contextLength: 272000, rateMultiplier: 2.4 });
-    expect(models.get("gpt-5.6-terra")).toMatchObject({ alias: "gpt-5.6-terra", contextLength: 272000, rateMultiplier: 1.2 });
-    expect(models.get("gpt-5.6-luna")).toMatchObject({ alias: "gpt-5.6-luna", contextLength: 272000, rateMultiplier: 0.6 });
+    expect(models.get("gpt-5.6-sol")).toMatchObject({
+      alias: "gpt-5.6-sol",
+      contextLength: 272000,
+      rateMultiplier: 2.4,
+    });
+    expect(models.get("gpt-5.6-terra")).toMatchObject({
+      alias: "gpt-5.6-terra",
+      contextLength: 272000,
+      rateMultiplier: 1.2,
+    });
+    expect(models.get("gpt-5.6-luna")).toMatchObject({
+      alias: "gpt-5.6-luna",
+      contextLength: 272000,
+      rateMultiplier: 0.6,
+    });
   });
 });
 
 describe("Kiro static provider models", () => {
   it("includes Claude Sonnet 5 and its synthetic Kiro variants", () => {
     const ids = (PROVIDER_MODELS.kr || []).map((model) => model.id);
-    expect(ids).toEqual(expect.arrayContaining([
-      "claude-sonnet-5",
-      "claude-sonnet-5-thinking",
-      "claude-sonnet-5-agentic",
-      "claude-sonnet-5-thinking-agentic",
-    ]));
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "claude-sonnet-5",
+        "claude-sonnet-5-thinking",
+        "claude-sonnet-5-agentic",
+        "claude-sonnet-5-thinking-agentic",
+      ]),
+    );
   });
 
   it("includes GPT-5.6 family and synthetic Kiro variants", () => {
     const models = new Map((PROVIDER_MODELS.kr || []).map((model) => [model.id, model]));
     const ids = [...models.keys()];
-    expect(ids).toEqual(expect.arrayContaining([
-      "gpt-5.6-sol",
-      "gpt-5.6-sol-thinking",
-      "gpt-5.6-sol-agentic",
-      "gpt-5.6-sol-thinking-agentic",
-      "gpt-5.6-terra",
-      "gpt-5.6-terra-thinking",
-      "gpt-5.6-terra-agentic",
-      "gpt-5.6-terra-thinking-agentic",
-      "gpt-5.6-luna",
-      "gpt-5.6-luna-thinking",
-      "gpt-5.6-luna-agentic",
-      "gpt-5.6-luna-thinking-agentic",
-    ]));
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        "gpt-5.6-sol",
+        "gpt-5.6-sol-thinking",
+        "gpt-5.6-sol-agentic",
+        "gpt-5.6-sol-thinking-agentic",
+        "gpt-5.6-terra",
+        "gpt-5.6-terra-thinking",
+        "gpt-5.6-terra-agentic",
+        "gpt-5.6-terra-thinking-agentic",
+        "gpt-5.6-luna",
+        "gpt-5.6-luna-thinking",
+        "gpt-5.6-luna-agentic",
+        "gpt-5.6-luna-thinking-agentic",
+      ]),
+    );
 
     for (const [id, rateMultiplier] of [
       ["gpt-5.6-sol", 2.4],

@@ -22,7 +22,13 @@ import path from "node:path";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { run, parseArgs, downloadToFile, sanitizeText, imageInputToUrl } = require("../../cli/src/cli/commands/xaiVideo.js");
+const {
+  run,
+  parseArgs,
+  downloadToFile,
+  sanitizeText,
+  imageInputToUrl,
+} = require("../../cli/src/cli/commands/xaiVideo.js");
 
 const MP4_BYTES = Buffer.from("FAKE-MP4-DATA-0123456789");
 
@@ -62,14 +68,38 @@ describe("parseArgs", () => {
 
   it("parses all documented flags", () => {
     const opts = parseArgs([
-      "--prompt", "p", "--output", "o.mp4", "--model", "m",
-      "--duration", "10", "--aspect-ratio", "16:9", "--resolution", "720p",
-      "--image", "https://x/img.png", "--timeout", "30", "--port", "1234", "--api-key", "k",
+      "--prompt",
+      "p",
+      "--output",
+      "o.mp4",
+      "--model",
+      "m",
+      "--duration",
+      "10",
+      "--aspect-ratio",
+      "16:9",
+      "--resolution",
+      "720p",
+      "--image",
+      "https://x/img.png",
+      "--timeout",
+      "30",
+      "--port",
+      "1234",
+      "--api-key",
+      "k",
     ]);
     expect(opts).toMatchObject({
-      prompt: "p", output: "o.mp4", model: "m", duration: 10,
-      aspectRatio: "16:9", resolution: "720p", image: "https://x/img.png",
-      timeoutSec: 30, port: 1234, apiKey: "k",
+      prompt: "p",
+      output: "o.mp4",
+      model: "m",
+      duration: 10,
+      aspectRatio: "16:9",
+      resolution: "720p",
+      image: "https://x/img.png",
+      timeoutSec: 30,
+      port: 1234,
+      apiKey: "k",
     });
   });
 
@@ -87,7 +117,9 @@ describe("imageInputToUrl", () => {
   it("converts a local file to a base64 data URL", () => {
     const p = path.join(tmpDir, "in.png");
     fs.writeFileSync(p, Buffer.from([1, 2, 3]));
-    expect(imageInputToUrl(p)).toBe(`data:image/png;base64,${Buffer.from([1, 2, 3]).toString("base64")}`);
+    expect(imageInputToUrl(p)).toBe(
+      `data:image/png;base64,${Buffer.from([1, 2, 3]).toString("base64")}`,
+    );
   });
 });
 
@@ -109,7 +141,10 @@ describe("run (against a mock gateway)", () => {
         req.on("data", (c) => (body += c));
         req.on("end", () => {
           seen.createBody = JSON.parse(body);
-          res.writeHead(200, { "Content-Type": "application/json", "x-9router-connection-id": "conn-42" });
+          res.writeHead(200, {
+            "Content-Type": "application/json",
+            "x-9router-connection-id": "conn-42",
+          });
           res.end(JSON.stringify({ request_id: "job-1" }));
         });
         return;
@@ -118,9 +153,13 @@ describe("run (against a mock gateway)", () => {
         seen.pollConnectionIds.push(req.headers["x-connection-id"] || null);
         pollCount++;
         const port = server.address().port;
-        const payload = pollCount < 3
-          ? { status: "pending", progress: pollCount * 30 }
-          : { status: "done", video: { url: `http://127.0.0.1:${port}/files/out.mp4`, duration: 8 } };
+        const payload =
+          pollCount < 3
+            ? { status: "pending", progress: pollCount * 30 }
+            : {
+                status: "done",
+                video: { url: `http://127.0.0.1:${port}/files/out.mp4`, duration: 8 },
+              };
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(payload));
         return;
@@ -139,12 +178,18 @@ describe("run (against a mock gateway)", () => {
     vi.spyOn(console, "error").mockImplementation((...a) => logs.push(a.join(" ")));
 
     const code = await run([
-      "--prompt", "a neon city",
-      "--output", output,
-      "--port", String(server.address().port),
-      "--api-key", "local-key-secret",
-      "--timeout", "10",
-      "--poll-interval-ms", "20",
+      "--prompt",
+      "a neon city",
+      "--output",
+      output,
+      "--port",
+      String(server.address().port),
+      "--api-key",
+      "local-key-secret",
+      "--timeout",
+      "10",
+      "--poll-interval-ms",
+      "20",
     ]);
 
     expect(code).toBe(0);
@@ -169,7 +214,12 @@ describe("run (against a mock gateway)", () => {
         return;
       }
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "failed", error: { code: "invalid_argument", message: "bad prompt" } }));
+      res.end(
+        JSON.stringify({
+          status: "failed",
+          error: { code: "invalid_argument", message: "bad prompt" },
+        }),
+      );
     }));
 
     const output = path.join(tmpDir, "nope.mp4");
@@ -178,9 +228,16 @@ describe("run (against a mock gateway)", () => {
     vi.spyOn(console, "error").mockImplementation((...a) => errors.push(a.join(" ")));
 
     const code = await run([
-      "--prompt", "x", "--output", output,
-      "--port", String(server.address().port),
-      "--timeout", "10", "--poll-interval-ms", "10",
+      "--prompt",
+      "x",
+      "--output",
+      output,
+      "--port",
+      String(server.address().port),
+      "--timeout",
+      "10",
+      "--poll-interval-ms",
+      "10",
     ]);
 
     expect(code).toBe(1);
@@ -192,7 +249,11 @@ describe("run (against a mock gateway)", () => {
   it("exits non-zero when polling exceeds the timeout", async () => {
     ({ server } = await startServer((req, res) => {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(req.method === "POST" ? JSON.stringify({ request_id: "job-slow" }) : JSON.stringify({ status: "pending", progress: 1 }));
+      res.end(
+        req.method === "POST"
+          ? JSON.stringify({ request_id: "job-slow" })
+          : JSON.stringify({ status: "pending", progress: 1 }),
+      );
     }));
 
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -200,9 +261,16 @@ describe("run (against a mock gateway)", () => {
     vi.spyOn(console, "error").mockImplementation((...a) => errors.push(a.join(" ")));
 
     const code = await run([
-      "--prompt", "x", "--output", path.join(tmpDir, "slow.mp4"),
-      "--port", String(server.address().port),
-      "--timeout", "1", "--poll-interval-ms", "50",
+      "--prompt",
+      "x",
+      "--output",
+      path.join(tmpDir, "slow.mp4"),
+      "--port",
+      String(server.address().port),
+      "--timeout",
+      "1",
+      "--poll-interval-ms",
+      "50",
     ]);
 
     expect(code).toBe(1);
@@ -212,7 +280,11 @@ describe("run (against a mock gateway)", () => {
   it("reports a helpful error when no xAI account is connected", async () => {
     ({ server } = await startServer((req, res) => {
       res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: { message: "No credentials for provider: xai", type: "invalid_request_error" } }));
+      res.end(
+        JSON.stringify({
+          error: { message: "No credentials for provider: xai", type: "invalid_request_error" },
+        }),
+      );
     }));
 
     vi.spyOn(console, "log").mockImplementation(() => {});
@@ -220,8 +292,12 @@ describe("run (against a mock gateway)", () => {
     vi.spyOn(console, "error").mockImplementation((...a) => errors.push(a.join(" ")));
 
     const code = await run([
-      "--prompt", "x", "--output", path.join(tmpDir, "n.mp4"),
-      "--port", String(server.address().port),
+      "--prompt",
+      "x",
+      "--output",
+      path.join(tmpDir, "n.mp4"),
+      "--port",
+      String(server.address().port),
     ]);
 
     expect(code).toBe(1);
@@ -266,7 +342,9 @@ describe("downloadToFile", () => {
     }));
 
     const out = path.join(tmpDir, "fail.mp4");
-    await expect(downloadToFile(`http://127.0.0.1:${server.address().port}/f.mp4`, out)).rejects.toThrow(/HTTP 500/);
+    await expect(
+      downloadToFile(`http://127.0.0.1:${server.address().port}/f.mp4`, out),
+    ).rejects.toThrow(/HTTP 500/);
     expect(fs.existsSync(out)).toBe(false);
     expect(fs.existsSync(`${out}.part`)).toBe(false);
   });

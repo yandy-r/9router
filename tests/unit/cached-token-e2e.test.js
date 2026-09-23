@@ -61,7 +61,7 @@ describe("cached-token end-to-end (persist + aggregate + cost)", () => {
 
   it("OpenAI cache usage: inclusive prompt passes through, cached counted once", async () => {
     const canonical = canonicalizeUsage({
-      prompt_tokens: 1000,        // already includes cached
+      prompt_tokens: 1000, // already includes cached
       completion_tokens: 200,
       cached_tokens: 600,
     });

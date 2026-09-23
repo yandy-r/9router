@@ -27,7 +27,9 @@ export default function LanguageSwitcher({ currentLang }) {
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+      return () => {
+        document.body.style.overflow = "";
+      };
     }
   }, [open]);
 
@@ -39,7 +41,10 @@ export default function LanguageSwitcher({ currentLang }) {
   };
 
   const modal = open && (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" onClick={() => setOpen(false)}>
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
+      onClick={() => setOpen(false)}
+    >
       <div
         className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -86,7 +91,9 @@ export default function LanguageSwitcher({ currentLang }) {
         aria-label="Switch language"
       >
         <Globe className="w-4 h-4" />
-        <span className="hidden sm:inline">{current.flag} {current.native}</span>
+        <span className="hidden sm:inline">
+          {current.flag} {current.native}
+        </span>
         <span className="sm:hidden">{current.flag}</span>
       </button>
 

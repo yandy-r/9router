@@ -2,9 +2,7 @@ export default {
   id: "runwayml",
   priority: 80,
   alias: "runwayml",
-  aliases: [
-    "runway",
-  ],
+  aliases: ["runway"],
   uiAlias: "runway",
   display: {
     name: "Runway ML",

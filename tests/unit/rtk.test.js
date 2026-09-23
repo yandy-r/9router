@@ -15,7 +15,13 @@ import { autoDetectFilter } from "../../open-sse/rtk/autodetect.js";
 import { safeApply } from "../../open-sse/rtk/applyFilter.js";
 
 function makeLongDiff() {
-  const lines = ["diff --git a/foo.js b/foo.js", "index abc..def 100644", "--- a/foo.js", "+++ b/foo.js", "@@ -1,3 +1,200 @@"];
+  const lines = [
+    "diff --git a/foo.js b/foo.js",
+    "index abc..def 100644",
+    "--- a/foo.js",
+    "+++ b/foo.js",
+    "@@ -1,3 +1,200 @@",
+  ];
   for (let i = 0; i < 200; i++) lines.push(`+added line ${i} ${"x".repeat(20)}`);
   return lines.join("\n");
 }
@@ -26,7 +32,7 @@ function makeGitStatus() {
     "Your branch is up to date with 'origin/main'.",
     "",
     "Changes not staged for commit:",
-    "  (use \"git add <file>...\" to update what will be committed)",
+    '  (use "git add <file>..." to update what will be committed)',
     "\tmodified:   src/a.js",
     "\tmodified:   src/b.js",
     "\tnew file:   src/c.js",
@@ -35,14 +41,16 @@ function makeGitStatus() {
     "Untracked files:",
     "\tnotes.txt",
     "",
-    "no changes added to commit"
+    "no changes added to commit",
   ].join("\n");
 }
 
 function makeGrepOutput() {
   const lines = [];
-  for (let i = 1; i <= 40; i++) lines.push(`src/foo.js:${i}:const x${i} = "some value here with padding text padding text"`);
-  for (let i = 1; i <= 10; i++) lines.push(`src/bar.js:${i}:const y${i} = "another value here with padding padding padding"`);
+  for (let i = 1; i <= 40; i++)
+    lines.push(`src/foo.js:${i}:const x${i} = "some value here with padding text padding text"`);
+  for (let i = 1; i <= 10; i++)
+    lines.push(`src/bar.js:${i}:const y${i} = "another value here with padding padding padding"`);
   return lines.join("\n");
 }
 
@@ -58,7 +66,7 @@ function makeGitLogOneline() {
   return [
     "abc1234 Add auth middleware",
     "def5678 Fix token refresh race",
-    "fedcba9 Update docs"
+    "fedcba9 Update docs",
   ].join("\n");
 }
 
@@ -71,7 +79,7 @@ function makeGitLogDefault() {
     "    Add auth middleware",
     "",
     "    More body detail should be dropped.",
-    "    This is padding that consumes tokens."
+    "    This is padding that consumes tokens.",
   ].join("\n");
 }
 
@@ -80,7 +88,7 @@ function makeGitLogGraph() {
     "* abc1234 Add auth middleware",
     "| * def5678 Fix token refresh race",
     "|/",
-    "* fedcba9 Update docs"
+    "* fedcba9 Update docs",
   ].join("\n");
 }
 
@@ -96,7 +104,7 @@ function makeGitLogGraphDefault() {
     "Date:   Sun Jul 6 10:00:00 2026 +0700",
     "",
     "    Add auth middleware",
-    ""
+    "",
   ].join("\n");
 }
 
@@ -107,7 +115,7 @@ function makeGitLogWithMerge() {
     "Author: Dev One <dev1@example.com>",
     "Date:   Sun Jul 6 10:00:00 2026 +0700",
     "",
-    "    Merge branch 'feature'"
+    "    Merge branch 'feature'",
   ].join("\n");
 }
 
@@ -119,7 +127,7 @@ function makeGitLogWithStats() {
     "",
     "    Fix typo",
     "",
-    " 2 files changed, 15 insertions(+), 3 deletions(-)"
+    " 2 files changed, 15 insertions(+), 3 deletions(-)",
   ].join("\n");
 }
 
@@ -131,7 +139,7 @@ function makeGitLogWithEmbeddedDiff() {
     "",
     "    Fix typo",
     "",
-    "diff --git a/src/main.js b/src/main.js"
+    "diff --git a/src/main.js b/src/main.js",
   ].join("\n");
 }
 
@@ -210,7 +218,7 @@ describe("gitLog filter", () => {
     }
     const input = lines.join("\n");
     const out = gitLog(input, 20);
-    const outLines = out.split("\n").filter(l => l.length > 0);
+    const outLines = out.split("\n").filter((l) => l.length > 0);
     expect(outLines.length).toBeLessThanOrEqual(21); // 20 commits + optional skipped note
     expect(out).toContain("more lines");
   });
@@ -262,7 +270,10 @@ describe("RTK filters", () => {
   });
 
   it("dedupLog collapses consecutive duplicates", () => {
-    const input = Array(20).fill("repeated log line A").join("\n") + "\nunique\n" + Array(10).fill("another dup").join("\n");
+    const input =
+      Array(20).fill("repeated log line A").join("\n") +
+      "\nunique\n" +
+      Array(10).fill("another dup").join("\n");
     const out = dedupLog(input);
     expect(out).toContain("repeated log line A");
     expect(out).toContain("duplicate lines");
@@ -289,7 +300,7 @@ describe("autoDetectFilter", () => {
       "Author: Dev One <dev1@example.com>",
       "Date:   Sun Jul 6 10:00:00 2026 +0700",
       "",
-      "    Add auth middleware"
+      "    Add auth middleware",
     ].join("\n");
     expect(autoDetectFilter(input).filterName).toBe("git-log");
   });
@@ -307,7 +318,7 @@ describe("RTK filters (extras)", () => {
       "drwxr-xr-x  2 user staff   64 Jan  1 12:00 ..",
       "drwxr-xr-x  2 user staff   64 Jan  1 12:00 src",
       "-rw-r--r--  1 user staff 1234 Jan  1 12:00 Cargo.toml",
-      "-rw-r--r--  1 user staff 5678 Jan  1 12:00 README.md"
+      "-rw-r--r--  1 user staff 5678 Jan  1 12:00 README.md",
     ].join("\n");
     const out = ls(input);
     expect(out).toContain("src/");
@@ -324,7 +335,7 @@ describe("RTK filters (extras)", () => {
       "drwxr-xr-x  2 user staff 64 Jan  1 12:00 node_modules",
       "drwxr-xr-x  2 user staff 64 Jan  1 12:00 .git",
       "drwxr-xr-x  2 user staff 64 Jan  1 12:00 src",
-      "-rw-r--r--  1 user staff 100 Jan  1 12:00 main.js"
+      "-rw-r--r--  1 user staff 100 Jan  1 12:00 main.js",
     ].join("\n");
     const out = ls(input);
     expect(out).not.toContain("node_modules");
@@ -370,10 +381,7 @@ describe("RTK filters (extras)", () => {
     const paths = [];
     for (let i = 0; i < 30; i++) paths.push(`- src/a/f${i}.js`);
     for (let i = 0; i < 10; i++) paths.push(`- src/b/g${i}.js`);
-    const input = [
-      "Result of search in '/Users/x' (total 40 files):",
-      ...paths
-    ].join("\n");
+    const input = ["Result of search in '/Users/x' (total 40 files):", ...paths].join("\n");
     const out = searchList(input);
     expect(out).toContain("Result of search in");
     expect(out).toContain("40 files in 2 dirs:");
@@ -386,14 +394,16 @@ describe("RTK filters (extras)", () => {
 
 describe("autoDetectFilter (extras)", () => {
   it("detects tree via box-drawing glyphs", () => {
-    expect(autoDetectFilter(".\n├── src\n│   └── main.rs\n└── Cargo.toml\n").filterName).toBe("tree");
+    expect(autoDetectFilter(".\n├── src\n│   └── main.rs\n└── Cargo.toml\n").filterName).toBe(
+      "tree",
+    );
   });
   it("detects ls via total + perms rows", () => {
     const input = [
       "total 48",
       "drwxr-xr-x  2 user staff   64 Jan  1 12:00 src",
       "-rw-r--r--  1 user staff 1234 Jan  1 12:00 main.js",
-      "-rw-r--r--  1 user staff 5678 Jan  1 12:00 README.md"
+      "-rw-r--r--  1 user staff 5678 Jan  1 12:00 README.md",
     ].join("\n");
     expect(autoDetectFilter(input).filterName).toBe("ls");
   });
@@ -405,7 +415,9 @@ describe("autoDetectFilter (extras)", () => {
 
 describe("safeApply", () => {
   it("returns input if filter throws", () => {
-    const out = safeApply(() => { throw new Error("boom"); }, "hello");
+    const out = safeApply(() => {
+      throw new Error("boom");
+    }, "hello");
     expect(out).toBe("hello");
   });
   it("returns input if filter returns non-string", () => {
@@ -434,10 +446,12 @@ describe("compressMessages (enabled)", () => {
   it("compresses Claude string-form tool_result", () => {
     const big = makeLongDiff();
     const body = {
-      messages: [{
-        role: "user",
-        content: [{ type: "tool_result", tool_use_id: "toolu_1", content: big }]
-      }]
+      messages: [
+        {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "toolu_1", content: big }],
+        },
+      ],
     };
     const stats = compressMessages(body, true);
     expect(stats.hits.length).toBeGreaterThan(0);
@@ -447,14 +461,21 @@ describe("compressMessages (enabled)", () => {
   it("compresses Claude array-form tool_result text parts", () => {
     const big = makeLongDiff();
     const body = {
-      messages: [{
-        role: "user",
-        content: [{
-          type: "tool_result",
-          tool_use_id: "toolu_1",
-          content: [{ type: "text", text: big }, { type: "text", text: "unchanged short" }]
-        }]
-      }]
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "toolu_1",
+              content: [
+                { type: "text", text: big },
+                { type: "text", text: "unchanged short" },
+              ],
+            },
+          ],
+        },
+      ],
     };
     const stats = compressMessages(body, true);
     expect(stats.hits.length).toBeGreaterThan(0);
@@ -466,10 +487,12 @@ describe("compressMessages (enabled)", () => {
   it("skips is_error tool_result", () => {
     const big = makeLongDiff();
     const body = {
-      messages: [{
-        role: "user",
-        content: [{ type: "tool_result", tool_use_id: "toolu_1", content: big, is_error: true }]
-      }]
+      messages: [
+        {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "toolu_1", content: big, is_error: true }],
+        },
+      ],
     };
     const stats = compressMessages(body, true);
     expect(stats.hits.length).toBe(0);
@@ -501,10 +524,14 @@ describe("compressMessages (enabled)", () => {
       messages: [
         { role: "system", content: "you are" },
         { role: "user", content: "hi" },
-        { role: "assistant", content: null, tool_calls: [{ id: "c1", function: { name: "x", arguments: "{}" } }] },
+        {
+          role: "assistant",
+          content: null,
+          tool_calls: [{ id: "c1", function: { name: "x", arguments: "{}" } }],
+        },
         { role: "tool", tool_call_id: "c1", content: makeGrepOutput() },
-        { role: "user", content: [{ type: "text", text: "next" }] }
-      ]
+        { role: "user", content: [{ type: "text", text: "next" }] },
+      ],
     };
     const stats = compressMessages(body, true);
     expect(stats).not.toBeNull();
@@ -517,7 +544,11 @@ describe("formatRtkLog", () => {
     expect(formatRtkLog({ bytesBefore: 0, bytesAfter: 0, hits: [] })).toBeNull();
   });
   it("formats savings line with percentage", () => {
-    const line = formatRtkLog({ bytesBefore: 1000, bytesAfter: 400, hits: [{ filter: "git-diff" }] });
+    const line = formatRtkLog({
+      bytesBefore: 1000,
+      bytesAfter: 400,
+      hits: [{ filter: "git-diff" }],
+    });
     expect(line).toContain("saved 600B");
     expect(line).toContain("60.0%");
     expect(line).toContain("git-diff");

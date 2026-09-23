@@ -100,7 +100,11 @@ function toContentBlocks(content) {
 function safeParseJson(s) {
   if (s == null) return {};
   if (typeof s !== "string") return s;
-  try { return JSON.parse(s); } catch { return {}; }
+  try {
+    return JSON.parse(s);
+  } catch {
+    return {};
+  }
 }
 
 function convertMessages(messages = []) {
@@ -121,12 +125,14 @@ function convertMessages(messages = []) {
       const value = typeof m.content === "string" ? m.content : flattenText(m.content);
       out.push({
         role: ROLE.TOOL,
-        content: [{
-          type: "tool-result",
-          toolCallId: m.tool_call_id || "",
-          toolName: m.name || "",
-          output: { type: "text", value },
-        }],
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: m.tool_call_id || "",
+            toolName: m.name || "",
+            output: { type: "text", value },
+          },
+        ],
       });
       continue;
     }
@@ -150,7 +156,10 @@ function convertMessages(messages = []) {
           });
         }
       }
-      out.push({ role: ROLE.ASSISTANT, content: blocks.length ? blocks : [{ type: OPENAI_BLOCK.TEXT, text: "" }] });
+      out.push({
+        role: ROLE.ASSISTANT,
+        content: blocks.length ? blocks : [{ type: OPENAI_BLOCK.TEXT, text: "" }],
+      });
       continue;
     }
 

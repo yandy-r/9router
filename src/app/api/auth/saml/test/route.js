@@ -27,25 +27,37 @@ export async function POST(request) {
     const samlCert = String(
       Object.prototype.hasOwnProperty.call(body, "samlCert")
         ? body.samlCert
-        : settings.samlCert || ""
+        : settings.samlCert || "",
     ).trim();
 
     if (!samlEntryPoint) {
-      return NextResponse.json({ error: "Single Sign-On Service URL (samlEntryPoint) is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Single Sign-On Service URL (samlEntryPoint) is required" },
+        { status: 400 },
+      );
     }
 
     try {
       new URL(samlEntryPoint);
     } catch {
-      return NextResponse.json({ error: "Single Sign-On Service URL must be a valid URL" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Single Sign-On Service URL must be a valid URL" },
+        { status: 400 },
+      );
     }
 
     if (!samlIssuer) {
-      return NextResponse.json({ error: "SP Entity ID / Issuer (samlIssuer) is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "SP Entity ID / Issuer (samlIssuer) is required" },
+        { status: 400 },
+      );
     }
 
     if (!samlCert) {
-      return NextResponse.json({ error: "IdP X.509 Certificate (samlCert) is required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "IdP X.509 Certificate (samlCert) is required" },
+        { status: 400 },
+      );
     }
 
     const formattedCert = formatX509Certificate(samlCert);

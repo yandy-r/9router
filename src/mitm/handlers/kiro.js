@@ -37,14 +37,14 @@ function crc32(buf) {
  */
 function initKiroState(modelId) {
   return {
-    modelId: modelId || null,       // Model name from first chunk
-    toolCallInit: {},               // { [index]: { id, name } } — tracks seen tools
-    hasToolCalls: false,           // Whether this response uses tool calls
-    finishSent: false,             // Whether termination has been emitted
-    usage: null,                   // Accumulated usage from usage-only chunks
-    inThink: false,                // Whether inside a <thinking> block
-    thinkBuf: "",                  // Buffer for partial thinking content
-    initialSent: false,            // Whether initial-response frame was emitted
+    modelId: modelId || null, // Model name from first chunk
+    toolCallInit: {}, // { [index]: { id, name } } — tracks seen tools
+    hasToolCalls: false, // Whether this response uses tool calls
+    finishSent: false, // Whether termination has been emitted
+    usage: null, // Accumulated usage from usage-only chunks
+    inThink: false, // Whether inside a <thinking> block
+    thinkBuf: "", // Buffer for partial thinking content
+    initialSent: false, // Whether initial-response frame was emitted
   };
 }
 
@@ -99,7 +99,7 @@ function extractThinking(text, state) {
 
   return {
     thinking: thinking || null,
-    text: recurse.text || null
+    text: recurse.text || null,
   };
 }
 
@@ -114,9 +114,11 @@ function encodeHeader(name, value) {
   const buf = Buffer.alloc(1 + nameBuf.length + 1 + 2 + valueBuf.length);
   let o = 0;
   buf[o++] = nameBuf.length;
-  nameBuf.copy(buf, o); o += nameBuf.length;
+  nameBuf.copy(buf, o);
+  o += nameBuf.length;
   buf[o++] = 7; // string type
-  buf.writeUInt16BE(valueBuf.length, o); o += 2;
+  buf.writeUInt16BE(valueBuf.length, o);
+  o += 2;
   valueBuf.copy(buf, o);
   return buf;
 }
@@ -136,7 +138,7 @@ function encodeHeader(name, value) {
 function buildEventStreamFrame(eventType, payload, contentType = "application/json") {
   const payloadBuf = Buffer.from(
     typeof payload === "string" ? payload : JSON.stringify(payload),
-    "utf8"
+    "utf8",
   );
 
   // All three Smithy system headers are required
@@ -165,7 +167,7 @@ function buildInitialResponseFrame(conversationId = "") {
   return buildEventStreamFrame(
     "initial-response",
     { conversationId: conversationId || "" },
-    "application/x-amz-json-1.0"
+    "application/x-amz-json-1.0",
   );
 }
 
@@ -197,7 +199,11 @@ const INLINE_IMAGE_MIME_BY_FORMAT = new Map([
 function safeArgsString(value) {
   if (typeof value === "string") return value;
   if (value == null) return "{}";
-  try { return JSON.stringify(value); } catch { return "{}"; }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "{}";
+  }
 }
 
 /**
@@ -214,7 +220,7 @@ function convertUserInputMessage(uim) {
 
   // Emit one "tool" message per tool result (OpenAI multi-tool format)
   for (const tr of toolResults) {
-    const text = (tr.content || []).map(c => c.text || "").join("\n");
+    const text = (tr.content || []).map((c) => c.text || "").join("\n");
     out.push({
       role: "tool",
       tool_call_id: tr.toolUseId || "",
@@ -224,16 +230,19 @@ function convertUserInputMessage(uim) {
 
   const images = Array.isArray(uim.images) ? uim.images : [];
   const imageParts = images
-    .filter(image => image !== null
-      && typeof image === "object"
-      && !Array.isArray(image)
-      && image.source !== null
-      && typeof image.source === "object"
-      && !Array.isArray(image.source)
-      && INLINE_IMAGE_MIME_BY_FORMAT.has(image.format)
-      && typeof image.source.bytes === "string"
-      && image.source.bytes.length > 0)
-    .map(image => ({
+    .filter(
+      (image) =>
+        image !== null &&
+        typeof image === "object" &&
+        !Array.isArray(image) &&
+        image.source !== null &&
+        typeof image.source === "object" &&
+        !Array.isArray(image.source) &&
+        INLINE_IMAGE_MIME_BY_FORMAT.has(image.format) &&
+        typeof image.source.bytes === "string" &&
+        image.source.bytes.length > 0,
+    )
+    .map((image) => ({
       type: "image_url",
       image_url: {
         url: `data:${INLINE_IMAGE_MIME_BY_FORMAT.get(image.format)};base64,${image.source.bytes}`,
@@ -268,7 +277,7 @@ function convertAssistantResponseMessage(arm) {
     return {
       role: "assistant",
       content: arm.content || null,
-      tool_calls: toolUses.map(tu => ({
+      tool_calls: toolUses.map((tu) => ({
         id: tu.toolUseId || `call_${Date.now()}`,
         type: "function",
         function: {
@@ -333,13 +342,14 @@ function extractTools(body) {
 
   // Tools are typically on the currentMessage; may also appear on the first history item
   const fromCurrent = cs.currentMessage?.userInputMessage?.userInputMessageContext?.tools || [];
-  const fromHistory = cs.history?.find(h => h.userInputMessage?.userInputMessageContext?.tools)
-    ?.userInputMessage?.userInputMessageContext?.tools || [];
+  const fromHistory =
+    cs.history?.find((h) => h.userInputMessage?.userInputMessageContext?.tools)?.userInputMessage
+      ?.userInputMessageContext?.tools || [];
   const cwTools = fromCurrent.length > 0 ? fromCurrent : fromHistory;
 
   if (!cwTools.length) return [];
 
-  return cwTools.map(item => {
+  return cwTools.map((item) => {
     const spec = item.toolSpecification || item;
     return {
       type: "function",
@@ -371,10 +381,13 @@ function convertOpenAIToKiro(chunk, state) {
       state.inThink = false;
       const thinking = state.thinkBuf;
       state.thinkBuf = "";
-      return withInitialFrame(state, buildEventStreamFrame("reasoningContentEvent", {
-        content: thinking,
-        modelId: state.modelId || "kiro-unknown"
-      }));
+      return withInitialFrame(
+        state,
+        buildEventStreamFrame("reasoningContentEvent", {
+          content: thinking,
+          modelId: state.modelId || "kiro-unknown",
+        }),
+      );
     }
     return withInitialFrame(state, buildEventStreamFrame("messageStopEvent", {}));
   }
@@ -404,31 +417,37 @@ function convertOpenAIToKiro(chunk, state) {
         // First appearance: emit frame with name + id, no input
         state.toolCallInit[idx] = { id: tc.id, name: tc.function.name };
         dbg(`toolUseEvent init: ${tc.function.name} (${tc.id})`);
-        frames.push(buildEventStreamFrame("toolUseEvent", {
-          name: tc.function.name,
-          toolUseId: tc.id
-        }));
+        frames.push(
+          buildEventStreamFrame("toolUseEvent", {
+            name: tc.function.name,
+            toolUseId: tc.id,
+          }),
+        );
       }
 
       // Emit incremental input fragment
       if (tc.function?.arguments) {
         const init = state.toolCallInit[idx];
         dbg(`toolUseEvent fragment: ${tc.function.arguments.slice(0, 100)}`);
-        frames.push(buildEventStreamFrame("toolUseEvent", {
-          input: tc.function.arguments,
-          name: init?.name || tc.function?.name || "",
-          toolUseId: init?.id || tc.id || ""
-        }));
+        frames.push(
+          buildEventStreamFrame("toolUseEvent", {
+            input: tc.function.arguments,
+            name: init?.name || tc.function?.name || "",
+            toolUseId: init?.id || tc.id || "",
+          }),
+        );
       }
     }
   }
 
   // Handle explicit reasoning_content (type-specific thinking channel)
   if (delta.reasoning_content) {
-    frames.push(buildEventStreamFrame("reasoningContentEvent", {
-      content: delta.reasoning_content,
-      modelId
-    }));
+    frames.push(
+      buildEventStreamFrame("reasoningContentEvent", {
+        content: delta.reasoning_content,
+        modelId,
+      }),
+    );
   }
 
   // Handle text content — extract thinking blocks, emit rest as assistantResponseEvent
@@ -436,17 +455,21 @@ function convertOpenAIToKiro(chunk, state) {
     const { thinking, text } = extractThinking(delta.content, state);
 
     if (thinking) {
-      frames.push(buildEventStreamFrame("reasoningContentEvent", {
-        content: thinking,
-        modelId
-      }));
+      frames.push(
+        buildEventStreamFrame("reasoningContentEvent", {
+          content: thinking,
+          modelId,
+        }),
+      );
     }
 
     if (text) {
-      frames.push(buildEventStreamFrame("assistantResponseEvent", {
-        content: text,
-        modelId
-      }));
+      frames.push(
+        buildEventStreamFrame("assistantResponseEvent", {
+          content: text,
+          modelId,
+        }),
+      );
     }
   }
 
@@ -477,11 +500,13 @@ function emitFinish(state) {
     // Tool-call response: emit stop:true for each tool
     for (const idx of Object.keys(state.toolCallInit).sort()) {
       const tc = state.toolCallInit[idx];
-      frames.push(buildEventStreamFrame("toolUseEvent", {
-        name: tc.name,
-        stop: true,
-        toolUseId: tc.id
-      }));
+      frames.push(
+        buildEventStreamFrame("toolUseEvent", {
+          name: tc.name,
+          stop: true,
+          toolUseId: tc.id,
+        }),
+      );
     }
   } else {
     // Text-only response: emit messageStopEvent
@@ -491,10 +516,12 @@ function emitFinish(state) {
 
   // Emit usage if available
   if (state.usage) {
-    frames.push(buildEventStreamFrame("usageEvent", {
-      inputTokens: state.usage.prompt_tokens || 0,
-      outputTokens: state.usage.completion_tokens || 0
-    }));
+    frames.push(
+      buildEventStreamFrame("usageEvent", {
+        inputTokens: state.usage.prompt_tokens || 0,
+        outputTokens: state.usage.completion_tokens || 0,
+      }),
+    );
   }
 
   state.toolCallInit = {};
@@ -509,9 +536,9 @@ function emitFinish(state) {
  *   3. Forward to 9router /v1/chat/completions (OpenAI SSE)
  *   4. Convert OpenAI SSE response → AWS EventStream binary frames
  *   5. Stream EventStream frames back to Kiro IDE
- * 
+ *
  * @param {http.IncomingMessage} req - HTTP request from Kiro IDE
- * @param {http.ServerResponse} res - HTTP response to Kiro IDE  
+ * @param {http.ServerResponse} res - HTTP response to Kiro IDE
  * @param {Buffer} bodyBuffer - Request body buffer
  * @param {string} mappedModel - Model name after MITM alias mapping
  */
@@ -521,9 +548,11 @@ async function intercept(req, res, bodyBuffer, mappedModel) {
     if (isBinaryEventStream(bodyBuffer)) {
       // Binary EventStream requests are typically continuation/streaming frames
       // that don't contain model info - pass them through directly to avoid JSON.parse crash
-      throw new Error(`Binary EventStream format detected (${bodyBuffer.length}B) - request should use passthrough instead of intercept`);
+      throw new Error(
+        `Binary EventStream format detected (${bodyBuffer.length}B) - request should use passthrough instead of intercept`,
+      );
     }
-    
+
     const body = JSON.parse(bodyBuffer.toString());
 
     // 1 + 2: CodeWhisperer → OpenAI messages + tools
@@ -554,20 +583,22 @@ async function intercept(req, res, bodyBuffer, mappedModel) {
     if (!res.headersSent) {
       res.writeHead(500, { "Content-Type": "application/json" });
     }
-    res.end(JSON.stringify({ 
-      error: { 
-        message: error.message, 
-        type: "mitm_error",
-        handler: "kiro"
-      } 
-    }));
+    res.end(
+      JSON.stringify({
+        error: {
+          message: error.message,
+          type: "mitm_error",
+          handler: "kiro",
+        },
+      }),
+    );
   }
 }
 
 // Detect AWS EventStream binary format
 function isBinaryEventStream(buffer) {
   if (!buffer || buffer.length < 12) return false;
-  // AWS EventStream signature: 
+  // AWS EventStream signature:
   // - First 4 bytes: total frame length (big-endian)
   // - Bytes 4-8: headers length (big-endian)
   // - Typical frame length: 100-10000 bytes

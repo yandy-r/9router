@@ -47,10 +47,16 @@ export class CommandCodeExecutor extends BaseExecutor {
 
       const wrappedResponse = await inspectAndWrapCommandCodeResponse(result.response, opts.model);
       if (!wrappedResponse.ok && attempt < maxRetries) {
-        const isRetryableStatus = wrappedResponse.status === 502 || wrappedResponse.status === 503 || wrappedResponse.status === 504;
+        const isRetryableStatus =
+          wrappedResponse.status === 502 ||
+          wrappedResponse.status === 503 ||
+          wrappedResponse.status === 504;
         if (isRetryableStatus) {
-          opts.log?.debug?.("RETRY", `CommandCode upstream returned status ${wrappedResponse.status}, retrying ${attempt + 1}/${maxRetries}...`);
-          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          opts.log?.debug?.(
+            "RETRY",
+            `CommandCode upstream returned status ${wrappedResponse.status}, retrying ${attempt + 1}/${maxRetries}...`,
+          );
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
           continue;
         }
       }
@@ -114,19 +120,31 @@ export function parseCommandCodeError(event) {
     if (lower.includes("rate limit") || lower.includes("too many requests")) {
       statusCode = 429;
       type = "rate_limit_error";
-    } else if (lower.includes("unauthorized") || lower.includes("invalid api key") || lower.includes("authentication")) {
+    } else if (
+      lower.includes("unauthorized") ||
+      lower.includes("invalid api key") ||
+      lower.includes("authentication")
+    ) {
       statusCode = 401;
       type = "authentication_error";
     } else if (lower.includes("payment required") || lower.includes("billing")) {
       statusCode = 402;
       type = "billing_error";
-    } else if (lower.includes("quota") || lower.includes("forbidden") || lower.includes("permission")) {
+    } else if (
+      lower.includes("quota") ||
+      lower.includes("forbidden") ||
+      lower.includes("permission")
+    ) {
       statusCode = 403;
       type = "permission_error";
     } else if (lower.includes("not found")) {
       statusCode = 404;
       type = "invalid_request_error";
-    } else if (lower.includes("unavailable") || lower.includes("overloaded") || lower.includes("server error")) {
+    } else if (
+      lower.includes("unavailable") ||
+      lower.includes("overloaded") ||
+      lower.includes("server error")
+    ) {
       statusCode = 503;
       type = "server_error";
     } else {
@@ -212,12 +230,20 @@ export async function inspectAndWrapCommandCodeResponse(originalResponse, model)
       if (stopLoop) break;
     }
   } catch {
-    try { reader.releaseLock(); } catch { /* ignore */ }
+    try {
+      reader.releaseLock();
+    } catch {
+      /* ignore */
+    }
     return originalResponse;
   }
 
   if (detectedError) {
-    try { await reader.cancel(); } catch { /* ignore */ }
+    try {
+      await reader.cancel();
+    } catch {
+      /* ignore */
+    }
     const { statusCode, message, type } = parseCommandCodeError(detectedError);
     return new Response(
       JSON.stringify({
@@ -229,12 +255,17 @@ export async function inspectAndWrapCommandCodeResponse(originalResponse, model)
       }),
       {
         status: statusCode,
-        statusText: statusCode === 503 ? "Service Unavailable" : (statusCode === 429 ? "Too Many Requests" : "Bad Gateway"),
+        statusText:
+          statusCode === 503
+            ? "Service Unavailable"
+            : statusCode === 429
+              ? "Too Many Requests"
+              : "Bad Gateway",
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",
         },
-      }
+      },
     );
   }
 
@@ -326,7 +357,7 @@ function wrapNdjsonAsOpenAISse(streamBody, model, originalResponse = null) {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      "Connection": "keep-alive",
+      Connection: "keep-alive",
       ...(originalResponse?.headers ? Object.fromEntries(originalResponse.headers.entries()) : {}),
       "content-type": "text/event-stream",
     },

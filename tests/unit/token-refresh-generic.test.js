@@ -22,8 +22,14 @@ function mockFetchOnce(payload, { ok = true, status = 200 } = {}) {
 }
 
 describe("refreshAccessToken — config-driven profiles", () => {
-  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); global.fetch = originalFetch; });
-  afterEach(() => { global.fetch = originalFetch; });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    global.fetch = originalFetch;
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
 
   it("iflow: Basic Auth header from clientId:clientSecret, form body keeps client_secret", async () => {
     const fm = mockFetchOnce({ access_token: "if-acc", refresh_token: "if-rot", expires_in: 3600 });
@@ -54,9 +60,14 @@ describe("refreshAccessToken — config-driven profiles", () => {
     const fm = mockFetchOnce({ access_token: "km-acc", expires_in: 86400 });
     const { refreshAccessToken } = await import("open-sse/services/tokenRefresh/providers.js");
 
-    await refreshAccessToken("kimi", "km-old", {
-      providerSpecificData: { deviceId: "dev-xyz" },
-    }, console);
+    await refreshAccessToken(
+      "kimi",
+      "km-old",
+      {
+        providerSpecificData: { deviceId: "dev-xyz" },
+      },
+      console,
+    );
 
     const headers = fm.mock.calls[0][1].headers;
     // Kimi's buildKimiHeaders must contribute at least one X-Msh- header
@@ -103,8 +114,14 @@ describe("refreshAccessToken — config-driven profiles", () => {
   });
 });
 describe("Cline refresh", () => {
-  beforeEach(() => { vi.clearAllMocks(); vi.resetModules(); global.fetch = originalFetch; });
-  afterEach(() => { global.fetch = originalFetch; });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    global.fetch = originalFetch;
+  });
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
 
   it("uses the extension JSON refresh contract", async () => {
     const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
@@ -115,15 +132,9 @@ describe("Cline refresh", () => {
         expiresAt,
       },
     });
-    const { refreshTokenByProvider } = await import(
-      "open-sse/services/tokenRefresh.js"
-    );
+    const { refreshTokenByProvider } = await import("open-sse/services/tokenRefresh.js");
 
-    const out = await refreshTokenByProvider(
-      "cline",
-      { refreshToken: "cline-old" },
-      console
-    );
+    const out = await refreshTokenByProvider("cline", { refreshToken: "cline-old" }, console);
 
     const [, init] = fm.mock.calls[0];
     expect(init.headers["Content-Type"]).toBe("application/json");

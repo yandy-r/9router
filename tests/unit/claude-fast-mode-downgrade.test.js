@@ -32,7 +32,12 @@ function jsonResponse(status, text) {
 // tests can check the caller's body is never mutated.
 async function run(body, provider = "claude") {
   const executor = new DefaultExecutor(provider);
-  const requestBody = { model: "claude-opus-5", max_tokens: 64, messages: [{ role: "user", content: "hi" }], ...body };
+  const requestBody = {
+    model: "claude-opus-5",
+    max_tokens: 64,
+    messages: [{ role: "user", content: "hi" }],
+    ...body,
+  };
   const result = await executor.execute({
     model: "claude-opus-5",
     body: requestBody,

@@ -8,9 +8,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock the heavy Next.js-dependent imports BEFORE importing ping.js.
-vi.mock("@/lib/localDb", () => ({ getApiKeys: vi.fn(async () => [{ key: "test-key", isActive: true }]) }));
+vi.mock("@/lib/localDb", () => ({
+  getApiKeys: vi.fn(async () => [{ key: "test-key", isActive: true }]),
+}));
 vi.mock("@/shared/constants/config", () => ({ UPDATER_CONFIG: { appPort: 20127 } }));
-vi.mock("@/shared/utils/machineId", () => ({ getConsistentMachineId: vi.fn(async () => "cli-token") }));
+vi.mock("@/shared/utils/machineId", () => ({
+  getConsistentMachineId: vi.fn(async () => "cli-token"),
+}));
 
 const { pingModelByKind } = await import("../../src/app/api/models/test/ping.js");
 
@@ -54,7 +58,7 @@ describe("pingModelByKind reasoning models (#3010)", () => {
             message: { content: "", reasoning: "The user said hi — a simple greeting..." },
           },
         ],
-      })
+      }),
     );
 
     const result = await pingModelByKind("cline-pass/kimi-k3", "llm", "http://127.0.0.1:20127");

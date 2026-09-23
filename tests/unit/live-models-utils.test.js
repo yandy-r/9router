@@ -8,9 +8,14 @@ import { LIVE_MODEL_PROVIDERS } from "@/shared/constants/providers.js";
 
 describe("LIVE_MODEL_PROVIDERS", () => {
   it("is derived from the registry features.liveModels flag", () => {
-    expect([...LIVE_MODEL_PROVIDERS].sort()).toEqual(
-      ["claude", "cline", "clinepass", "cursor", "qoder", "zed"],
-    );
+    expect([...LIVE_MODEL_PROVIDERS].sort()).toEqual([
+      "claude",
+      "cline",
+      "clinepass",
+      "cursor",
+      "qoder",
+      "zed",
+    ]);
   });
 });
 
@@ -22,7 +27,9 @@ describe("normalizeLiveModelId", () => {
   });
 
   it("leaves other providers' ids unchanged", () => {
-    expect(normalizeLiveModelId("cline", "anthropic/claude-opus-4.6")).toBe("anthropic/claude-opus-4.6");
+    expect(normalizeLiveModelId("cline", "anthropic/claude-opus-4.6")).toBe(
+      "anthropic/claude-opus-4.6",
+    );
     expect(normalizeLiveModelId("claude", "claude-opus-5-5")).toBe("claude-opus-5-5");
   });
 
@@ -37,14 +44,21 @@ describe("normalizeLiveModelId", () => {
 
 describe("mergeLiveWithStatic", () => {
   const staticModels = [
-    { id: "claude-opus-5-5", name: "Claude Opus 5.5 (curated)", type: "llm", capabilities: ["vision"] },
+    {
+      id: "claude-opus-5-5",
+      name: "Claude Opus 5.5 (curated)",
+      type: "llm",
+      capabilities: ["vision"],
+    },
     { id: "claude-static-only", name: "Static Only" },
   ];
 
   it("lets curated static metadata win over live fields for known ids", () => {
-    const merged = mergeLiveWithStatic("claude", [
-      { id: "claude-opus-5-5", name: "Claude Opus 5.5", createdAt: "2026-01-01" },
-    ], staticModels);
+    const merged = mergeLiveWithStatic(
+      "claude",
+      [{ id: "claude-opus-5-5", name: "Claude Opus 5.5", createdAt: "2026-01-01" }],
+      staticModels,
+    );
     expect(merged).toEqual([
       {
         id: "claude-opus-5-5",
@@ -57,10 +71,14 @@ describe("mergeLiveWithStatic", () => {
   });
 
   it("keeps live-only models, defaulting name to id, and drops static-only ones", () => {
-    const merged = mergeLiveWithStatic("claude", [
-      { id: "claude-new", createdAt: "2026-02-02" },
-      { id: "claude-named", name: "Named" },
-    ], staticModels);
+    const merged = mergeLiveWithStatic(
+      "claude",
+      [
+        { id: "claude-new", createdAt: "2026-02-02" },
+        { id: "claude-named", name: "Named" },
+      ],
+      staticModels,
+    );
     expect(merged).toEqual([
       { id: "claude-new", name: "claude-new", createdAt: "2026-02-02" },
       { id: "claude-named", name: "Named" },
@@ -68,21 +86,27 @@ describe("mergeLiveWithStatic", () => {
   });
 
   it("normalizes qoder ids before matching the static list", () => {
-    const merged = mergeLiveWithStatic("qoder", [{ id: "qoder/auto", name: "Auto (live)" }], [
-      { id: "auto", name: "Auto" },
-    ]);
+    const merged = mergeLiveWithStatic(
+      "qoder",
+      [{ id: "qoder/auto", name: "Auto (live)" }],
+      [{ id: "auto", name: "Auto" }],
+    );
     expect(merged).toEqual([{ id: "auto", name: "Auto" }]);
   });
 
   it("drops invalid entries and dedupes by normalized id (first wins)", () => {
-    const merged = mergeLiveWithStatic("qoder", [
-      null,
-      "qoder/auto",
-      { name: "no id" },
-      { id: "" },
-      { id: "qoder/lite", name: "Lite A" },
-      { id: "lite", name: "Lite B" },
-    ], []);
+    const merged = mergeLiveWithStatic(
+      "qoder",
+      [
+        null,
+        "qoder/auto",
+        { name: "no id" },
+        { id: "" },
+        { id: "qoder/lite", name: "Lite A" },
+        { id: "lite", name: "Lite B" },
+      ],
+      [],
+    );
     expect(merged).toEqual([{ id: "lite", name: "Lite A" }]);
   });
 
@@ -104,7 +128,12 @@ describe("selectModelsToImport", () => {
   it("returns normalized ids not already present, deduped, in upstream order", () => {
     const ids = selectModelsToImport({
       ...base,
-      liveModels: [{ id: "qoder/auto" }, { id: "qoder/ultimate" }, { id: "ultimate" }, { id: "qoder/lite" }],
+      liveModels: [
+        { id: "qoder/auto" },
+        { id: "qoder/ultimate" },
+        { id: "ultimate" },
+        { id: "qoder/lite" },
+      ],
     });
     expect(ids).toEqual(["ultimate", "lite"]);
   });

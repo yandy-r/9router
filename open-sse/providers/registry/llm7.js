@@ -1,9 +1,7 @@
 export default {
   id: "llm7",
   alias: "llm7",
-  aliases: [
-    "llm-7",
-  ],
+  aliases: ["llm-7"],
   uiAlias: "llm7",
   display: {
     name: "LLM7",
@@ -17,9 +15,7 @@ export default {
   },
   category: "apikey",
   authType: "apikey",
-  authModes: [
-    "apikey",
-  ],
+  authModes: ["apikey"],
   transport: {
     baseUrl: "https://api.llm7.io/v1/chat/completions",
     validateUrl: "https://api.llm7.io/v1/models",

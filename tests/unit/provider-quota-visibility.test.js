@@ -28,10 +28,7 @@ describe("provider quota visibility", () => {
 
   it("groups Antigravity model quotas into Gemini and Claude families", () => {
     const quotas = parseQuotaData("antigravity", data);
-    expect(quotas.map((q) => q.modelKey)).toEqual([
-      "gemini",
-      "claude",
-    ]);
+    expect(quotas.map((q) => q.modelKey)).toEqual(["gemini", "claude"]);
     expect(quotas[0].name).toBe("Gemini (Flash / Pro)");
     expect(quotas[1].name).toBe("Claude (Sonnet / Opus)");
   });
@@ -52,7 +49,10 @@ describe("provider quota visibility", () => {
 
   it("trims stale or obsolete model keys", () => {
     const quotas = parseQuotaData("antigravity", data);
-    const trimmed = trimHiddenQuotaKeys(["claude", "stale-model-xyz", "gemini-3.8-flash-low"], quotas);
+    const trimmed = trimHiddenQuotaKeys(
+      ["claude", "stale-model-xyz", "gemini-3.8-flash-low"],
+      quotas,
+    );
     expect(trimmed).toEqual(["claude"]);
 
     const visibility = {

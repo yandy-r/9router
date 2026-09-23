@@ -5,13 +5,11 @@ export default {
     name: "Google TTS",
     icon: "record_voice_over",
     color: "#4285F4",
-    textIcon: "GT"
+    textIcon: "GT",
   },
   category: "freeTier",
   authType: "none",
-  serviceKinds: [
-    "tts"
-  ],
+  serviceKinds: ["tts"],
   mediaPriority: 5,
   noAuth: true,
   ttsConfig: {
@@ -19,6 +17,6 @@ export default {
     authType: "none",
     authHeader: "none",
     format: "google-tts",
-    models: []
-  }
+    models: [],
+  },
 };

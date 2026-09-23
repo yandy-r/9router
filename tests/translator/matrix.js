@@ -12,7 +12,7 @@ import { FORMATS } from "../../open-sse/translator/formats.js";
 
 // Reverse alias → providerId to resolve provider-level config.format
 const ALIAS_TO_PROVIDER_ID = Object.fromEntries(
-  Object.entries(PROVIDER_ID_TO_ALIAS).map(([id, alias]) => [alias, id])
+  Object.entries(PROVIDER_ID_TO_ALIAS).map(([id, alias]) => [alias, id]),
 );
 
 // Provider-level format fallback (mirrors getTargetFormat without compat-url logic)

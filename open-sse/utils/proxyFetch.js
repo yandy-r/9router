@@ -145,8 +145,10 @@ async function resolveRealIP(hostname) {
 function shouldBypassMitmDns(url) {
   try {
     const hostname = new URL(url).hostname;
-    return MITM_BYPASS_HOSTS.some(host => hostname.includes(host));
-  } catch { return false; }
+    return MITM_BYPASS_HOSTS.some((host) => hostname.includes(host));
+  } catch {
+    return false;
+  }
 }
 
 function shouldBypassByNoProxy(targetUrl, noProxyValue) {
@@ -154,8 +156,15 @@ function shouldBypassByNoProxy(targetUrl, noProxyValue) {
   if (!noProxy) return false;
 
   let hostname;
-  try { hostname = new URL(targetUrl).hostname.toLowerCase(); } catch { return false; }
-  const patterns = noProxy.split(",").map((p) => p.trim().toLowerCase()).filter(Boolean);
+  try {
+    hostname = new URL(targetUrl).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  const patterns = noProxy
+    .split(",")
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean);
 
   return patterns.some((pattern) => {
     if (pattern === "*") return true;
@@ -172,15 +181,27 @@ function getEnvProxyUrl(targetUrl) {
   if (shouldBypassByNoProxy(targetUrl, noProxy)) return null;
 
   let protocol;
-  try { protocol = new URL(targetUrl).protocol; } catch { return null; }
-
-  if (protocol === "https:") {
-    return process.env.HTTPS_PROXY || process.env.https_proxy ||
-      process.env.ALL_PROXY || process.env.all_proxy;
+  try {
+    protocol = new URL(targetUrl).protocol;
+  } catch {
+    return null;
   }
 
-  return process.env.HTTP_PROXY || process.env.http_proxy ||
-    process.env.ALL_PROXY || process.env.all_proxy;
+  if (protocol === "https:") {
+    return (
+      process.env.HTTPS_PROXY ||
+      process.env.https_proxy ||
+      process.env.ALL_PROXY ||
+      process.env.all_proxy
+    );
+  }
+
+  return (
+    process.env.HTTP_PROXY ||
+    process.env.http_proxy ||
+    process.env.ALL_PROXY ||
+    process.env.all_proxy
+  );
 }
 
 /**
@@ -191,7 +212,6 @@ function normalizeProxyUrl(proxyUrl) {
   if (!normalizedInput) return null;
 
   try {
-
     new URL(normalizedInput);
     return normalizedInput;
   } catch {
@@ -319,9 +339,13 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
         return await originalFetch(url, { ...options, dispatcher });
       } catch (proxyError) {
         if (proxyOptions?.strictProxy === true) {
-          throw new Error(`[ProxyFetch] Proxy required but failed (strictProxy=true): ${proxyError.message}`);
+          throw new Error(
+            `[ProxyFetch] Proxy required but failed (strictProxy=true): ${proxyError.message}`,
+          );
         }
-        console.warn(`[ProxyFetch] Proxy failed, falling back to direct bypass: ${proxyError.message}`);
+        console.warn(
+          `[ProxyFetch] Proxy failed, falling back to direct bypass: ${proxyError.message}`,
+        );
       }
     }
     // No proxy — manually resolve real IP to bypass DNS spoof
@@ -341,7 +365,9 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
     } catch (proxyError) {
       // If strictProxy is enabled, fail hard instead of falling back to direct
       if (proxyOptions?.strictProxy === true) {
-        throw new Error(`[ProxyFetch] Proxy required but failed (strictProxy=true): ${proxyError.message}`);
+        throw new Error(
+          `[ProxyFetch] Proxy required but failed (strictProxy=true): ${proxyError.message}`,
+        );
       }
       console.warn(`[ProxyFetch] Proxy failed, falling back to direct: ${proxyError.message}`);
       return originalFetch(url, options);

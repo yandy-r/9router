@@ -15,9 +15,7 @@ const iflow = {
   },
   exchangeToken: async (config, code, redirectUri) => {
     // Create Basic Auth header
-    const basicAuth = Buffer.from(
-      `${config.clientId}:${config.clientSecret}`
-    ).toString("base64");
+    const basicAuth = Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64");
 
     const response = await fetch(config.tokenUrl, {
       method: "POST",
@@ -50,7 +48,7 @@ const iflow = {
         headers: {
           Accept: "application/json",
         },
-      }
+      },
     );
 
     if (!userInfoRes.ok) {
@@ -60,7 +58,7 @@ const iflow = {
 
     const result = await userInfoRes.json();
     if (!result.success) {
-      throw new Error(`User info request failed: ${result.message || 'Unknown error'}`);
+      throw new Error(`User info request failed: ${result.message || "Unknown error"}`);
     }
 
     const userInfo = result.data || {};

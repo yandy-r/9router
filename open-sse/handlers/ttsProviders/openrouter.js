@@ -28,7 +28,7 @@ export default {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${credentials.apiKey}`,
+        Authorization: `Bearer ${credentials.apiKey}`,
         ...(TTS_CFG.headers || {}),
       },
       body: JSON.stringify({

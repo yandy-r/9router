@@ -22,7 +22,8 @@ const VARIANT_CONFIG = {
     defaultBaseUrl: "https://api.anthropic.com/v1",
     namePlaceholder: "Anthropic Compatible (Prod)",
     prefixPlaceholder: "ac-prod",
-    baseUrlHint: "Use the base URL (ending in /v1) for your Anthropic-compatible API. The system will append /messages.",
+    baseUrlHint:
+      "Use the base URL (ending in /v1) for your Anthropic-compatible API. The system will append /messages.",
     modelIdPlaceholder: "e.g. claude-3-opus",
     errorLabel: "Anthropic Compatible",
     hasApiType: false,

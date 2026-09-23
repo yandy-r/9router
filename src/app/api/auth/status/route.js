@@ -32,9 +32,11 @@ export async function GET() {
       authMode,
       ssoType,
       oidcConfigured: isOidcConfigured(settings),
-      oidcLoginLabel: (settings.oidcLoginLabel || "Sign in with OIDC").trim() || "Sign in with OIDC",
+      oidcLoginLabel:
+        (settings.oidcLoginLabel || "Sign in with OIDC").trim() || "Sign in with OIDC",
       samlConfigured: isSamlConfigured(settings),
-      samlLoginLabel: (settings.samlLoginLabel || "Sign in with SAML SSO").trim() || "Sign in with SAML SSO",
+      samlLoginLabel:
+        (settings.samlLoginLabel || "Sign in with SAML SSO").trim() || "Sign in with SAML SSO",
       hasPassword: !!settings.password,
       displayName,
       loginMethod,

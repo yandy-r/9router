@@ -73,14 +73,19 @@ export function selectModelsToImport({
   const staticIds = new Set((staticModels || []).map((model) => model?.id).filter(Boolean));
   const customIds = new Set(
     (customModels || [])
-      .filter((entry) => entry?.providerAlias === providerStorageAlias && modelKind(entry) === "llm")
+      .filter(
+        (entry) => entry?.providerAlias === providerStorageAlias && modelKind(entry) === "llm",
+      )
       .map((entry) => entry.id),
   );
   const aliasTargets = new Set(Object.values(modelAliases || {}));
 
   return normalizeLiveModels(providerId, liveModels)
     .map((model) => model.id)
-    .filter((id) => !staticIds.has(id)
-      && !customIds.has(id)
-      && !aliasTargets.has(`${providerStorageAlias}/${id}`));
+    .filter(
+      (id) =>
+        !staticIds.has(id) &&
+        !customIds.has(id) &&
+        !aliasTargets.has(`${providerStorageAlias}/${id}`),
+    );
 }

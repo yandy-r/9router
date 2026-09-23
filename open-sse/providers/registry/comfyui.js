@@ -12,8 +12,8 @@ export default {
   category: "apikey",
   transport: null,
   models: [
-    { id: "flux-dev", name: "FLUX Dev", params: ["n","size"], kind: "image" },
-    { id: "sdxl", name: "SDXL", params: ["n","size"], kind: "image" },
+    { id: "flux-dev", name: "FLUX Dev", params: ["n", "size"], kind: "image" },
+    { id: "sdxl", name: "SDXL", params: ["n", "size"], kind: "image" },
   ],
   serviceKinds: ["image"],
   imageConfig: { baseUrl: "http://localhost:8188" },

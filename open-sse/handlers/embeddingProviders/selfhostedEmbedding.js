@@ -25,8 +25,8 @@ export class MissingBaseUrlError extends Error {
     super(
       "Self-hosted Embedding needs an endpoint: set this connection's baseUrl to " +
         "the OpenAI base URL of your server, e.g. http://host:8080/v1 (note the /v1 — " +
-        "\"/embeddings\" is appended to it). Refusing to fall back to api.openai.com, " +
-        "which would send your input and API key to OpenAI."
+        '"/embeddings" is appended to it). Refusing to fall back to api.openai.com, ' +
+        "which would send your input and API key to OpenAI.",
     );
     this.name = "MissingBaseUrlError";
     this.isConfigError = true;
@@ -40,7 +40,10 @@ export default {
     if (!rawBaseUrl || !String(rawBaseUrl).trim()) throw new MissingBaseUrlError();
     // Accept either the OpenAI base or a full embeddings URL, so a value pasted
     // from a curl example works as well as one typed from the help text.
-    const baseUrl = String(rawBaseUrl).trim().replace(/\/$/, "").replace(/\/embeddings$/, "");
+    const baseUrl = String(rawBaseUrl)
+      .trim()
+      .replace(/\/$/, "")
+      .replace(/\/embeddings$/, "");
     return `${baseUrl}/embeddings`;
   },
 };

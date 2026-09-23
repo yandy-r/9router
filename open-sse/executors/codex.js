@@ -5,7 +5,10 @@ import {
   refreshProviderCredentials,
   shouldRefreshCredentials,
 } from "../services/oauthCredentialManager.js";
-import { normalizeResponsesInput, resolveFunctionToolStrict } from "../translator/formats/responsesApi.js";
+import {
+  normalizeResponsesInput,
+  resolveFunctionToolStrict,
+} from "../translator/formats/responsesApi.js";
 import { fetchImageAsBase64 } from "../translator/concerns/image.js";
 import { getModelUpstreamId } from "../config/providerModels.js";
 import { getThinkingLevels } from "../providers/thinkingLevels.js";
@@ -31,9 +34,16 @@ const SERVER_ID_PATTERN = /^(rs|fc|resp|msg)_/;
 
 // Hosted tool types that Codex/OpenAI Responses executes server-side
 const CODEX_HOSTED_TOOL_TYPES = new Set([
-  "image_generation", "web_search", "web_search_preview", "file_search",
-  "computer", "computer_use_preview", "code_interpreter", "mcp", "local_shell",
-  "tool_search"
+  "image_generation",
+  "web_search",
+  "web_search_preview",
+  "file_search",
+  "computer",
+  "computer_use_preview",
+  "code_interpreter",
+  "mcp",
+  "local_shell",
+  "tool_search",
 ]);
 
 // Responses-native freeform tools carry a name plus format payload and must pass through intact.
@@ -41,9 +51,19 @@ const CODEX_PASSTHROUGH_TOOL_TYPES = new Set(["custom"]);
 
 // Allowlist of fields accepted by Codex Responses API — anything else is stripped
 const RESPONSES_API_ALLOWLIST = new Set([
-  "model", "input", "instructions", "tools", "tool_choice", "stream", "store",
-  "reasoning", "service_tier", "include", "prompt_cache_key", "client_metadata",
-  "text"
+  "model",
+  "input",
+  "instructions",
+  "tools",
+  "tool_choice",
+  "stream",
+  "store",
+  "reasoning",
+  "service_tier",
+  "include",
+  "prompt_cache_key",
+  "client_metadata",
+  "text",
 ]);
 
 // Convert role=system → role=developer in body.input (keeps content in cacheable prefix)
@@ -96,14 +116,26 @@ function normalizeCodexTools(body) {
       if (!type || tool.function || typeof tool.name === "string") return false;
       return CODEX_HOSTED_TOOL_TYPES.has(type);
     }
-    const fn = tool.function && typeof tool.function === "object" && !Array.isArray(tool.function) ? tool.function : null;
-    const rawName = typeof tool.name === "string" ? tool.name : (typeof fn?.name === "string" ? fn.name : "");
+    const fn =
+      tool.function && typeof tool.function === "object" && !Array.isArray(tool.function)
+        ? tool.function
+        : null;
+    const rawName =
+      typeof tool.name === "string" ? tool.name : typeof fn?.name === "string" ? fn.name : "";
     const name = rawName.trim();
     if (!name) return false;
-    const description = typeof tool.description === "string" ? tool.description : (typeof fn?.description === "string" ? fn.description : "");
-    const parameters = (tool.parameters && typeof tool.parameters === "object" && !Array.isArray(tool.parameters))
-      ? tool.parameters
-      : (fn?.parameters && typeof fn.parameters === "object" && !Array.isArray(fn.parameters) ? fn.parameters : { type: "object", properties: {} });
+    const description =
+      typeof tool.description === "string"
+        ? tool.description
+        : typeof fn?.description === "string"
+          ? fn.description
+          : "";
+    const parameters =
+      tool.parameters && typeof tool.parameters === "object" && !Array.isArray(tool.parameters)
+        ? tool.parameters
+        : fn?.parameters && typeof fn.parameters === "object" && !Array.isArray(fn.parameters)
+          ? fn.parameters
+          : { type: "object", properties: {} };
     const strict = resolveFunctionToolStrict(tool);
     for (const k of Object.keys(tool)) delete tool[k];
     tool.type = "function";
@@ -118,7 +150,11 @@ function normalizeCodexTools(body) {
     dbg("CODEX", `stripped ${patternStats.removed} unsupported tool schema pattern(s)`);
   }
   // Drop tool_choice if it references an unknown function name
-  if (body.tool_choice && typeof body.tool_choice === "object" && !Array.isArray(body.tool_choice)) {
+  if (
+    body.tool_choice &&
+    typeof body.tool_choice === "object" &&
+    !Array.isArray(body.tool_choice)
+  ) {
     if (body.tool_choice.type === "function") {
       const n = typeof body.tool_choice.name === "string" ? body.tool_choice.name.trim() : "";
       if (!n || !validNames.has(n)) delete body.tool_choice;
@@ -133,7 +169,7 @@ function resolveCacheSessionId(body, credentials) {
     body,
     connectionId: credentials?.connectionId,
     workspaceId: credentials?.providerSpecificData?.workspaceId,
-    scope: "codex"
+    scope: "codex",
   });
 }
 
@@ -156,8 +192,10 @@ function findNestedMessage(value, depth = 0) {
   }
   if (typeof value !== "object") return null;
   if (typeof value.message === "string" && value.message.trim()) return value.message;
-  if (typeof value.error?.message === "string" && value.error.message.trim()) return value.error.message;
-  if (typeof value.response?.error?.message === "string" && value.response.error.message.trim()) return value.response.error.message;
+  if (typeof value.error?.message === "string" && value.error.message.trim())
+    return value.error.message;
+  if (typeof value.response?.error?.message === "string" && value.response.error.message.trim())
+    return value.response.error.message;
   for (const child of Object.values(value)) {
     const found = findNestedMessage(child, depth + 1);
     if (found) return found;
@@ -185,16 +223,19 @@ function extractSseErrorMessage(text, fallback) {
 }
 
 function codexSseErrorResponse(status, message) {
-  return new Response(JSON.stringify({
-    error: {
-      message,
-      type: status >= 500 ? "server_error" : "invalid_request_error",
-      code: status === HTTP_STATUS.SERVICE_UNAVAILABLE ? "service_unavailable" : "upstream_error",
-    }
-  }), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      error: {
+        message,
+        type: status >= 500 ? "server_error" : "invalid_request_error",
+        code: status === HTTP_STATUS.SERVICE_UNAVAILABLE ? "service_unavailable" : "upstream_error",
+      },
+    }),
+    {
+      status,
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 }
 
 /**
@@ -268,9 +309,21 @@ export class CodexExecutor extends BaseExecutor {
   }
 
   async execute(args) {
-    const imgCount = Array.isArray(args.body?.input) ? args.body.input.reduce((n, it) => n + (Array.isArray(it.content) ? it.content.filter(c => c.type === "image_url").length : 0), 0) : 0;
+    const imgCount = Array.isArray(args.body?.input)
+      ? args.body.input.reduce(
+          (n, it) =>
+            n +
+            (Array.isArray(it.content)
+              ? it.content.filter((c) => c.type === "image_url").length
+              : 0),
+          0,
+        )
+      : 0;
     const inputLen = Array.isArray(args.body?.input) ? args.body.input.length : 0;
-    dbg("CODEX", `execute start | inputItems=${inputLen} | images=${imgCount} | sessionId=${this._currentSessionId || "pending"}`);
+    dbg(
+      "CODEX",
+      `execute start | inputItems=${inputLen} | images=${imgCount} | sessionId=${this._currentSessionId || "pending"}`,
+    );
     if (imgCount > 0) {
       const t0 = Date.now();
       await this.prefetchImages(args.body);
@@ -300,18 +353,33 @@ export class CodexExecutor extends BaseExecutor {
       }
       if (peek.accountFallback) {
         args.log?.warn?.("RETRY", `CODEX | SSE account fallback "${peek.message}"`);
-        result.response = codexSseErrorResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, peek.message || CODEX_MODEL_CAPACITY_MESSAGE);
+        result.response = codexSseErrorResponse(
+          HTTP_STATUS.SERVICE_UNAVAILABLE,
+          peek.message || CODEX_MODEL_CAPACITY_MESSAGE,
+        );
         return result;
       }
       if (attempt >= attempts) {
-        args.log?.warn?.("RETRY", `CODEX | SSE overloaded "${peek.matched}" — retries exhausted (${attempt}/${attempts})`);
-        result.response = codexSseErrorResponse(HTTP_STATUS.SERVICE_UNAVAILABLE, peek.message || peek.matched);
+        args.log?.warn?.(
+          "RETRY",
+          `CODEX | SSE overloaded "${peek.matched}" — retries exhausted (${attempt}/${attempts})`,
+        );
+        result.response = codexSseErrorResponse(
+          HTTP_STATUS.SERVICE_UNAVAILABLE,
+          peek.message || peek.matched,
+        );
         return result;
       }
       attempt++;
-      args.log?.debug?.("RETRY", `CODEX | SSE "${peek.matched}" retry ${attempt}/${attempts} after ${delayMs / 1000}s`);
-      dbg("CODEX", `SSE overloaded "${peek.matched}" → retry ${attempt}/${attempts} in ${delayMs}ms`);
-      await new Promise(r => setTimeout(r, delayMs));
+      args.log?.debug?.(
+        "RETRY",
+        `CODEX | SSE "${peek.matched}" retry ${attempt}/${attempts} after ${delayMs / 1000}s`,
+      );
+      dbg(
+        "CODEX",
+        `SSE overloaded "${peek.matched}" → retry ${attempt}/${attempts} in ${delayMs}ms`,
+      );
+      await new Promise((r) => setTimeout(r, delayMs));
     }
   }
 
@@ -319,7 +387,8 @@ export class CodexExecutor extends BaseExecutor {
   // Returns { matched: string|null, message: string|null, accountFallback: boolean, replacementBody: ReadableStream|null }.
   // Caller must use replacementBody when no error matched (original body has been read).
   async _peekSseTransientError(response) {
-    if (!response || !response.ok || !response.body) return { matched: null, message: null, accountFallback: false, replacementBody: null };
+    if (!response || !response.ok || !response.body)
+      return { matched: null, message: null, accountFallback: false, replacementBody: null };
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     const chunks = [];
@@ -333,20 +402,40 @@ export class CodexExecutor extends BaseExecutor {
         chunks.push(value);
         text += decoder.decode(value, { stream: true });
         const lowerText = text.toLowerCase();
-        const accountHit = CODEX_SSE_ACCOUNT_FALLBACK_PATTERNS.find(p => lowerText.includes(p));
-        if (accountHit) { matched = accountHit; accountFallback = true; break; }
-        const retryHit = CODEX_SSE_RETRY_PATTERNS.find(p => lowerText.includes(p));
-        if (retryHit) { matched = retryHit; break; }
-        if (CODEX_SSE_USER_OUTPUT_PATTERNS.some(p => lowerText.includes(p))) break;
+        const accountHit = CODEX_SSE_ACCOUNT_FALLBACK_PATTERNS.find((p) => lowerText.includes(p));
+        if (accountHit) {
+          matched = accountHit;
+          accountFallback = true;
+          break;
+        }
+        const retryHit = CODEX_SSE_RETRY_PATTERNS.find((p) => lowerText.includes(p));
+        if (retryHit) {
+          matched = retryHit;
+          break;
+        }
+        if (CODEX_SSE_USER_OUTPUT_PATTERNS.some((p) => lowerText.includes(p))) break;
       }
     } catch (e) {
       dbg("CODEX", `peek read error: ${e.message}`);
     }
 
     if (matched) {
-      try { await reader.cancel(); } catch { /* noop */ }
-      try { reader.releaseLock(); } catch { /* noop */ }
-      return { matched, message: extractSseErrorMessage(text, matched), accountFallback, replacementBody: null };
+      try {
+        await reader.cancel();
+      } catch {
+        /* noop */
+      }
+      try {
+        reader.releaseLock();
+      } catch {
+        /* noop */
+      }
+      return {
+        matched,
+        message: extractSseErrorMessage(text, matched),
+        accountFallback,
+        replacementBody: null,
+      };
     }
 
     reader.releaseLock();
@@ -362,12 +451,21 @@ export class CodexExecutor extends BaseExecutor {
       async pull(controller) {
         try {
           const { done, value } = await upstreamReader.read();
-          if (done) { controller.close(); return; }
+          if (done) {
+            controller.close();
+            return;
+          }
           controller.enqueue(value);
-        } catch (e) { controller.error(e); }
+        } catch (e) {
+          controller.error(e);
+        }
       },
       cancel(reason) {
-        try { upstreamReader?.cancel(reason); } catch { /* noop */ }
+        try {
+          upstreamReader?.cancel(reason);
+        } catch {
+          /* noop */
+        }
       },
     });
     return { matched: null, message: null, accountFallback: false, replacementBody };
@@ -386,14 +484,20 @@ export class CodexExecutor extends BaseExecutor {
             const ms = err.resets_at * 1000;
             if (ms > now) resetsAtMs = ms;
           }
-          if (!resetsAtMs && typeof err.resets_in_seconds === "number" && err.resets_in_seconds > 0) {
+          if (
+            !resetsAtMs &&
+            typeof err.resets_in_seconds === "number" &&
+            err.resets_in_seconds > 0
+          ) {
             resetsAtMs = now + err.resets_in_seconds * 1000;
           }
           if (resetsAtMs) {
             return { status: 429, message: err.message || bodyText, resetsAtMs };
           }
         }
-      } catch { /* fall through to default */ }
+      } catch {
+        /* fall through to default */
+      }
     }
     return super.parseError(response, bodyText);
   }
@@ -413,7 +517,9 @@ export class CodexExecutor extends BaseExecutor {
 
     // Ensure input is present and non-empty (Codex API rejects empty input)
     if (!body.input || (Array.isArray(body.input) && body.input.length === 0)) {
-      body.input = [{ type: "message", role: "user", content: [{ type: "input_text", text: "..." }] }];
+      body.input = [
+        { type: "message", role: "user", content: [{ type: "input_text", text: "..." }] },
+      ];
     }
 
     // Keep system prompts in body.input as role=developer so they stay in the cacheable prefix
@@ -444,20 +550,23 @@ export class CodexExecutor extends BaseExecutor {
 
     // Extract thinking level from model name suffix
     // e.g., gpt-5.3-codex-high → high, gpt-5.3-codex → medium (default)
-    const effortLevels = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh'];
+    const effortLevels = ["none", "minimal", "low", "medium", "high", "xhigh"];
     let modelEffort = null;
     for (const level of effortLevels) {
       if (body.model.endsWith(`-${level}`)) {
         modelEffort = level;
         // Strip suffix from model name for actual API call
-        body.model = body.model.replace(`-${level}`, '');
+        body.model = body.model.replace(`-${level}`, "");
         break;
       }
     }
 
     // Priority: explicit reasoning.effort > reasoning_effort param > model suffix > default (medium)
     if (!body.reasoning) {
-      const effort = normalizeReasoningEffort(body.model, body.reasoning_effort || modelEffort || 'low');
+      const effort = normalizeReasoningEffort(
+        body.model,
+        body.reasoning_effort || modelEffort || "low",
+      );
       body.reasoning = { effort, summary: "auto" };
     } else {
       body.reasoning.effort = normalizeReasoningEffort(body.model, body.reasoning.effort);
@@ -466,7 +575,7 @@ export class CodexExecutor extends BaseExecutor {
     delete body.reasoning_effort;
 
     // Include reasoning encrypted content (required by Codex backend for reasoning models)
-    if (body.reasoning && body.reasoning.effort && body.reasoning.effort !== 'none') {
+    if (body.reasoning && body.reasoning.effort && body.reasoning.effort !== "none") {
       body.include = ["reasoning.encrypted_content"];
     }
 

@@ -32,7 +32,12 @@ const IDE_BINARIES = {
 };
 
 async function pathExists(p) {
-  try { await fs.access(p); return true; } catch { return false; }
+  try {
+    await fs.access(p);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function checkBinary(bin) {
@@ -40,7 +45,9 @@ async function checkBinary(bin) {
     const cmd = os.platform() === "win32" ? `where ${bin}` : `which ${bin}`;
     await execAsync(cmd, { windowsHide: true });
     return true;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 // Returns { installed: boolean, path: string|null } for the given provider's IDE.
@@ -49,9 +56,9 @@ export async function detectIdeInstalled(providerId) {
   const paths = IDE_PATHS[providerId];
   if (!paths) return { installed: false, path: null };
   for (const p of paths[platform] || []) {
-    if (p && await pathExists(p)) return { installed: true, path: p };
+    if (p && (await pathExists(p))) return { installed: true, path: p };
   }
   const bin = IDE_BINARIES[providerId];
-  if (bin && await checkBinary(bin)) return { installed: true, path: bin };
+  if (bin && (await checkBinary(bin))) return { installed: true, path: bin };
   return { installed: false, path: null };
 }

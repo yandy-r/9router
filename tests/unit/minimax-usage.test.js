@@ -13,7 +13,7 @@ function usageResponse(modelRemains) {
       base_resp: { status_code: 0, status_msg: "success" },
       model_remains: modelRemains,
     }),
-    { status: 200, headers: { "Content-Type": "application/json" } }
+    { status: 200, headers: { "Content-Type": "application/json" } },
   );
 }
 
@@ -34,7 +34,7 @@ describe("MiniMax usage", () => {
           end_time: "2026-05-12T10:00:00.000Z",
           weekly_end_time: "2026-05-19T10:00:00.000Z",
         },
-      ])
+      ]),
     );
 
     const usage = await getUsageForProvider({
@@ -67,7 +67,7 @@ describe("MiniMax usage", () => {
           remainsTime: 1000,
           weeklyRemainsTime: 2000,
         },
-      ])
+      ]),
     );
 
     const usage = await getUsageForProvider({
@@ -101,7 +101,7 @@ describe("MiniMax usage", () => {
           current_interval_total_count: 50,
           current_interval_usage_count: 2,
         },
-      ])
+      ]),
     );
 
     const usage = await getUsageForProvider({
@@ -122,7 +122,7 @@ describe("MiniMax usage", () => {
           current_interval_remaining_percent: 70,
           current_weekly_remaining_percent: 64,
         },
-      ])
+      ]),
     );
 
     const usage = await getUsageForProvider({
@@ -153,7 +153,7 @@ describe("MiniMax usage", () => {
           current_interval_remaining_percent: 80,
           current_weekly_remaining_percent: 95,
         },
-      ])
+      ]),
     );
 
     const usage = await getUsageForProvider({
@@ -188,7 +188,7 @@ describe("MiniMax usage", () => {
           remainsTime: 1000,
           weeklyRemainsTime: 2000,
         },
-      ])
+      ]),
     );
 
     const usage = await getUsageForProvider({
@@ -197,10 +197,7 @@ describe("MiniMax usage", () => {
     });
 
     expect(usage.message).toBeUndefined();
-    expect(Object.keys(usage.quotas)).toEqual([
-      "M-series (5h)",
-      "M-series (7d)",
-    ]);
+    expect(Object.keys(usage.quotas)).toEqual(["M-series (5h)", "M-series (7d)"]);
     expect(usage.quotas["M-series (5h)"]).toMatchObject({
       used: 800,
       total: 4000,
@@ -225,7 +222,7 @@ describe("MiniMax usage", () => {
           current_weekly_usage_count: 500,
           current_weekly_remaining_percent: 42,
         },
-      ])
+      ]),
     );
 
     const usage = await getUsageForProvider({

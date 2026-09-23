@@ -54,8 +54,9 @@ function convertClaudeMessagesToKiro(messages, model) {
 
   const flushPending = () => {
     if (currentRole === ROLE.USER) {
-      const content = pendingUserContent.join("\n\n").trim()
-        || kiroEmptyUserContent(pendingToolResults.length > 0);
+      const content =
+        pendingUserContent.join("\n\n").trim() ||
+        kiroEmptyUserContent(pendingToolResults.length > 0);
       const userMsg = { userInputMessage: { content, modelId: model } };
 
       if (pendingImages.length > 0) {
@@ -106,7 +107,10 @@ function convertClaudeMessagesToKiro(messages, model) {
                 if (c?.type === CLAUDE_BLOCK.IMAGE && c.source?.type === "base64") {
                   hasImage = true;
                   const imageType = c.source.media_type || DEFAULT_IMAGE_MIME;
-                  pendingImages.push({ format: imageType.split("/")[1] || imageType, source: { bytes: c.source.data } });
+                  pendingImages.push({
+                    format: imageType.split("/")[1] || imageType,
+                    source: { bytes: c.source.data },
+                  });
                 }
               }
               resultContent =
@@ -191,10 +195,7 @@ function convertClaudeMessagesToKiro(messages, model) {
           prev.userInputMessage.userInputMessageContext = curCtx;
         } else {
           if (curCtx.toolResults?.length > 0) {
-            prevCtx.toolResults = [
-              ...(prevCtx.toolResults || []),
-              ...curCtx.toolResults,
-            ];
+            prevCtx.toolResults = [...(prevCtx.toolResults || []), ...curCtx.toolResults];
           }
           if (curCtx.tools?.length > 0) {
             prevCtx.tools = [...(prevCtx.tools || []), ...curCtx.tools];
@@ -217,10 +218,13 @@ function extractClaudeSystemText(system) {
   if (!system) return "";
   if (typeof system === "string") return system;
   if (Array.isArray(system)) {
-    return system.map((s) => {
-      if (typeof s === "string") return s;
-      return s?.text || "";
-    }).filter(Boolean).join("\n");
+    return system
+      .map((s) => {
+        if (typeof s === "string") return s;
+        return s?.text || "";
+      })
+      .filter(Boolean)
+      .join("\n");
   }
   return "";
 }
@@ -238,8 +242,15 @@ export function claudeToKiroRequest(model, body, stream, credentials) {
   const modelIntent = resolveKiroModelIntent(model);
   const { upstream: upstreamModel, agentic } = modelIntent;
   const thinkingBody = applyKiroThinkingOverride(body, modelIntent.thinkingOverride);
-  const thinkingBudget = resolveKiroThinkingBudget(thinkingBody, credentials?.rawHeaders, modelIntent.model);
-  const additionalModelRequestFields = buildKiroAdditionalModelRequestFieldsForModel(thinkingBody, upstreamModel);
+  const thinkingBudget = resolveKiroThinkingBudget(
+    thinkingBody,
+    credentials?.rawHeaders,
+    modelIntent.model,
+  );
+  const additionalModelRequestFields = buildKiroAdditionalModelRequestFieldsForModel(
+    thinkingBody,
+    upstreamModel,
+  );
   const usesNativeGptEffort = usesKiroNativeGptEffort(thinkingBody, upstreamModel);
 
   const { specs: toolSpecs, nameMap } = normalizeKiroToolSpecs(tools);
@@ -251,8 +262,8 @@ export function claudeToKiroRequest(model, body, stream, credentials) {
   const accountBoundAuth =
     authMethod === "api_key" || authMethod === "idc" || authMethod === "external_idp";
   const profileArn = accountBoundAuth
-    ? (credentials?.providerSpecificData?.profileArn || "")
-    : (credentials?.providerSpecificData?.profileArn || resolveDefaultProfileArn(authMethod));
+    ? credentials?.providerSpecificData?.profileArn || ""
+    : credentials?.providerSpecificData?.profileArn || resolveDefaultProfileArn(authMethod);
 
   // The system prompt travels inside the first user turn's content (contentPrefix):
   // the CodeWhisperer surface rejects a top-level `systemPrompt` with
@@ -308,7 +319,9 @@ export function claudeToKiroRequest(model, body, stream, credentials) {
   // (role:N | pair:N | id:N | spec:N | orphan:0 | current) names the offending
   // turn so the shape can be diagnosed from the log alone.
   if (!canonical.valid) {
-    console.error(`[Kiro] refusing invalid conversation (claude → kiro): ${(canonical.errors || []).join(", ") || "unknown"} | turns=${(canonical.history || []).length + 1}`);
+    console.error(
+      `[Kiro] refusing invalid conversation (claude → kiro): ${(canonical.errors || []).join(", ") || "unknown"} | turns=${(canonical.history || []).length + 1}`,
+    );
     return null;
   }
   const replayCurrent = canonical.currentMessage.userInputMessage;

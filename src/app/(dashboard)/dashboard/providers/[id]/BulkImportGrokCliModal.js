@@ -75,7 +75,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
     if (!files || files.length === 0) return;
     setParseError("");
     const jsonFiles = Array.from(files).filter(
-      (file) => file.name.endsWith(".json") || file.type === "application/json" || file.type === ""
+      (file) => file.name.endsWith(".json") || file.type === "application/json" || file.type === "",
     );
 
     if (jsonFiles.length === 0) {
@@ -227,7 +227,9 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
 
           {isDragging && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-sidebar/90 rounded pointer-events-none backdrop-blur-xs">
-              <span className="material-symbols-outlined text-3xl text-primary mb-1">upload_file</span>
+              <span className="material-symbols-outlined text-3xl text-primary mb-1">
+                upload_file
+              </span>
               <span className="text-sm font-medium text-primary">
                 {translate("Drop .json files here")}
               </span>
@@ -245,9 +247,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
           </div>
         )}
 
-        {parseError && (
-          <p className="text-xs text-red-500 break-words">{parseError}</p>
-        )}
+        {parseError && <p className="text-xs text-red-500 break-words">{parseError}</p>}
 
         {result && result.failed > 0 && (
           <div className="flex flex-col gap-2">
@@ -267,11 +267,7 @@ export default function BulkImportGrokCliModal({ isOpen, onClose, onSuccess }) {
         )}
 
         <div className="flex gap-2">
-          <Button
-            onClick={handleSubmit}
-            fullWidth
-            disabled={submitting || !jsonText.trim()}
-          >
+          <Button onClick={handleSubmit} fullWidth disabled={submitting || !jsonText.trim()}>
             {submitting ? translate("Importing...") : translate("Import All")}
           </Button>
           <Button onClick={handleClose} variant="ghost" fullWidth disabled={submitting}>

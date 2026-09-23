@@ -13,7 +13,12 @@ function okResponse(content, { delayMs = 0 } = {}) {
 }
 
 function errResponse(status = 500) {
-  const make = () => ({ ok: false, status, clone: make, json: async () => ({ error: { message: "boom" } }) });
+  const make = () => ({
+    ok: false,
+    status,
+    clone: make,
+    json: async () => ({ error: { message: "boom" } }),
+  });
   return make();
 }
 
@@ -52,7 +57,9 @@ describe("fusion combo", () => {
     expect(seen[3]).toBe("p/judge");
 
     // Panel calls are non-streaming with tools stripped.
-    for (const [body, model, isPanel] of handleSingleModel.mock.calls.filter(([, m]) => m !== "p/judge")) {
+    for (const [body, model, isPanel] of handleSingleModel.mock.calls.filter(
+      ([, m]) => m !== "p/judge",
+    )) {
       expect(body.stream).toBe(false);
       expect(body.tools).toBeUndefined();
       expect(isPanel).toBe(true);
@@ -73,7 +80,10 @@ describe("fusion combo", () => {
 
   it("defaults the judge to the first panel model when none is set", async () => {
     const seen = [];
-    const handleSingleModel = vi.fn(async (_body, model) => { seen.push(model); return okResponse(`ans-${model}`); });
+    const handleSingleModel = vi.fn(async (_body, model) => {
+      seen.push(model);
+      return okResponse(`ans-${model}`);
+    });
     await handleFusionChat({
       body: { messages: [{ role: "user", content: "Q" }] },
       models: ["p/first", "p/second"],
@@ -148,20 +158,24 @@ describe("fusion combo", () => {
       body: {
         messages: [
           { role: "user", content: "find files" },
-          { role: "assistant", content: "", tool_calls: [{ id: "c1", type: "function", function: { name: "find" } }] },
+          {
+            role: "assistant",
+            content: "",
+            tool_calls: [{ id: "c1", type: "function", function: { name: "find" } }],
+          },
           { role: "tool", tool_call_id: "c1", content: "['a.js']" },
-          { role: "user", content: "describe it" }
+          { role: "user", content: "describe it" },
         ],
-        tools: [{ type: "function" }]
+        tools: [{ type: "function" }],
       },
       models: ["p/a", "p/b"],
       handleSingleModel,
       log,
-      judgeModel: "p/judge"
+      judgeModel: "p/judge",
     });
 
     // Panel calls keep every turn but tool turns are flattened to assistant prose.
-    const panelCalls = handleSingleModel.mock.calls.filter(([,, isPanel]) => isPanel === true);
+    const panelCalls = handleSingleModel.mock.calls.filter(([, , isPanel]) => isPanel === true);
     expect(panelCalls.length).toBe(2);
     for (const [panelBody] of panelCalls) {
       expect(panelBody.tools).toBeUndefined();
@@ -189,27 +203,33 @@ describe("fusion combo", () => {
       body: {
         messages: [
           { role: "user", content: "do it" },
-          { role: "assistant", content: [{ type: "text", text: "ok" }, { type: "tool_use", id: "t1", name: "run" }] },
-          { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "done" }] }
+          {
+            role: "assistant",
+            content: [
+              { type: "text", text: "ok" },
+              { type: "tool_use", id: "t1", name: "run" },
+            ],
+          },
+          { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "done" }] },
         ],
-        tools: [{ name: "run", description: "d" }]
+        tools: [{ name: "run", description: "d" }],
       },
       models: ["p/a", "p/b"],
       handleSingleModel,
       log,
-      judgeModel: "p/judge"
+      judgeModel: "p/judge",
     });
 
-    const panelCalls = handleSingleModel.mock.calls.filter(([,, isPanel]) => isPanel === true);
+    const panelCalls = handleSingleModel.mock.calls.filter(([, , isPanel]) => isPanel === true);
     expect(panelCalls.length).toBe(2);
     const panelBody = panelCalls[0][0];
-    
+
     expect(panelBody.tools).toBeUndefined();
     expect(panelBody.messages.length).toBe(3);
-    
+
     // Flattened tool_use
     expect(panelBody.messages[1].content).toBe("ok\n[Called tools: run]");
-    
+
     // Flattened tool_result
     expect(panelBody.messages[2].content).toBe("[Tool result: done]");
   });

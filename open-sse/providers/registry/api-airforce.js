@@ -1,9 +1,7 @@
 export default {
   id: "api-airforce",
   alias: "af",
-  aliases: [
-    "airforce",
-  ],
+  aliases: ["airforce"],
   uiAlias: "af",
   display: {
     name: "API.airforce",
@@ -17,9 +15,7 @@ export default {
   },
   category: "freeTier",
   authType: "apikey",
-  authModes: [
-    "apikey",
-  ],
+  authModes: ["apikey"],
   passthroughModels: true,
   modelsFetcher: { url: "https://api.airforce/v1/models", type: "airforce-free" },
   transport: {

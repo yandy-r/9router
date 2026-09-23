@@ -50,7 +50,9 @@ export default function XiaomiMimoAuthModal({ isOpen, onSuccess, onClose }) {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
   // Import the auto-detected key
@@ -149,9 +151,7 @@ export default function XiaomiMimoAuthModal({ isOpen, onSuccess, onClose }) {
               </span>
             </div>
             <h3 className="text-lg font-semibold mb-2">Reading local credentials...</h3>
-            <p className="text-sm text-text-muted">
-              Checking ~/.local/share/mimocode/auth.json
-            </p>
+            <p className="text-sm text-text-muted">Checking ~/.local/share/mimocode/auth.json</p>
           </div>
         )}
 
@@ -160,11 +160,14 @@ export default function XiaomiMimoAuthModal({ isOpen, onSuccess, onClose }) {
           <>
             <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-200 dark:border-green-800">
               <div className="flex gap-2">
-                <span className="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
+                <span className="material-symbols-outlined text-green-600 dark:text-green-400">
+                  check_circle
+                </span>
                 <div className="text-sm text-green-800 dark:text-green-200">
                   <p className="font-medium">Xiaomi MiMo Desktop credentials found!</p>
                   <p className="mt-1 opacity-80">
-                    UID: {detectResult.uid || "—"} · Source: {detectResult.source?.split(/[\\/]/).pop()}
+                    UID: {detectResult.uid || "—"} · Source:{" "}
+                    {detectResult.source?.split(/[\\/]/).pop()}
                   </p>
                 </div>
               </div>
@@ -204,13 +207,15 @@ export default function XiaomiMimoAuthModal({ isOpen, onSuccess, onClose }) {
           <>
             <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
               <div className="flex gap-2 items-start">
-                <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">info</span>
+                <span className="material-symbols-outlined text-amber-600 dark:text-amber-400">
+                  info
+                </span>
                 <div className="text-sm text-amber-800 dark:text-amber-200">
                   <p className="font-medium">Local credentials not found</p>
                   <p className="mt-1 opacity-80">{error}</p>
                   <p className="mt-2 opacity-80">
-                    Make sure Xiaomi MiMo Desktop is installed and you are signed in, then retry.
-                    Or sign in via browser below.
+                    Make sure Xiaomi MiMo Desktop is installed and you are signed in, then retry. Or
+                    sign in via browser below.
                   </p>
                 </div>
               </div>

@@ -73,10 +73,7 @@ export async function testProxyUrl({ proxyUrl, testUrl, timeoutMs } = {}) {
         elapsedMs: Date.now() - startedAt,
       };
     } catch (err) {
-      const message =
-        err?.name === "AbortError"
-          ? "Proxy test timed out"
-          : getErrorMessage(err);
+      const message = err?.name === "AbortError" ? "Proxy test timed out" : getErrorMessage(err);
       return { ok: false, status: 500, error: message };
     } finally {
       clearTimeout(timer);

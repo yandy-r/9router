@@ -8,11 +8,11 @@ through the `codex` provider (`cx/`).
 
 The supported override matrix is:
 
-| Model family | Max | Ultra |
-| --- | --- | --- |
-| GPT-5.6 Sol | Yes | Yes |
-| GPT-5.6 Terra | Yes | Yes |
-| GPT-5.6 Luna | Yes | No |
+| Model family  | Max | Ultra |
+| ------------- | --- | ----- |
+| GPT-5.6 Sol   | Yes | Yes   |
+| GPT-5.6 Terra | Yes | Yes   |
+| GPT-5.6 Luna  | Yes | No    |
 
 The same matrix applies to 9router's virtual `-review` variants because they
 resolve to the corresponding upstream base model.

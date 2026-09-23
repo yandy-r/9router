@@ -106,9 +106,7 @@ export default function NewProviderPage() {
           {/* Provider Info */}
           {selectedProvider && (
             <Card.Section className="flex items-center gap-3">
-              <div
-                className="size-10 rounded-lg flex items-center justify-center bg-bg border border-border"
-              >
+              <div className="size-10 rounded-lg flex items-center justify-center bg-bg border border-border">
                 <span
                   className="material-symbols-outlined text-xl"
                   style={{ color: selectedProvider.color }}
@@ -118,9 +116,7 @@ export default function NewProviderPage() {
               </div>
               <div>
                 <p className="font-medium">{selectedProvider.name}</p>
-                <p className="text-sm text-text-muted">
-                  Selected provider
-                </p>
+                <p className="text-sm text-text-muted">Selected provider</p>
               </div>
             </Card.Section>
           )}
@@ -217,4 +213,3 @@ export default function NewProviderPage() {
     </div>
   );
 }
-

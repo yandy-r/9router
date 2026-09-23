@@ -31,9 +31,7 @@ function prefixUserMessage(message, contentPrefix, modelId) {
   ensureUserMessageModelId(out, modelId);
   if (contentPrefix) {
     const content = out.userInputMessage.content || "";
-    out.userInputMessage.content = content
-      ? `${contentPrefix}\n\n${content}`
-      : contentPrefix;
+    out.userInputMessage.content = content ? `${contentPrefix}\n\n${content}` : contentPrefix;
   }
   return out;
 }
@@ -107,7 +105,7 @@ export function applyKiroSessionReplay({
     sessionStart = prefixUserMessage(
       { userInputMessage: { content: "", modelId } },
       contentPrefix,
-      modelId
+      modelId,
     );
     baseHistory.unshift(clone(sessionStart));
     nextCurrent = prefixUserMessage(baseCurrent, currentContentPrefix, modelId);

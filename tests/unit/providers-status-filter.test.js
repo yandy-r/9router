@@ -20,27 +20,19 @@ describe("providers status filter", () => {
   });
 
   it("classifies a provider whose only connections are disabled as inactive", () => {
-    expect(getConnectionStatus({ total: 2, allDisabled: true })).toBe(
-      "inactive",
-    );
+    expect(getConnectionStatus({ total: 2, allDisabled: true })).toBe("inactive");
   });
 
   it("classifies a provider with at least one enabled connection as active", () => {
-    expect(getConnectionStatus({ total: 1, allDisabled: false })).toBe(
-      "active",
-    );
+    expect(getConnectionStatus({ total: 1, allDisabled: false })).toBe("active");
   });
 
   it("treats noAuth providers as active even with no stored connection", () => {
-    expect(getConnectionStatus({ total: 0, allDisabled: false }, true)).toBe(
-      "active",
-    );
+    expect(getConnectionStatus({ total: 0, allDisabled: false }, true)).toBe("active");
   });
 
   it("matchesStatusFilter always passes for 'all'", () => {
-    expect(matchesStatusFilter("all", { total: 0, allDisabled: false })).toBe(
-      true,
-    );
+    expect(matchesStatusFilter("all", { total: 0, allDisabled: false })).toBe(true);
   });
 
   it("matchesStatusFilter compares against the derived status", () => {

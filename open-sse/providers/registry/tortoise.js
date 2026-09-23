@@ -6,13 +6,11 @@ export default {
     icon: "record_voice_over",
     color: "#7C3AED",
     textIcon: "TT",
-    website: "https://github.com/neonbjb/tortoise-tts"
+    website: "https://github.com/neonbjb/tortoise-tts",
   },
   category: "freeTier",
   authType: "none",
-  serviceKinds: [
-    "tts"
-  ],
+  serviceKinds: ["tts"],
   noAuth: true,
   ttsConfig: {
     baseUrl: "http://localhost:5000/api/tts",
@@ -22,9 +20,9 @@ export default {
     models: [
       {
         id: "tortoise-v2",
-        name: "Tortoise v2"
-      }
-    ]
+        name: "Tortoise v2",
+      },
+    ],
   },
-  hidden: true
+  hidden: true,
 };

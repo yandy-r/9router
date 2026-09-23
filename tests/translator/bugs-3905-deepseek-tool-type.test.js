@@ -21,7 +21,9 @@ describe("Claude tool `type` defaulting is provider-scoped (#3905)", () => {
 
   it("never applies outside Claude-format requests or without tools", () => {
     expect(shouldDefaultClaudeToolType("minimax", FORMATS.OPENAI, tools, PROVIDERS)).toBe(false);
-    expect(shouldDefaultClaudeToolType("minimax", FORMATS.CLAUDE, undefined, PROVIDERS)).toBe(false);
+    expect(shouldDefaultClaudeToolType("minimax", FORMATS.CLAUDE, undefined, PROVIDERS)).toBe(
+      false,
+    );
     expect(shouldDefaultClaudeToolType("minimax", FORMATS.CLAUDE, null, PROVIDERS)).toBe(false);
   });
 

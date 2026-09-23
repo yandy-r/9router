@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createDisconnectAwareStream, pipeWithDisconnect, createStreamController } from "../../open-sse/utils/streamHandler.js";
+import {
+  createDisconnectAwareStream,
+  pipeWithDisconnect,
+  createStreamController,
+} from "../../open-sse/utils/streamHandler.js";
 import { buildAbortedResponsesTerminalBytes } from "../../open-sse/utils/responsesStreamHelpers.js";
 import { buildStreamErrorBytes } from "../../open-sse/utils/streamHelpers.js";
 import { FORMATS } from "../../open-sse/translator/formats.js";
@@ -12,10 +16,18 @@ function makeController() {
     signal: new AbortController().signal,
     startTime: Date.now(),
     isConnected: () => connected,
-    handleComplete: () => { connected = false; },
-    handleError: () => { connected = false; },
-    handleDisconnect: () => { connected = false; },
-    abort: () => { connected = false; },
+    handleComplete: () => {
+      connected = false;
+    },
+    handleError: () => {
+      connected = false;
+    },
+    handleDisconnect: () => {
+      connected = false;
+    },
+    abort: () => {
+      connected = false;
+    },
   };
 }
 
@@ -45,7 +57,7 @@ describe("Responses abort terminal synthesis", () => {
     const out = createDisconnectAwareStream(
       { readable: upstream, writable: { getWriter: () => ({ abort: () => Promise.resolve() }) } },
       makeController(),
-      buildAbortedResponsesTerminalBytes
+      buildAbortedResponsesTerminalBytes,
     );
 
     const text = await readAll(out);
@@ -64,7 +76,7 @@ describe("Responses abort terminal synthesis", () => {
     const out = createDisconnectAwareStream(
       { readable: upstream, writable: { getWriter: () => ({ abort: () => Promise.resolve() }) } },
       makeController(),
-      null
+      null,
     );
 
     const text = await readAll(out);
@@ -105,7 +117,10 @@ describe("buildStreamErrorBytes", () => {
 
     expect(out).toContain("event: error\n");
     expect(out).not.toContain("[DONE]");
-    expect(jsonOf(out)).toMatchObject({ type: "error", error: { message: "stream stall timeout" } });
+    expect(jsonOf(out)).toMatchObject({
+      type: "error",
+      error: { message: "stream stall timeout" },
+    });
   });
 });
 
@@ -121,7 +136,9 @@ describe("stall abort through pipeWithDisconnect", () => {
     const upstream = new ReadableStream({
       start(controller) {
         controller.enqueue(new TextEncoder().encode("data: hi\n\n"));
-        ctrl.signal.addEventListener("abort", () => controller.error(new Error("aborted")), { once: true });
+        ctrl.signal.addEventListener("abort", () => controller.error(new Error("aborted")), {
+          once: true,
+        });
       },
     });
 
@@ -130,8 +147,11 @@ describe("stall abort through pipeWithDisconnect", () => {
       { body: upstream },
       new TransformStream(),
       ctrl,
-      (message) => { seen = message; return buildStreamErrorBytes(504, message, FORMATS.OPENAI); },
-      50
+      (message) => {
+        seen = message;
+        return buildStreamErrorBytes(504, message, FORMATS.OPENAI);
+      },
+      50,
     );
 
     const text = await readAll(out);

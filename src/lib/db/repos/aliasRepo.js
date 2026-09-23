@@ -40,10 +40,19 @@ export async function addCustomModel({ providerAlias, id, type = "llm", name, ca
     if (row) {
       const prev = parseJson(row.value) || {};
       const next = { ...prev, ...(name ? { name } : {}), ...(caps ? { caps } : {}) };
-      db.run(`UPDATE kv SET value = ? WHERE scope = 'customModels' AND key = ?`, [stringifyJson(next), k]);
+      db.run(`UPDATE kv SET value = ? WHERE scope = 'customModels' AND key = ?`, [
+        stringifyJson(next),
+        k,
+      ]);
       return;
     }
-    const value = stringifyJson({ providerAlias, id, type, name: name || id, ...(caps ? { caps } : {}) });
+    const value = stringifyJson({
+      providerAlias,
+      id,
+      type,
+      name: name || id,
+      ...(caps ? { caps } : {}),
+    });
     db.run(`INSERT INTO kv(scope, key, value) VALUES('customModels', ?, ?)`, [k, value]);
     added = true;
   });

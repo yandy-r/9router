@@ -31,7 +31,7 @@ export default function Badge({
         "inline-flex items-center gap-1.5 rounded-full font-semibold",
         variants[variant],
         sizes[size],
-        className
+        className,
       )}
     >
       {dot && (
@@ -43,7 +43,7 @@ export default function Badge({
             variant === "error" && "bg-red-500",
             variant === "info" && "bg-blue-500",
             variant === "primary" && "bg-brand-500",
-            variant === "default" && "bg-gray-500"
+            variant === "default" && "bg-gray-500",
           )}
         />
       )}

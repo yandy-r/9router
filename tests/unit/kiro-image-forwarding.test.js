@@ -94,13 +94,15 @@ describe("Kiro MITM inline image forwarding", () => {
     expect(outboundBody).toMatchObject({
       model: MODEL,
       stream: true,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "text", text: "Describe this" },
-          { type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } },
-        ],
-      }],
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Describe this" },
+            { type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } },
+          ],
+        },
+      ],
     });
   });
 
@@ -128,9 +130,7 @@ describe("Kiro MITM inline image forwarding", () => {
       { role: "tool", tool_call_id: "tool-b", content: "second" },
       {
         role: "user",
-        content: [
-          { type: "image_url", image_url: { url: "data:image/jpeg;base64,LzlqLzQ=" } },
-        ],
+        content: [{ type: "image_url", image_url: { url: "data:image/jpeg;base64,LzlqLzQ=" } }],
       },
     ]);
   });
@@ -185,8 +185,6 @@ describe("Kiro MITM inline image forwarding", () => {
       },
     });
 
-    expect(outboundBody.messages).toEqual([
-      { role: "user", content: "keep this text" },
-    ]);
+    expect(outboundBody.messages).toEqual([{ role: "user", content: "keep this text" }]);
   });
 });

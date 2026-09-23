@@ -74,7 +74,7 @@ describe("custom-server peer header sanitizing", () => {
     const sanitized = requestDetails.sanitizeHeaders({
       "x-9r-peer-token": "secret",
       "x-9r-cli-token": "secret",
-      "authorization": "Bearer sk-x",
+      authorization: "Bearer sk-x",
       "x-9r-real-ip": "127.0.0.1",
     });
 

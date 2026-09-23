@@ -7,7 +7,7 @@ const OPENAI_RESPONSES_TERMINAL_EVENTS = new Set([
   "response.completed",
   "response.done",
   "response.failed",
-  "error"
+  "error",
 ]);
 
 export function getOpenAIResponsesEventName(eventName, chunk) {
@@ -32,19 +32,22 @@ export function buildAbortedResponsesTerminalBytes() {
 
 // Synthesize a response.failed event for streams that close without a terminal event
 export function formatIncompleteOpenAIResponsesStreamFailure() {
-  return formatSSE({
-    event: "response.failed",
-    data: {
-      type: "response.failed",
-      response: {
-        id: `resp_${Date.now()}`,
-        status: "failed",
-        error: {
-          type: "stream_error",
-          code: "stream_disconnected",
-          message: "stream closed before response.completed"
-        }
-      }
-    }
-  }, FORMATS.OPENAI_RESPONSES);
+  return formatSSE(
+    {
+      event: "response.failed",
+      data: {
+        type: "response.failed",
+        response: {
+          id: `resp_${Date.now()}`,
+          status: "failed",
+          error: {
+            type: "stream_error",
+            code: "stream_disconnected",
+            message: "stream closed before response.completed",
+          },
+        },
+      },
+    },
+    FORMATS.OPENAI_RESPONSES,
+  );
 }

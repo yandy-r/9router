@@ -6,15 +6,15 @@ import { dirname, join } from "node:path";
 
 import { getModelUpstreamId } from "../../open-sse/config/providerModels.js";
 import { AntigravityExecutor } from "../../open-sse/executors/antigravity.js";
-import { applyThinking, stripThinkingSuffix } from "../../open-sse/translator/concerns/thinkingUnified.js";
+import {
+  applyThinking,
+  stripThinkingSuffix,
+} from "../../open-sse/translator/concerns/thinkingUnified.js";
 import antigravity from "../../open-sse/providers/registry/antigravity.js";
 import geminiCli from "../../open-sse/providers/registry/gemini-cli.js";
 import gemini from "../../open-sse/providers/registry/gemini.js";
 import { MODEL_PRICING } from "../../open-sse/providers/pricing.js";
-import {
-  getProjectIdForConnection,
-  removeConnection,
-} from "../../open-sse/services/projectId.js";
+import { getProjectIdForConnection, removeConnection } from "../../open-sse/services/projectId.js";
 
 const require = createRequire(import.meta.url);
 const mitmConfig = require("../../src/mitm/config.js");
@@ -41,7 +41,7 @@ describe("Gemini Cloud Code endpoint isolation", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({ method: "POST" }),
     );
     expect(geminiCli.transport.baseUrl).toBe("https://cloudcode-pa.googleapis.com/v1internal");
     removeConnection(connectionId);
@@ -57,7 +57,7 @@ describe("Gemini Cloud Code endpoint isolation", () => {
     // Discovery (loadCodeAssist) on PROD — daily host rejects auth/onboarding calls.
     expect(fetchMock).toHaveBeenCalledWith(
       "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist",
-      expect.objectContaining({ method: "POST" })
+      expect.objectContaining({ method: "POST" }),
     );
     // Chat transport still uses the daily host to bypass prod 429.
     expect(antigravity.transport.baseUrls).toEqual(["https://daily-cloudcode-pa.googleapis.com"]);
@@ -80,12 +80,10 @@ describe("Gemini 3.6 Antigravity tiers", () => {
       };
 
       applyThinking("antigravity", upstreamModel, body, "antigravity");
-      const finalBody = new AntigravityExecutor().transformRequest(
-        publicModel,
-        body,
-        true,
-        { projectId: "project", connectionId: "connection" }
-      );
+      const finalBody = new AntigravityExecutor().transformRequest(publicModel, body, true, {
+        projectId: "project",
+        connectionId: "connection",
+      });
 
       expect(upstreamModel).toBe(`gemini-3.6-flash-tiered(${tier})`);
       expect(finalBody.model).toBe("gemini-3.6-flash-tiered");
@@ -93,7 +91,7 @@ describe("Gemini 3.6 Antigravity tiers", () => {
         thinkingLevel: tier,
         includeThoughts: true,
       });
-    }
+    },
   );
 });
 
@@ -103,25 +101,33 @@ describe("Gemini 3.6 MITM model extraction", () => {
   });
 
   it.each(["high", "medium", "low"])("extracts the %s thinking tier", (tier) => {
-    const body = Buffer.from(JSON.stringify({
-      request: { generationConfig: { thinkingConfig: { thinkingLevel: tier } } },
-    }));
+    const body = Buffer.from(
+      JSON.stringify({
+        request: { generationConfig: { thinkingConfig: { thinkingLevel: tier } } },
+      }),
+    );
 
-    expect(mitmConfig.extractModel(
-      "/v1internal/models/gemini-3.6-flash-tiered:streamGenerateContent",
-      body
-    )).toBe(`gemini-3.6-flash-${tier}`);
+    expect(
+      mitmConfig.extractModel(
+        "/v1internal/models/gemini-3.6-flash-tiered:streamGenerateContent",
+        body,
+      ),
+    ).toBe(`gemini-3.6-flash-${tier}`);
   });
 
   it("defaults invalid or missing thinking levels to medium", () => {
-    const body = Buffer.from(JSON.stringify({
-      request: { generationConfig: { thinkingConfig: { thinkingLevel: "unknown" } } },
-    }));
+    const body = Buffer.from(
+      JSON.stringify({
+        request: { generationConfig: { thinkingConfig: { thinkingLevel: "unknown" } } },
+      }),
+    );
 
-    expect(mitmConfig.extractModel(
-      "/v1internal/models/gemini-3.6-flash-tiered:streamGenerateContent",
-      body
-    )).toBe("gemini-3.6-flash-medium");
+    expect(
+      mitmConfig.extractModel(
+        "/v1internal/models/gemini-3.6-flash-tiered:streamGenerateContent",
+        body,
+      ),
+    ).toBe("gemini-3.6-flash-medium");
   });
 });
 

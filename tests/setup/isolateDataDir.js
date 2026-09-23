@@ -21,7 +21,9 @@ if (!usesRealData) isolateDataDir();
 function isolateDataDir() {
   const parent = process.env.NINEROUTER_TEST_TMP_PARENT;
   if (!parent) {
-    throw new Error("NINEROUTER_TEST_TMP_PARENT is unset: tests/setup/tempRoot.js must be the vitest globalSetup");
+    throw new Error(
+      "NINEROUTER_TEST_TMP_PARENT is unset: tests/setup/tempRoot.js must be the vitest globalSetup",
+    );
   }
 
   // Removed with the parent by tempRoot.js teardown.
@@ -42,6 +44,8 @@ function isolateDataDir() {
   // os.homedir() ignores process.env inside worker threads (--pool=threads),
   // so home-based paths would still hit the real home. Refuse to run then.
   if (homedir() !== home) {
-    throw new Error(`HOME override not honored (os.homedir() = ${homedir()}); run tests with the forks pool`);
+    throw new Error(
+      `HOME override not honored (os.homedir() = ${homedir()}); run tests with the forks pool`,
+    );
   }
 }

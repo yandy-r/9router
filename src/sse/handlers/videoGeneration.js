@@ -7,7 +7,11 @@ import {
 } from "../services/auth.js";
 import { getSettings, getProviderConnectionById } from "@/lib/localDb";
 import { getModelInfo } from "../services/model.js";
-import { handleVideoProxyCore, getVideoConfig, sanitizeSecrets } from "open-sse/handlers/videoCore.js";
+import {
+  handleVideoProxyCore,
+  getVideoConfig,
+  sanitizeSecrets,
+} from "open-sse/handlers/videoCore.js";
 import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
@@ -81,7 +85,12 @@ async function resolveVideoProvider(parsedBody) {
   const modelStr = String(parsedBody.model);
   const modelInfo = await getModelInfo(modelStr);
   if (!modelInfo.provider) {
-    return { error: errorResponse(HTTP_STATUS.BAD_REQUEST, "Combos are not supported for video generation") };
+    return {
+      error: errorResponse(
+        HTTP_STATUS.BAD_REQUEST,
+        "Combos are not supported for video generation",
+      ),
+    };
   }
   if (!getVideoConfig(modelInfo.provider)) {
     // Bare model ids (no explicit "provider/" prefix) fall back to the default
@@ -89,7 +98,12 @@ async function resolveVideoProvider(parsedBody) {
     if (!modelStr.includes("/")) {
       return { provider: DEFAULT_VIDEO_PROVIDER, model: modelStr };
     }
-    return { error: errorResponse(HTTP_STATUS.BAD_REQUEST, `Provider '${modelInfo.provider}' does not support video generation`) };
+    return {
+      error: errorResponse(
+        HTTP_STATUS.BAD_REQUEST,
+        `Provider '${modelInfo.provider}' does not support video generation`,
+      ),
+    };
   }
   return { provider: modelInfo.provider, model: modelInfo.model };
 }
@@ -132,18 +146,29 @@ export async function handleVideoCreate(request, action) {
   let lastStatus = null;
 
   while (true) {
-    const credentials = await getProviderCredentials(provider, excludeConnectionIds, model, { preferredConnectionId });
+    const credentials = await getProviderCredentials(provider, excludeConnectionIds, model, {
+      preferredConnectionId,
+    });
 
     if (!credentials || credentials.allRateLimited) {
       if (credentials?.allRateLimited) {
         const errorMsg = lastError || credentials.lastError || "Unavailable";
-        const status = lastStatus || Number(credentials.lastErrorCode) || HTTP_STATUS.SERVICE_UNAVAILABLE;
-        return unavailableResponse(status, `[${provider}/${model || "video"}] ${errorMsg}`, credentials.retryAfter, credentials.retryAfterHuman);
+        const status =
+          lastStatus || Number(credentials.lastErrorCode) || HTTP_STATUS.SERVICE_UNAVAILABLE;
+        return unavailableResponse(
+          status,
+          `[${provider}/${model || "video"}] ${errorMsg}`,
+          credentials.retryAfter,
+          credentials.retryAfterHuman,
+        );
       }
       if (excludeConnectionIds.size === 0) {
         return errorResponse(HTTP_STATUS.BAD_REQUEST, `No credentials for provider: ${provider}`);
       }
-      return errorResponse(lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE, lastError || "All accounts unavailable");
+      return errorResponse(
+        lastStatus || HTTP_STATUS.SERVICE_UNAVAILABLE,
+        lastError || "All accounts unavailable",
+      );
     }
 
     const refreshedCredentials = await checkAndRefreshToken(provider, credentials);
@@ -169,13 +194,20 @@ export async function handleVideoCreate(request, action) {
 
     if (result.success) {
       await clearAccountError(credentials.connectionId, credentials, model);
-      log.info("VIDEO", `${provider.toUpperCase()} | ${action} accepted (connection ${credentials.connectionId})`);
+      log.info(
+        "VIDEO",
+        `${provider.toUpperCase()} | ${action} accepted (connection ${credentials.connectionId})`,
+      );
       return withConnectionHeader(result.response, credentials.connectionId);
     }
 
     // Record the failure (dashboard shows lastError/errorCode → user sees re-auth is needed)
     const { shouldFallback } = await markAccountUnavailable(
-      credentials.connectionId, result.status, sanitizeSecrets(result.error, refreshedCredentials), provider, model
+      credentials.connectionId,
+      result.status,
+      sanitizeSecrets(result.error, refreshedCredentials),
+      provider,
+      model,
     );
 
     if (shouldFallback && CREATE_ROTATION_STATUSES.has(result.status)) {
@@ -232,7 +264,11 @@ export async function handleVideoGet(request, requestId) {
   }
 
   await markAccountUnavailable(
-    credentials.connectionId, result.status, sanitizeSecrets(result.error, refreshedCredentials), provider, null
+    credentials.connectionId,
+    result.status,
+    sanitizeSecrets(result.error, refreshedCredentials),
+    provider,
+    null,
   );
   return result.response;
 }

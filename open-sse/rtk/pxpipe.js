@@ -29,7 +29,10 @@ function skipped(reason, extra = {}) {
 // { body: <new body object> | null, summary } — body is null when nothing changed.
 // opts.transform is injected by the host (src side) so open-sse stays free of
 // filesystem/install concerns and remains usable standalone.
-export async function compressWithPxpipe(body, { enabled, format, model, minChars, timeoutMs, transform } = {}) {
+export async function compressWithPxpipe(
+  body,
+  { enabled, format, model, minChars, timeoutMs, transform } = {},
+) {
   if (!enabled) return skipped("disabled");
   if (typeof transform !== "function") return skipped("not_installed");
   if (!body) return skipped("missing_body");
@@ -72,8 +75,9 @@ export async function compressWithPxpipe(body, { enabled, format, model, minChar
     // images bill by pixels (Anthropic: pixels/750), not by encoded length. So the
     // after-estimate is remaining-text tokens + image tokens — never chars/4 of the
     // new body. Provider-billed usage recorded per request stays the ground truth.
-    const imageTokensEst = info.imageTokens
-      || (info.imagePixels ? Math.round(info.imagePixels / 750) : (info.imageCount || 0) * 4761);
+    const imageTokensEst =
+      info.imageTokens ||
+      (info.imagePixels ? Math.round(info.imagePixels / 750) : (info.imageCount || 0) * 4761);
     const summary = {
       applied: true,
       reason: "applied",
@@ -88,12 +92,17 @@ export async function compressWithPxpipe(body, { enabled, format, model, minChar
       cacheOwnsControl: result.cache?.ownsCacheControl === true,
     };
     summary.tokensSavedEst = Math.max(0, summary.tokensBeforeEst - summary.tokensAfterEst);
-    summary.savedPct = summary.tokensBeforeEst > 0
-      ? +((summary.tokensSavedEst / summary.tokensBeforeEst) * 100).toFixed(2)
-      : 0;
+    summary.savedPct =
+      summary.tokensBeforeEst > 0
+        ? +((summary.tokensSavedEst / summary.tokensBeforeEst) * 100).toFixed(2)
+        : 0;
     return { body: newBody, summary };
   } catch (e) {
-    return skipped("transform_error", { detail: e?.message || String(e), originalChars, durationMs: Date.now() - startedAt });
+    return skipped("transform_error", {
+      detail: e?.message || String(e),
+      originalChars,
+      durationMs: Date.now() - startedAt,
+    });
   }
 }
 

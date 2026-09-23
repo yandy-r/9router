@@ -22,7 +22,7 @@ export function openaiToOllamaRequest(model, body, stream) {
   const result = {
     model: model,
     messages: normalizeMessages(body.messages),
-    stream: stream
+    stream: stream,
   };
 
   // Temperature
@@ -92,7 +92,7 @@ function normalizeMessages(messages) {
       result.push({
         role: ROLE.TOOL,
         tool_name: toolName,
-        content: toolResult
+        content: toolResult,
       });
       continue;
     }
@@ -100,23 +100,24 @@ function normalizeMessages(messages) {
     // Handle assistant messages with tool_calls
     if (msg.role === ROLE.ASSISTANT && msg.tool_calls) {
       const content = normalizeContent(msg.content) || "";
-      
+
       // Convert OpenAI tool_calls format to Ollama format
-      const ollamaToolCalls = msg.tool_calls.map(tc => ({
+      const ollamaToolCalls = msg.tool_calls.map((tc) => ({
         type: OPENAI_BLOCK.FUNCTION,
         function: {
           index: tc.index || 0,
           name: tc.function?.name || "",
-          arguments: typeof tc.function?.arguments === "string" 
-            ? safeParseJSON(tc.function.arguments || "{}", {})
-            : tc.function?.arguments || {}
-        }
+          arguments:
+            typeof tc.function?.arguments === "string"
+              ? safeParseJSON(tc.function.arguments || "{}", {})
+              : tc.function?.arguments || {},
+        },
       }));
 
       result.push({
         role: ROLE.ASSISTANT,
         content: content,
-        tool_calls: ollamaToolCalls
+        tool_calls: ollamaToolCalls,
       });
       continue;
     }
@@ -131,7 +132,7 @@ function normalizeMessages(messages) {
 
     const out = {
       role: role,
-      content: content
+      content: content,
     };
 
     if (images.length > 0) {
@@ -156,8 +157,8 @@ function normalizeContent(content) {
   if (Array.isArray(content)) {
     // Extract text from content array
     const textParts = content
-      .filter(block => block && block.type === OPENAI_BLOCK.TEXT && block.text)
-      .map(block => block.text);
+      .filter((block) => block && block.type === OPENAI_BLOCK.TEXT && block.text)
+      .map((block) => block.text);
 
     return textParts.join("\n") || "";
   }

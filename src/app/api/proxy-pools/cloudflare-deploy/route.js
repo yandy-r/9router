@@ -55,20 +55,36 @@ export async function POST(request) {
     const projectName = body.projectName?.trim() || `relay-${Date.now().toString(36)}`;
 
     if (!accountId || !apiToken) {
-      return NextResponse.json({ error: "Cloudflare Account ID and API Token are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Cloudflare Account ID and API Token are required" },
+        { status: 400 },
+      );
     }
 
     // 1. Upload Worker Script
     const workerScriptUrl = `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/scripts/${projectName}`;
-    
+
     // Cloudflare requires multipart/form-data for worker script upload
     const formData = new FormData();
-    formData.append("index.js", new Blob([RELAY_WORKER_CODE], { type: "application/javascript+module" }), "index.js");
-    formData.append("metadata", new Blob([JSON.stringify({
-      main_module: "index.js",
-      compatibility_date: "2024-03-20",
-      observability: { enabled: true }
-    })], { type: "application/json" }), "metadata.json");
+    formData.append(
+      "index.js",
+      new Blob([RELAY_WORKER_CODE], { type: "application/javascript+module" }),
+      "index.js",
+    );
+    formData.append(
+      "metadata",
+      new Blob(
+        [
+          JSON.stringify({
+            main_module: "index.js",
+            compatibility_date: "2024-03-20",
+            observability: { enabled: true },
+          }),
+        ],
+        { type: "application/json" },
+      ),
+      "metadata.json",
+    );
 
     const uploadRes = await fetch(workerScriptUrl, {
       method: "PUT",
@@ -83,7 +99,7 @@ export async function POST(request) {
       console.error("Cloudflare upload error:", err);
       return NextResponse.json(
         { error: err.errors?.[0]?.message || "Failed to upload Worker to Cloudflare" },
-        { status: uploadRes.status }
+        { status: uploadRes.status },
       );
     }
 
@@ -105,13 +121,16 @@ export async function POST(request) {
 
     // 3. Get the workers.dev subdomain for the account to construct the final URL
     let deployUrl = "";
-    const subdomainRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/subdomain`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        "Content-Type": "application/json",
+    const subdomainRes = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/workers/subdomain`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (subdomainRes.ok) {
       const subdomainData = await subdomainRes.json();
@@ -121,9 +140,12 @@ export async function POST(request) {
     }
 
     if (!deployUrl) {
-       return NextResponse.json(
-        { error: "Worker deployed but failed to retrieve workers.dev subdomain. Make sure you have setup a workers.dev subdomain in Cloudflare Dashboard." },
-        { status: 400 }
+      return NextResponse.json(
+        {
+          error:
+            "Worker deployed but failed to retrieve workers.dev subdomain. Make sure you have setup a workers.dev subdomain in Cloudflare Dashboard.",
+        },
+        { status: 400 },
       );
     }
 

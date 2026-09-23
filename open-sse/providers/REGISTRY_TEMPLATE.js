@@ -15,22 +15,22 @@
 
 export default {
   // ── identity ────────────────────────────────────────────────────────────
-  id: "example",                 // REQUIRED. kebab-case, unique.
-  alias: "ex",                   // short key for PROVIDER_MODELS (defaults to id if omitted).
-  aliases: ["example-ai"],       // optional extra lookup tokens.
-  uiAlias: "ex",                 // optional UI badge token.
-  category: "apikey",            // REQUIRED. "apikey" | "oauth" | "freeTier" | ...
+  id: "example", // REQUIRED. kebab-case, unique.
+  alias: "ex", // short key for PROVIDER_MODELS (defaults to id if omitted).
+  aliases: ["example-ai"], // optional extra lookup tokens.
+  uiAlias: "ex", // optional UI badge token.
+  category: "apikey", // REQUIRED. "apikey" | "oauth" | "freeTier" | ...
 
   // ── auth hints (only when relevant) ──────────────────────────────────────
-  authType: "apikey",            // "apikey" | "oauth".
-  hasOAuth: false,               // true if an OAuth flow exists.
-  authModes: ["apikey"],         // e.g. ["oauth","apikey"] when both supported.
+  authType: "apikey", // "apikey" | "oauth".
+  hasOAuth: false, // true if an OAuth flow exists.
+  authModes: ["apikey"], // e.g. ["oauth","apikey"] when both supported.
   // noAuth: true,               // local/free providers needing no credential.
 
   // ── UI display ───────────────────────────────────────────────────────────
   display: {
     name: "Example",
-    icon: "bolt",                // material icon name OR textIcon fallback.
+    icon: "bolt", // material icon name OR textIcon fallback.
     color: "#3B82F6",
     textIcon: "EX",
     website: "https://example.com",
@@ -44,7 +44,7 @@ export default {
   // Defaults applied: format:"openai". Declare ONLY what differs.
   transport: {
     baseUrl: "https://api.example.com/v1/chat/completions",
-    format: "openai",            // "openai" | "claude" | "gemini" | "openai-responses" | ...
+    format: "openai", // "openai" | "claude" | "gemini" | "openai-responses" | ...
     // validateUrl: "https://api.example.com/v1/models",
     // headers: { "User-Agent": "..." },           // static fingerprint (anti-ban) lives here.
     // auth: { header: "x-api-key", scheme: "raw" },

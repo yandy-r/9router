@@ -32,7 +32,7 @@ export async function PUT(request) {
     if (!status.dnsStatus || !status.dnsStatus[tool]) {
       return NextResponse.json(
         { error: `DNS must be enabled for ${tool} before editing model mappings` },
-        { status: 403 }
+        { status: 403 },
       );
     }
 

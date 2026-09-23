@@ -6,7 +6,11 @@
 import { describe, expect, it } from "vitest";
 import "../translator/registerAll.js";
 import { openaiResponsesToOpenAIResponse } from "../../open-sse/translator/response/openai-responses.js";
-import { clampResponsesCallId, coerceResponsesOutput, MAX_RESPONSES_CALL_ID_LEN } from "../../open-sse/translator/formats/responsesApi.js";
+import {
+  clampResponsesCallId,
+  coerceResponsesOutput,
+  MAX_RESPONSES_CALL_ID_LEN,
+} from "../../open-sse/translator/formats/responsesApi.js";
 import { initState, translateResponse } from "../../open-sse/translator/index.js";
 import { FORMATS } from "../../open-sse/translator/formats.js";
 
@@ -61,8 +65,12 @@ function hostileOrdering() {
   const events = PAYLOADS.map((_, i) => added(`fc_${i}`, `call_${i}`, "read_file"));
   // Interleaved deltas AFTER all addeds — the ordering that used to merge all
   // four payloads into index 0.
-  PAYLOADS.forEach((p, i) => events.push(delta(`fc_${i}`, p.slice(0, 20)), delta(`fc_${i}`, p.slice(20))));
-  PAYLOADS.forEach((_, i) => events.push(done(`fc_${i}`, `call_${i}`, "read_file")));
+  PAYLOADS.forEach((p, i) => {
+    events.push(delta(`fc_${i}`, p.slice(0, 20)), delta(`fc_${i}`, p.slice(20)));
+  });
+  PAYLOADS.forEach((_, i) => {
+    events.push(done(`fc_${i}`, `call_${i}`, "read_file"));
+  });
   return events;
 }
 
@@ -97,10 +105,19 @@ describe("responses parallel tool calls keep their own index", () => {
   it("done carrying full arguments (no deltas) emits them once", () => {
     const state = {};
     const out1 = openaiResponsesToOpenAIResponse(added("fc_9", "call_9", "read_file"), state);
-    const out2 = openaiResponsesToOpenAIResponse({
-      type: "response.output_item.done",
-      item: { id: "fc_9", type: "function_call", call_id: "call_9", name: "read_file", arguments: PAYLOADS[0] },
-    }, state);
+    const out2 = openaiResponsesToOpenAIResponse(
+      {
+        type: "response.output_item.done",
+        item: {
+          id: "fc_9",
+          type: "function_call",
+          call_id: "call_9",
+          name: "read_file",
+          arguments: PAYLOADS[0],
+        },
+      },
+      state,
+    );
     const calls = accumulate({}, [out1, out2]);
     expect(JSON.parse(calls[0].args)).toEqual(JSON.parse(PAYLOADS[0]));
   });
@@ -122,11 +139,15 @@ describe("responses → claude end-to-end keeps parallel tool_use blocks separat
     const state = initState(FORMATS.CLAUDE);
     const out = [];
     for (const ev of hostileOrdering()) {
-      for (const r of translateResponse(FORMATS.OPENAI_RESPONSES, FORMATS.CLAUDE, ev, state)) out.push(r);
+      for (const r of translateResponse(FORMATS.OPENAI_RESPONSES, FORMATS.CLAUDE, ev, state))
+        out.push(r);
     }
-    for (const r of translateResponse(FORMATS.OPENAI_RESPONSES, FORMATS.CLAUDE, null, state)) out.push(r);
+    for (const r of translateResponse(FORMATS.OPENAI_RESPONSES, FORMATS.CLAUDE, null, state))
+      out.push(r);
 
-    const starts = out.filter((r) => r?.type === "content_block_start" && r?.content_block?.type === "tool_use");
+    const starts = out.filter(
+      (r) => r?.type === "content_block_start" && r?.content_block?.type === "tool_use",
+    );
     expect(starts).toHaveLength(4);
     const partials = out.filter((r) => r?.delta?.type === "input_json_delta");
     expect(partials).toHaveLength(4);

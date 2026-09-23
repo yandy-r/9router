@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchMock = vi.fn();
 vi.mock("../../open-sse/utils/proxyFetch.js", () => ({
-  proxyAwareFetch: (...args) => fetchMock(...args)
+  proxyAwareFetch: (...args) => fetchMock(...args),
 }));
 
 const { KiroExecutor } = await import("../../open-sse/executors/kiro.js");
@@ -10,7 +10,7 @@ const { KiroExecutor } = await import("../../open-sse/executors/kiro.js");
 const encoder = new TextEncoder();
 const credentials = {
   accessToken: "test-token",
-  providerSpecificData: { kiroToolCallRepair: true }
+  providerSpecificData: { kiroToolCallRepair: true },
 };
 
 function crc32(bytes) {
@@ -18,7 +18,7 @@ function crc32(bytes) {
   for (const byte of bytes) {
     crc ^= byte;
     for (let bit = 0; bit < 8; bit++) {
-      crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
     }
   }
   return (crc ^ 0xffffffff) >>> 0;
@@ -74,22 +74,28 @@ function checksum(bytes) {
 }
 
 function response(frames, status = 200) {
-  return new Response(new ReadableStream({
-    start(controller) {
-      for (const value of frames) controller.enqueue(value);
-      controller.close();
-    }
-  }), { status, statusText: status === 200 ? "OK" : "Upstream Error" });
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        for (const value of frames) controller.enqueue(value);
+        controller.close();
+      },
+    }),
+    { status, statusText: status === 200 ? "OK" : "Upstream Error" },
+  );
 }
 
 function controlledResponse(frames = []) {
   let controller;
-  const value = new Response(new ReadableStream({
-    start(streamController) {
-      controller = streamController;
-      for (const item of frames) controller.enqueue(item);
-    }
-  }), { status: 200 });
+  const value = new Response(
+    new ReadableStream({
+      start(streamController) {
+        controller = streamController;
+        for (const item of frames) controller.enqueue(item);
+      },
+    }),
+    { status: 200 },
+  );
   return {
     value,
     enqueue(item) {
@@ -97,7 +103,7 @@ function controlledResponse(frames = []) {
     },
     close() {
       controller.close();
-    }
+    },
   };
 }
 
@@ -115,10 +121,14 @@ async function text(stream) {
 async function execute(executor = new KiroExecutor(), overrides = {}) {
   return executor.execute({
     model: "kr/claude-opus-4.8",
-    body: { conversationState: { currentMessage: { userInputMessage: { content: "base", modelId: "m" } } } },
+    body: {
+      conversationState: {
+        currentMessage: { userInputMessage: { content: "base", modelId: "m" } },
+      },
+    },
     stream: true,
     credentials,
-    ...overrides
+    ...overrides,
   });
 }
 
@@ -138,7 +148,7 @@ afterEach(() => {
 describe("Kiro terminal integrity recovery", () => {
   it("keeps semantic output private behind a heartbeat until clean EOF", async () => {
     const upstream = controlledResponse([
-      frame("assistantResponseEvent", { content: "private until validated" })
+      frame("assistantResponseEvent", { content: "private until validated" }),
     ]);
     fetchMock.mockResolvedValueOnce(upstream.value);
 
@@ -160,11 +170,13 @@ describe("Kiro terminal integrity recovery", () => {
   });
 
   it("accepts CLI-compatible text and usage frames at clean EOF without messageStop", async () => {
-    fetchMock.mockResolvedValueOnce(response([
-      frame("assistantResponseEvent", { content: "Complete answer." }),
-      frame("meteringEvent", { usage: 2, unit: "credit" }),
-      frame("contextUsageEvent", { contextUsagePercentage: 10 })
-    ]));
+    fetchMock.mockResolvedValueOnce(
+      response([
+        frame("assistantResponseEvent", { content: "Complete answer." }),
+        frame("meteringEvent", { usage: 2, unit: "credit" }),
+        frame("contextUsageEvent", { contextUsagePercentage: 10 }),
+      ]),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -178,14 +190,18 @@ describe("Kiro terminal integrity recovery", () => {
     const first = frame("assistantResponseEvent", { content: "split " });
     const second = frame("assistantResponseEvent", { content: "boundaries" });
     const combined = concat([first, second]);
-    fetchMock.mockResolvedValueOnce(new Response(new ReadableStream({
-      start(controller) {
-        controller.enqueue(combined.slice(0, 9));
-        controller.enqueue(combined.slice(9, first.byteLength + 5));
-        controller.enqueue(combined.slice(first.byteLength + 5));
-        controller.close();
-      }
-    })));
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(combined.slice(0, 9));
+            controller.enqueue(combined.slice(9, first.byteLength + 5));
+            controller.enqueue(combined.slice(first.byteLength + 5));
+            controller.close();
+          },
+        }),
+      ),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -207,7 +223,9 @@ describe("Kiro terminal integrity recovery", () => {
   it.each(["...", "…"])("repairs exact ellipsis final %s without leaking it", async (ellipsis) => {
     fetchMock
       .mockResolvedValueOnce(response([frame("assistantResponseEvent", { content: ellipsis })]))
-      .mockResolvedValueOnce(response([frame("assistantResponseEvent", { content: "Recovered answer." })]));
+      .mockResolvedValueOnce(
+        response([frame("assistantResponseEvent", { content: "Recovered answer." })]),
+      );
 
     const body = await (await execute()).response.text();
 
@@ -221,11 +239,13 @@ describe("Kiro terminal integrity recovery", () => {
     "我會重新抓取最新日誌並確認結果。",
     "目前證據顯示只在 **03:48:30–03:49:00 TPE** 出現少量 NonKA 504；主池 106/106、副池 50/50，且兩池都沒有重啟。最後補查 504 access log，確認 host／路徑與是否為集中流量。",
     "Next I'll verify the deployment logs.",
-    "Let me check the remaining failures."
+    "Let me check the remaining failures.",
   ])("repairs conservative future-action final: %s", async (progress) => {
     fetchMock
       .mockResolvedValueOnce(response([frame("assistantResponseEvent", { content: progress })]))
-      .mockResolvedValueOnce(response([frame("assistantResponseEvent", { content: "Verification completed." })]));
+      .mockResolvedValueOnce(
+        response([frame("assistantResponseEvent", { content: "Verification completed." })]),
+      );
 
     const body = await (await execute()).response.text();
 
@@ -249,11 +269,11 @@ describe("Kiro terminal integrity recovery", () => {
     "目前證據顯示只有少量 504。最後補查 504 access log，確認 host／路徑與有無集中流量：無集中流量。",
     "目前證據顯示只有少量 504。最後補查 504 access log，確認 host／路徑與是否為集中流量（答案是否定的）。",
     "目前證據顯示只有少量 504。最後補充兩點已確認的結果。",
-    "The verification is complete and all tests passed."
+    "The verification is complete and all tests passed.",
   ])("does not retry legitimate final: %s", async (finalText) => {
-    fetchMock.mockResolvedValueOnce(response([
-      frame("assistantResponseEvent", { content: finalText })
-    ]));
+    fetchMock.mockResolvedValueOnce(
+      response([frame("assistantResponseEvent", { content: finalText })]),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -275,16 +295,24 @@ describe("Kiro terminal integrity recovery", () => {
 
   it("repairs malformed wrapper tools without leaking the invalid call", async () => {
     fetchMock
-      .mockResolvedValueOnce(response([frame("toolUseEvent", {
-        toolUseId: "bad",
-        name: "tool_call",
-        input: { arguments: { q: "router" } }
-      })]))
-      .mockResolvedValueOnce(response([frame("toolUseEvent", {
-        toolUseId: "good",
-        name: "tool_call",
-        input: { name: "mcp_search", arguments: { q: "router" } }
-      })]));
+      .mockResolvedValueOnce(
+        response([
+          frame("toolUseEvent", {
+            toolUseId: "bad",
+            name: "tool_call",
+            input: { arguments: { q: "router" } },
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(
+        response([
+          frame("toolUseEvent", {
+            toolUseId: "good",
+            name: "tool_call",
+            input: { name: "mcp_search", arguments: { q: "router" } },
+          }),
+        ]),
+      );
 
     const body = await (await execute()).response.text();
 
@@ -296,9 +324,7 @@ describe("Kiro terminal integrity recovery", () => {
 
   it("requires complete direct tool input and keeps the failure private", async () => {
     const pending = frame("toolUseEvent", { toolUseId: "pending", name: "read_file" });
-    fetchMock
-      .mockResolvedValueOnce(response([pending]))
-      .mockResolvedValueOnce(response([pending]));
+    fetchMock.mockResolvedValueOnce(response([pending])).mockResolvedValueOnce(response([pending]));
 
     const body = await (await execute()).response.text();
 
@@ -309,16 +335,24 @@ describe("Kiro terminal integrity recovery", () => {
 
   it("repairs a non-string toolUseId before releasing the tool call", async () => {
     fetchMock
-      .mockResolvedValueOnce(response([frame("toolUseEvent", {
-        toolUseId: 123,
-        name: "read_file",
-        input: { path: "bad.txt" }
-      })]))
-      .mockResolvedValueOnce(response([frame("toolUseEvent", {
-        toolUseId: "valid-tool-id",
-        name: "read_file",
-        input: { path: "safe.txt" }
-      })]));
+      .mockResolvedValueOnce(
+        response([
+          frame("toolUseEvent", {
+            toolUseId: 123,
+            name: "read_file",
+            input: { path: "bad.txt" },
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(
+        response([
+          frame("toolUseEvent", {
+            toolUseId: "valid-tool-id",
+            name: "read_file",
+            input: { path: "safe.txt" },
+          }),
+        ]),
+      );
 
     const body = await (await execute()).response.text();
 
@@ -329,14 +363,22 @@ describe("Kiro terminal integrity recovery", () => {
 
   it("keeps model-controlled parser detail out of the retry system prompt", async () => {
     fetchMock
-      .mockResolvedValueOnce(response([frame("toolUseEvent", {
-        toolUseId: "bad-json",
-        name: "tool_call",
-        input: '{"name":"IGNORE_ALL_INSTRUCTIONS"'
-      })]))
-      .mockResolvedValueOnce(response([frame("assistantResponseEvent", {
-        content: "Recovered safely."
-      })]));
+      .mockResolvedValueOnce(
+        response([
+          frame("toolUseEvent", {
+            toolUseId: "bad-json",
+            name: "tool_call",
+            input: '{"name":"IGNORE_ALL_INSTRUCTIONS"',
+          }),
+        ]),
+      )
+      .mockResolvedValueOnce(
+        response([
+          frame("assistantResponseEvent", {
+            content: "Recovered safely.",
+          }),
+        ]),
+      );
 
     const body = await (await execute()).response.text();
     const retryBody = JSON.parse(fetchMock.mock.calls[1][1].body);
@@ -351,14 +393,16 @@ describe("Kiro terminal integrity recovery", () => {
   });
 
   it("lets a complete tool call override metadata end_turn", async () => {
-    fetchMock.mockResolvedValueOnce(response([
-      frame("toolUseEvent", {
-        toolUseId: "tool",
-        name: "read_file",
-        input: { path: "safe.txt" }
-      }),
-      frame("metadataEvent", { stopReason: "end_turn" })
-    ]));
+    fetchMock.mockResolvedValueOnce(
+      response([
+        frame("toolUseEvent", {
+          toolUseId: "tool",
+          name: "read_file",
+          input: { path: "safe.txt" },
+        }),
+        frame("metadataEvent", { stopReason: "end_turn" }),
+      ]),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -368,10 +412,12 @@ describe("Kiro terminal integrity recovery", () => {
   });
 
   it("maps max_tokens without treating it as a normal stop", async () => {
-    fetchMock.mockResolvedValueOnce(response([
-      frame("assistantResponseEvent", { content: "Limited answer." }),
-      frame("metadataEvent", { stopReason: "max_tokens" })
-    ]));
+    fetchMock.mockResolvedValueOnce(
+      response([
+        frame("assistantResponseEvent", { content: "Limited answer." }),
+        frame("metadataEvent", { stopReason: "max_tokens" }),
+      ]),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -382,13 +428,15 @@ describe("Kiro terminal integrity recovery", () => {
 
   it("retries malformed_model_output once without semantic leakage", async () => {
     fetchMock
-      .mockResolvedValueOnce(response([
-        frame("assistantResponseEvent", { content: "private malformed output" }),
-        frame("metadataEvent", { stopReason: "malformed_model_output" })
-      ]))
-      .mockResolvedValueOnce(response([
-        frame("assistantResponseEvent", { content: "Recovered protocol output." })
-      ]));
+      .mockResolvedValueOnce(
+        response([
+          frame("assistantResponseEvent", { content: "private malformed output" }),
+          frame("metadataEvent", { stopReason: "malformed_model_output" }),
+        ]),
+      )
+      .mockResolvedValueOnce(
+        response([frame("assistantResponseEvent", { content: "Recovered protocol output." })]),
+      );
 
     const body = await (await execute()).response.text();
 
@@ -401,12 +449,14 @@ describe("Kiro terminal integrity recovery", () => {
     ["cancelled", "kiro_terminal_incomplete"],
     ["pause_turn", "kiro_terminal_incomplete"],
     ["content_filtered", "kiro_terminal_refusal"],
-    ["novel_reason", "kiro_unknown_stop_reason"]
+    ["novel_reason", "kiro_unknown_stop_reason"],
   ])("fails closed for stop reason %s", async (stopReason, code) => {
-    fetchMock.mockResolvedValueOnce(response([
-      frame("assistantResponseEvent", { content: `private-${stopReason}` }),
-      frame("metadataEvent", { stopReason })
-    ]));
+    fetchMock.mockResolvedValueOnce(
+      response([
+        frame("assistantResponseEvent", { content: `private-${stopReason}` }),
+        frame("metadataEvent", { stopReason }),
+      ]),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -419,17 +469,19 @@ describe("Kiro terminal integrity recovery", () => {
   it.each([
     [
       frame("messageStopEvent", { stopReason: "content_filtered" }),
-      frame("metadataEvent", { stopReason: "end_turn" })
+      frame("metadataEvent", { stopReason: "end_turn" }),
     ],
     [
       frame("metadataEvent", { stopReason: "end_turn" }),
-      frame("messageStopEvent", { stopReason: "content_filtered" })
-    ]
+      frame("messageStopEvent", { stopReason: "content_filtered" }),
+    ],
   ])("preserves the most restrictive conflicting stop reason", async (...stopFrames) => {
-    fetchMock.mockResolvedValueOnce(response([
-      frame("assistantResponseEvent", { content: "private filtered output" }),
-      ...stopFrames
-    ]));
+    fetchMock.mockResolvedValueOnce(
+      response([
+        frame("assistantResponseEvent", { content: "private filtered output" }),
+        ...stopFrames,
+      ]),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -439,11 +491,13 @@ describe("Kiro terminal integrity recovery", () => {
   });
 
   it("prefers a non-retryable terminal reason over an earlier retryable reason", async () => {
-    fetchMock.mockResolvedValueOnce(response([
-      frame("assistantResponseEvent", { content: "private malformed output" }),
-      frame("metadataEvent", { stopReason: "malformed_model_output" }),
-      frame("messageStopEvent", { stopReason: "cancelled" })
-    ]));
+    fetchMock.mockResolvedValueOnce(
+      response([
+        frame("assistantResponseEvent", { content: "private malformed output" }),
+        frame("metadataEvent", { stopReason: "malformed_model_output" }),
+        frame("messageStopEvent", { stopReason: "cancelled" }),
+      ]),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -456,10 +510,12 @@ describe("Kiro terminal integrity recovery", () => {
   it("preserves an authoritative refusal returned by the bounded retry", async () => {
     fetchMock
       .mockResolvedValueOnce(response([]))
-      .mockResolvedValueOnce(response([
-        frame("assistantResponseEvent", { content: "private filtered retry" }),
-        frame("metadataEvent", { stopReason: "content_filtered" })
-      ]));
+      .mockResolvedValueOnce(
+        response([
+          frame("assistantResponseEvent", { content: "private filtered retry" }),
+          frame("metadataEvent", { stopReason: "content_filtered" }),
+        ]),
+      );
 
     const body = await (await execute()).response.text();
 
@@ -473,16 +529,18 @@ describe("Kiro terminal integrity recovery", () => {
     ["max_tokens", "kiro_terminal_incomplete"],
     ["cancelled", "kiro_terminal_incomplete"],
     ["content_filtered", "kiro_terminal_refusal"],
-    ["novel_reason", "kiro_unknown_stop_reason"]
+    ["novel_reason", "kiro_unknown_stop_reason"],
   ])("does not let a valid tool override failure stop reason %s", async (stopReason, code) => {
-    fetchMock.mockResolvedValueOnce(response([
-      frame("toolUseEvent", {
-        toolUseId: "blocked-tool",
-        name: "read_file",
-        input: { path: "secret.txt" }
-      }),
-      frame("metadataEvent", { stopReason })
-    ]));
+    fetchMock.mockResolvedValueOnce(
+      response([
+        frame("toolUseEvent", {
+          toolUseId: "blocked-tool",
+          name: "read_file",
+          input: { path: "secret.txt" },
+        }),
+        frame("metadataEvent", { stopReason }),
+      ]),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -494,57 +552,77 @@ describe("Kiro terminal integrity recovery", () => {
   it.each(["content_filtered", "cancelled", "max_tokens"])(
     "classifies failure %s before validating a malformed deferred tool",
     async (stopReason) => {
-      fetchMock.mockResolvedValueOnce(response([
-        frame("toolUseEvent", { toolUseId: "bad-tool", name: "read_file" }),
-        frame("metadataEvent", { stopReason })
-      ]));
+      fetchMock.mockResolvedValueOnce(
+        response([
+          frame("toolUseEvent", { toolUseId: "bad-tool", name: "read_file" }),
+          frame("metadataEvent", { stopReason }),
+        ]),
+      );
 
       const body = await (await execute()).response.text();
 
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(body).toContain(stopReason === "content_filtered"
-        ? "kiro_terminal_refusal"
-        : "kiro_terminal_incomplete");
+      expect(body).toContain(
+        stopReason === "content_filtered" ? "kiro_terminal_refusal" : "kiro_terminal_incomplete",
+      );
       expect(body).not.toContain("kiro_tool_call_repair_retry_failed");
       expect(body).not.toContain('"name":"read_file"');
-    }
+    },
   );
 
   it.each([
-    ["content_filtered", [frame("toolUseEvent", {
-      toolUseId: 123,
-      name: "read_file",
-      input: { path: "bad.txt" }
-    })], "kiro_terminal_refusal"],
-    ["cancelled", [frame("toolUseEvent", {
-      toolUseId: "missing-name",
-      input: { path: "bad.txt" }
-    })], "kiro_terminal_incomplete"],
-    ["max_tokens", [
-      frame("toolUseEvent", { toolUseId: "changing", name: "read_file" }),
-      frame("toolUseEvent", { toolUseId: "changing", name: "write_file" })
-    ], "kiro_terminal_incomplete"]
-  ])("continues past eager tool-shape errors to authoritative stop %s", async (stopReason, toolFrames, code) => {
-    fetchMock.mockResolvedValueOnce(response([
-      ...toolFrames,
-      frame("metadataEvent", { stopReason })
-    ]));
+    [
+      "content_filtered",
+      [
+        frame("toolUseEvent", {
+          toolUseId: 123,
+          name: "read_file",
+          input: { path: "bad.txt" },
+        }),
+      ],
+      "kiro_terminal_refusal",
+    ],
+    [
+      "cancelled",
+      [
+        frame("toolUseEvent", {
+          toolUseId: "missing-name",
+          input: { path: "bad.txt" },
+        }),
+      ],
+      "kiro_terminal_incomplete",
+    ],
+    [
+      "max_tokens",
+      [
+        frame("toolUseEvent", { toolUseId: "changing", name: "read_file" }),
+        frame("toolUseEvent", { toolUseId: "changing", name: "write_file" }),
+      ],
+      "kiro_terminal_incomplete",
+    ],
+  ])(
+    "continues past eager tool-shape errors to authoritative stop %s",
+    async (stopReason, toolFrames, code) => {
+      fetchMock.mockResolvedValueOnce(
+        response([...toolFrames, frame("metadataEvent", { stopReason })]),
+      );
 
-    const body = await (await execute()).response.text();
+      const body = await (await execute()).response.text();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(body).toContain(code);
-    expect(body).not.toContain("kiro_tool_call_repair_retry_failed");
-    expect(body).not.toContain('"tool_calls"');
-  });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(body).toContain(code);
+      expect(body).not.toContain("kiro_tool_call_repair_retry_failed");
+      expect(body).not.toContain('"tool_calls"');
+    },
+  );
 
   it("retries a TTFT timeout once while preserving cancellation semantics", async () => {
     process.env.KIRO_TOOL_CALL_REPAIR_TTFT_TIMEOUT_MS = "1";
     fetchMock
       .mockResolvedValueOnce(controlledResponse().value)
-      .mockResolvedValueOnce(response([
-        frame("assistantResponseEvent", { content: "Recovered after timeout." })
-      ]));
+      .mockResolvedValueOnce(
+        response([frame("assistantResponseEvent", { content: "Recovered after timeout." })]),
+      );
 
     const body = await (await execute()).response.text();
 
@@ -558,9 +636,14 @@ describe("Kiro terminal integrity recovery", () => {
     const upstream = controlledResponse();
     fetchMock.mockResolvedValueOnce(upstream.value);
     setTimeout(() => upstream.enqueue(frame("meteringEvent", { usage: 1 })), 20);
-    setTimeout(() => upstream.enqueue(frame("contextUsageEvent", { contextUsagePercentage: 5 })), 40);
+    setTimeout(
+      () => upstream.enqueue(frame("contextUsageEvent", { contextUsagePercentage: 5 })),
+      40,
+    );
     setTimeout(() => {
-      upstream.enqueue(frame("assistantResponseEvent", { content: "Completed after active frames." }));
+      upstream.enqueue(
+        frame("assistantResponseEvent", { content: "Completed after active frames." }),
+      );
       upstream.close();
     }, 60);
 
@@ -572,14 +655,18 @@ describe("Kiro terminal integrity recovery", () => {
 
   it("retries a response-body read failure once", async () => {
     fetchMock
-      .mockResolvedValueOnce(new Response(new ReadableStream({
-        start(controller) {
-          controller.error(new Error("socket reset"));
-        }
-      })))
-      .mockResolvedValueOnce(response([
-        frame("assistantResponseEvent", { content: "Recovered after read failure." })
-      ]));
+      .mockResolvedValueOnce(
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(new Error("socket reset"));
+            },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(
+        response([frame("assistantResponseEvent", { content: "Recovered after read failure." })]),
+      );
 
     const body = await (await execute()).response.text();
 
@@ -589,40 +676,60 @@ describe("Kiro terminal integrity recovery", () => {
   });
 
   it.each([
-    ["message CRC", () => {
-      const corrupt = frame("assistantResponseEvent", { content: "corrupt CRC" });
-      corrupt[corrupt.byteLength - 1] ^= 0xff;
-      return [corrupt];
-    }],
-    ["prelude CRC", () => {
-      const corrupt = frame("assistantResponseEvent", { content: "corrupt prelude" });
-      corrupt[8] ^= 0xff;
-      return [corrupt];
-    }],
-    ["truncated frame", () => {
-      const truncated = frame("assistantResponseEvent", { content: "truncated" });
-      return [truncated.slice(0, -3)];
-    }],
-    ["out-of-bounds headers", () => {
-      const corrupt = frame("assistantResponseEvent", { content: "bad headers" });
-      new DataView(corrupt.buffer).setUint32(4, corrupt.byteLength - 15, false);
-      return [checksum(corrupt)];
-    }],
-    ["duplicate headers", () => [
-      frameFromEntries([
-        [":event-type", "assistantResponseEvent"],
-        [":event-type", "metadataEvent"]
-      ], { content: "duplicate" })
-    ]]
+    [
+      "message CRC",
+      () => {
+        const corrupt = frame("assistantResponseEvent", { content: "corrupt CRC" });
+        corrupt[corrupt.byteLength - 1] ^= 0xff;
+        return [corrupt];
+      },
+    ],
+    [
+      "prelude CRC",
+      () => {
+        const corrupt = frame("assistantResponseEvent", { content: "corrupt prelude" });
+        corrupt[8] ^= 0xff;
+        return [corrupt];
+      },
+    ],
+    [
+      "truncated frame",
+      () => {
+        const truncated = frame("assistantResponseEvent", { content: "truncated" });
+        return [truncated.slice(0, -3)];
+      },
+    ],
+    [
+      "out-of-bounds headers",
+      () => {
+        const corrupt = frame("assistantResponseEvent", { content: "bad headers" });
+        new DataView(corrupt.buffer).setUint32(4, corrupt.byteLength - 15, false);
+        return [checksum(corrupt)];
+      },
+    ],
+    [
+      "duplicate headers",
+      () => [
+        frameFromEntries(
+          [
+            [":event-type", "assistantResponseEvent"],
+            [":event-type", "metadataEvent"],
+          ],
+          { content: "duplicate" },
+        ),
+      ],
+    ],
   ])("retries %s and releases only the valid attempt", async (_name, invalidFrames) => {
     fetchMock
-      .mockResolvedValueOnce(response([
-        frame("assistantResponseEvent", { content: "must stay private" }),
-        ...invalidFrames()
-      ]))
-      .mockResolvedValueOnce(response([
-        frame("assistantResponseEvent", { content: "Recovered after validation." })
-      ]));
+      .mockResolvedValueOnce(
+        response([
+          frame("assistantResponseEvent", { content: "must stay private" }),
+          ...invalidFrames(),
+        ]),
+      )
+      .mockResolvedValueOnce(
+        response([frame("assistantResponseEvent", { content: "Recovered after validation." })]),
+      );
 
     const body = await (await execute()).response.text();
 
@@ -652,20 +759,20 @@ describe("Kiro terminal integrity recovery", () => {
     let terminal;
     const executor = new KiroExecutor();
     const frames = Array.from({ length: 100 }, (_, index) =>
-      frame(`unknownEvent${index}`, { index })
+      frame(`unknownEvent${index}`, { index }),
     );
     frames.push(frame("assistantResponseEvent", { content: "done" }));
-    const transformed = executor.transformEventStreamToSSE(
-      response(frames),
-      "kr/claude-opus-4.8",
-      { onTerminalState: (value) => { terminal = value; } }
-    );
+    const transformed = executor.transformEventStreamToSSE(response(frames), "kr/claude-opus-4.8", {
+      onTerminalState: (value) => {
+        terminal = value;
+      },
+    });
 
     await transformed.text();
 
     expect(terminal.event_counts).toEqual({
       other: 100,
-      assistantResponseEvent: 1
+      assistantResponseEvent: 1,
     });
   });
 
@@ -677,8 +784,10 @@ describe("Kiro terminal integrity recovery", () => {
       "kr/claude-opus-4.8",
       {
         maxRawBytes: 64,
-        onTerminalState: (value) => { terminal = value; }
-      }
+        onTerminalState: (value) => {
+          terminal = value;
+        },
+      },
     );
 
     const body = await transformed.text();
@@ -687,30 +796,40 @@ describe("Kiro terminal integrity recovery", () => {
     expect(terminal.terminal_provenance).toBe("corrupt_eventstream_frame");
   });
 
-  it.each(["error", "exception"])("propagates EventStream %s without retry or leakage", async (messageType) => {
-    fetchMock.mockResolvedValueOnce(response([
-      frame("assistantResponseEvent", { content: "must stay private" }),
-      frameFromEntries([
-        [":message-type", messageType],
-        ...(messageType === "exception" ? [[":exception-type", "InternalServerException"]] : [])
-      ], { message: "upstream failed" })
-    ]));
+  it.each(["error", "exception"])(
+    "propagates EventStream %s without retry or leakage",
+    async (messageType) => {
+      fetchMock.mockResolvedValueOnce(
+        response([
+          frame("assistantResponseEvent", { content: "must stay private" }),
+          frameFromEntries(
+            [
+              [":message-type", messageType],
+              ...(messageType === "exception"
+                ? [[":exception-type", "InternalServerException"]]
+                : []),
+            ],
+            { message: "upstream failed" },
+          ),
+        ]),
+      );
 
-    const body = await (await execute()).response.text();
+      const body = await (await execute()).response.text();
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(body).toContain("kiro_upstream_eventstream_error");
-    expect(body).toContain("upstream failed");
-    expect(body).not.toContain("must stay private");
-  });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(body).toContain("kiro_upstream_eventstream_error");
+      expect(body).toContain("upstream failed");
+      expect(body).not.toContain("must stay private");
+    },
+  );
 
   it("surfaces retry HTTP failures as SSE after heartbeat commits headers", async () => {
-    fetchMock
-      .mockResolvedValueOnce(response([]))
-      .mockResolvedValueOnce(new Response("unauthorized", {
+    fetchMock.mockResolvedValueOnce(response([])).mockResolvedValueOnce(
+      new Response("unauthorized", {
         status: 401,
-        statusText: "Unauthorized"
-      }));
+        statusText: "Unauthorized",
+      }),
+    );
 
     const result = await execute();
     const body = await result.response.text();
@@ -721,12 +840,12 @@ describe("Kiro terminal integrity recovery", () => {
   });
 
   it("bounds the retry HTTP error body", async () => {
-    fetchMock
-      .mockResolvedValueOnce(response([]))
-      .mockResolvedValueOnce(new Response(`error-start-${"x".repeat(10_000)}-error-tail`, {
+    fetchMock.mockResolvedValueOnce(response([])).mockResolvedValueOnce(
+      new Response(`error-start-${"x".repeat(10_000)}-error-tail`, {
         status: 401,
-        statusText: "Unauthorized"
-      }));
+        statusText: "Unauthorized",
+      }),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -736,9 +855,7 @@ describe("Kiro terminal integrity recovery", () => {
   });
 
   it("propagates cancellation while validation is waiting for EOF", async () => {
-    const upstream = controlledResponse([
-      frame("assistantResponseEvent", { content: "waiting" })
-    ]);
+    const upstream = controlledResponse([frame("assistantResponseEvent", { content: "waiting" })]);
     fetchMock.mockResolvedValueOnce(upstream.value);
     const abort = new AbortController();
 
@@ -752,9 +869,9 @@ describe("Kiro terminal integrity recovery", () => {
 
   it("fails safely when the private gate exceeds its configured bound", async () => {
     process.env.KIRO_TOOL_CALL_REPAIR_BUFFER_MAX_BYTES = "8";
-    fetchMock.mockResolvedValueOnce(response([
-      frame("assistantResponseEvent", { content: "larger than eight bytes" })
-    ]));
+    fetchMock.mockResolvedValueOnce(
+      response([frame("assistantResponseEvent", { content: "larger than eight bytes" })]),
+    );
 
     const body = await (await execute()).response.text();
 
@@ -765,13 +882,15 @@ describe("Kiro terminal integrity recovery", () => {
 
   it("counts deferred tool fragments against the private memory bound", async () => {
     process.env.KIRO_TOOL_CALL_REPAIR_BUFFER_MAX_BYTES = "128";
-    fetchMock.mockResolvedValueOnce(response([
-      frame("toolUseEvent", {
-        toolUseId: "large-tool",
-        name: "read_file",
-        input: { path: "x".repeat(200) }
-      })
-    ]));
+    fetchMock.mockResolvedValueOnce(
+      response([
+        frame("toolUseEvent", {
+          toolUseId: "large-tool",
+          name: "read_file",
+          input: { path: "x".repeat(200) },
+        }),
+      ]),
+    );
 
     const body = await (await execute()).response.text();
 

@@ -29,19 +29,22 @@ export function hasValidContent(msg) {
   if (typeof msg.content === "string" && msg.content.trim()) return true;
   if (msg.content && typeof msg.content === "object" && !Array.isArray(msg.content)) {
     const block = msg.content;
-    return !!((block.type === CLAUDE_BLOCK.TEXT && block.text?.trim()) ||
-      block.type === CLAUDE_BLOCK.TOOL_USE ||
-      block.type === CLAUDE_BLOCK.TOOL_RESULT ||
-      block.type === CLAUDE_BLOCK.IMAGE ||
-      block.type === CLAUDE_BLOCK.DOCUMENT);
-  }
-  if (Array.isArray(msg.content)) {
-    return msg.content.some(block =>
+    return !!(
       (block.type === CLAUDE_BLOCK.TEXT && block.text?.trim()) ||
       block.type === CLAUDE_BLOCK.TOOL_USE ||
       block.type === CLAUDE_BLOCK.TOOL_RESULT ||
       block.type === CLAUDE_BLOCK.IMAGE ||
       block.type === CLAUDE_BLOCK.DOCUMENT
+    );
+  }
+  if (Array.isArray(msg.content)) {
+    return msg.content.some(
+      (block) =>
+        (block.type === CLAUDE_BLOCK.TEXT && block.text?.trim()) ||
+        block.type === CLAUDE_BLOCK.TOOL_USE ||
+        block.type === CLAUDE_BLOCK.TOOL_RESULT ||
+        block.type === CLAUDE_BLOCK.IMAGE ||
+        block.type === CLAUDE_BLOCK.DOCUMENT,
     );
   }
   return false;
@@ -88,15 +91,17 @@ function capCacheControlBlocks(body) {
     return lastTool >= 0 && tools[lastTool] === b;
   };
   const marked = [];
-  if (Array.isArray(body?.system)) for (const b of body.system) if (b?.cache_control) marked.push(b);
+  if (Array.isArray(body?.system))
+    for (const b of body.system) if (b?.cache_control) marked.push(b);
   if (Array.isArray(body?.tools)) for (const t of body.tools) if (t?.cache_control) marked.push(t);
   if (Array.isArray(body?.messages)) {
     for (const m of body.messages) {
-      if (Array.isArray(m?.content)) for (const b of m.content) if (b?.cache_control) marked.push(b);
+      if (Array.isArray(m?.content))
+        for (const b of m.content) if (b?.cache_control) marked.push(b);
     }
   }
   const head = marked.filter(isHead);
-  const rest = marked.filter(b => !isHead(b));
+  const rest = marked.filter((b) => !isHead(b));
   const keep = Math.max(0, 4 - head.length);
   for (const b of rest.slice(0, Math.max(0, rest.length - keep))) delete b.cache_control;
 }
@@ -110,7 +115,7 @@ export function fixToolUseOrdering(messages) {
   // Pass 1: Fix assistant messages with tool_use - remove text after tool_use
   for (const msg of messages) {
     if (msg.role === ROLE.ASSISTANT && Array.isArray(msg.content)) {
-      const hasToolUse = msg.content.some(b => b.type === CLAUDE_BLOCK.TOOL_USE);
+      const hasToolUse = msg.content.some((b) => b.type === CLAUDE_BLOCK.TOOL_USE);
       if (hasToolUse) {
         // Keep only: thinking blocks + tool_use blocks (remove text blocks after tool_use)
         const newContent = [];
@@ -120,7 +125,10 @@ export function fixToolUseOrdering(messages) {
           if (block.type === CLAUDE_BLOCK.TOOL_USE) {
             foundToolUse = true;
             newContent.push(block);
-          } else if (block.type === CLAUDE_BLOCK.THINKING || block.type === CLAUDE_BLOCK.REDACTED_THINKING) {
+          } else if (
+            block.type === CLAUDE_BLOCK.THINKING ||
+            block.type === CLAUDE_BLOCK.REDACTED_THINKING
+          ) {
             newContent.push(block);
           } else if (!foundToolUse) {
             // Keep text blocks BEFORE tool_use
@@ -142,17 +150,29 @@ export function fixToolUseOrdering(messages) {
 
     if (last && last.role === msg.role) {
       // Merge content arrays
-      const lastContent = Array.isArray(last.content) ? last.content : [{ type: CLAUDE_BLOCK.TEXT, text: last.content }];
-      const msgContent = Array.isArray(msg.content) ? msg.content : [{ type: CLAUDE_BLOCK.TEXT, text: msg.content }];
+      const lastContent = Array.isArray(last.content)
+        ? last.content
+        : [{ type: CLAUDE_BLOCK.TEXT, text: last.content }];
+      const msgContent = Array.isArray(msg.content)
+        ? msg.content
+        : [{ type: CLAUDE_BLOCK.TEXT, text: msg.content }];
 
       // Put tool_result first, then other content
-      const toolResults = [...lastContent.filter(b => b.type === CLAUDE_BLOCK.TOOL_RESULT), ...msgContent.filter(b => b.type === CLAUDE_BLOCK.TOOL_RESULT)];
-      const otherContent = [...lastContent.filter(b => b.type !== CLAUDE_BLOCK.TOOL_RESULT), ...msgContent.filter(b => b.type !== CLAUDE_BLOCK.TOOL_RESULT)];
+      const toolResults = [
+        ...lastContent.filter((b) => b.type === CLAUDE_BLOCK.TOOL_RESULT),
+        ...msgContent.filter((b) => b.type === CLAUDE_BLOCK.TOOL_RESULT),
+      ];
+      const otherContent = [
+        ...lastContent.filter((b) => b.type !== CLAUDE_BLOCK.TOOL_RESULT),
+        ...msgContent.filter((b) => b.type !== CLAUDE_BLOCK.TOOL_RESULT),
+      ];
 
       last.content = [...toolResults, ...otherContent];
     } else {
       // Ensure content is array
-      const content = Array.isArray(msg.content) ? msg.content : [{ type: CLAUDE_BLOCK.TEXT, text: msg.content }];
+      const content = Array.isArray(msg.content)
+        ? msg.content
+        : [{ type: CLAUDE_BLOCK.TEXT, text: msg.content }];
       merged.push({ role: msg.role, content: [...content] });
     }
   }
@@ -164,7 +184,9 @@ export function fixToolUseOrdering(messages) {
 const ADAPTIVE_THINKING_UNSUPPORTED = /haiku/i;
 
 function handlesThinkingBlocks(provider) {
-  return provider === "claude" || provider?.startsWith("anthropic-compatible") || provider === "deepseek";
+  return (
+    provider === "claude" || provider?.startsWith("anthropic-compatible") || provider === "deepseek"
+  );
 }
 
 function buildThinkingPlaceholder(provider) {
@@ -190,8 +212,10 @@ function buildThinkingPlaceholder(provider) {
 const CLAUDE_SERVER_TOOL_USE_ID = /^srvtoolu_[a-zA-Z0-9_]+$/;
 
 function hasForeignServerToolUseId(block) {
-  return block?.type === CLAUDE_BLOCK.SERVER_TOOL_USE
-    && !CLAUDE_SERVER_TOOL_USE_ID.test(String(block.id ?? ""));
+  return (
+    block?.type === CLAUDE_BLOCK.SERVER_TOOL_USE &&
+    !CLAUDE_SERVER_TOOL_USE_ID.test(String(block.id ?? ""))
+  );
 }
 
 // Normalize a native Claude passthrough body to match Anthropic Messages API spec.
@@ -234,11 +258,12 @@ export function normalizeClaudePassthrough(body, model = "") {
         messages.push(msg);
         continue;
       }
-      const text = typeof msg.content === "string"
-        ? msg.content
-        : Array.isArray(msg.content)
-          ? msg.content.map(b => (typeof b === "string" ? b : b?.text || "")).join("\n")
-          : "";
+      const text =
+        typeof msg.content === "string"
+          ? msg.content
+          : Array.isArray(msg.content)
+            ? msg.content.map((b) => (typeof b === "string" ? b : b?.text || "")).join("\n")
+            : "";
       if (!text.trim()) continue;
 
       // Copy-on-write: the caller's body is reused across account-fallback
@@ -246,9 +271,12 @@ export function normalizeClaudePassthrough(body, model = "") {
       const block = { type: CLAUDE_BLOCK.TEXT, text };
       const prev = messages[messages.length - 1];
       if (prev?.role === ROLE.USER) {
-        const content = typeof prev.content === "string"
-          ? [{ type: CLAUDE_BLOCK.TEXT, text: prev.content }]
-          : Array.isArray(prev.content) ? [...prev.content] : [];
+        const content =
+          typeof prev.content === "string"
+            ? [{ type: CLAUDE_BLOCK.TEXT, text: prev.content }]
+            : Array.isArray(prev.content)
+              ? [...prev.content]
+              : [];
         messages[messages.length - 1] = { ...prev, content: [...content, block] };
         continue;
       }
@@ -294,10 +322,14 @@ export function normalizeClaudePassthrough(body, model = "") {
   if (droppedServerToolUseIds.size > 0 && Array.isArray(body.messages)) {
     for (const msg of body.messages) {
       if (!Array.isArray(msg.content)) continue;
-      const kept = msg.content.filter(block => !(
-        (block?.type === CLAUDE_BLOCK.TOOL_RESULT || block?.type === CLAUDE_BLOCK.WEB_SEARCH_TOOL_RESULT)
-        && droppedServerToolUseIds.has(String(block.tool_use_id ?? ""))
-      ));
+      const kept = msg.content.filter(
+        (block) =>
+          !(
+            (block?.type === CLAUDE_BLOCK.TOOL_RESULT ||
+              block?.type === CLAUDE_BLOCK.WEB_SEARCH_TOOL_RESULT) &&
+            droppedServerToolUseIds.has(String(block.tool_use_id ?? ""))
+          ),
+      );
       if (kept.length !== msg.content.length) {
         msg.content = kept;
       }
@@ -309,11 +341,12 @@ export function normalizeClaudePassthrough(body, model = "") {
   // "text content blocks must be non-empty"); a message whose blocks were all
   // stripped above must be dropped, not padded with an empty placeholder.
   if (Array.isArray(body.messages)) {
-    body.messages = body.messages.filter(msg => {
+    body.messages = body.messages.filter((msg) => {
       if (typeof msg.content === "string") return msg.content.trim().length > 0;
       if (!Array.isArray(msg.content)) return true;
-      msg.content = msg.content.filter(block =>
-        !(block?.type === CLAUDE_BLOCK.TEXT && !String(block.text ?? "").trim()));
+      msg.content = msg.content.filter(
+        (block) => !(block?.type === CLAUDE_BLOCK.TEXT && !String(block.text ?? "").trim()),
+      );
       return msg.content.length > 0;
     });
   }
@@ -328,7 +361,8 @@ function markLastCacheableBlock(msg) {
   for (let i = msg.content.length - 1; i >= 0; i--) {
     const block = msg.content[i];
     if (typeof block !== "object" || block === null) continue;
-    if (block.type === CLAUDE_BLOCK.THINKING || block.type === CLAUDE_BLOCK.REDACTED_THINKING) continue;
+    if (block.type === CLAUDE_BLOCK.THINKING || block.type === CLAUDE_BLOCK.REDACTED_THINKING)
+      continue;
     block.cache_control = { ...CACHE_CONTROL_5M };
     return true;
   }
@@ -426,8 +460,14 @@ export function hoistToolResultImages(body) {
       const images = block.content.filter((c) => c?.type === CLAUDE_BLOCK.IMAGE);
       if (!images.length) return block;
       const rest = block.content.filter((c) => c?.type !== CLAUDE_BLOCK.IMAGE);
-      hoisted.push({ type: CLAUDE_BLOCK.TEXT, text: `[Image from tool result ${block.tool_use_id}]` }, ...images);
-      return { ...block, content: rest.length ? rest : [{ type: CLAUDE_BLOCK.TEXT, text: "(image attached below)" }] };
+      hoisted.push(
+        { type: CLAUDE_BLOCK.TEXT, text: `[Image from tool result ${block.tool_use_id}]` },
+        ...images,
+      );
+      return {
+        ...block,
+        content: rest.length ? rest : [{ type: CLAUDE_BLOCK.TEXT, text: "(image attached below)" }],
+      };
     });
     if (!hoisted.length) return msg;
     touched = true;
@@ -437,7 +477,14 @@ export function hoistToolResultImages(body) {
   return touched ? { ...body, messages } : body;
 }
 
-export function prepareClaudeRequest(body, provider = null, apiKey = null, connectionId = null, rawHeaders = null, sessionId = null) {
+export function prepareClaudeRequest(
+  body,
+  provider = null,
+  apiKey = null,
+  connectionId = null,
+  rawHeaders = null,
+  sessionId = null,
+) {
   // quirk: MiniMax's Claude-compatible endpoint rejects Anthropic's output_config (400 invalid params)
   if (PROVIDERS[provider]?.quirks?.dropOutputConfig) {
     delete body.output_config;
@@ -458,7 +505,11 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
     // Prefer raising max_tokens to preserve the requested thinking depth; if the
     // budget alone meets/exceeds the ceiling, cap output and shrink the budget so
     // some tokens remain for the answer.
-    if (body.thinking?.type === "enabled" && body.thinking.budget_tokens && body.thinking.budget_tokens >= body.max_tokens) {
+    if (
+      body.thinking?.type === "enabled" &&
+      body.thinking.budget_tokens &&
+      body.thinking.budget_tokens >= body.max_tokens
+    ) {
       body.max_tokens = Math.min(body.thinking.budget_tokens + 1024, ceiling);
       if (body.thinking.budget_tokens >= body.max_tokens) {
         body.thinking.budget_tokens = Math.max(1024, body.max_tokens - 1024);
@@ -523,7 +574,10 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
         if (!lastAssistantProcessed && msg.content.length > 0) {
           for (let j = msg.content.length - 1; j >= 0; j--) {
             const block = msg.content[j];
-            if (block.type !== CLAUDE_BLOCK.THINKING && block.type !== CLAUDE_BLOCK.REDACTED_THINKING) {
+            if (
+              block.type !== CLAUDE_BLOCK.THINKING &&
+              block.type !== CLAUDE_BLOCK.REDACTED_THINKING
+            ) {
               block.cache_control = { type: "ephemeral" };
               break;
             }
@@ -543,7 +597,8 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
           const isDeepSeek = provider === "deepseek";
           const kept = [];
           for (const block of msg.content) {
-            const isThinking = block.type === CLAUDE_BLOCK.THINKING || block.type === CLAUDE_BLOCK.REDACTED_THINKING;
+            const isThinking =
+              block.type === CLAUDE_BLOCK.THINKING || block.type === CLAUDE_BLOCK.REDACTED_THINKING;
             if (isThinking) {
               if (isClaudeNative) {
                 if (isValidClaudeSignature(block.signature)) {
@@ -588,13 +643,13 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
       const supportedTypes = PROVIDERS[provider]?.quirks?.claudeSupportedToolTypes;
       const hasWhitelist = Array.isArray(supportedTypes);
       body.tools = body.tools
-        .filter(tool => {
+        .filter((tool) => {
           const t = tool?.type;
           if (!t || t === "function") return true;
           if (hasWhitelist) return supportedTypes.includes(t);
           return false;
         })
-        .map(tool => {
+        .map((tool) => {
           if (tool.function) {
             return {
               name: tool.function.name,
@@ -641,7 +696,8 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
   // Apply cloaking for OAuth tokens (billing header + fake user ID)
   // session_id in user_id must match X-Claude-Code-Session-Id for fingerprint consistency
   if ((provider === "claude" || provider?.startsWith("anthropic-compatible")) && apiKey) {
-    const sid = sessionId || resolveSessionId({ headers: rawHeaders, body, connectionId, scope: "claude" });
+    const sid =
+      sessionId || resolveSessionId({ headers: rawHeaders, body, connectionId, scope: "claude" });
     body = applyCloaking(body, apiKey, sid);
   }
 

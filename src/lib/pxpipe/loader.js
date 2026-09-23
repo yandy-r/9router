@@ -7,13 +7,17 @@ let cached = null; // { module, version, loadedAt }
 let loadPromise = null;
 
 export function getLoadedInfo() {
-  return cached ? { loaded: true, version: cached.version, loadedAt: cached.loadedAt } : { loaded: false };
+  return cached
+    ? { loaded: true, version: cached.version, loadedAt: cached.loadedAt }
+    : { loaded: false };
 }
 
 export async function loadPxpipe() {
   if (cached) return cached;
   if (loadPromise) return loadPromise;
-  loadPromise = doLoad().finally(() => { loadPromise = null; });
+  loadPromise = doLoad().finally(() => {
+    loadPromise = null;
+  });
   return loadPromise;
 }
 
@@ -57,11 +61,13 @@ export async function getTransform({ autoLoad = true } = {}) {
 export async function selfTest() {
   const startedAt = Date.now();
   const { module: mod } = await loadPxpipe();
-  const body = new TextEncoder().encode(JSON.stringify({
-    model: "claude-fable-5",
-    max_tokens: 16,
-    messages: [{ role: "user", content: "ping" }],
-  }));
+  const body = new TextEncoder().encode(
+    JSON.stringify({
+      model: "claude-fable-5",
+      max_tokens: 16,
+      messages: [{ role: "user", content: "ping" }],
+    }),
+  );
   const result = await mod.transformAnthropicMessages({ body, model: "claude-fable-5" });
   if (!result || typeof result.applied !== "boolean" || !(result.body instanceof Uint8Array)) {
     throw new Error("transform returned an unexpected shape");

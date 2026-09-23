@@ -19,14 +19,15 @@ function getAuthGroup(providerId, connection = null) {
     }
     return connection.authType;
   }
-  
+
   // Fallback to constants
   if (FREE_PROVIDERS[providerId]) return "free";
   if (OAUTH_PROVIDERS[providerId]) return "oauth";
   if (APIKEY_PROVIDERS[providerId]) return "apikey";
   if (
     typeof providerId === "string" &&
-    (providerId.startsWith(OPENAI_COMPATIBLE_PREFIX) || providerId.startsWith(ANTHROPIC_COMPATIBLE_PREFIX))
+    (providerId.startsWith(OPENAI_COMPATIBLE_PREFIX) ||
+      providerId.startsWith(ANTHROPIC_COMPATIBLE_PREFIX))
   )
     return "compatible";
   return "apikey";
@@ -35,7 +36,8 @@ function getAuthGroup(providerId, connection = null) {
 function isCompatibleProvider(providerId) {
   return (
     typeof providerId === "string" &&
-    (providerId.startsWith(OPENAI_COMPATIBLE_PREFIX) || providerId.startsWith(ANTHROPIC_COMPATIBLE_PREFIX))
+    (providerId.startsWith(OPENAI_COMPATIBLE_PREFIX) ||
+      providerId.startsWith(ANTHROPIC_COMPATIBLE_PREFIX))
   );
 }
 
@@ -67,7 +69,7 @@ export async function POST(request) {
     } else {
       return NextResponse.json(
         { error: "Invalid mode. Use: provider, oauth, free, apikey, compatible, all" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 

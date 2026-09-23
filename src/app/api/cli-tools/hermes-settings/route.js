@@ -51,7 +51,9 @@ const upsertEnvVar = (envText, key, value) => {
   const re = new RegExp(`^${key}=.*$`, "m");
   const line = `${key}=${value}`;
   if (re.test(envText)) return envText.replace(re, line);
-  return envText.length > 0 && !envText.endsWith("\n") ? `${envText}\n${line}\n` : `${envText}${line}\n`;
+  return envText.length > 0 && !envText.endsWith("\n")
+    ? `${envText}\n${line}\n`
+    : `${envText}${line}\n`;
 };
 
 const removeEnvVar = (envText, key) => {
@@ -96,14 +98,20 @@ const readEnvFile = async () => {
 // Detect 9router by base_url containing localhost/127.0.0.1 or matching tunnel URL
 const has9RouterConfig = (modelCfg) => {
   if (!modelCfg?.base_url) return false;
-  return modelCfg.provider === "custom" && /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(modelCfg.base_url);
+  return (
+    modelCfg.provider === "custom" && /localhost|127\.0\.0\.1|0\.0\.0\.0/.test(modelCfg.base_url)
+  );
 };
 
 export async function GET() {
   try {
     const installed = await checkHermesInstalled();
     if (!installed) {
-      return NextResponse.json({ installed: false, settings: null, message: "Hermes Agent is not installed" });
+      return NextResponse.json({
+        installed: false,
+        settings: null,
+        message: "Hermes Agent is not installed",
+      });
     }
     const yaml = await readConfigYaml();
     const model = parseModelBlock(yaml);

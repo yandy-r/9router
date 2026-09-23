@@ -17,7 +17,7 @@ export default function DocsToc({ headings, lang = DEFAULT_LANG }) {
           }
         });
       },
-      { rootMargin: "-80px 0px -80% 0px" }
+      { rootMargin: "-80px 0px -80% 0px" },
     );
 
     headings.forEach(({ id }) => {
@@ -42,9 +42,7 @@ export default function DocsToc({ headings, lang = DEFAULT_LANG }) {
             <li key={`${heading.id}-${idx}`}>
               <a
                 href={`#${heading.id}`}
-                className={`block text-sm transition-colors ${
-                  heading.level === 3 ? "pl-4" : ""
-                } ${
+                className={`block text-sm transition-colors ${heading.level === 3 ? "pl-4" : ""} ${
                   activeId === heading.id
                     ? "text-[#E68A6E] font-medium"
                     : "text-gray-600 hover:text-gray-900"

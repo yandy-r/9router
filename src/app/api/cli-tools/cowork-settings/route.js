@@ -5,7 +5,11 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 import crypto from "crypto";
-import { DEFAULT_PLUGINS, LOCAL_STDIO_PLUGINS, buildManagedMcpServers } from "@/shared/constants/coworkPlugins";
+import {
+  DEFAULT_PLUGINS,
+  LOCAL_STDIO_PLUGINS,
+  buildManagedMcpServers,
+} from "@/shared/constants/coworkPlugins";
 import { UPDATER_CONFIG } from "@/shared/constants/config";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
 
@@ -93,7 +97,9 @@ const resolveAppRootForRead = async () => {
     try {
       await fs.access(path.join(dir, "configLibrary"));
       return dir;
-    } catch { /* try next */ }
+    } catch {
+      /* try next */
+    }
   }
   return candidates[0];
 };
@@ -105,7 +111,8 @@ const getMetaPath = async () => path.join(await getConfigDir(), "_meta.json");
 const getWriteMetaPath = () => path.join(getWriteConfigDir(), "_meta.json");
 
 const get1pRoot = () => {
-  if (os.platform() === "darwin") return path.join(os.homedir(), "Library", "Application Support", "Claude");
+  if (os.platform() === "darwin")
+    return path.join(os.homedir(), "Library", "Application Support", "Claude");
   if (os.platform() === "win32") {
     const roaming = process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming");
     return path.join(roaming, "Claude");
@@ -191,7 +198,12 @@ const buildCustomEntries = (customPlugins) => {
 
 const checkInstalled = async () => {
   for (const dir of [...getCandidateRoots(), ...getAppInstallPaths()]) {
-    try { await fs.access(dir); return true; } catch { /* try next */ }
+    try {
+      await fs.access(dir);
+      return true;
+    } catch {
+      /* try next */
+    }
   }
   return false;
 };
@@ -229,8 +241,11 @@ const ensureMeta = async () => {
 async function writeSkipApprovals(managedServers) {
   const cfgPath = path.join(getWriteRoot(), "config.json");
   let cfg = {};
-  try { cfg = JSON.parse(await fs.readFile(cfgPath, "utf-8")) || {}; }
-  catch (e) { if (e.code !== "ENOENT") return { error: e.code }; }
+  try {
+    cfg = JSON.parse(await fs.readFile(cfgPath, "utf-8")) || {};
+  } catch (e) {
+    if (e.code !== "ENOENT") return { error: e.code };
+  }
   const skip = {};
   for (const srv of managedServers) {
     if (srv?.name) skip[srv.name] = true;
@@ -245,7 +260,11 @@ export async function GET() {
   try {
     const installed = await checkInstalled();
     if (!installed) {
-      return NextResponse.json({ installed: false, config: null, message: "Claude Desktop (Cowork mode) not detected" });
+      return NextResponse.json({
+        installed: false,
+        config: null,
+        message: "Claude Desktop (Cowork mode) not detected",
+      });
     }
     const meta = await readJson(await getMetaPath());
     const appliedId = meta?.appliedId || null;
@@ -263,12 +282,18 @@ export async function GET() {
     // Active local plugins = managedMcp entries whose URL points at our inline bridge.
     const stdioNames = new Set(LOCAL_STDIO_PLUGINS.map((p) => p.name));
     const activeLocalNames = managedMcp
-      .filter((m) => stdioNames.has(m.name) && typeof m.url === "string" && m.url.includes("/api/mcp/"))
+      .filter(
+        (m) => stdioNames.has(m.name) && typeof m.url === "string" && m.url.includes("/api/mcp/"),
+      )
       .map((m) => m.name);
 
     // Custom plugins = bridge entries not in preset LOCAL_STDIO_PLUGINS (custom:true or unknown name).
     const activeCustomPlugins = managedMcp
-      .filter((m) => m.custom || (!stdioNames.has(m.name) && typeof m.url === "string" && m.url.includes("/api/mcp/")))
+      .filter(
+        (m) =>
+          m.custom ||
+          (!stdioNames.has(m.name) && typeof m.url === "string" && m.url.includes("/api/mcp/")),
+      )
       .map((m) => ({ name: m.name, url: m.url, transport: m.transport, custom: true }));
 
     return NextResponse.json({
@@ -281,21 +306,34 @@ export async function GET() {
         baseUrl,
         models,
         provider: config?.inferenceProvider || null,
-        plugins: managedMcp.filter((m) => !m.custom && !(stdioNames.has(m.name) && typeof m.url === "string" && m.url.includes("/api/mcp/"))).map((m) => {
-          // Strip "{name}-" prefix and dedupe so re-applies don't multiply entries.
-          const keys = m.toolPolicy ? Object.keys(m.toolPolicy) : [];
-          const prefix = `${m.name}-`;
-          const bare = new Set();
-          for (const k of keys) {
-            let t = k;
-            while (t.startsWith(prefix)) t = t.slice(prefix.length);
-            bare.add(t);
-          }
-          // If plugin matches a default, prefer default toolNames (curated/correct).
-          const def = DEFAULT_PLUGINS.find((d) => d.name === m.name);
-          const toolNames = def && Array.isArray(def.toolNames) ? def.toolNames : Array.from(bare);
-          return { name: m.name, url: m.url, transport: m.transport, oauth: !!m.oauth, toolNames };
-        }),
+        plugins: managedMcp
+          .filter(
+            (m) =>
+              !m.custom &&
+              !(stdioNames.has(m.name) && typeof m.url === "string" && m.url.includes("/api/mcp/")),
+          )
+          .map((m) => {
+            // Strip "{name}-" prefix and dedupe so re-applies don't multiply entries.
+            const keys = m.toolPolicy ? Object.keys(m.toolPolicy) : [];
+            const prefix = `${m.name}-`;
+            const bare = new Set();
+            for (const k of keys) {
+              let t = k;
+              while (t.startsWith(prefix)) t = t.slice(prefix.length);
+              bare.add(t);
+            }
+            // If plugin matches a default, prefer default toolNames (curated/correct).
+            const def = DEFAULT_PLUGINS.find((d) => d.name === m.name);
+            const toolNames =
+              def && Array.isArray(def.toolNames) ? def.toolNames : Array.from(bare);
+            return {
+              name: m.name,
+              url: m.url,
+              transport: m.transport,
+              oauth: !!m.oauth,
+              toolNames,
+            };
+          }),
         localPlugins: activeLocalNames,
         customPlugins: activeCustomPlugins,
       },
@@ -315,7 +353,9 @@ export async function POST(request) {
     if (!baseUrl || !apiKey) {
       return NextResponse.json({ error: "baseUrl and apiKey are required" }, { status: 400 });
     }
-    const modelsArray = Array.isArray(models) ? models.filter((m) => typeof m === "string" && m.trim()) : [];
+    const modelsArray = Array.isArray(models)
+      ? models.filter((m) => typeof m === "string" && m.trim())
+      : [];
     if (modelsArray.length === 0) {
       return NextResponse.json({ error: "At least one model is required" }, { status: 400 });
     }
@@ -324,11 +364,17 @@ export async function POST(request) {
     const pluginsArray = Array.isArray(plugins) ? plugins : DEFAULT_PLUGINS;
     const localPluginNames = Array.isArray(localPlugins) ? localPlugins : [];
     // Only URL-based custom plugins allowed (no stdio command spawning).
-    const customPluginsArray = (Array.isArray(customPlugins) ? customPlugins : []).filter((p) => p?.url);
+    const customPluginsArray = (Array.isArray(customPlugins) ? customPlugins : []).filter(
+      (p) => p?.url,
+    );
 
     const bridgeEntries = await injectAuthHeaders(buildLocalBridgeEntries(localPluginNames));
     const customEntries = await injectAuthHeaders(buildCustomEntries(customPluginsArray));
-    const managedMcpServers = [...buildManagedMcpServers(pluginsArray), ...bridgeEntries, ...customEntries];
+    const managedMcpServers = [
+      ...buildManagedMcpServers(pluginsArray),
+      ...bridgeEntries,
+      ...customEntries,
+    ];
 
     const bootstrapped = await bootstrapDeploymentMode();
     const meta = await ensureMeta();
@@ -346,11 +392,19 @@ export async function POST(request) {
     await fs.writeFile(configPath, JSON.stringify(newConfig, null, 2));
 
     let skipResult = null;
-    try { skipResult = await writeSkipApprovals(managedMcpServers); } catch (e) { skipResult = { error: e.message }; }
+    try {
+      skipResult = await writeSkipApprovals(managedMcpServers);
+    } catch (e) {
+      skipResult = { error: e.message };
+    }
 
     // Best-effort cleanup of legacy 1p mcpServers entries written by earlier versions.
     let localMcpResult = { applied: localPluginNames, via: "3p-sse-bridge" };
-    try { await cleanup1pLegacy(); } catch { /* ignore */ }
+    try {
+      await cleanup1pLegacy();
+    } catch {
+      /* ignore */
+    }
 
     return NextResponse.json({
       success: true,
@@ -375,10 +429,21 @@ export async function DELETE() {
       return NextResponse.json({ success: true, message: "No active config to reset" });
     }
     const configPath = path.join(await getConfigDir(), `${meta.appliedId}.json`);
-    try { await fs.writeFile(configPath, JSON.stringify({}, null, 2)); }
-    catch (error) { if (error.code !== "ENOENT") throw error; }
-    try { await writeSkipApprovals([]); } catch { /* ignore */ }
-    try { await cleanup1pLegacy(); } catch { /* ignore */ }
+    try {
+      await fs.writeFile(configPath, JSON.stringify({}, null, 2));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    try {
+      await writeSkipApprovals([]);
+    } catch {
+      /* ignore */
+    }
+    try {
+      await cleanup1pLegacy();
+    } catch {
+      /* ignore */
+    }
     return NextResponse.json({ success: true, message: "Cowork config reset" });
   } catch (error) {
     console.log("Error resetting cowork settings:", error);

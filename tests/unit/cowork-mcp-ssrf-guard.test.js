@@ -16,9 +16,7 @@ vi.mock("next/server", () => ({
   },
 }));
 
-const { POST } = await import(
-  "../../src/app/api/cli-tools/cowork-mcp-tools/route.js"
-);
+const { POST } = await import("../../src/app/api/cli-tools/cowork-mcp-tools/route.js");
 
 function remoteRequest(url) {
   return new Request("http://gateway.example.com/api/cli-tools/cowork-mcp-tools", {
@@ -42,7 +40,11 @@ describe("cowork-mcp-tools SSRF guard", () => {
   });
 
   it("rejects private-network URLs from remote callers", async () => {
-    for (const url of ["http://10.0.0.5/mcp", "http://192.168.1.1/mcp", "http://localhost:3000/mcp"]) {
+    for (const url of [
+      "http://10.0.0.5/mcp",
+      "http://192.168.1.1/mcp",
+      "http://localhost:3000/mcp",
+    ]) {
       const res = await POST(remoteRequest(url));
       expect(res.status, `should reject ${url}`).toBe(400);
     }
@@ -54,7 +56,7 @@ describe("cowork-mcp-tools SSRF guard", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
-      })
+      }),
     );
     expect(res.status).toBe(400);
   });

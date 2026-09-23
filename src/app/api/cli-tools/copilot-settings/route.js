@@ -13,7 +13,14 @@ const getConfigPath = () => {
     return path.join(process.env.APPDATA || home, "Code", "User", "chatLanguageModels.json");
   }
   if (platform === "darwin") {
-    return path.join(home, "Library", "Application Support", "Code", "User", "chatLanguageModels.json");
+    return path.join(
+      home,
+      "Library",
+      "Application Support",
+      "Code",
+      "User",
+      "chatLanguageModels.json",
+    );
   }
   return path.join(home, ".config", "Code", "User", "chatLanguageModels.json");
 };
@@ -78,7 +85,9 @@ export async function POST(request) {
       const existing = await fs.readFile(configPath, "utf-8");
       const parsed = JSON.parse(existing);
       config = Array.isArray(parsed) ? parsed : [];
-    } catch { /* No existing config */ }
+    } catch {
+      /* No existing config */
+    }
 
     const endpointUrl = `${baseUrl}/chat/completions#models.ai.azure.com`;
     const keyToUse = apiKey || "sk_9router";

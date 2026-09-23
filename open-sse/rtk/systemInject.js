@@ -26,8 +26,12 @@ export function injectSystemPrompt(body, format, prompt) {
       injectClaudeSystem(body, prompt);
       return;
     }
-    if (format === FORMATS.GEMINI || format === FORMATS.GEMINI_CLI
-      || format === FORMATS.VERTEX || format === FORMATS.ANTIGRAVITY) {
+    if (
+      format === FORMATS.GEMINI ||
+      format === FORMATS.GEMINI_CLI ||
+      format === FORMATS.VERTEX ||
+      format === FORMATS.ANTIGRAVITY
+    ) {
       // Antigravity wraps Gemini shape in body.request → injectGeminiSystem handles it
       injectGeminiSystem(body, prompt);
       return;
@@ -65,8 +69,9 @@ function isKiroBody(body) {
   if (!cs || typeof cs !== "object") return false;
   // A top-level `systemPrompt` used to be the marker, but the Kiro translator no
   // longer emits it (kiro.dev rejects the field), so gate on the turn shape.
-  const historyTurn = Array.isArray(cs.history)
-    && cs.history.some(it => it && (it.userInputMessage || it.assistantResponseMessage));
+  const historyTurn =
+    Array.isArray(cs.history) &&
+    cs.history.some((it) => it && (it.userInputMessage || it.assistantResponseMessage));
   return historyTurn || !!(cs.currentMessage && cs.currentMessage.userInputMessage);
 }
 
@@ -91,7 +96,11 @@ function injectInstructionsSystem(body, prompt) {
     if (typeof curr !== "string") return;
     if (hasPrompt(curr, prompt)) return;
     const next = curr ? `${curr}${SEP}${prompt}` : prompt;
-    try { body.instructions = next; } catch (_) { /* frozen/proxy fail-open */ }
+    try {
+      body.instructions = next;
+    } catch (_) {
+      /* frozen/proxy fail-open */
+    }
   } catch (_) {}
 }
 
@@ -103,12 +112,18 @@ function injectChatSystem(body, prompt) {
     // Exact idempotency: scan existing system/developer content for full prompt
     if (containsPromptInMessages(arr, prompt)) return;
     let idx = -1;
-    try { idx = arr.findIndex(m => m && (m.role === ROLE.SYSTEM || m.role === ROLE.DEVELOPER)); } catch (_) { return; }
+    try {
+      idx = arr.findIndex((m) => m && (m.role === ROLE.SYSTEM || m.role === ROLE.DEVELOPER));
+    } catch (_) {
+      return;
+    }
     if (idx >= 0) {
       appendToChatMessage(arr[idx], prompt);
     } else {
       // create typed system message at index 0; fail-open on frozen/proxy
-      try { arr.unshift({ role: ROLE.SYSTEM, content: prompt }); } catch (_) {}
+      try {
+        arr.unshift({ role: ROLE.SYSTEM, content: prompt });
+      } catch (_) {}
     }
   } catch (_) {}
 }
@@ -137,18 +152,24 @@ function appendToChatMessage(msg, prompt) {
       const next = dedupStringAppend(c, prompt);
       if (next === c) return;
       // avoid partial mutation: try assignment, bail if setter throws
-      try { msg.content = next; } catch (_) {}
+      try {
+        msg.content = next;
+      } catch (_) {}
       return;
     }
     if (Array.isArray(c)) {
       // already deduped at message level; but guard block-level too
       try {
-        if (c.some(b => b && b.text === prompt)) return;
+        if (c.some((b) => b && b.text === prompt)) return;
       } catch (_) {}
-      try { c.push({ type: OPENAI_BLOCK.TEXT, text: prompt }); } catch (_) {}
+      try {
+        c.push({ type: OPENAI_BLOCK.TEXT, text: prompt });
+      } catch (_) {}
       return;
     }
-    try { msg.content = prompt; } catch (_) {}
+    try {
+      msg.content = prompt;
+    } catch (_) {}
   } catch (_) {}
 }
 
@@ -162,13 +183,26 @@ function injectResponsesInputSystem(body, prompt) {
     // find system/developer message items only (type === message)
     let idx = -1;
     try {
-      idx = arr.findIndex(m => m && m.type === RESPONSES_ITEM.MESSAGE && (m.role === ROLE.SYSTEM || m.role === ROLE.DEVELOPER));
-    } catch (_) { return; }
+      idx = arr.findIndex(
+        (m) =>
+          m &&
+          m.type === RESPONSES_ITEM.MESSAGE &&
+          (m.role === ROLE.SYSTEM || m.role === ROLE.DEVELOPER),
+      );
+    } catch (_) {
+      return;
+    }
     if (idx >= 0) {
       appendToResponsesMessage(arr[idx], prompt);
     } else {
-      const msg = { type: RESPONSES_ITEM.MESSAGE, role: ROLE.SYSTEM, content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: prompt }] };
-      try { arr.unshift(msg); } catch (_) {}
+      const msg = {
+        type: RESPONSES_ITEM.MESSAGE,
+        role: ROLE.SYSTEM,
+        content: [{ type: RESPONSES_ITEM.INPUT_TEXT, text: prompt }],
+      };
+      try {
+        arr.unshift(msg);
+      } catch (_) {}
     }
   } catch (_) {}
 }
@@ -197,15 +231,23 @@ function appendToResponsesMessage(msg, prompt) {
     if (typeof c === "string") {
       const next = dedupStringAppend(c, prompt);
       if (next === c) return;
-      try { msg.content = next; } catch (_) {}
+      try {
+        msg.content = next;
+      } catch (_) {}
       return;
     }
     if (Array.isArray(c)) {
-      try { if (c.some(b => b && b.text === prompt)) return; } catch (_) {}
-      try { c.push({ type: RESPONSES_ITEM.INPUT_TEXT, text: prompt }); } catch (_) {}
+      try {
+        if (c.some((b) => b && b.text === prompt)) return;
+      } catch (_) {}
+      try {
+        c.push({ type: RESPONSES_ITEM.INPUT_TEXT, text: prompt });
+      } catch (_) {}
       return;
     }
-    try { msg.content = [{ type: RESPONSES_ITEM.INPUT_TEXT, text: prompt }]; } catch (_) {}
+    try {
+      msg.content = [{ type: RESPONSES_ITEM.INPUT_TEXT, text: prompt }];
+    } catch (_) {}
   } catch (_) {}
 }
 
@@ -216,16 +258,23 @@ function injectClaudeSystem(body, prompt) {
     if (typeof sys === "string") {
       if (hasPrompt(sys, prompt)) return;
       const next = sys.length > 0 ? `${sys}${SEP}${prompt}` : prompt;
-      try { body.system = next; } catch (_) {}
+      try {
+        body.system = next;
+      } catch (_) {}
       return;
     }
     if (Array.isArray(sys)) {
-      try { if (sys.some(b => b && b.text === prompt)) return; } catch (_) {}
+      try {
+        if (sys.some((b) => b && b.text === prompt)) return;
+      } catch (_) {}
       const block = { type: CLAUDE_BLOCK.TEXT, text: prompt };
       let lastCacheIdx = -1;
       try {
         for (let i = sys.length - 1; i >= 0; i--) {
-          if (sys[i]?.cache_control) { lastCacheIdx = i; break; }
+          if (sys[i]?.cache_control) {
+            lastCacheIdx = i;
+            break;
+          }
         }
       } catch (_) {}
       try {
@@ -235,7 +284,9 @@ function injectClaudeSystem(body, prompt) {
       return;
     }
     // absent/null
-    try { body.system = prompt; } catch (_) {}
+    try {
+      body.system = prompt;
+    } catch (_) {}
   } catch (_) {}
 }
 
@@ -247,16 +298,28 @@ function injectGeminiSystem(body, prompt) {
       if (body.request && typeof body.request === "object") target = body.request;
     } catch (_) {}
     let useSnake = false;
-    try { useSnake = Object.prototype.hasOwnProperty.call(target, "system_instruction"); } catch (_) {}
+    try {
+      useSnake = Object.prototype.hasOwnProperty.call(target, "system_instruction");
+    } catch (_) {}
     const key = useSnake ? "system_instruction" : "systemInstruction";
     let sys;
-    try { sys = target[key]; } catch (_) { sys = undefined; }
+    try {
+      sys = target[key];
+    } catch (_) {
+      sys = undefined;
+    }
     if (sys && Array.isArray(sys.parts)) {
-      try { if (sys.parts.some(p => p && p.text === prompt)) return; } catch (_) {}
-      try { sys.parts.push({ text: prompt }); } catch (_) {}
+      try {
+        if (sys.parts.some((p) => p && p.text === prompt)) return;
+      } catch (_) {}
+      try {
+        sys.parts.push({ text: prompt });
+      } catch (_) {}
       return;
     }
-    try { target[key] = { parts: [{ text: prompt }] }; } catch (_) {}
+    try {
+      target[key] = { parts: [{ text: prompt }] };
+    } catch (_) {}
   } catch (_) {}
 }
 
@@ -277,7 +340,10 @@ function injectKiroSystem(body, prompt) {
     const hist = Array.isArray(cs?.history) ? cs.history : null;
     if (hist) {
       for (const item of hist) {
-        if (item && item.userInputMessage) { targetMsg = item.userInputMessage; break; }
+        if (item && item.userInputMessage) {
+          targetMsg = item.userInputMessage;
+          break;
+        }
       }
     }
     if (!targetMsg && cs?.currentMessage?.userInputMessage) {
@@ -288,6 +354,10 @@ function injectKiroSystem(body, prompt) {
     const content = typeof targetMsg.content === "string" ? targetMsg.content : "";
     const next = dedupStringAppend(content, prompt);
     if (next === content) return; // already injected — idempotent across retries
-    try { targetMsg.content = next; } catch (_) { /* frozen/proxy fail-open */ }
+    try {
+      targetMsg.content = next;
+    } catch (_) {
+      /* frozen/proxy fail-open */
+    }
   } catch (_) {}
 }

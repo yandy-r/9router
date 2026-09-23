@@ -43,7 +43,7 @@ function makeChunk(state, delta, finishReason = null) {
   return buildChunk(
     { id: state.responseId, created: state.created, model: state.model },
     delta,
-    finishReason
+    finishReason,
   );
 }
 
@@ -81,7 +81,8 @@ export function commandCodeToOpenAIResponse(chunk, state) {
     case "text-delta": {
       const text = event.text || event.delta || "";
       if (!text) break;
-      const delta = state.chunkIndex === 0 ? { role: ROLE.ASSISTANT, content: text } : { content: text };
+      const delta =
+        state.chunkIndex === 0 ? { role: ROLE.ASSISTANT, content: text } : { content: text };
       state.chunkIndex++;
       state.openText = true;
       out.push(makeChunk(state, delta));
@@ -106,12 +107,14 @@ export function commandCodeToOpenAIResponse(chunk, state) {
       state.openTools.add(id);
       const delta = {
         ...(state.chunkIndex === 0 ? { role: ROLE.ASSISTANT } : {}),
-        tool_calls: [{
-          index: idx,
-          id,
-          type: OPENAI_BLOCK.FUNCTION,
-          function: { name: event.toolName || "", arguments: "" },
-        }],
+        tool_calls: [
+          {
+            index: idx,
+            id,
+            type: OPENAI_BLOCK.FUNCTION,
+            function: { name: event.toolName || "", arguments: "" },
+          },
+        ],
       };
       state.chunkIndex++;
       out.push(makeChunk(state, delta));
@@ -122,10 +125,12 @@ export function commandCodeToOpenAIResponse(chunk, state) {
       const idx = state.toolIndexById.get(id);
       if (idx == null) break;
       const delta = {
-        tool_calls: [{
-          index: idx,
-          function: { arguments: event.delta || event.inputTextDelta || "" },
-        }],
+        tool_calls: [
+          {
+            index: idx,
+            function: { arguments: event.delta || event.inputTextDelta || "" },
+          },
+        ],
       };
       out.push(makeChunk(state, delta));
       break;
@@ -136,15 +141,18 @@ export function commandCodeToOpenAIResponse(chunk, state) {
       if (state.toolIndexById.has(id)) break;
       const idx = state.toolIndex++;
       state.toolIndexById.set(id, idx);
-      const argsStr = typeof event.input === "string" ? event.input : JSON.stringify(event.input ?? {});
+      const argsStr =
+        typeof event.input === "string" ? event.input : JSON.stringify(event.input ?? {});
       const delta = {
         ...(state.chunkIndex === 0 ? { role: ROLE.ASSISTANT } : {}),
-        tool_calls: [{
-          index: idx,
-          id,
-          type: OPENAI_BLOCK.FUNCTION,
-          function: { name: event.toolName || "", arguments: argsStr },
-        }],
+        tool_calls: [
+          {
+            index: idx,
+            id,
+            type: OPENAI_BLOCK.FUNCTION,
+            function: { name: event.toolName || "", arguments: argsStr },
+          },
+        ],
       };
       state.chunkIndex++;
       out.push(makeChunk(state, delta));

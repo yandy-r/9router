@@ -37,12 +37,19 @@ function ensureRuntimeDir() {
   // Minimal package.json so npm treats it as a project root
   const pkgPath = path.join(dir, "package.json");
   if (!fs.existsSync(pkgPath)) {
-    fs.writeFileSync(pkgPath, JSON.stringify({
-      name: "9router-runtime",
-      version: "1.0.0",
-      private: true,
-      description: "User-writable runtime deps for 9router (better-sqlite3 native binary)",
-    }, null, 2));
+    fs.writeFileSync(
+      pkgPath,
+      JSON.stringify(
+        {
+          name: "9router-runtime",
+          version: "1.0.0",
+          private: true,
+          description: "User-writable runtime deps for 9router (better-sqlite3 native binary)",
+        },
+        null,
+        2,
+      ),
+    );
   }
   return dir;
 }
@@ -52,13 +59,18 @@ function hasModule(name) {
 }
 
 function isGlibcRuntime() {
-  try { return Boolean(process.report?.getReport()?.header?.glibcVersionRuntime); } catch { return true; }
+  try {
+    return Boolean(process.report?.getReport()?.header?.glibcVersionRuntime);
+  } catch {
+    return true;
+  }
 }
 
 // 12.x compiles/downloads into build/Release; 13.x ships prebuilds/<platform>-<arch>.node.
 function getBetterSqliteBinary() {
   const root = path.join(getRuntimeNodeModules(), "better-sqlite3");
-  const platform = process.platform === "linux" && !isGlibcRuntime() ? "linuxmusl" : process.platform;
+  const platform =
+    process.platform === "linux" && !isGlibcRuntime() ? "linuxmusl" : process.platform;
   return [
     path.join(root, "build", "Release", "better_sqlite3.node"),
     path.join(root, "prebuilds", `${platform}-${process.arch}.node`),
@@ -75,19 +87,25 @@ function isBetterSqliteBinaryValid() {
     fs.closeSync(fd);
     const magic = buf.toString("hex");
     if (process.platform === "linux") return magic.startsWith("7f454c46");
-    if (process.platform === "darwin") return magic.startsWith("cffaedfe") || magic.startsWith("cefaedfe");
+    if (process.platform === "darwin")
+      return magic.startsWith("cffaedfe") || magic.startsWith("cefaedfe");
     if (process.platform === "win32") return magic.startsWith("4d5a");
     return true;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 // Extract a short, user-friendly reason from npm stderr.
 function summarizeNpmError(stderr = "") {
   const text = String(stderr);
-  if (/ENOTFOUND|ETIMEDOUT|EAI_AGAIN|network|getaddrinfo/i.test(text)) return "No internet connection or registry unreachable";
-  if (/EACCES|EPERM|permission denied/i.test(text)) return "Permission denied (check folder permissions)";
+  if (/ENOTFOUND|ETIMEDOUT|EAI_AGAIN|network|getaddrinfo/i.test(text))
+    return "No internet connection or registry unreachable";
+  if (/EACCES|EPERM|permission denied/i.test(text))
+    return "Permission denied (check folder permissions)";
   if (/ENOSPC|no space/i.test(text)) return "Not enough disk space";
-  if (/node-gyp|gyp ERR|python|MSBuild|Visual Studio|Xcode/i.test(text)) return "Missing build tools (Xcode CLT / Python / VS Build Tools)";
+  if (/node-gyp|gyp ERR|python|MSBuild|Visual Studio|Xcode/i.test(text))
+    return "Missing build tools (Xcode CLT / Python / VS Build Tools)";
   if (/ETARGET|version.*not found/i.test(text)) return "Package version not found on registry";
   const m = text.match(/npm ERR! (.+)/);
   if (m) return m[1].slice(0, 200);
@@ -105,7 +123,12 @@ function runNpmInstall({ cwd, pkgs, extraArgs = [], timeout = 180000 }) {
     shell: process.platform === "win32",
     encoding: "utf8",
   });
-  return { ok: res.status === 0, code: res.status, stderr: res.stderr || "", stdout: res.stdout || "" };
+  return {
+    ok: res.status === 0,
+    code: res.status,
+    stderr: res.stderr || "",
+    stdout: res.stdout || "",
+  };
 }
 
 function npmInstall(pkgs, opts = {}) {
@@ -129,7 +152,15 @@ function npmInstall(pkgs, opts = {}) {
 // built-in. This is purely a *speed optimization* — app works without
 // better-sqlite3 via fallbacks.
 function isSqlJsWasmValid() {
-  const bundledWasm = path.join(__dirname, "..", "app", "node_modules", "sql.js", "dist", "sql-wasm.wasm");
+  const bundledWasm = path.join(
+    __dirname,
+    "..",
+    "app",
+    "node_modules",
+    "sql.js",
+    "dist",
+    "sql-wasm.wasm",
+  );
   if (fs.existsSync(bundledWasm)) return true;
   const runtimeWasm = path.join(getRuntimeNodeModules(), "sql.js", "dist", "sql-wasm.wasm");
   return fs.existsSync(runtimeWasm);
@@ -153,7 +184,11 @@ function ensureSqliteRuntime({ silent = false } = {}) {
   // npm injects an implicit `node-gyp rebuild` for any package carrying a
   // binding.gyp, which would demand build tools even though 13.x already bundles
   // the binary — skip scripts so the bundled prebuild is used as-is.
-  const ok = npmInstall([`better-sqlite3@${BETTER_SQLITE3_VERSION}`], { optional: true, silent, ignoreScripts: USE_NAPI_BUILD });
+  const ok = npmInstall([`better-sqlite3@${BETTER_SQLITE3_VERSION}`], {
+    optional: true,
+    silent,
+    ignoreScripts: USE_NAPI_BUILD,
+  });
   return {
     betterSqlite: ok && hasModule("better-sqlite3") && isBetterSqliteBinaryValid(),
     sqlJs: sqlJsOk,

@@ -2,9 +2,7 @@ export default {
   id: "vercel-ai-gateway",
   priority: 160,
   alias: "vercel-ai-gateway",
-  aliases: [
-    "vercel",
-  ],
+  aliases: ["vercel"],
   uiAlias: "vercel",
   display: {
     name: "Vercel AI Gateway",
@@ -22,16 +20,19 @@ export default {
     baseUrl: "https://ai-gateway.vercel.sh/v1/chat/completions",
     thinkingFormat: "openai",
     retry: {
-      "429": 2,
+      429: 2,
     },
     usage: {
       url: "https://ai-gateway.vercel.sh/v1/credits",
     },
   },
-  serviceKinds: ["llm","embedding","image","imageToText","webSearch"],
+  serviceKinds: ["llm", "embedding", "image", "imageToText", "webSearch"],
   embeddingConfig: { baseUrl: "https://ai-gateway.vercel.sh/v1/embeddings" },
   imageConfig: { baseUrl: "https://ai-gateway.vercel.sh/v1/images/generations" },
-  searchViaChat: { defaultModel: "openai/gpt-4o-mini", pricingUrl: "https://vercel.com/docs/ai-gateway/pricing" },
+  searchViaChat: {
+    defaultModel: "openai/gpt-4o-mini",
+    pricingUrl: "https://vercel.com/docs/ai-gateway/pricing",
+  },
   modelsFetcher: { url: "https://ai-gateway.vercel.sh/v1/models", type: "openai" },
   passthroughModels: true,
   features: {

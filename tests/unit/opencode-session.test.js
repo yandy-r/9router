@@ -30,7 +30,9 @@ function makeCredentials(overrides = {}) {
 function prepare(executor, overrides = {}) {
   const credentials = overrides.credentials || makeCredentials();
   const prepared = executor.prepareRequestCredentials({
-    body: overrides.body || { input: [{ type: "message", role: "user", content: [{ type: "input_text", text: "hello" }] }] },
+    body: overrides.body || {
+      input: [{ type: "message", role: "user", content: [{ type: "input_text", text: "hello" }] }],
+    },
     credentials,
     providerSessionId: overrides.providerSessionId ?? "conversation-a",
     clientTool: overrides.clientTool ?? "claude",
@@ -40,10 +42,12 @@ function prepare(executor, overrides = {}) {
 
 beforeEach(() => {
   fetchMock.mockReset();
-  fetchMock.mockResolvedValue(new Response("{}", {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  }));
+  fetchMock.mockResolvedValue(
+    new Response("{}", {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    }),
+  );
 });
 
 describe("OpenCode Free Session ID Format", () => {
@@ -110,7 +114,9 @@ describe("OpenCode Free Executor Session Resolution", () => {
   it("translates invalid native x-opencode-session header into a valid session", () => {
     const executor = getExecutor("opencode");
     const { prepared } = prepare(executor, {
-      credentials: makeCredentials({ rawHeaders: { "x-opencode-session": "invalid-session-uuid" } }),
+      credentials: makeCredentials({
+        rawHeaders: { "x-opencode-session": "invalid-session-uuid" },
+      }),
     });
 
     expect(prepared._opencodeSession).toMatch(OPENCODE_SESSION_RE);
@@ -119,8 +125,10 @@ describe("OpenCode Free Executor Session Resolution", () => {
 
   it("translates conversation session deterministically", () => {
     const executor = getExecutor("opencode");
-    const first = prepare(executor, { providerSessionId: "conversation-a", clientTool: "claude" }).prepared._opencodeSession;
-    const second = prepare(executor, { providerSessionId: "conversation-a", clientTool: "claude" }).prepared._opencodeSession;
+    const first = prepare(executor, { providerSessionId: "conversation-a", clientTool: "claude" })
+      .prepared._opencodeSession;
+    const second = prepare(executor, { providerSessionId: "conversation-a", clientTool: "claude" })
+      .prepared._opencodeSession;
 
     expect(first).toBe(second);
     expect(first).toMatch(OPENCODE_SESSION_RE);
@@ -128,10 +136,14 @@ describe("OpenCode Free Executor Session Resolution", () => {
 
   it("isolates different conversations and tools", () => {
     const executor = getExecutor("opencode");
-    const convA = prepare(executor, { providerSessionId: "conversation-a" }).prepared._opencodeSession;
-    const convB = prepare(executor, { providerSessionId: "conversation-b" }).prepared._opencodeSession;
-    const toolClaude = prepare(executor, { providerSessionId: "same", clientTool: "claude" }).prepared._opencodeSession;
-    const toolCodex = prepare(executor, { providerSessionId: "same", clientTool: "codex" }).prepared._opencodeSession;
+    const convA = prepare(executor, { providerSessionId: "conversation-a" }).prepared
+      ._opencodeSession;
+    const convB = prepare(executor, { providerSessionId: "conversation-b" }).prepared
+      ._opencodeSession;
+    const toolClaude = prepare(executor, { providerSessionId: "same", clientTool: "claude" })
+      .prepared._opencodeSession;
+    const toolCodex = prepare(executor, { providerSessionId: "same", clientTool: "codex" }).prepared
+      ._opencodeSession;
 
     expect(convA).not.toBe(convB);
     expect(toolClaude).not.toBe(toolCodex);
@@ -142,7 +154,11 @@ describe("OpenCode Free Executor Session Resolution", () => {
     const credentials = makeCredentials();
     const result = await executor.execute({
       model: "muse-spark-1.3-contributor-free",
-      body: { input: [{ type: "message", role: "user", content: [{ type: "input_text", text: "hello" }] }] },
+      body: {
+        input: [
+          { type: "message", role: "user", content: [{ type: "input_text", text: "hello" }] },
+        ],
+      },
       stream: false,
       credentials,
       providerSessionId: "conversation-fetch-test",
@@ -151,7 +167,9 @@ describe("OpenCode Free Executor Session Resolution", () => {
 
     expect(result.headers["x-opencode-session"]).toMatch(OPENCODE_SESSION_RE);
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock.mock.calls[0][1].headers["x-opencode-session"]).toBe(result.headers["x-opencode-session"]);
+    expect(fetchMock.mock.calls[0][1].headers["x-opencode-session"]).toBe(
+      result.headers["x-opencode-session"],
+    );
     expect(fetchMock.mock.calls[0][1].headers["Authorization"]).toBe("Bearer public");
     expect(credentials).not.toHaveProperty("_opencodeSession");
   });
@@ -165,7 +183,9 @@ describe("OpenCode Free Executor Session Resolution", () => {
   });
   it("handles null or undefined body gracefully in transformRequest", () => {
     const executor = getExecutor("opencode");
-    expect(() => executor.transformRequest("muse-spark-1.3-contributor-free", null, false, {})).not.toThrow();
+    expect(() =>
+      executor.transformRequest("muse-spark-1.3-contributor-free", null, false, {}),
+    ).not.toThrow();
     expect(() => executor.transformRequest("big-pickle", undefined, false, {})).not.toThrow();
   });
 });
@@ -176,7 +196,9 @@ describe("OpenCode Free User-Agent Validation", () => {
     const headersNoUa = executor.buildHeaders({});
     expect(headersNoUa["User-Agent"]).toBe("opencode/1.18.31");
 
-    const headersClaude = executor.buildHeaders({ rawHeaders: { "user-agent": "Claude-Code/1.0" } });
+    const headersClaude = executor.buildHeaders({
+      rawHeaders: { "user-agent": "Claude-Code/1.0" },
+    });
     expect(headersClaude["User-Agent"]).toBe("opencode/1.18.31");
   });
 
@@ -195,18 +217,27 @@ describe("OpenCode Free User-Agent Validation", () => {
   it("preserves valid opencode versions (>= 1.17)", () => {
     const executor = getExecutor("opencode");
     const headers118 = executor.buildHeaders({
-      rawHeaders: { "user-agent": "opencode/1.18.31 ai-sdk/provider-utils/4.0.40 runtime/bun/1.3.14" },
+      rawHeaders: {
+        "user-agent": "opencode/1.18.31 ai-sdk/provider-utils/4.0.40 runtime/bun/1.3.14",
+      },
     });
-    expect(headers118["User-Agent"]).toBe("opencode/1.18.31 ai-sdk/provider-utils/4.0.40 runtime/bun/1.3.14");
+    expect(headers118["User-Agent"]).toBe(
+      "opencode/1.18.31 ai-sdk/provider-utils/4.0.40 runtime/bun/1.3.14",
+    );
 
-    const headersFuture = executor.buildHeaders({ rawHeaders: { "user-agent": "opencode/1.19.0" } });
+    const headersFuture = executor.buildHeaders({
+      rawHeaders: { "user-agent": "opencode/1.19.0" },
+    });
     expect(headersFuture["User-Agent"]).toBe("opencode/1.19.0");
   });
 });
 
 describe("OpenCode Stable Session Reuse (429 follow-up)", () => {
   function anonymousCredentials(auth) {
-    return makeCredentials({ connectionId: undefined, rawHeaders: { authorization: `Bearer ${auth}` } });
+    return makeCredentials({
+      connectionId: undefined,
+      rawHeaders: { authorization: `Bearer ${auth}` },
+    });
   }
 
   it("reuses one stable upstream session instead of minting a new one per request", () => {
@@ -232,12 +263,13 @@ describe("OpenCode Stable Session Reuse (429 follow-up)", () => {
   it("isolates stable sessions by downstream identity", () => {
     const executor = getExecutor("opencode");
     const body = { messages: [{ role: "user", content: "hello" }] };
-    const forKey = (auth) => executor.prepareRequestCredentials({
-      body,
-      credentials: anonymousCredentials(auth),
-      providerSessionId: null,
-      clientTool: "claude",
-    })._opencodeSession;
+    const forKey = (auth) =>
+      executor.prepareRequestCredentials({
+        body,
+        credentials: anonymousCredentials(auth),
+        providerSessionId: null,
+        clientTool: "claude",
+      })._opencodeSession;
 
     expect(forKey("user-A")).not.toBe(forKey("user-B"));
     expect(forKey("user-A")).toMatch(OPENCODE_SESSION_RE);

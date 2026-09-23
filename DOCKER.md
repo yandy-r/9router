@@ -17,7 +17,7 @@ docker run -d \
   ghcr.io/yandy-r/9router:latest
 ```
 
-App listens on port `20128`. Open: http://localhost:20128
+App listens on port `20128`. Open: <http://localhost:20128>
 
 ## Manage container
 
@@ -118,6 +118,7 @@ docker run --rm -p 20128:20128 \
 ## Publish (automatic via CI)
 
 Push a git tag `v*` → GitHub Actions builds multi-platform (amd64+arm64) and pushes to:
+
 - `ghcr.io/yandy-r/9router:v{version}` + `:latest`
 
 ```bash

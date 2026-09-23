@@ -29,10 +29,13 @@ describe("Claude Code CLI context → OpenAI", () => {
   it("assistant thinking block survives Claude→Claude passthrough", () => {
     const out = T(FORMATS.CLAUDE, FORMATS.CLAUDE, {
       messages: [
-        { role: "assistant", content: [
-          { type: "thinking", thinking: "step-by-step plan", signature: "abc123" },
-          { type: "text", text: "done" },
-        ] },
+        {
+          role: "assistant",
+          content: [
+            { type: "thinking", thinking: "step-by-step plan", signature: "abc123" },
+            { type: "text", text: "done" },
+          ],
+        },
         { role: "user", content: "next" },
       ],
     });
@@ -44,10 +47,13 @@ describe("Claude Code CLI context → OpenAI", () => {
   it.fails("redacted_thinking block is not silently dropped", () => {
     const out = T(FORMATS.CLAUDE, FORMATS.OPENAI, {
       messages: [
-        { role: "assistant", content: [
-          { type: "redacted_thinking", data: "ENCRYPTED_BLOB" },
-          { type: "text", text: "answer" },
-        ] },
+        {
+          role: "assistant",
+          content: [
+            { type: "redacted_thinking", data: "ENCRYPTED_BLOB" },
+            { type: "text", text: "answer" },
+          ],
+        },
         { role: "user", content: "go" },
       ],
     });
@@ -59,12 +65,22 @@ describe("Claude Code CLI context → OpenAI", () => {
   it.fails("tool_result image block is preserved", () => {
     const out = T(FORMATS.CLAUDE, FORMATS.OPENAI, {
       messages: [
-        { role: "assistant", content: [{ type: "tool_use", id: "call_1", name: "screenshot", input: {} }] },
-        { role: "user", content: [
-          { type: "tool_result", tool_use_id: "call_1", content: [
-            { type: "image", source: { type: "base64", media_type: "image/png", data: "IMG" } },
-          ] },
-        ] },
+        {
+          role: "assistant",
+          content: [{ type: "tool_use", id: "call_1", name: "screenshot", input: {} }],
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "tool_result",
+              tool_use_id: "call_1",
+              content: [
+                { type: "image", source: { type: "base64", media_type: "image/png", data: "IMG" } },
+              ],
+            },
+          ],
+        },
       ],
     });
     const tool = out.messages.find((m) => m.role === "tool");

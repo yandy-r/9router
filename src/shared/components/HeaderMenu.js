@@ -82,24 +82,36 @@ export default function HeaderMenu({ onLogout }) {
             <MenuItem
               icon="history"
               label="Change Log"
-              onClick={() => { close(); setChangelogOpen(true); }}
+              onClick={() => {
+                close();
+                setChangelogOpen(true);
+              }}
             />
             <MenuItem
               icon={isDark ? "light_mode" : "dark_mode"}
               label="Theme"
-              onClick={() => { toggleTheme(); close(); }}
+              onClick={() => {
+                toggleTheme();
+                close();
+              }}
             />
             <MenuItem
               icon="power_settings_new"
               label="Shutdown"
               danger
-              onClick={() => { close(); setShutdownOpen(true); }}
+              onClick={() => {
+                close();
+                setShutdownOpen(true);
+              }}
             />
             <MenuItem
               icon="logout"
               label="Logout"
               danger
-              onClick={() => { close(); onLogout(); }}
+              onClick={() => {
+                close();
+                onLogout();
+              }}
             />
           </div>
         )}

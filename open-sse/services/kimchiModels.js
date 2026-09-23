@@ -25,16 +25,21 @@ export function buildKimchiModelsUrl(endpoint) {
 
 function readToken(credentials) {
   return (
-    credentials?.accessToken
-    || credentials?.apiKey
-    || credentials?.providerSpecificData?.apiKey
-    || null
+    credentials?.accessToken ||
+    credentials?.apiKey ||
+    credentials?.providerSpecificData?.apiKey ||
+    null
   );
 }
 
 function cacheKey(credentials, endpoint) {
   const psd = credentials?.providerSpecificData || {};
-  const seed = psd.userId || psd.username || credentials?.refreshToken || readToken(credentials) || "anonymous";
+  const seed =
+    psd.userId ||
+    psd.username ||
+    credentials?.refreshToken ||
+    readToken(credentials) ||
+    "anonymous";
   return createHash("sha256")
     .update(`kimchi:${normalizeKimchiEndpoint(endpoint)}:${seed}`)
     .digest("hex");
@@ -55,8 +60,10 @@ export function normalizeKimchiModel(item) {
     ? item.input_modalities.filter((value) => value === "text" || value === "image")
     : [];
   const limits = item.limits && typeof item.limits === "object" ? item.limits : {};
-  const contextLength = Number(limits.context_window || item.contextLength || item.context_length) || undefined;
-  const maxOutputTokens = Number(limits.max_output_tokens || item.maxOutputTokens || item.max_output_tokens) || undefined;
+  const contextLength =
+    Number(limits.context_window || item.contextLength || item.context_length) || undefined;
+  const maxOutputTokens =
+    Number(limits.max_output_tokens || item.maxOutputTokens || item.max_output_tokens) || undefined;
   const upstreamProvider = typeof item.provider === "string" ? item.provider : "";
   const reasoning = item.reasoning === true;
   const kind = toModelKind(inputModalities);
@@ -106,22 +113,29 @@ export function getCachedKimchiModelMetadata(modelId) {
 async function fetchKimchiCatalogRaw(token, endpoint, options = {}) {
   const url = buildKimchiModelsUrl(endpoint);
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(new Error("Kimchi models fetch timeout")), FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(
+    () => controller.abort(new Error("Kimchi models fetch timeout")),
+    FETCH_TIMEOUT_MS,
+  );
   const signal = options.signal
     ? AbortSignal.any([options.signal, controller.signal])
     : controller.signal;
 
   try {
-    const response = await proxyAwareFetch(url, {
-      method: "GET",
-      headers: {
-        "Accept": "application/json",
-        "Authorization": `Bearer ${token}`,
-        "User-Agent": KIMCHI_USER_AGENT,
+    const response = await proxyAwareFetch(
+      url,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+          "User-Agent": KIMCHI_USER_AGENT,
+        },
+        cache: "no-store",
+        signal,
       },
-      cache: "no-store",
-      signal,
-    }, options.proxyOptions || null);
+      options.proxyOptions || null,
+    );
 
     if (!response.ok) {
       const error = new Error(`Kimchi models ${response.status}: ${response.statusText}`);
@@ -141,7 +155,8 @@ export async function resolveKimchiModels(credentials, options = {}) {
   const token = readToken(credentials);
   if (!token) return null;
 
-  const endpoint = credentials?.providerSpecificData?.kimchiEndpoint || options.endpoint || KIMCHI_API;
+  const endpoint =
+    credentials?.providerSpecificData?.kimchiEndpoint || options.endpoint || KIMCHI_API;
   const key = cacheKey(credentials, endpoint);
   const now = Date.now();
   if (!options.forceRefresh) {

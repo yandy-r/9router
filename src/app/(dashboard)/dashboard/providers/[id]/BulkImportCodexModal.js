@@ -88,7 +88,7 @@ export default function BulkImportCodexModal({ isOpen, onClose, onSuccess }) {
       <div className="flex flex-col gap-4">
         <p className="text-xs text-text-muted">
           {translate(
-            "Paste an array of codex account JSON objects. Each must include accessToken (and ideally refreshToken, idToken)."
+            "Paste an array of codex account JSON objects. Each must include accessToken (and ideally refreshToken, idToken).",
           )}
         </p>
 
@@ -100,9 +100,7 @@ export default function BulkImportCodexModal({ isOpen, onClose, onSuccess }) {
           disabled={submitting}
         />
 
-        {parseError && (
-          <p className="text-xs text-red-500 break-words">{parseError}</p>
-        )}
+        {parseError && <p className="text-xs text-red-500 break-words">{parseError}</p>}
 
         {result && (
           <div className="flex flex-col gap-2">
@@ -127,11 +125,7 @@ export default function BulkImportCodexModal({ isOpen, onClose, onSuccess }) {
         )}
 
         <div className="flex gap-2">
-          <Button
-            onClick={handleSubmit}
-            fullWidth
-            disabled={submitting || !jsonText.trim()}
-          >
+          <Button onClick={handleSubmit} fullWidth disabled={submitting || !jsonText.trim()}>
             {submitting ? translate("Importing...") : translate("Import All")}
           </Button>
           <Button onClick={handleClose} variant="ghost" fullWidth disabled={submitting}>

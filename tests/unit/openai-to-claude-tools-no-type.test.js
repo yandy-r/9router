@@ -31,11 +31,13 @@ const baseBody = (extra = {}) => ({
 
 describe("openai→claude: tools shape fidelity", () => {
   it("tool WITH explicit type:'function' is rewritten to Anthropic shape", () => {
-    const out = openaiToClaudeRequest("claude-sonnet-4.5", baseBody({
-      tools: [
-        { type: "function", function: { name: "echo", parameters: { type: "object" } } },
-      ],
-    }), false);
+    const out = openaiToClaudeRequest(
+      "claude-sonnet-4.5",
+      baseBody({
+        tools: [{ type: "function", function: { name: "echo", parameters: { type: "object" } } }],
+      }),
+      false,
+    );
 
     expect(out.tools).toHaveLength(1);
     expect(out.tools[0].name).toBe("echo");
@@ -46,11 +48,13 @@ describe("openai→claude: tools shape fidelity", () => {
   });
 
   it("tool WITHOUT explicit type but WITH function wrapper preserves the original name (was 'undefined' in v0.5.20)", () => {
-    const out = openaiToClaudeRequest("claude-sonnet-4.5", baseBody({
-      tools: [
-        { function: { name: "echo", parameters: { type: "object" } } },
-      ],
-    }), false);
+    const out = openaiToClaudeRequest(
+      "claude-sonnet-4.5",
+      baseBody({
+        tools: [{ function: { name: "echo", parameters: { type: "object" } } }],
+      }),
+      false,
+    );
 
     expect(out.tools).toHaveLength(1);
     expect(out.tools[0].name).toBe("echo");
@@ -61,11 +65,13 @@ describe("openai→claude: tools shape fidelity", () => {
   });
 
   it("flat Anthropic-shape tool (no function wrapper) is passed through with name preserved", () => {
-    const out = openaiToClaudeRequest("claude-sonnet-4.5", baseBody({
-      tools: [
-        { name: "echo", description: "echo input", input_schema: { type: "object" } },
-      ],
-    }), false);
+    const out = openaiToClaudeRequest(
+      "claude-sonnet-4.5",
+      baseBody({
+        tools: [{ name: "echo", description: "echo input", input_schema: { type: "object" } }],
+      }),
+      false,
+    );
 
     expect(out.tools).toHaveLength(1);
     expect(out.tools[0].name).toBe("echo");
@@ -78,11 +84,13 @@ describe("openai→claude: tools shape fidelity", () => {
     // the test asserts the original shape is preserved alongside it rather
     // than checking strict equality. This is the existing buildHeaders /
     // cache_control behavior unchanged by this fix.
-    const out = openaiToClaudeRequest("claude-sonnet-4.5", baseBody({
-      tools: [
-        { type: "web_search_20250305", name: "web_search" },
-      ],
-    }), false);
+    const out = openaiToClaudeRequest(
+      "claude-sonnet-4.5",
+      baseBody({
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+      }),
+      false,
+    );
 
     expect(out.tools).toHaveLength(1);
     expect(out.tools[0].type).toBe("web_search_20250305");

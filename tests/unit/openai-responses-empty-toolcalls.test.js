@@ -15,12 +15,66 @@ describe("OpenAI Chat stream → Responses: empty tool_calls arrays", () => {
   it("does not emit output_text.done early when every chunk carries tool_calls: []", () => {
     const state = initState(FORMATS.OPENAI_RESPONSES);
     const chunks = [
-      { id: "cmb-test", choices: [{ index: 0, delta: { role: "assistant", content: "", reasoning_content: "", tool_calls: [] }, finish_reason: null }] },
-      { id: "cmb-test", choices: [{ index: 0, delta: { content: "", reasoning_content: "thinking", tool_calls: [] }, finish_reason: null }] },
-      { id: "cmb-test", choices: [{ index: 0, delta: { content: "cod", reasoning_content: "", tool_calls: [] }, finish_reason: null }] },
-      { id: "cmb-test", choices: [{ index: 0, delta: { content: "ex", reasoning_content: "", tool_calls: [] }, finish_reason: null }] },
-      { id: "cmb-test", choices: [{ index: 0, delta: { content: "-ok", reasoning_content: "", tool_calls: [] }, finish_reason: null }] },
-      { id: "cmb-test", choices: [{ index: 0, delta: { content: "", reasoning_content: "", tool_calls: [] }, finish_reason: "stop" }] },
+      {
+        id: "cmb-test",
+        choices: [
+          {
+            index: 0,
+            delta: { role: "assistant", content: "", reasoning_content: "", tool_calls: [] },
+            finish_reason: null,
+          },
+        ],
+      },
+      {
+        id: "cmb-test",
+        choices: [
+          {
+            index: 0,
+            delta: { content: "", reasoning_content: "thinking", tool_calls: [] },
+            finish_reason: null,
+          },
+        ],
+      },
+      {
+        id: "cmb-test",
+        choices: [
+          {
+            index: 0,
+            delta: { content: "cod", reasoning_content: "", tool_calls: [] },
+            finish_reason: null,
+          },
+        ],
+      },
+      {
+        id: "cmb-test",
+        choices: [
+          {
+            index: 0,
+            delta: { content: "ex", reasoning_content: "", tool_calls: [] },
+            finish_reason: null,
+          },
+        ],
+      },
+      {
+        id: "cmb-test",
+        choices: [
+          {
+            index: 0,
+            delta: { content: "-ok", reasoning_content: "", tool_calls: [] },
+            finish_reason: null,
+          },
+        ],
+      },
+      {
+        id: "cmb-test",
+        choices: [
+          {
+            index: 0,
+            delta: { content: "", reasoning_content: "", tool_calls: [] },
+            finish_reason: "stop",
+          },
+        ],
+      },
     ];
 
     const events = chunks.flatMap((chunk) => openaiToOpenAIResponsesResponse(chunk, state));
@@ -37,13 +91,38 @@ describe("OpenAI Chat stream → Responses: empty tool_calls arrays", () => {
   it("still closes the message before a real tool call", () => {
     const state = initState(FORMATS.OPENAI_RESPONSES);
     const chunks = [
-      { id: "cmb-test", choices: [{ index: 0, delta: { content: "Let me run that.", tool_calls: [] }, finish_reason: null }] },
-      { id: "cmb-test", choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: "call_1", type: "function", function: { name: "exec", arguments: "" } }] }, finish_reason: null }] },
+      {
+        id: "cmb-test",
+        choices: [
+          { index: 0, delta: { content: "Let me run that.", tool_calls: [] }, finish_reason: null },
+        ],
+      },
+      {
+        id: "cmb-test",
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  index: 0,
+                  id: "call_1",
+                  type: "function",
+                  function: { name: "exec", arguments: "" },
+                },
+              ],
+            },
+            finish_reason: null,
+          },
+        ],
+      },
       { id: "cmb-test", choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] },
     ];
 
     const events = chunks.flatMap((chunk) => openaiToOpenAIResponsesResponse(chunk, state));
-    const added = events.find((e) => e.event === "response.output_item.added" && e.data.item?.type === "function_call");
+    const added = events.find(
+      (e) => e.event === "response.output_item.added" && e.data.item?.type === "function_call",
+    );
     const textDone = events.find((e) => e.event === "response.output_text.done");
 
     expect(added).toBeTruthy();

@@ -1,5 +1,15 @@
 import { loadState, generateShortId } from "../shared/state.js";
-import { startFunnel, stopFunnel, isTailscaleRunning, isTailscaleRunningStrict, isTailscaleLoggedIn, isTailscaleLoggedInStrict, startLogin, startDaemonWithPassword, provisionCert } from "./tailscale.js";
+import {
+  startFunnel,
+  stopFunnel,
+  isTailscaleRunning,
+  isTailscaleRunningStrict,
+  isTailscaleLoggedIn,
+  isTailscaleLoggedInStrict,
+  startLogin,
+  startDaemonWithPassword,
+  provisionCert,
+} from "./tailscale.js";
 import { waitForHealth } from "./healthCheck.js";
 import { getSettings, updateSettings } from "@/lib/localDb";
 import { getCachedPassword, loadEncryptedPassword, initDbHooks } from "@/mitm/manager";
@@ -13,8 +23,12 @@ const svc = {
   activeLocalPort: null,
 };
 
-export function getTailscaleService() { return svc; }
-export function isTailscaleReconnecting() { return svc.spawnInProgress; }
+export function getTailscaleService() {
+  return svc;
+}
+export function isTailscaleReconnecting() {
+  return svc.spawnInProgress;
+}
 
 function throwIfCancelled(token) {
   if (token.cancelled) throw new Error("tailscale cancelled");
@@ -28,7 +42,7 @@ export async function enableTailscale(localPort = 20128) {
   const token = svc.cancelToken;
 
   try {
-    const sudoPass = getCachedPassword() || await loadEncryptedPassword() || "";
+    const sudoPass = getCachedPassword() || (await loadEncryptedPassword()) || "";
     await startDaemonWithPassword(sudoPass);
     console.log("[Tailscale] daemon ready");
     throwIfCancelled(token);
@@ -60,7 +74,8 @@ export async function enableTailscale(localPort = 20128) {
       if (/NoState|unexpected state|not logged in|Logged ?out|NeedsLogin/i.test(e.message || "")) {
         console.log("[Tailscale] retry via startLogin");
         const loginResult = await startLogin(tsHostname);
-        if (loginResult.authUrl) return { success: false, needsLogin: true, authUrl: loginResult.authUrl };
+        if (loginResult.authUrl)
+          return { success: false, needsLogin: true, authUrl: loginResult.authUrl };
       }
       throw e;
     }
@@ -75,7 +90,10 @@ export async function enableTailscale(localPort = 20128) {
     if (!(await isTailscaleLoggedInStrict()) || !(await isTailscaleRunningStrict())) {
       console.error("[Tailscale] strict probe failed (device removed?)");
       stopFunnel();
-      return { success: false, error: "Tailscale not connected. Device may have been removed. Please re-login." };
+      return {
+        success: false,
+        error: "Tailscale not connected. Device may have been removed. Please re-login.",
+      };
     }
 
     await updateSettings({ tailscaleEnabled: true, tailscaleUrl: result.tunnelUrl });
@@ -124,6 +142,6 @@ export async function getTailscaleStatus() {
     settingsEnabled,
     tunnelUrl,
     running,
-    loggedIn
+    loggedIn,
   };
 }

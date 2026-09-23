@@ -12,12 +12,28 @@ const SEP = "[-_/:.]";
 const NOT_VISION = new RegExp(
   [
     `(^|${SEP})(image|img)(${SEP}|$)`,
-    "stable-image", "gen[0-9]_image", "nanobanana", "imagine",
-    "t2v", "i2v", "flux", "dall", "sdxl", "diffusion",
-    "embed", "rerank", "guard", "moderation",
-    "tts", "stt", "whisper", "voice", "speech", "audio",
+    "stable-image",
+    "gen[0-9]_image",
+    "nanobanana",
+    "imagine",
+    "t2v",
+    "i2v",
+    "flux",
+    "dall",
+    "sdxl",
+    "diffusion",
+    "embed",
+    "rerank",
+    "guard",
+    "moderation",
+    "tts",
+    "stt",
+    "whisper",
+    "voice",
+    "speech",
+    "audio",
   ].join("|"),
-  "i"
+  "i",
 );
 
 // Explicit modality words, plus the "<digit>v" suffix vendors use for vision
@@ -30,7 +46,7 @@ const VISION_NAME = new RegExp(
     `(^|${SEP})glm-[0-9]+v(${SEP}|$)`,
     "(^|[-_/:.])(llava|pixtral|internvl|cogvlm|minicpm-v|moondream|idefics|fuyu)",
   ].join("|"),
-  "i"
+  "i",
 );
 
 // Does this model id look like a vision model? Name signal only.

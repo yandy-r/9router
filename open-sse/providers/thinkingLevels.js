@@ -6,13 +6,13 @@ import { resolveKiroEffortPath } from "../config/kiroConstants.js";
 
 // Shared level sets (deduped) — verified against provider docs + wire in thinkingUnified.applyFormat.
 const L = {
-  base: ["none", "low", "medium", "high"],                          // qwen, step, hunyuan, gemini-budget
-  onOff: ["none", "thinking"],                                      // zai (binary), minimax (adaptive)
-  openai: ["none", "minimal", "low", "medium", "high", "xhigh"],    // GPT-5.x / o-series (no "max")
-  levelMax: ["none", "low", "medium", "high", "max"],               // claude-adaptive, kimi
-  budgetX: ["none", "low", "medium", "high", "xhigh", "max"],       // claude-budget
-  gemini: ["minimal", "low", "medium", "high"],                     // gemini-3 thinkingLevel (no disable)
-  hiMax: ["none", "high", "max"],                                   // deepseek (low/med→high, xhigh→max)
+  base: ["none", "low", "medium", "high"], // qwen, step, hunyuan, gemini-budget
+  onOff: ["none", "thinking"], // zai (binary), minimax (adaptive)
+  openai: ["none", "minimal", "low", "medium", "high", "xhigh"], // GPT-5.x / o-series (no "max")
+  levelMax: ["none", "low", "medium", "high", "max"], // claude-adaptive, kimi
+  budgetX: ["none", "low", "medium", "high", "xhigh", "max"], // claude-budget
+  gemini: ["minimal", "low", "medium", "high"], // gemini-3 thinkingLevel (no disable)
+  hiMax: ["none", "high", "max"], // deepseek (low/med→high, xhigh→max)
 };
 
 // thinkingFormat → valid selectable levels (source of truth for UI options).
@@ -52,11 +52,11 @@ const PATTERN_THINKING = [
   // clamped, so the declared set stays authoritative for the picker. Models
   // that publish no supportedEfforts (glm-5.1 / glm-5v-turbo / kimi-k2.x /
   // kimi-k3-1 / minimax-m3) fall through to the openai format default.
-  { provider: "codebuddy-cn", pattern: "glm-5.3*",     levels: ["low", "high", "max"] },
-  { provider: "codebuddy-cn", pattern: "glm-5.2",      levels: ["high", "xhigh"] },
+  { provider: "codebuddy-cn", pattern: "glm-5.3*", levels: ["low", "high", "max"] },
+  { provider: "codebuddy-cn", pattern: "glm-5.2", levels: ["high", "xhigh"] },
   { provider: "codebuddy-cn", pattern: "deepseek-v4*", levels: ["low", "high", "xhigh"] },
-  { provider: "codebuddy-cn", pattern: "hy3*",         levels: ["low", "high"] },
-  { provider: "codebuddy-cn", pattern: "hy4*",         levels: ["high"] },
+  { provider: "codebuddy-cn", pattern: "hy3*", levels: ["low", "high"] },
+  { provider: "codebuddy-cn", pattern: "hy4*", levels: ["high"] },
   // codebuddy-intl rides the same gateway catalog, so its deepseek levels match.
   { provider: "codebuddy-intl", pattern: "deepseek-v4*", levels: ["low", "high", "xhigh"] },
 ];
@@ -66,8 +66,9 @@ export function getThinkingLevels(provider, model) {
   if (provider === "kiro" && resolveKiroEffortPath(model) === null) return null;
   const caps = getCapabilitiesForModel(provider, model);
   if (!caps.reasoning) return null;
-  const hit = PATTERN_THINKING.find((entry) =>
-    (!entry.provider || entry.provider === provider) && matchPattern(entry.pattern, model)
+  const hit = PATTERN_THINKING.find(
+    (entry) =>
+      (!entry.provider || entry.provider === provider) && matchPattern(entry.pattern, model),
   );
   let levels = hit?.levels || FORMAT_LEVELS[caps.thinkingFormat] || L.base;
   if (caps.thinkingCanDisable === false) levels = levels.filter((l) => l !== "none");

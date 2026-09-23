@@ -41,20 +41,31 @@ function resolveDevinBin() {
   //    a login shell — probe these explicitly before falling back to PATH.
   const candidates = isWin
     ? [
-      // Official installer: %LOCALAPPDATA%\devin\cli\bin\devin.exe
-      path.join(process.env.LOCALAPPDATA || path.join(home, "AppData", "Local"), "devin", "cli", "bin", "devin.exe"),
-      path.join(home, ".local", "bin", "devin.exe"),
-      path.join(home, "scoop", "shims", "devin.exe"),
-      path.join(process.env.LOCALAPPDATA || path.join(home, "AppData", "Local"), "Programs", "devin", "devin.exe"),
-    ]
+        // Official installer: %LOCALAPPDATA%\devin\cli\bin\devin.exe
+        path.join(
+          process.env.LOCALAPPDATA || path.join(home, "AppData", "Local"),
+          "devin",
+          "cli",
+          "bin",
+          "devin.exe",
+        ),
+        path.join(home, ".local", "bin", "devin.exe"),
+        path.join(home, "scoop", "shims", "devin.exe"),
+        path.join(
+          process.env.LOCALAPPDATA || path.join(home, "AppData", "Local"),
+          "Programs",
+          "devin",
+          "devin.exe",
+        ),
+      ]
     : [
-      path.join(home, ".local", "share", "devin", "bin", "devin"),
-      path.join(home, ".devin", "bin", "devin"),
-      path.join(home, ".local", "bin", "devin"), // pipx / user install
-      "/opt/homebrew/bin/devin",                  // Homebrew (Apple Silicon)
-      "/usr/local/bin/devin",                     // Homebrew (Intel) / manual
-      "/usr/bin/devin",
-    ];
+        path.join(home, ".local", "share", "devin", "bin", "devin"),
+        path.join(home, ".devin", "bin", "devin"),
+        path.join(home, ".local", "bin", "devin"), // pipx / user install
+        "/opt/homebrew/bin/devin", // Homebrew (Apple Silicon)
+        "/usr/local/bin/devin", // Homebrew (Intel) / manual
+        "/usr/bin/devin",
+      ];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
   }
@@ -181,8 +192,7 @@ function extractClientToolResults(messages) {
           const mcpName = idToMcpName.get(b.tool_use_id);
           if (mcpName) {
             const c = b.content;
-            results[mcpName] =
-              typeof c === "string" ? c : JSON.stringify(c ?? "");
+            results[mcpName] = typeof c === "string" ? c : JSON.stringify(c ?? "");
           }
         }
       }
@@ -265,8 +275,7 @@ function buildPromptText(messages) {
         else if (p.type === "tool_use") {
           text += `\n[Tool call ${p.name} id=${p.id}]\n${JSON.stringify(p.input ?? {})}\n`;
         } else if (p.type === "tool_result") {
-          const c =
-            typeof p.content === "string" ? p.content : JSON.stringify(p.content ?? "");
+          const c = typeof p.content === "string" ? p.content : JSON.stringify(p.content ?? "");
           text += `\n[Tool result id=${p.tool_use_id}]\n${c}\n`;
         }
       }
@@ -321,19 +330,12 @@ export class DevinCliExecutor extends BaseExecutor {
 
   async execute({ model, body, credentials, signal, log }) {
     const b = body ?? {};
-    const messages = Array.isArray(b.messages)
-      ? b.messages
-      : Array.isArray(b.input)
-        ? b.input
-        : [];
+    const messages = Array.isArray(b.messages) ? b.messages : Array.isArray(b.input) ? b.input : [];
     const promptText = buildPromptText(messages);
     const workspaceCwd = resolveWorkspaceCwd(b);
     const devinBin = resolveDevinBin();
 
-    log?.info?.(
-      "DEVIN",
-      `devin acp → model=${model}, bin=${devinBin}, cwd=${workspaceCwd}`
-    );
+    log?.info?.("DEVIN", `devin acp → model=${model}, bin=${devinBin}, cwd=${workspaceCwd}`);
 
     // Optional MCP servers via DEVIN_MCP_SERVERS (JSON object, devin config format):
     //   {"echo":{"command":"/abs/node","args":["/srv/echo.js"],"env":{"K":"V"}}}
@@ -363,7 +365,7 @@ export class DevinCliExecutor extends BaseExecutor {
       log?.info?.(
         "DEVIN",
         `exposing ${clientTools.length} client tool(s) as MCP` +
-          (seeded ? ` (seeded ${seeded} result(s))` : "")
+          (seeded ? ` (seeded ${seeded} result(s))` : ""),
       );
     }
     if (Object.keys(mcpServers).length) {
@@ -371,10 +373,7 @@ export class DevinCliExecutor extends BaseExecutor {
         mcpConfigDir = fs.mkdtempSync(path.join(os.tmpdir(), "devin-mcp-"));
         const cfgDev = path.join(mcpConfigDir, "devin");
         fs.mkdirSync(cfgDev, { recursive: true });
-        fs.writeFileSync(
-          path.join(cfgDev, "config.json"),
-          JSON.stringify({ mcpServers })
-        );
+        fs.writeFileSync(path.join(cfgDev, "config.json"), JSON.stringify({ mcpServers }));
         log?.info?.("DEVIN", `mcp config written → ${mcpConfigDir}`);
       } catch (e) {
         log?.info?.("DEVIN", `mcp config write failed: ${e.message}`);
@@ -438,7 +437,7 @@ export class DevinCliExecutor extends BaseExecutor {
               ? `Devin CLI not found: ${devinBin}. Install via https://cli.devin.ai or set CLI_DEVIN_BIN env var.`
               : `Devin CLI spawn error: ${err.message}`;
           emit(
-            `data: ${JSON.stringify({ error: { message: msg, type: "devin_cli_error", code: "spawn_failed" } })}\n\n`
+            `data: ${JSON.stringify({ error: { message: msg, type: "devin_cli_error", code: "spawn_failed" } })}\n\n`,
           );
           emit("data: [DONE]\n\n");
           controller.close();
@@ -483,8 +482,10 @@ export class DevinCliExecutor extends BaseExecutor {
                 object: "chat.completion.chunk",
                 created,
                 model,
-                choices: [{ index: 0, delta: { role: "assistant", content: "" }, finish_reason: null }],
-              })}\n\n`
+                choices: [
+                  { index: 0, delta: { role: "assistant", content: "" }, finish_reason: null },
+                ],
+              })}\n\n`,
             );
             roleEmitted = true;
           }
@@ -496,7 +497,7 @@ export class DevinCliExecutor extends BaseExecutor {
               created,
               model,
               choices: [{ index: 0, delta: { content: delta }, finish_reason: null }],
-            })}\n\n`
+            })}\n\n`,
           );
         };
 
@@ -515,8 +516,10 @@ export class DevinCliExecutor extends BaseExecutor {
                 object: "chat.completion.chunk",
                 created,
                 model,
-                choices: [{ index: 0, delta: { role: "assistant", content: null }, finish_reason: null }],
-              })}\n\n`
+                choices: [
+                  { index: 0, delta: { role: "assistant", content: null }, finish_reason: null },
+                ],
+              })}\n\n`,
             );
             roleEmitted = true;
           }
@@ -542,7 +545,7 @@ export class DevinCliExecutor extends BaseExecutor {
                   finish_reason: null,
                 },
               ],
-            })}\n\n`
+            })}\n\n`,
           );
         };
 
@@ -552,7 +555,7 @@ export class DevinCliExecutor extends BaseExecutor {
 
           if (error) {
             emit(
-              `data: ${JSON.stringify({ error: { message: error, type: "devin_cli_error" } })}\n\n`
+              `data: ${JSON.stringify({ error: { message: error, type: "devin_cli_error" } })}\n\n`,
             );
           } else {
             // Emit finish chunk
@@ -569,7 +572,7 @@ export class DevinCliExecutor extends BaseExecutor {
                   total_tokens: Math.ceil((promptText.length + totalText.length) / 4),
                   estimated: true,
                 },
-              })}\n\n`
+              })}\n\n`,
             );
           }
           emit("data: [DONE]\n\n");
@@ -674,15 +677,14 @@ export class DevinCliExecutor extends BaseExecutor {
             // but some tool kinds still prompt, so handle them here too.)
             if (msg.method === "session/request_permission" && msg.id !== undefined) {
               const options = msg.params?.options || [];
-              const allow =
-                options.find((o) => /allow/i.test(String(o.kind || ""))) || options[0];
+              const allow = options.find((o) => /allow/i.test(String(o.kind || ""))) || options[0];
               if (allow) {
                 child.stdin.write(
                   JSON.stringify({
                     jsonrpc: "2.0",
                     id: msg.id,
                     result: { outcome: { outcome: "selected", optionId: allow.optionId } },
-                  }) + "\n"
+                  }) + "\n",
                 );
               }
               continue;
@@ -718,7 +720,7 @@ export class DevinCliExecutor extends BaseExecutor {
               const deltaText =
                 typeof contentField === "string"
                   ? contentField
-                  : contentField?.text ?? params.delta ?? params.text ?? "";
+                  : (contentField?.text ?? params.delta ?? params.text ?? "");
 
               // ── Client-tool bridge: devin calling a tool from our exposed MCP ──
               // ACP title shape: "Calling mcp_<name> from clientTools".
@@ -731,7 +733,11 @@ export class DevinCliExecutor extends BaseExecutor {
                 (type === "tool_call" || type === "tool_call_update")
               ) {
                 const tcId = update.toolCallId;
-                if (typeof update.title === "string" && update.title.startsWith("Calling mcp_") && /from clientTools\b/.test(update.title)) {
+                if (
+                  typeof update.title === "string" &&
+                  update.title.startsWith("Calling mcp_") &&
+                  /from clientTools\b/.test(update.title)
+                ) {
                   const nameMatch = update.title.match(/^Calling (mcp_\S+)\b/);
                   const mcpName = nameMatch ? nameMatch[1] : "";
                   const origName = fromMcpToolName(mcpName);
@@ -748,7 +754,12 @@ export class DevinCliExecutor extends BaseExecutor {
                 continue;
               }
 
-              if (type === "agent_message_chunk" || type === "message_delta" || type === "text_delta" || type === "content_delta") {
+              if (
+                type === "agent_message_chunk" ||
+                type === "message_delta" ||
+                type === "text_delta" ||
+                type === "content_delta"
+              ) {
                 if (deltaText) emitDelta(deltaText);
               } else if (type === "agent_thought_chunk") {
                 // Internal reasoning — not surfaced to the client.

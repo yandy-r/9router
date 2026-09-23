@@ -32,10 +32,9 @@ function getCursorModelsUrl() {
 }
 
 function cacheKey(credentials) {
-  const seed = [
-    credentials?.providerSpecificData?.machineId,
-    credentials?.accessToken,
-  ].filter(Boolean).join(":");
+  const seed = [credentials?.providerSpecificData?.machineId, credentials?.accessToken]
+    .filter(Boolean)
+    .join(":");
   if (!seed) return "cursor-anonymous";
   return crypto.createHash("sha256").update(`cursor:${seed}`).digest("hex");
 }
@@ -63,10 +62,10 @@ export function parseCursorUsableModels(payload) {
     seen.add(id);
 
     const name = (
-      firstString(detail, DISPLAY_NAME_FIELD)
-      || firstString(detail, DISPLAY_NAME_SHORT_FIELD)
-      || firstString(detail, DISPLAY_MODEL_ID_FIELD)
-      || id
+      firstString(detail, DISPLAY_NAME_FIELD) ||
+      firstString(detail, DISPLAY_NAME_SHORT_FIELD) ||
+      firstString(detail, DISPLAY_MODEL_ID_FIELD) ||
+      id
     ).trim();
     models.push({ id, name });
   }
@@ -86,17 +85,24 @@ function http2PostProto(url, headers, body, signal, timeoutMs) {
     let responseHeaders = {};
     let settled = false;
 
-    const finish = (fn) => (...args) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeoutId);
-      try { client.close(); } catch {}
-      fn(...args);
-    };
+    const finish =
+      (fn) =>
+      (...args) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        try {
+          client.close();
+        } catch {}
+        fn(...args);
+      };
 
-    const timeoutId = setTimeout(finish(() => {
-      reject(new Error("Cursor GetUsableModels timed out"));
-    }), timeoutMs);
+    const timeoutId = setTimeout(
+      finish(() => {
+        reject(new Error("Cursor GetUsableModels timed out"));
+      }),
+      timeoutMs,
+    );
 
     client.on("error", finish(reject));
 
@@ -108,14 +114,21 @@ function http2PostProto(url, headers, body, signal, timeoutMs) {
       ...headers,
     });
 
-    req.on("response", (hdrs) => { responseHeaders = hdrs; });
-    req.on("data", (chunk) => { chunks.push(chunk); });
-    req.on("end", finish(() => {
-      resolve({
-        status: Number(responseHeaders[":status"] || 0),
-        body: Buffer.concat(chunks),
-      });
-    }));
+    req.on("response", (hdrs) => {
+      responseHeaders = hdrs;
+    });
+    req.on("data", (chunk) => {
+      chunks.push(chunk);
+    });
+    req.on(
+      "end",
+      finish(() => {
+        resolve({
+          status: Number(responseHeaders[":status"] || 0),
+          body: Buffer.concat(chunks),
+        });
+      }),
+    );
     req.on("error", finish(reject));
 
     if (signal) {
@@ -135,7 +148,11 @@ async function fetchCursorCatalog(credentials, signal) {
   if (!accessToken || !machineId || !url) return null;
 
   const headers = {
-    ...buildCursorHeaders(accessToken, machineId, credentials?.providerSpecificData?.ghostMode !== false),
+    ...buildCursorHeaders(
+      accessToken,
+      machineId,
+      credentials?.providerSpecificData?.ghostMode !== false,
+    ),
     // Connect unary calls use an unframed protobuf body, unlike Cursor chat's
     // streaming `application/connect+proto` endpoint.
     accept: "application/proto",
@@ -160,7 +177,10 @@ async function fetchCursorCatalog(credentials, signal) {
  */
 export async function resolveCursorModels(credentials, options = {}) {
   if (!credentials?.accessToken || !credentials?.providerSpecificData?.machineId) {
-    options.log?.debug?.("CURSOR_MODELS", "No Cursor access token or machine ID; skipping live fetch");
+    options.log?.debug?.(
+      "CURSOR_MODELS",
+      "No Cursor access token or machine ID; skipping live fetch",
+    );
     return null;
   }
 

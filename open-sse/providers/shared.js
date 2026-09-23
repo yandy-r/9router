@@ -12,20 +12,29 @@ export { CLAUDE_CLI_VERSION, CLAUDE_CLI_USER_AGENT };
 // === OS/Arch helpers (Stainless fingerprint) ===
 export function mapStainlessOs() {
   switch (platform()) {
-    case "darwin": return "MacOS";
-    case "win32": return "Windows";
-    case "linux": return "Linux";
-    case "freebsd": return "FreeBSD";
-    default: return `Other::${platform()}`;
+    case "darwin":
+      return "MacOS";
+    case "win32":
+      return "Windows";
+    case "linux":
+      return "Linux";
+    case "freebsd":
+      return "FreeBSD";
+    default:
+      return `Other::${platform()}`;
   }
 }
 
 export function mapStainlessArch() {
   switch (arch()) {
-    case "x64": return "x64";
-    case "arm64": return "arm64";
-    case "ia32": return "x86";
-    default: return `other::${arch()}`;
+    case "x64":
+      return "x64";
+    case "arm64":
+      return "arm64";
+    case "ia32":
+      return "x86";
+    default:
+      return `other::${arch()}`;
   }
 }
 
@@ -35,7 +44,7 @@ export const ANTHROPIC_API_VERSION = "2023-06-01";
 // Shared Claude-compatible API headers (reused across claude-format providers)
 export const CLAUDE_API_HEADERS = {
   "Anthropic-Version": ANTHROPIC_API_VERSION,
-  "Anthropic-Beta": "claude-code-20250219,interleaved-thinking-2025-05-14"
+  "Anthropic-Beta": "claude-code-20250219,interleaved-thinking-2025-05-14",
 };
 
 const ANTHROPIC_BETA_HEAVY_AGENT = ["advanced-tool-use-2025-11-20", "effort-2025-11-24"];
@@ -61,12 +70,17 @@ export function isFastModeRequest(body) {
  * Anthropic-Beta with selectAnthropicBeta().
  * @param {{ os?: string, arch?: string }} [host] - X-Stainless-Os/Arch; defaults to this host
  */
-export function buildClaudeCliHeaders({ os = mapStainlessOs(), arch: cpuArch = mapStainlessArch() } = {}) {
+export function buildClaudeCliHeaders({
+  os = mapStainlessOs(),
+  arch: cpuArch = mapStainlessArch(),
+} = {}) {
   return {
     "Anthropic-Version": ANTHROPIC_API_VERSION,
     // Static headers never see a request body, so they never opt into fast mode.
-    "Anthropic-Beta": [...CLAUDE_CLI_BETA_FLAGS.filter((flag) => flag !== ANTHROPIC_BETA_FAST_MODE),
-      ...ANTHROPIC_BETA_HEAVY_AGENT].join(","),
+    "Anthropic-Beta": [
+      ...CLAUDE_CLI_BETA_FLAGS.filter((flag) => flag !== ANTHROPIC_BETA_FAST_MODE),
+      ...ANTHROPIC_BETA_HEAVY_AGENT,
+    ].join(","),
     "Anthropic-Dangerous-Direct-Browser-Access": "true",
     "User-Agent": CLAUDE_CLI_USER_AGENT,
     "X-App": "cli",
@@ -77,7 +91,7 @@ export function buildClaudeCliHeaders({ os = mapStainlessOs(), arch: cpuArch = m
     "X-Stainless-Lang": "js",
     "X-Stainless-Arch": cpuArch,
     "X-Stainless-Os": os,
-    "X-Stainless-Timeout": "600"
+    "X-Stainless-Timeout": "600",
   };
 }
 
@@ -90,8 +104,11 @@ export function wantsThinkingSummaries(body) {
 
 export function selectAnthropicBeta(model = "", body = null) {
   const dropRedactThinking = wantsThinkingSummaries(body);
-  const flags = CLAUDE_CLI_BETA_FLAGS.filter((flag) =>
-    flag !== ANTHROPIC_BETA_FAST_MODE && !(flag === ANTHROPIC_BETA_REDACT_THINKING && dropRedactThinking));
+  const flags = CLAUDE_CLI_BETA_FLAGS.filter(
+    (flag) =>
+      flag !== ANTHROPIC_BETA_FAST_MODE &&
+      !(flag === ANTHROPIC_BETA_REDACT_THINKING && dropRedactThinking),
+  );
   if (/^claude-(opus|sonnet)/.test(model)) flags.push(...ANTHROPIC_BETA_HEAVY_AGENT);
   if (isFastModeRequest(body)) flags.push(ANTHROPIC_BETA_FAST_MODE);
   return flags.join(",");
@@ -139,5 +156,7 @@ export const GOOGLE_OAUTH_CLIENT = oauthClientFromEnv(OAUTH_CLIENT_ENV.gemini);
  */
 export function assertOAuthClient({ clientId, clientSecret } = {}, kind) {
   if (clientId && clientSecret) return;
-  throw new Error(`${kind} OAuth client not configured: set ${OAUTH_CLIENT_ENV[kind].join(" and ")}`);
+  throw new Error(
+    `${kind} OAuth client not configured: set ${OAUTH_CLIENT_ENV[kind].join(" and ")}`,
+  );
 }

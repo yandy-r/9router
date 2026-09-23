@@ -75,12 +75,8 @@ describe("qoderEncodeBody", () => {
     // The custom alphabet is "_doRTgHZBKcGVjlvpC,@aFSx#DPuNJme&i*MzLOEn)sUrthbf%Y^w.(kIQyXqWA!"
     // plus "$" for the padding char. If the substitution step regresses,
     // characters outside that set would leak into the output.
-    const allowed = new Set(
-      "_doRTgHZBKcGVjlvpC,@aFSx#DPuNJme&i*MzLOEn)sUrthbf%Y^w.(kIQyXqWA!$",
-    );
-    const encoded = qoderEncodeBody(
-      "hello world this is a longer string for testing 0123456789",
-    );
+    const allowed = new Set("_doRTgHZBKcGVjlvpC,@aFSx#DPuNJme&i*MzLOEn)sUrthbf%Y^w.(kIQyXqWA!$");
+    const encoded = qoderEncodeBody("hello world this is a longer string for testing 0123456789");
     for (const ch of encoded) {
       expect(allowed.has(ch), `unexpected char in output: ${JSON.stringify(ch)}`).toBe(true);
     }
@@ -136,9 +132,7 @@ describe("generatePkcePair", () => {
 describe("initiateDeviceFlow", () => {
   it("produces a verification URL pointing at qoder.com/device/selectAccounts", () => {
     const flow = initiateDeviceFlow();
-    expect(flow.verificationUriComplete).toMatch(
-      /^https:\/\/qoder\.com\/device\/selectAccounts\?/,
-    );
+    expect(flow.verificationUriComplete).toMatch(/^https:\/\/qoder\.com\/device\/selectAccounts\?/);
     expect(flow.verificationUriComplete).toContain("challenge_method=S256");
     expect(flow.verificationUriComplete).toContain(`nonce=${flow.nonce}`);
     expect(flow.verificationUriComplete).toContain(`machine_id=${flow.machineId}`);
@@ -199,9 +193,7 @@ describe("buildCosyHeaders", () => {
 
   it("Cosy-Sigpath also handles the encoded chat URL", () => {
     const headers = buildCosyHeaders(Buffer.from("body", "utf8"), QODER_CHAT_URL_ENCODED, creds);
-    expect(headers["Cosy-Sigpath"]).toBe(
-      "/api/v2/service/pro/sse/agent_chat_generation",
-    );
+    expect(headers["Cosy-Sigpath"]).toBe("/api/v2/service/pro/sse/agent_chat_generation");
   });
 
   it("Cosy-Bodyhash is the MD5 of the request body, Cosy-Bodylength is the length", () => {
@@ -388,7 +380,10 @@ describe("normalizeMessages", () => {
     const content = result.messages[0].content;
     expect(Array.isArray(content)).toBe(true);
     expect(content).toContainEqual({ type: "text", text: "describe" });
-    expect(content).toContainEqual({ type: "image_url", image_url: { url: "https://example.com/a.png" } });
+    expect(content).toContainEqual({
+      type: "image_url",
+      image_url: { url: "https://example.com/a.png" },
+    });
   });
 
   it("preserves base64 data: URI images (no OSS upload needed)", () => {
@@ -445,7 +440,10 @@ describe("normalizeMessages", () => {
         role: "user",
         content: [
           { type: "text", text: "see" },
-          { type: "file", file: { filename: "big.pdf", file_data: "data:application/pdf;base64,AAA" } },
+          {
+            type: "file",
+            file: { filename: "big.pdf", file_data: "data:application/pdf;base64,AAA" },
+          },
         ],
       },
     ]);
@@ -496,7 +494,10 @@ describe("wrapQoderSSE", () => {
   // Regression for review finding #4: a final data: line without a trailing
   // newline used to be silently dropped from `buffer` in flush().
   it("drains a trailing partial line without a newline in flush()", async () => {
-    const inner = JSON.stringify({ choices: [{ delta: { content: "tail" } }], finish_reason: "stop" });
+    const inner = JSON.stringify({
+      choices: [{ delta: { content: "tail" } }],
+      finish_reason: "stop",
+    });
     // Note: NO trailing \n on the final line.
     const upstream = `data: ${JSON.stringify({ statusCodeValue: 200, body: inner })}`;
     const wrapped = await wrapQoderSSE(makeResponse([upstream]), "qoder/auto");
@@ -657,13 +658,15 @@ describe("rewriteQoderMessageAttachments", () => {
   beforeEach(() => clearQoderUploadCache());
 
   it("uploads data-URI images and keeps only the OSS URL in the message", async () => {
-    const messages = [{
-      role: "user",
-      content: [
-        { type: "text", text: "see this" },
-        { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } },
-      ],
-    }];
+    const messages = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "see this" },
+          { type: "image_url", image_url: { url: "data:image/png;base64,AAAA" } },
+        ],
+      },
+    ];
     const stats = await rewriteQoderMessageAttachments(messages, {
       uploadFn: async ({ buffer, mediaType }) => {
         expect(Buffer.isBuffer(buffer)).toBe(true);
@@ -680,10 +683,12 @@ describe("rewriteQoderMessageAttachments", () => {
   });
 
   it("does not re-upload already-hosted http(s) image URLs", async () => {
-    const messages = [{
-      role: "user",
-      content: [{ type: "image_url", image_url: { url: "https://example.com/a.png" } }],
-    }];
+    const messages = [
+      {
+        role: "user",
+        content: [{ type: "image_url", image_url: { url: "https://example.com/a.png" } }],
+      },
+    ];
     await rewriteQoderMessageAttachments(messages, {
       uploadFn: async () => {
         throw new Error("should not upload remote URLs");
@@ -694,13 +699,18 @@ describe("rewriteQoderMessageAttachments", () => {
 
   it("stubs non-image file blocks instead of inlining bytes", async () => {
     const pdfB64 = "A".repeat(200);
-    const messages = [{
-      role: "user",
-      content: [
-        { type: "text", text: "read this" },
-        { type: "file", file: { filename: "big.pdf", file_data: `data:application/pdf;base64,${pdfB64}` } },
-      ],
-    }];
+    const messages = [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: "read this" },
+          {
+            type: "file",
+            file: { filename: "big.pdf", file_data: `data:application/pdf;base64,${pdfB64}` },
+          },
+        ],
+      },
+    ];
     await rewriteQoderMessageAttachments(messages, {
       uploadFn: async () => {
         throw new Error("should not upload PDFs as images");
@@ -713,10 +723,12 @@ describe("rewriteQoderMessageAttachments", () => {
 
   it("stubs oversized images when OSS upload fails instead of keeping a huge data URI", async () => {
     const big = "A".repeat(700_000);
-    const messages = [{
-      role: "user",
-      content: [{ type: "image_url", image_url: { url: `data:image/png;base64,${big}` } }],
-    }];
+    const messages = [
+      {
+        role: "user",
+        content: [{ type: "image_url", image_url: { url: `data:image/png;base64,${big}` } }],
+      },
+    ];
     await rewriteQoderMessageAttachments(messages, {
       uploadFn: async () => {
         throw new Error("upstream 413");
@@ -735,7 +747,7 @@ describe("rewriteQoderMessageAttachments", () => {
     });
     const text = body.toString("latin1");
     expect(text).toContain(`name="file"`);
-    expect(text).toContain("filename=\"image.png\"");
+    expect(text).toContain('filename="image.png"');
     expect(text).toContain(`--${boundary}`);
   });
 });

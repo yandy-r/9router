@@ -10,11 +10,7 @@ export default {
   id: "xiaomi-mimo",
   priority: 290,
   alias: "xiaomi-mimo",
-  aliases: [
-    "mimo",
-    "mimo-desktop",
-    "xmd",
-  ],
+  aliases: ["mimo", "mimo-desktop", "xmd"],
   uiAlias: "mimo",
   display: {
     name: "Xiaomi MiMo",
@@ -52,8 +48,18 @@ export default {
   models: [
     // Desktop-exclusive — served by the account-service route, which only accepts
     // OpenAI format, so supportedFormats pins them to the openai transport.
-    { id: "mimo-x-pro-preview", name: "MiMo-X-Pro-Preview", upstreamModelId: "xiaomi/mimo-x-pro-preview", supportedFormats: ["openai"] },
-    { id: "mimo-x-flash-preview", name: "MiMo-X-Flash-Preview", upstreamModelId: "xiaomi/mimo-x-flash-preview", supportedFormats: ["openai"] },
+    {
+      id: "mimo-x-pro-preview",
+      name: "MiMo-X-Pro-Preview",
+      upstreamModelId: "xiaomi/mimo-x-pro-preview",
+      supportedFormats: ["openai"],
+    },
+    {
+      id: "mimo-x-flash-preview",
+      name: "MiMo-X-Flash-Preview",
+      upstreamModelId: "xiaomi/mimo-x-flash-preview",
+      supportedFormats: ["openai"],
+    },
     // Cloud API models (api.xiaomimimo.com/v1)
     { id: "mimo-v2.5-pro", name: "MiMo V2.5 Pro" },
     { id: "mimo-v2.5", name: "MiMo V2.5" },

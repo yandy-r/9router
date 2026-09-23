@@ -22,10 +22,15 @@ describe("standalone build assets", () => {
 
     copyStandaloneAssets({ projectRoot, distDir: ".next" });
 
-    expect(readFileSync(join(projectRoot, ".next", "standalone", ".next", "static", "chunks", "app.js"), "utf8"))
-      .toBe("static asset");
-    expect(readFileSync(join(projectRoot, ".next", "standalone", "public", "favicon.svg"), "utf8"))
-      .toBe("public asset");
+    expect(
+      readFileSync(
+        join(projectRoot, ".next", "standalone", ".next", "static", "chunks", "app.js"),
+        "utf8",
+      ),
+    ).toBe("static asset");
+    expect(
+      readFileSync(join(projectRoot, ".next", "standalone", "public", "favicon.svg"), "utf8"),
+    ).toBe("public asset");
   });
 
   it("uses a custom Next dist directory", () => {
@@ -33,8 +38,20 @@ describe("standalone build assets", () => {
 
     copyStandaloneAssets({ projectRoot, distDir: ".next-cli-build" });
 
-    expect(readFileSync(join(projectRoot, ".next-cli-build", "standalone", ".next-cli-build", "static", "chunks", "app.js"), "utf8"))
-      .toBe("static asset");
+    expect(
+      readFileSync(
+        join(
+          projectRoot,
+          ".next-cli-build",
+          "standalone",
+          ".next-cli-build",
+          "static",
+          "chunks",
+          "app.js",
+        ),
+        "utf8",
+      ),
+    ).toBe("static asset");
   });
 
   // Without the wrapper beside server.js nothing can prove a request is local.
@@ -44,8 +61,9 @@ describe("standalone build assets", () => {
 
     copyStandaloneAssets({ projectRoot, distDir: ".next" });
 
-    expect(readFileSync(join(projectRoot, ".next", "standalone", "custom-server.js"), "utf8"))
-      .toBe("wrapper");
+    expect(readFileSync(join(projectRoot, ".next", "standalone", "custom-server.js"), "utf8")).toBe(
+      "wrapper",
+    );
   });
 
   it("does not modify workspace-traced CLI builds", () => {
@@ -60,7 +78,18 @@ describe("standalone build assets", () => {
       else process.env.NEXT_TRACING_ROOT_MODE = previousMode;
     }
 
-    expect(() => readFileSync(join(projectRoot, ".next-cli-build", "standalone", ".next-cli-build", "static", "chunks", "app.js")))
-      .toThrow();
+    expect(() =>
+      readFileSync(
+        join(
+          projectRoot,
+          ".next-cli-build",
+          "standalone",
+          ".next-cli-build",
+          "static",
+          "chunks",
+          "app.js",
+        ),
+      ),
+    ).toThrow();
   });
 });

@@ -311,7 +311,7 @@ function buildYouComRequest(config, params) {
     qp.set("livecrawl", params.searchType === "news" ? "news" : "web");
     qp.append(
       "livecrawl_formats",
-      params.contentOptions.format === "markdown" ? "markdown" : "html"
+      params.contentOptions.format === "markdown" ? "markdown" : "html",
     );
   }
 
@@ -425,19 +425,19 @@ function buildGlmSearchRequest(config, params) {
 // ── Dispatcher ──────────────────────────────────────────────────────────
 
 const BUILDERS = {
-  "serper": buildSerperRequest,
+  serper: buildSerperRequest,
   "brave-search": buildBraveRequest,
-  "perplexity": buildPerplexityRequest,
-  "exa": buildExaRequest,
-  "tavily": buildTavilyRequest,
+  perplexity: buildPerplexityRequest,
+  exa: buildExaRequest,
+  tavily: buildTavilyRequest,
   "google-pse": buildGooglePseRequest,
-  "linkup": buildLinkupRequest,
-  "searchapi": buildSearchApiRequest,
-  "youcom": buildYouComRequest,
-  "searxng": buildSearxngRequest,
-  "xquik": buildXquikRequest,
+  linkup: buildLinkupRequest,
+  searchapi: buildSearchApiRequest,
+  youcom: buildYouComRequest,
+  searxng: buildSearxngRequest,
+  xquik: buildXquikRequest,
   "ollama-search": buildOllamaSearchRequest,
-  "glm": buildGlmSearchRequest,
+  glm: buildGlmSearchRequest,
 };
 
 /**

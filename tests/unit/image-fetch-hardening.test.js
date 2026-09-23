@@ -13,7 +13,8 @@ function mockFetchOnce(bytes, ok = true) {
     getReader() {
       let sent = false;
       return {
-        read: async () => sent ? { done: true } : (sent = true, { done: false, value: new Uint8Array(bytes) }),
+        read: async () =>
+          sent ? { done: true } : ((sent = true), { done: false, value: new Uint8Array(bytes) }),
         cancel: async () => {},
       };
     },
@@ -25,7 +26,9 @@ beforeEach(() => {
   lookupMock.mockReset();
   lookupMock.mockResolvedValue({ address: "93.184.216.34" }); // public by default
 });
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("fetchImageAsBase64 hardening", () => {
   it("rejects non-http url", async () => {

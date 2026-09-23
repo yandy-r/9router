@@ -76,14 +76,16 @@ const readConfig = async () => {
 // Check if config has 9Router settings
 const has9RouterConfig = (config) => {
   if (!config) return false;
-  return config.includes("model_provider = \"9router\"") || config.includes("[model_providers.9router]");
+  return (
+    config.includes('model_provider = "9router"') || config.includes("[model_providers.9router]")
+  );
 };
 
 // GET - Check codex CLI and read current settings
 export async function GET() {
   try {
     const isInstalled = await checkCodexInstalled();
-    
+
     if (!isInstalled) {
       return NextResponse.json({
         installed: false,
@@ -110,9 +112,12 @@ export async function GET() {
 export async function POST(request) {
   try {
     const { baseUrl, apiKey, model, subagentModel } = await request.json();
-    
+
     if (!baseUrl || !apiKey || !model) {
-      return NextResponse.json({ error: "baseUrl, apiKey and model are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "baseUrl, apiKey and model are required" },
+        { status: 400 },
+      );
     }
 
     const codexDir = getCodexDir();
@@ -126,7 +131,9 @@ export async function POST(request) {
     try {
       const existingConfig = await fs.readFile(configPath, "utf-8");
       parsed = parsedToWritable(parseTOML(existingConfig));
-    } catch { /* No existing config */ }
+    } catch {
+      /* No existing config */
+    }
 
     // Update only 9Router related fields (api_key goes to auth.json, not config.toml)
     parsed.model = model;
@@ -213,7 +220,9 @@ export async function DELETE() {
       } else {
         await fs.writeFile(authPath, JSON.stringify(authData, null, 2));
       }
-    } catch { /* No auth file */ }
+    } catch {
+      /* No auth file */
+    }
 
     return NextResponse.json({
       success: true,

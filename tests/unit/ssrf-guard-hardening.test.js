@@ -11,7 +11,9 @@ vi.mock("node:dns", () => ({
   promises: { lookup: lookupMock },
 }));
 
-const { assertPublicUrl, assertPublicUrlResolved, fetchPublic } = await import("../../src/shared/utils/ssrfGuard.js");
+const { assertPublicUrl, assertPublicUrlResolved, fetchPublic } = await import(
+  "../../src/shared/utils/ssrfGuard.js"
+);
 
 describe("assertPublicUrl: literal hostname/IP bypasses from #3714", () => {
   it("blocks a trailing-dot FQDN the same as the bare hostname", () => {
@@ -47,7 +49,12 @@ describe("assertPublicUrl: literal hostname/IP bypasses from #3714", () => {
   });
 
   it("blocks alternate IPv4 literal encodings (already normalized by the URL parser)", () => {
-    for (const url of ["http://127.1/", "http://0177.0.0.1/", "http://2130706433/", "http://0x7f.0.0.1/"]) {
+    for (const url of [
+      "http://127.1/",
+      "http://0177.0.0.1/",
+      "http://2130706433/",
+      "http://0x7f.0.0.1/",
+    ]) {
       expect(() => assertPublicUrl(url), url).toThrow();
     }
   });
@@ -68,7 +75,10 @@ describe("assertPublicUrlResolved: DNS-resolving hostname bypass from #3714", ()
   });
 
   it("blocks a hostname that resolves to a private range even if one of several addresses is public", async () => {
-    lookupMock.mockResolvedValue([{ address: "203.0.113.5", family: 4 }, { address: "10.0.0.5", family: 4 }]);
+    lookupMock.mockResolvedValue([
+      { address: "203.0.113.5", family: 4 },
+      { address: "10.0.0.5", family: 4 },
+    ]);
     await expect(assertPublicUrlResolved("http://multi-a-record.example.test/")).rejects.toThrow();
   });
 
@@ -99,7 +109,9 @@ describe("assertPublicUrlResolved: DNS-resolving hostname bypass from #3714", ()
 
 describe("fetchPublic: redirect-target re-validation from #3714", () => {
   const originalFetch = global.fetch;
-  afterEach(() => { global.fetch = originalFetch; });
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
   beforeEach(() => {
     lookupMock.mockReset();
     // These tests exercise redirect-chasing, not DNS behavior — give every
@@ -110,18 +122,24 @@ describe("fetchPublic: redirect-target re-validation from #3714", () => {
   });
 
   it("blocks a redirect from a validated public URL to an internal target", async () => {
-    global.fetch = vi.fn(async () => new Response(null, {
-      status: 302,
-      headers: { Location: "http://127.0.0.1:9999/admin" },
-    }));
+    global.fetch = vi.fn(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { Location: "http://127.0.0.1:9999/admin" },
+        }),
+    );
 
     await expect(fetchPublic("https://public.example.test/redirect")).rejects.toThrow();
     expect(global.fetch).toHaveBeenCalledTimes(1); // never followed the redirect
   });
 
   it("follows a redirect chain of public URLs, re-validating each hop", async () => {
-    global.fetch = vi.fn()
-      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { Location: "https://hop2.example.test/" } }))
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, { status: 302, headers: { Location: "https://hop2.example.test/" } }),
+      )
       .mockResolvedValueOnce(new Response("ok", { status: 200 }));
 
     const res = await fetchPublic("https://hop1.example.test/");
@@ -131,12 +149,22 @@ describe("fetchPublic: redirect-target re-validation from #3714", () => {
   });
 
   it("bounds the redirect chain instead of looping forever", async () => {
-    global.fetch = vi.fn(async (url) => new Response(null, {
-      status: 302,
-      headers: { Location: url === "https://loop.example.test/a" ? "https://loop.example.test/b" : "https://loop.example.test/a" },
-    }));
+    global.fetch = vi.fn(
+      async (url) =>
+        new Response(null, {
+          status: 302,
+          headers: {
+            Location:
+              url === "https://loop.example.test/a"
+                ? "https://loop.example.test/b"
+                : "https://loop.example.test/a",
+          },
+        }),
+    );
 
-    await expect(fetchPublic("https://loop.example.test/a", {}, { maxRedirects: 3 })).rejects.toThrow(/too many redirects/i);
+    await expect(
+      fetchPublic("https://loop.example.test/a", {}, { maxRedirects: 3 }),
+    ).rejects.toThrow(/too many redirects/i);
   });
 
   it("rejects the initial URL before ever calling fetch", async () => {

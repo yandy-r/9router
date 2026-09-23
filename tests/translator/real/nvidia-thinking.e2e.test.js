@@ -38,21 +38,27 @@ maybe("nvidia thinking e2e", () => {
     apiKey = keys.find((k) => k.isActive)?.key || process.env.NV_E2E_KEY || "";
   });
 
-  it.each(MODELS)("%s with reasoning_effort -> no 'thinking' 400", async (model) => {
-    if (!apiKey) return expect(true).toBe(true);
-    const res = await fetch(`${BASE}/v1/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        stream: true,
-        max_tokens: 64,
-        reasoning_effort: "low",
-        messages: [{ role: "user", content: "Reply with the single word: hi" }],
-      }),
-    });
-    const raw = await drain(res);
-    expect(/Unsupported parameter.*thinking/i.test(raw), `${model} rejected 'thinking'`).toBe(false);
-    expect(res.status, `${model} bad status ${res.status}`).toBeLessThan(400);
-  }, 90000);
+  it.each(MODELS)(
+    "%s with reasoning_effort -> no 'thinking' 400",
+    async (model) => {
+      if (!apiKey) return expect(true).toBe(true);
+      const res = await fetch(`${BASE}/v1/chat/completions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({
+          model,
+          stream: true,
+          max_tokens: 64,
+          reasoning_effort: "low",
+          messages: [{ role: "user", content: "Reply with the single word: hi" }],
+        }),
+      });
+      const raw = await drain(res);
+      expect(/Unsupported parameter.*thinking/i.test(raw), `${model} rejected 'thinking'`).toBe(
+        false,
+      );
+      expect(res.status, `${model} bad status ${res.status}`).toBeLessThan(400);
+    },
+    90000,
+  );
 });

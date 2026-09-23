@@ -20,8 +20,8 @@ describe("MiniMax TTS", () => {
           extra_info: { audio_format: "mp3" },
           base_resp: { status_code: 0, status_msg: "success" },
         }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      )
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
     );
 
     const result = await handleTtsCore({
@@ -41,7 +41,7 @@ describe("MiniMax TTS", () => {
           "Content-Type": "application/json",
           Authorization: "Bearer test-key",
         }),
-      })
+      }),
     );
 
     const sent = JSON.parse(global.fetch.mock.calls[0][1].body);
@@ -76,8 +76,8 @@ describe("MiniMax TTS", () => {
           data: { audio: "00010203", status: 2 },
           base_resp: { status_code: 0, status_msg: "success" },
         }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      )
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
     );
 
     const result = await handleTtsCore({
@@ -102,8 +102,8 @@ describe("MiniMax TTS", () => {
         JSON.stringify({
           base_resp: { status_code: 1008, status_msg: "insufficient quota" },
         }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
-      )
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
     );
 
     const result = await handleTtsCore({

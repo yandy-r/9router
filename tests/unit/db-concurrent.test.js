@@ -28,11 +28,16 @@ describe("DB Concurrency — atomic safety", () => {
     const N = 100;
     const promises = [];
     for (let i = 0; i < N; i++) {
-      promises.push(db.saveRequestUsage({
-        provider: "openai", model: "gpt-4", connectionId: "c1",
-        tokens: { prompt_tokens: 10, completion_tokens: 5 },
-        endpoint: "/v1/chat", status: "ok",
-      }));
+      promises.push(
+        db.saveRequestUsage({
+          provider: "openai",
+          model: "gpt-4",
+          connectionId: "c1",
+          tokens: { prompt_tokens: 10, completion_tokens: 5 },
+          endpoint: "/v1/chat",
+          status: "ok",
+        }),
+      );
     }
     await Promise.all(promises);
 
@@ -51,11 +56,18 @@ describe("DB Concurrency — atomic safety", () => {
     const N = 200;
     const promises = [];
     for (let i = 0; i < N; i++) {
-      promises.push(db.saveRequestDetail({
-        id: `det-${i}`, provider: "openai", model: "gpt-4",
-        connectionId: "c1", status: "ok",
-        tokens: { prompt_tokens: 1 }, request: { i }, response: { ok: true },
-      }));
+      promises.push(
+        db.saveRequestDetail({
+          id: `det-${i}`,
+          provider: "openai",
+          model: "gpt-4",
+          connectionId: "c1",
+          status: "ok",
+          tokens: { prompt_tokens: 1 },
+          request: { i },
+          response: { ok: true },
+        }),
+      );
     }
     await Promise.all(promises);
 
@@ -69,10 +81,15 @@ describe("DB Concurrency — atomic safety", () => {
   it("mixed concurrent: usage + details + connections + aliases", async () => {
     const ops = [];
     for (let i = 0; i < 50; i++) {
-      ops.push(db.saveRequestUsage({
-        provider: "anthropic", model: `m-${i % 3}`, connectionId: "c2",
-        tokens: { prompt_tokens: 20 }, status: "ok",
-      }));
+      ops.push(
+        db.saveRequestUsage({
+          provider: "anthropic",
+          model: `m-${i % 3}`,
+          connectionId: "c2",
+          tokens: { prompt_tokens: 20 },
+          status: "ok",
+        }),
+      );
       ops.push(db.setModelAlias(`a-${i}`, `target-${i}`));
       ops.push(db.disableModels("openai", [`d-${i}`]));
     }
@@ -104,8 +121,11 @@ describe("DB Concurrency — atomic safety", () => {
 
   it("OAuth refresh race: parallel updateProviderConnection on same id", async () => {
     const conn = await db.createProviderConnection({
-      provider: "oauth-test", authType: "oauth", email: "x@y.com",
-      accessToken: "initial", refreshToken: "rt-initial",
+      provider: "oauth-test",
+      authType: "oauth",
+      email: "x@y.com",
+      accessToken: "initial",
+      refreshToken: "rt-initial",
     });
 
     // 20 parallel updates each with a unique field
@@ -127,7 +147,9 @@ describe("DB Concurrency — atomic safety", () => {
     const N = 30;
     const promises = [];
     for (let i = 0; i < N; i++) {
-      promises.push(db.addCustomModel({ providerAlias: "racep", id: "racemodel", type: "llm", name: "r" }));
+      promises.push(
+        db.addCustomModel({ providerAlias: "racep", id: "racemodel", type: "llm", name: "r" }),
+      );
     }
     const results = await Promise.all(promises);
     const trueCount = results.filter((r) => r === true).length;
@@ -153,11 +175,15 @@ describe("DB Concurrency — atomic safety", () => {
     const N = 50;
     const promises = [];
     for (let i = 0; i < N; i++) {
-      promises.push(db.saveRequestUsage({
-        provider: "google", model: "gemini-pro", connectionId: "cG",
-        tokens: { prompt_tokens: 100, completion_tokens: 50 },
-        status: "ok",
-      }));
+      promises.push(
+        db.saveRequestUsage({
+          provider: "google",
+          model: "gemini-pro",
+          connectionId: "cG",
+          tokens: { prompt_tokens: 100, completion_tokens: 50 },
+          status: "ok",
+        }),
+      );
     }
     await Promise.all(promises);
 

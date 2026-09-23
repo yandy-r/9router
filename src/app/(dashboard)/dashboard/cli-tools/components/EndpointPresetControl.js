@@ -44,7 +44,7 @@ export default function EndpointPresetControl({
 
   const selectedPreset = useMemo(
     () => presets.find((preset) => preset.name === selectedName) || null,
-    [presets, selectedName]
+    [presets, selectedName],
   );
 
   const handleSelect = (name) => {

@@ -55,7 +55,11 @@ const ZED_403_BODY = JSON.stringify({
 
 function makeOptions(log) {
   return {
-    body: { model: "muse-spark-1.3-contributor", stream: false, messages: [{ role: "user", content: "hi" }] },
+    body: {
+      model: "muse-spark-1.3-contributor",
+      stream: false,
+      messages: [{ role: "user", content: "hi" }],
+    },
     modelInfo: { provider: "zed", model: "muse-spark-1.3-contributor" },
     credentials: { accessToken: "zed-token", providerSpecificData: {} },
     log,
@@ -82,7 +86,10 @@ describe("handleChatCore supportsRefresh gate (YAN-13)", () => {
     executorSupportsRefresh = false;
     const log = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     executeMock.mockResolvedValue({
-      response: new Response(ZED_403_BODY, { status: 403, headers: { "content-type": "application/json" } }),
+      response: new Response(ZED_403_BODY, {
+        status: 403,
+        headers: { "content-type": "application/json" },
+      }),
       url: "https://cloud.zed.dev/completions",
       headers: {},
       transformedBody: null,

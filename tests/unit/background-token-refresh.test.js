@@ -38,7 +38,7 @@ describe("selectConnectionsNeedingRefresh", () => {
     );
     const list = selectConnectionsNeedingRefresh(
       [conn({ expiresAt: new Date(NOW + 10 * 60 * 1000).toISOString() })],
-      NOW
+      NOW,
     );
     expect(list).toHaveLength(1);
     expect(list[0].id).toBe("c1");
@@ -50,7 +50,7 @@ describe("selectConnectionsNeedingRefresh", () => {
     );
     const list = selectConnectionsNeedingRefresh(
       [conn({ expiresAt: new Date(NOW + 2 * 60 * 60 * 1000).toISOString() })],
-      NOW
+      NOW,
     );
     expect(list).toHaveLength(0);
   });
@@ -64,7 +64,7 @@ describe("selectConnectionsNeedingRefresh", () => {
         conn({ authType: "apikey", refreshToken: "rt" }),
         conn({ id: "c2", authType: "api_key", refreshToken: "rt" }),
       ],
-      NOW
+      NOW,
     );
     expect(list).toHaveLength(0);
   });
@@ -75,7 +75,7 @@ describe("selectConnectionsNeedingRefresh", () => {
     );
     const list = selectConnectionsNeedingRefresh(
       [conn({ refreshToken: null }), conn({ id: "c2", refreshToken: undefined })],
-      NOW
+      NOW,
     );
     expect(list).toHaveLength(0);
   });
@@ -86,7 +86,7 @@ describe("selectConnectionsNeedingRefresh", () => {
     );
     const list = selectConnectionsNeedingRefresh(
       [conn({ expiresAt: new Date(NOW - 60 * 1000).toISOString() })],
-      NOW
+      NOW,
     );
     expect(list).toHaveLength(1);
   });
@@ -130,7 +130,7 @@ describe("runBackgroundTokenRefreshTick", () => {
     );
 
     await expect(
-      runBackgroundTokenRefreshTick({ loadConnections, refreshConnection })
+      runBackgroundTokenRefreshTick({ loadConnections, refreshConnection }),
     ).resolves.toBeUndefined();
 
     expect(loadConnections).toHaveBeenCalledTimes(1);
@@ -166,7 +166,7 @@ describe("runBackgroundTokenRefreshTick", () => {
     );
 
     await expect(
-      runBackgroundTokenRefreshTick({ loadConnections, refreshConnection })
+      runBackgroundTokenRefreshTick({ loadConnections, refreshConnection }),
     ).resolves.toBeUndefined();
     expect(refreshConnection).not.toHaveBeenCalled();
   });

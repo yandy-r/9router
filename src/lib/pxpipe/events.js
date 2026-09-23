@@ -18,9 +18,13 @@ export function appendPxpipeEvent(event) {
     try {
       const stat = fs.statSync(EVENTS_FILE);
       if (stat.size > MAX_FILE_BYTES) fs.renameSync(EVENTS_FILE, ROTATED_FILE);
-    } catch { /* no file yet */ }
+    } catch {
+      /* no file yet */
+    }
     fs.appendFile(EVENTS_FILE, JSON.stringify({ ts: Date.now(), ...event }) + "\n", () => {});
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function readPxpipeEvents({ sinceMs = null, limit = null } = {}) {
@@ -34,9 +38,13 @@ export function readPxpipeEvents({ sinceMs = null, limit = null } = {}) {
           const ev = JSON.parse(line);
           if (sinceMs && ev.ts < sinceMs) continue;
           events.push(ev);
-        } catch { /* skip corrupt line */ }
+        } catch {
+          /* skip corrupt line */
+        }
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   events.sort((a, b) => a.ts - b.ts);
   return limit ? events.slice(-limit) : events;
@@ -44,9 +52,17 @@ export function readPxpipeEvents({ sinceMs = null, limit = null } = {}) {
 
 function emptyTotals() {
   return {
-    requests: 0, compressed: 0, bypassed: 0, errors: 0,
-    tokensBeforeEst: 0, tokensAfterEst: 0, tokensSavedEst: 0, savedPct: 0,
-    imagesGenerated: 0, compressionTimeMs: 0, avgCompressionMs: 0,
+    requests: 0,
+    compressed: 0,
+    bypassed: 0,
+    errors: 0,
+    tokensBeforeEst: 0,
+    tokensAfterEst: 0,
+    tokensSavedEst: 0,
+    savedPct: 0,
+    imagesGenerated: 0,
+    compressionTimeMs: 0,
+    avgCompressionMs: 0,
   };
 }
 
@@ -67,12 +83,12 @@ function accumulate(totals, ev) {
 }
 
 function finalize(totals) {
-  totals.savedPct = totals.tokensBeforeEst > 0
-    ? +((totals.tokensSavedEst / totals.tokensBeforeEst) * 100).toFixed(2)
-    : 0;
-  totals.avgCompressionMs = totals.compressed > 0
-    ? Math.round(totals.compressionTimeMs / totals.compressed)
-    : 0;
+  totals.savedPct =
+    totals.tokensBeforeEst > 0
+      ? +((totals.tokensSavedEst / totals.tokensBeforeEst) * 100).toFixed(2)
+      : 0;
+  totals.avgCompressionMs =
+    totals.compressed > 0 ? Math.round(totals.compressionTimeMs / totals.compressed) : 0;
   return totals;
 }
 
@@ -94,7 +110,12 @@ export function getPxpipeStats({ timelineDays = 30, recentLimit = 100 } = {}) {
   const timeline = new Map();
   for (let i = timelineDays - 1; i >= 0; i--) {
     const day = new Date(startOfToday - i * DAY_MS);
-    timeline.set(day.toISOString().slice(0, 10), { date: day.toISOString().slice(0, 10), tokensSavedEst: 0, compressed: 0, requests: 0 });
+    timeline.set(day.toISOString().slice(0, 10), {
+      date: day.toISOString().slice(0, 10),
+      tokensSavedEst: 0,
+      compressed: 0,
+      requests: 0,
+    });
   }
 
   for (const ev of events) {

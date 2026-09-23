@@ -18,7 +18,10 @@ async function intercept(req, res, bodyBuffer, mappedModel) {
     await pipeSSE(routerRes, res, dumper);
   } catch (error) {
     err(`[antigravity] ${error.message}`);
-    if (dumper) { dumper.writeChunk(`\n[ERROR] ${error.message}\n`); dumper.end(); }
+    if (dumper) {
+      dumper.writeChunk(`\n[ERROR] ${error.message}\n`);
+      dumper.end();
+    }
     // For stream endpoint, send SSE error chunk so SDK doesn't hang waiting
     if (isStream) {
       if (!res.headersSent) res.writeHead(200, { "Content-Type": "text/event-stream" });

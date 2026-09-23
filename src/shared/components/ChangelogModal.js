@@ -45,10 +45,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Overlay */}
-      <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal content */}
       <div
@@ -75,9 +72,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
               Loading...
             </div>
           )}
-          {error && (
-            <div className="text-red-500 py-4">Failed to load changelog: {error}</div>
-          )}
+          {error && <div className="text-red-500 py-4">Failed to load changelog: {error}</div>}
           {!loading && !error && html && (
             <div
               className="changelog-body text-text-main"
@@ -87,7 +82,7 @@ export default function ChangelogModal({ isOpen, onClose }) {
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 

@@ -26,7 +26,11 @@ vi.mock("open-sse/utils/proxyFetch.js", () => ({
       if (stub.mode === "empty") return Response.json({ models: [] });
       if (stub.mode === "disabled") {
         return Response.json({
-          models: stub.catalog.models.map((m) => ({ ...m, is_disabled: true, disabled_reason: "Requires Zed Pro." })),
+          models: stub.catalog.models.map((m) => ({
+            ...m,
+            is_disabled: true,
+            disabled_reason: "Requires Zed Pro.",
+          })),
         });
       }
       return Response.json(stub.catalog);

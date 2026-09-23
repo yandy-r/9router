@@ -36,8 +36,7 @@ const BILLING_URL = USAGE.url || "https://cli-chat-proxy.grok.com/v1/billing?for
 const USER_URL = USAGE.userUrl || "https://cli-chat-proxy.grok.com/v1/user?include=subscription";
 
 // SuperGrok weekly pool.
-const GRPC_CREDITS_URL =
-  "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
+const GRPC_CREDITS_URL = "https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig";
 // Empty gRPC-web request frame (flag 0 + length 0). Without it upstream returns
 // grpc-status 13 "Missing request message." with a 0-byte body.
 const GRPC_WEB_EMPTY_REQUEST_FRAME = Buffer.from([0, 0, 0, 0, 0]);
@@ -82,9 +81,7 @@ function subscriptionTier(user, config) {
 function resolvePlan(user, config) {
   const tier = subscriptionTier(user, config);
   if (tier) {
-    return tier
-      .replace(/[_-]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase());
+    return tier.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
   if (user?.hasGrokCodeAccess === true) return "Grok Code";
   if (config?.isUnifiedBillingUser === true) return "Grok Build";
@@ -95,15 +92,17 @@ function resolvePlan(user, config) {
 function planFromAccessToken(accessToken) {
   try {
     const payload = JSON.parse(Buffer.from(accessToken.split(".")[1], "base64url"));
-    return {
-      0: "Free",
-      1: "SuperGrok",
-      2: "X Basic",
-      3: "X Premium",
-      4: "X Premium Plus",
-      5: "SuperGrok Heavy",
-      6: "SuperGrok Lite",
-    }[payload.tier] || "";
+    return (
+      {
+        0: "Free",
+        1: "SuperGrok",
+        2: "X Basic",
+        3: "X Premium",
+        4: "X Premium Plus",
+        5: "SuperGrok Heavy",
+        6: "SuperGrok Lite",
+      }[payload.tier] || ""
+    );
   } catch {
     return "";
   }
@@ -250,10 +249,7 @@ export function parseGrokCliBilling(billing, user = null) {
   ].filter((bag) => bag && typeof bag === "object" && !Array.isArray(bag));
 
   for (const bag of creditBags) {
-    const total = unwrapVal(
-      bag.total ?? bag.limit ?? bag.cap ?? bag.allocation ?? bag.amount,
-      NaN,
-    );
+    const total = unwrapVal(bag.total ?? bag.limit ?? bag.cap ?? bag.allocation ?? bag.amount, NaN);
     const used = unwrapVal(bag.used ?? bag.spent ?? bag.consumed, NaN);
     const remaining = unwrapVal(bag.remaining ?? bag.balance ?? bag.left, NaN);
     if (Number.isFinite(total) && total > 0) {
@@ -283,9 +279,7 @@ export function parseGrokCliBilling(billing, user = null) {
   // Exhausted when every finite quota bar is at 0% remaining
   const exhausted =
     Object.keys(quotas).length > 0 &&
-    Object.values(quotas).every(
-      (q) => q.unlimited !== true && (q.remainingPercentage ?? 100) <= 0,
-    );
+    Object.values(quotas).every((q) => q.unlimited !== true && (q.remainingPercentage ?? 100) <= 0);
 
   return {
     plan: resolvePlan(user, config),
@@ -346,7 +340,11 @@ function quotasFromGrpcCredits(decoded) {
  * @param {object|null} providerSpecificData
  * @param {object|null} proxyOptions
  */
-export async function getGrokCliUsage(accessToken, providerSpecificData = null, proxyOptions = null) {
+export async function getGrokCliUsage(
+  accessToken,
+  providerSpecificData = null,
+  proxyOptions = null,
+) {
   if (!accessToken) {
     return { message: "Grok CLI access token not available." };
   }
@@ -356,16 +354,8 @@ export async function getGrokCliUsage(accessToken, providerSpecificData = null, 
   try {
     // Fetch billing + user profile in parallel (same pattern as official CLI startup)
     const [billingRes, userRes] = await Promise.all([
-      proxyAwareFetch(
-        BILLING_URL,
-        { method: "GET", headers },
-        proxyOptions,
-      ),
-      proxyAwareFetch(
-        USER_URL,
-        { method: "GET", headers },
-        proxyOptions,
-      ).catch(() => null),
+      proxyAwareFetch(BILLING_URL, { method: "GET", headers }, proxyOptions),
+      proxyAwareFetch(USER_URL, { method: "GET", headers }, proxyOptions).catch(() => null),
     ]);
 
     if (billingRes.status === 401 || billingRes.status === 403) {

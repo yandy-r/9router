@@ -65,7 +65,10 @@ function injectSystemMarker(body) {
   const messages = body?.messages;
   if (!Array.isArray(messages)) return body;
   const hasMarker = messages.some(
-    (m) => m?.role === "system" && typeof m.content === "string" && m.content.includes(MIMO_SYSTEM_MARKER)
+    (m) =>
+      m?.role === "system" &&
+      typeof m.content === "string" &&
+      m.content.includes(MIMO_SYSTEM_MARKER),
   );
   if (hasMarker) return body;
   return { ...body, messages: [{ role: "system", content: MIMO_SYSTEM_MARKER }, ...messages] };
@@ -81,14 +84,18 @@ async function bootstrapJwt(proxyOptions = null) {
     return cachedJwt;
   }
 
-  const response = await proxyAwareFetch(BOOTSTRAP_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
+  const response = await proxyAwareFetch(
+    BOOTSTRAP_URL,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
+      },
+      body: JSON.stringify({ client: generateFingerprint() }),
     },
-    body: JSON.stringify({ client: generateFingerprint() }),
-  }, proxyOptions);
+    proxyOptions,
+  );
 
   if (!response.ok) {
     throw new Error(`MiMo bootstrap failed: ${response.status}`);
@@ -120,7 +127,7 @@ export class MimoFreeExecutor extends BaseExecutor {
       "X-Mimo-Source": "mimocode-cli-free",
       "User-Agent": USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)],
       "x-session-affinity": this.sessionId,
-      "Accept": stream ? "text/event-stream" : "application/json",
+      Accept: stream ? "text/event-stream" : "application/json",
     };
   }
 
@@ -139,11 +146,15 @@ export class MimoFreeExecutor extends BaseExecutor {
 
     const url = this.buildUrl();
     const transformedBody = this.transformRequest(model, body);
-    const headers = { ...this.buildHeaders(credentials, stream), "Authorization": `Bearer ${jwt}` };
+    const headers = { ...this.buildHeaders(credentials, stream), Authorization: `Bearer ${jwt}` };
     const bodyStr = JSON.stringify(transformedBody);
     log?.debug?.("FETCH", `MIMO-FREE → ${url} | body=${bodyStr.length}B`);
 
-    const response = await proxyAwareFetch(url, { method: "POST", headers, body: bodyStr, signal }, proxyOptions);
+    const response = await proxyAwareFetch(
+      url,
+      { method: "POST", headers, body: bodyStr, signal },
+      proxyOptions,
+    );
 
     // On auth failure, invalidate cache and retry once with a fresh JWT
     if (response.status === 401 || response.status === 403) {
@@ -151,7 +162,11 @@ export class MimoFreeExecutor extends BaseExecutor {
       resetJwtCache();
       jwt = await bootstrapJwt(proxyOptions);
       headers["Authorization"] = `Bearer ${jwt}`;
-      const retryResponse = await proxyAwareFetch(url, { method: "POST", headers, body: bodyStr, signal }, proxyOptions);
+      const retryResponse = await proxyAwareFetch(
+        url,
+        { method: "POST", headers, body: bodyStr, signal },
+        proxyOptions,
+      );
       return { response: retryResponse, url, headers, transformedBody };
     }
 
@@ -160,8 +175,16 @@ export class MimoFreeExecutor extends BaseExecutor {
 }
 
 export const __test__ = {
-  generateFingerprint, generateSessionId, bootstrapJwt, resetJwtCache, parseJwtExp,
-  injectSystemMarker, MIMO_SYSTEM_MARKER, BOOTSTRAP_URL, CHAT_URL, SESSION_AFFINITY_PREFIX,
+  generateFingerprint,
+  generateSessionId,
+  bootstrapJwt,
+  resetJwtCache,
+  parseJwtExp,
+  injectSystemMarker,
+  MIMO_SYSTEM_MARKER,
+  BOOTSTRAP_URL,
+  CHAT_URL,
+  SESSION_AFFINITY_PREFIX,
 };
 
 export default MimoFreeExecutor;

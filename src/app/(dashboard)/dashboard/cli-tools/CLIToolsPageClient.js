@@ -24,7 +24,9 @@ export default function CLIToolsPageClient({ machineId }) {
         if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   if (loading) {

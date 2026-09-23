@@ -23,8 +23,14 @@ export function buildOutput(input) {
 
     // Continuation of cargo error block: keep verbatim while in block
     if (inCargoError) {
-      if (!trimmed) { inCargoError = false; continue; }
-      if (RE_CARGO_ERR_CONT.test(line)) { errors.push(line); continue; }
+      if (!trimmed) {
+        inCargoError = false;
+        continue;
+      }
+      if (RE_CARGO_ERR_CONT.test(line)) {
+        errors.push(line);
+        continue;
+      }
       inCargoError = false;
     }
 

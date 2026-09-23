@@ -31,12 +31,16 @@ function messagePayload(body) {
 
 function captureSizeSnapshot(body) {
   const messages = messagePayload(body);
-  const toolHistory = messages?.filter((message) =>
-    message?.role === "tool"
-    || message?.role === "function"
-    || message?.tool_calls?.length
-    || message?.content?.some?.((part) => part?.type === "tool_use" || part?.type === "tool_result")
-  ) || [];
+  const toolHistory =
+    messages?.filter(
+      (message) =>
+        message?.role === "tool" ||
+        message?.role === "function" ||
+        message?.tool_calls?.length ||
+        message?.content?.some?.(
+          (part) => part?.type === "tool_use" || part?.type === "tool_result",
+        ),
+    ) || [];
   return {
     bodyBytes: jsonBytes(body),
     messageBytes: messages ? jsonBytes(messages) : 0,
@@ -85,7 +89,9 @@ function maskEndpoint(endpoint) {
     parsed.hash = "";
     return parsed.toString();
   } catch {
-    return String(endpoint).replace(/\/\/[^/@\s]+@/, "//").replace(/[?#].*$/, "");
+    return String(endpoint)
+      .replace(/\/\/[^/@\s]+@/, "//")
+      .replace(/[?#].*$/, "");
   }
 }
 
@@ -112,14 +118,16 @@ function collectKiroHeadroomMessages(body) {
 
   const toToolCalls = (toolUses) => {
     if (!Array.isArray(toolUses) || toolUses.length === 0) return undefined;
-    const calls = toolUses.map((toolUse) => ({
-      id: toolUse?.toolUseId,
-      type: "function",
-      function: {
-        name: toolUse?.name || "",
-        arguments: JSON.stringify(toolUse?.input || {}),
-      },
-    })).filter((call) => call.id || call.function.name);
+    const calls = toolUses
+      .map((toolUse) => ({
+        id: toolUse?.toolUseId,
+        type: "function",
+        function: {
+          name: toolUse?.name || "",
+          arguments: JSON.stringify(toolUse?.input || {}),
+        },
+      }))
+      .filter((call) => call.id || call.function.name);
     return calls.length > 0 ? calls : undefined;
   };
 
@@ -139,7 +147,7 @@ function collectKiroHeadroomMessages(body) {
               "tool",
               part?.text,
               { object: part, key: "text" },
-              toolResult?.toolUseId ? { tool_call_id: toolResult.toolUseId } : {}
+              toolResult?.toolUseId ? { tool_call_id: toolResult.toolUseId } : {},
             );
           }
         }
@@ -154,7 +162,7 @@ function collectKiroHeadroomMessages(body) {
         "assistant",
         assistant.content,
         { object: assistant, key: "content" },
-        toolCalls ? { tool_calls: toolCalls } : {}
+        toolCalls ? { tool_calls: toolCalls } : {},
       );
     }
   };
@@ -184,7 +192,10 @@ function textFromHeadroomMessage(message) {
 }
 
 function applyKiroHeadroomMessages(projection, compressedMessages, diagnostics) {
-  if (!Array.isArray(compressedMessages) || compressedMessages.length !== projection.messages.length) {
+  if (
+    !Array.isArray(compressedMessages) ||
+    compressedMessages.length !== projection.messages.length
+  ) {
     setDiagnostic(diagnostics, "proxy response did not match Kiro message count");
     return false;
   }
@@ -245,7 +256,18 @@ async function callCompress(url, messages, model, timeoutMs, compressUserMessage
 // Compress request body via Headroom proxy. Fail-open: returns null on any error.
 // /v1/compress only understands OpenAI shape, so Claude bodies are translated
 // to OpenAI, compressed, then translated back using 9Router's own translators.
-export async function compressWithHeadroom(body, { enabled, url, model, format, compressUserMessages, timeoutMs = DEFAULT_TIMEOUT_MS, diagnostics = null } = {}) {
+export async function compressWithHeadroom(
+  body,
+  {
+    enabled,
+    url,
+    model,
+    format,
+    compressUserMessages,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+    diagnostics = null,
+  } = {},
+) {
   timeoutMs = normalizeTimeout(timeoutMs);
   if (!enabled) {
     setDiagnostic(diagnostics, "disabled");
@@ -274,7 +296,14 @@ export async function compressWithHeadroom(body, { enabled, url, model, format, 
         setDiagnostic(diagnostics, "Claude request did not translate to messages[]");
         return null;
       }
-      const data = await callCompress(url, oai.messages, model, timeoutMs, compressUserMessages, diagnostics || {});
+      const data = await callCompress(
+        url,
+        oai.messages,
+        model,
+        timeoutMs,
+        compressUserMessages,
+        diagnostics || {},
+      );
       if (!data) return null;
       const claudeBody = openaiToClaudeRequest(model, { ...oai, messages: data.messages }, false);
       if (Array.isArray(claudeBody?.messages)) body.messages = claudeBody.messages;
@@ -287,7 +316,10 @@ export async function compressWithHeadroom(body, { enabled, url, model, format, 
     // body.input keeps the Responses contract (the proxy only understands OpenAI). (#1998)
     if (format === "openai-responses") {
       if (hasUnsafeResponsesInputForCompression(body)) {
-        setDiagnostic(diagnostics, "skipped: openai-responses tool/reasoning input is not safe to compress");
+        setDiagnostic(
+          diagnostics,
+          "skipped: openai-responses tool/reasoning input is not safe to compress",
+        );
         return null;
       }
       const oai = openaiResponsesToOpenAIRequest(model, body, false);
@@ -295,14 +327,21 @@ export async function compressWithHeadroom(body, { enabled, url, model, format, 
         setDiagnostic(diagnostics, "openai-responses request did not translate to messages[]");
         return null;
       }
-      const data = await callCompress(url, oai.messages, model, timeoutMs, compressUserMessages, diagnostics || {});
+      const data = await callCompress(
+        url,
+        oai.messages,
+        model,
+        timeoutMs,
+        compressUserMessages,
+        diagnostics || {},
+      );
       if (!data) return null;
       // input: undefined so the translator rebuilds input from the compressed
       // messages instead of returning the original input unchanged.
       const responsesBody = openaiToOpenAIResponsesRequest(
         model,
         { ...oai, input: undefined, messages: data.messages },
-        false
+        false,
       );
       if (Array.isArray(responsesBody?.input)) body.input = responsesBody.input;
       if (diagnostics) diagnostics.after = captureSizeSnapshot(body);
@@ -318,7 +357,14 @@ export async function compressWithHeadroom(body, { enabled, url, model, format, 
         setDiagnostic(diagnostics, "Kiro request did not project to messages[]");
         return null;
       }
-      const data = await callCompress(url, projection.messages, model, timeoutMs, compressUserMessages, diagnostics || {});
+      const data = await callCompress(
+        url,
+        projection.messages,
+        model,
+        timeoutMs,
+        compressUserMessages,
+        diagnostics || {},
+      );
       if (!data) return null;
       if (!applyKiroHeadroomMessages(projection, data.messages, diagnostics)) return null;
       if (diagnostics) diagnostics.after = captureSizeSnapshot(body);
@@ -326,14 +372,23 @@ export async function compressWithHeadroom(body, { enabled, url, model, format, 
     }
 
     // OpenAI shape: messages/input go straight to the proxy.
-    const key = Array.isArray(body.messages) ? "messages"
-      : Array.isArray(body.input) ? "input"
-      : null;
+    const key = Array.isArray(body.messages)
+      ? "messages"
+      : Array.isArray(body.input)
+        ? "input"
+        : null;
     if (!key) {
       setDiagnostic(diagnostics, `unsupported ${format || "unknown"} request shape`);
       return null;
     }
-    const data = await callCompress(url, body[key], model, timeoutMs, compressUserMessages, diagnostics || {});
+    const data = await callCompress(
+      url,
+      body[key],
+      model,
+      timeoutMs,
+      compressUserMessages,
+      diagnostics || {},
+    );
     if (!data) return null;
     body[key] = data.messages;
     if (diagnostics) diagnostics.after = captureSizeSnapshot(body);
@@ -357,9 +412,10 @@ export function formatHeadroomSizeLog(diagnostics) {
   const before = diagnostics?.before;
   const after = diagnostics?.after;
   if (!before || !after) return "";
-  const effective = before.bodyBytes > 0
-    ? (((before.bodyBytes - after.bodyBytes) / before.bodyBytes) * 100).toFixed(1)
-    : "0.0";
+  const effective =
+    before.bodyBytes > 0
+      ? (((before.bodyBytes - after.bodyBytes) / before.bodyBytes) * 100).toFixed(1)
+      : "0.0";
   return `body=${before.bodyBytes}B→${after.bodyBytes}B messages=${before.messageBytes}B→${after.messageBytes}B tools=${before.toolSchemaBytes || 0}B→${after.toolSchemaBytes || 0}B toolHistory=${before.toolHistoryBytes || 0}B→${after.toolHistoryBytes || 0}B effective=${effective}%`;
 }
 

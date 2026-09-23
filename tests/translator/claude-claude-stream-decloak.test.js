@@ -15,7 +15,7 @@ const CLOAKED = "run_code" + CLAUDE_TOOL_SUFFIX;
 const toolUseStart = (name) => ({
   type: "content_block_start",
   index: 1,
-  content_block: { type: "tool_use", id: "toolu_01XYZ", name, input: {} }
+  content_block: { type: "tool_use", id: "toolu_01XYZ", name, input: {} },
 });
 
 describe("Claude → Claude streaming passthrough (OAuth tool cloak)", () => {
@@ -31,7 +31,11 @@ describe("Claude → Claude streaming passthrough (OAuth tool cloak)", () => {
     const [out] = translateResponse(FORMATS.CLAUDE, FORMATS.CLAUDE, chunk, state);
     expect(out).toBe(chunk);
 
-    const textChunk = { type: "content_block_delta", index: 0, delta: { type: "text_delta", text: "hi" } };
+    const textChunk = {
+      type: "content_block_delta",
+      index: 0,
+      delta: { type: "text_delta", text: "hi" },
+    };
     const [outText] = translateResponse(FORMATS.CLAUDE, FORMATS.CLAUDE, textChunk, state);
     expect(outText).toBe(textChunk);
   });

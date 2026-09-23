@@ -38,17 +38,17 @@ describe("Kiro format RTK support", () => {
                         "Some issues need review, and may require choosing",
                         "a different dependency.",
                         "",
-                        "Run `npm audit` for details."
-                      ].join("\n")
-                    }
-                  ]
-                }
-              ]
-            }
-          }
+                        "Run `npm audit` for details.",
+                      ].join("\n"),
+                    },
+                  ],
+                },
+              ],
+            },
+          },
         },
-        history: []
-      }
+        history: [],
+      },
     };
 
     const stats = compressMessages(kiroBody, true);
@@ -82,8 +82,8 @@ describe("Kiro format RTK support", () => {
         currentMessage: {
           userInputMessage: {
             content: "What happened?",
-            modelId: "claude-sonnet-4.5"
-          }
+            modelId: "claude-sonnet-4.5",
+          },
         },
         history: [
           {
@@ -97,16 +97,16 @@ describe("Kiro format RTK support", () => {
                     status: "success",
                     content: [
                       {
-                        text: compilingLines.join("\n")
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          }
-        ]
-      }
+                        text: compilingLines.join("\n"),
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
     };
 
     const stats = compressMessages(kiroBody, true);
@@ -143,13 +143,13 @@ describe("Kiro format RTK support", () => {
                   status: "success",
                   content: [
                     {
-                      text: deprecations2.join("\n")
-                    }
-                  ]
-                }
-              ]
-            }
-          }
+                      text: deprecations2.join("\n"),
+                    },
+                  ],
+                },
+              ],
+            },
+          },
         },
         history: [
           {
@@ -163,23 +163,23 @@ describe("Kiro format RTK support", () => {
                     status: "success",
                     content: [
                       {
-                        text: deprecations1.join("\n")
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          }
-        ]
-      }
+                        text: deprecations1.join("\n"),
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      },
     };
 
     const stats = compressMessages(kiroBody, true);
 
     expect(stats).not.toBeNull();
     expect(stats.hits.length).toBe(2); // Both tool results compressed
-    expect(stats.hits.every(h => h.filter === "build-output")).toBe(true);
+    expect(stats.hits.every((h) => h.filter === "build-output")).toBe(true);
   });
 
   it("preserves error tool results without compression", () => {
@@ -198,26 +198,30 @@ describe("Kiro format RTK support", () => {
                   status: "error",
                   content: [
                     {
-                      text: "npm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/invalid-package"
-                    }
-                  ]
-                }
-              ]
-            }
-          }
+                      text: "npm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/invalid-package",
+                    },
+                  ],
+                },
+              ],
+            },
+          },
         },
-        history: []
-      }
+        history: [],
+      },
     };
 
-    const originalText = kiroBody.conversationState.currentMessage.userInputMessage.userInputMessageContext.toolResults[0].content[0].text;
+    const originalText =
+      kiroBody.conversationState.currentMessage.userInputMessage.userInputMessageContext
+        .toolResults[0].content[0].text;
     const stats = compressMessages(kiroBody, true);
 
     expect(stats).not.toBeNull();
     expect(stats.hits.length).toBe(0); // Error not compressed
-    
+
     // Verify error text unchanged
-    const afterText = kiroBody.conversationState.currentMessage.userInputMessage.userInputMessageContext.toolResults[0].content[0].text;
+    const afterText =
+      kiroBody.conversationState.currentMessage.userInputMessage.userInputMessageContext
+        .toolResults[0].content[0].text;
     expect(afterText).toBe(originalText);
   });
 
@@ -235,14 +239,14 @@ describe("Kiro format RTK support", () => {
                 {
                   toolUseId: "tool_6",
                   status: "success",
-                  content: [{ text: "npm install express\nadded 50 packages" }]
-                }
-              ]
-            }
-          }
+                  content: [{ text: "npm install express\nadded 50 packages" }],
+                },
+              ],
+            },
+          },
         },
-        history: []
-      }
+        history: [],
+      },
     };
 
     const stats = compressMessages(kiroBody, false); // RTK disabled
@@ -257,11 +261,11 @@ describe("Kiro format RTK support", () => {
         currentMessage: {
           userInputMessage: {
             content: "Hello",
-            modelId: "claude-sonnet-4.5"
-          }
+            modelId: "claude-sonnet-4.5",
+          },
         },
-        history: []
-      }
+        history: [],
+      },
     };
 
     const stats = compressMessages(kiroBody, true);
@@ -277,7 +281,7 @@ describe("Kiro format RTK support", () => {
       { conversationState: null },
       { conversationState: {} },
       { conversationState: { history: null, currentMessage: null } },
-      { conversationState: { history: "not-an-array" } }
+      { conversationState: { history: "not-an-array" } },
     ];
 
     for (const body of malformedBodies) {

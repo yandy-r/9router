@@ -9,14 +9,12 @@ export default {
     website: "https://aws.amazon.com/polly/",
     notice: {
       text: "Use AWS Secret Access Key as API key; set providerSpecificData.accessKeyId and optional region.",
-      apiKeyUrl: "https://console.aws.amazon.com/iam/home#/security_credentials"
-    }
+      apiKeyUrl: "https://console.aws.amazon.com/iam/home#/security_credentials",
+    },
   },
   category: "apikey",
   authType: "apikey",
-  serviceKinds: [
-    "tts"
-  ],
+  serviceKinds: ["tts"],
   ttsConfig: {
     baseUrl: "https://polly.{region}.amazonaws.com/v1/speech",
     authType: "apikey",
@@ -25,21 +23,21 @@ export default {
     models: [
       {
         id: "standard",
-        name: "Standard"
+        name: "Standard",
       },
       {
         id: "neural",
-        name: "Neural"
+        name: "Neural",
       },
       {
         id: "long-form",
-        name: "Long-form"
+        name: "Long-form",
       },
       {
         id: "generative",
-        name: "Generative"
-      }
-    ]
+        name: "Generative",
+      },
+    ],
   },
-  hasProviderSpecificData: true
+  hasProviderSpecificData: true,
 };

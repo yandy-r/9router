@@ -45,7 +45,7 @@ describe("defer_loading tools never carry cache_control (#3567)", () => {
       tools: [tool("mcp__a", { defer_loading: true }), tool("mcp__b", { defer_loading: true })],
     });
 
-    expect(body.tools.every(t => t.cache_control === undefined)).toBe(true);
+    expect(body.tools.every((t) => t.cache_control === undefined)).toBe(true);
   });
 
   it("anchorClaudeCache: strips a cache_control the client put on a deferred tool", () => {
@@ -68,11 +68,14 @@ describe("defer_loading tools never carry cache_control (#3567)", () => {
   });
 
   it("prepareClaudeRequest: deferred tail tool does not get the anchor", () => {
-    const out = prepareClaudeRequest({
-      model: "claude-sonnet-4.5",
-      messages: [{ role: "user", content: "hi" }],
-      tools: [tool("a"), tool("mcp__x__y", { defer_loading: true })],
-    }, "claude");
+    const out = prepareClaudeRequest(
+      {
+        model: "claude-sonnet-4.5",
+        messages: [{ role: "user", content: "hi" }],
+        tools: [tool("a"), tool("mcp__x__y", { defer_loading: true })],
+      },
+      "claude",
+    );
 
     expect(out.tools).toHaveLength(2);
     expect(out.tools[1].cache_control).toBeUndefined();

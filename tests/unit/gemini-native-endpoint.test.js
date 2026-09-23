@@ -72,10 +72,10 @@ describe("Gemini native v1beta endpoint", () => {
       new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "ok" }] } }] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      })
+      }),
     );
     mocks.handleChat.mockResolvedValue(
-      Response.json({ candidates: [{ content: { parts: [{ text: "chat" }] } }] })
+      Response.json({ candidates: [{ content: { parts: [{ text: "chat" }] } }] }),
     );
   });
 
@@ -91,15 +91,18 @@ describe("Gemini native v1beta endpoint", () => {
 
   it("passes Gemini AUDIO generateContent requests through to Google's native endpoint", async () => {
     const body = audioBody();
-    const response = await POST(makeGeminiRequest("gemini-3.1-flash-tts-preview:generateContent", body), {
-      params: Promise.resolve({ path: ["gemini-3.1-flash-tts-preview:generateContent"] }),
-    });
+    const response = await POST(
+      makeGeminiRequest("gemini-3.1-flash-tts-preview:generateContent", body),
+      {
+        params: Promise.resolve({ path: ["gemini-3.1-flash-tts-preview:generateContent"] }),
+      },
+    );
 
     expect(response.status).toBe(200);
     expect(mocks.handleChat).not.toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(global.fetch.mock.calls[0][0]).toBe(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent"
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent",
     );
 
     const options = global.fetch.mock.calls[0][1];
@@ -116,7 +119,7 @@ describe("Gemini native v1beta endpoint", () => {
       {
         Authorization: "",
         "x-goog-api-key": "client-router-key",
-      }
+      },
     );
     await POST(request, {
       params: Promise.resolve({ path: ["gemini-2.5-flash-preview-tts:generateContent"] }),
@@ -136,12 +139,15 @@ describe("Gemini native v1beta endpoint", () => {
           "Content-Encoding": "gzip",
           "Content-Length": "123",
         },
-      })
+      }),
     );
 
-    const response = await POST(makeGeminiRequest("gemini-3.1-flash-tts-preview:generateContent", audioBody()), {
-      params: Promise.resolve({ path: ["gemini-3.1-flash-tts-preview:generateContent"] }),
-    });
+    const response = await POST(
+      makeGeminiRequest("gemini-3.1-flash-tts-preview:generateContent", audioBody()),
+      {
+        params: Promise.resolve({ path: ["gemini-3.1-flash-tts-preview:generateContent"] }),
+      },
+    );
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-encoding")).toBeNull();
@@ -166,18 +172,22 @@ describe("Gemini native v1beta endpoint", () => {
         providerSpecificData: {},
       });
     mocks.markAccountUnavailable.mockResolvedValueOnce({ shouldFallback: true });
-    global.fetch
-      .mockRejectedValueOnce(timeoutError)
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: "pcm" } }] } }] }), {
+    global.fetch.mockRejectedValueOnce(timeoutError).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { data: "pcm" } }] } }] }),
+        {
           status: 200,
           headers: { "Content-Type": "application/json" },
-        })
-      );
+        },
+      ),
+    );
 
-    const response = await POST(makeGeminiRequest("gemini-3.1-flash-tts-preview:generateContent", audioBody()), {
-      params: Promise.resolve({ path: ["gemini-3.1-flash-tts-preview:generateContent"] }),
-    });
+    const response = await POST(
+      makeGeminiRequest("gemini-3.1-flash-tts-preview:generateContent", audioBody()),
+      {
+        params: Promise.resolve({ path: ["gemini-3.1-flash-tts-preview:generateContent"] }),
+      },
+    );
 
     expect(response.status).toBe(200);
     expect(global.fetch).toHaveBeenCalledTimes(2);
@@ -188,12 +198,12 @@ describe("Gemini native v1beta endpoint", () => {
       504,
       expect.stringContaining("UND_ERR_HEADERS_TIMEOUT"),
       "gemini",
-      "gemini-3.1-flash-tts-preview"
+      "gemini-3.1-flash-tts-preview",
     );
     expect(mocks.clearAccountError).toHaveBeenCalledWith(
       "second-conn",
       expect.objectContaining({ apiKey: "second-gemini-key" }),
-      "gemini-3.1-flash-tts-preview"
+      "gemini-3.1-flash-tts-preview",
     );
   });
 
@@ -203,9 +213,12 @@ describe("Gemini native v1beta endpoint", () => {
     mocks.markAccountUnavailable.mockResolvedValueOnce({ shouldFallback: false });
     global.fetch.mockRejectedValueOnce(networkError);
 
-    const response = await POST(makeGeminiRequest("gemini-3.1-flash-tts-preview:generateContent", audioBody()), {
-      params: Promise.resolve({ path: ["gemini-3.1-flash-tts-preview:generateContent"] }),
-    });
+    const response = await POST(
+      makeGeminiRequest("gemini-3.1-flash-tts-preview:generateContent", audioBody()),
+      {
+        params: Promise.resolve({ path: ["gemini-3.1-flash-tts-preview:generateContent"] }),
+      },
+    );
     const body = await response.json();
 
     expect(response.status).toBe(502);
@@ -215,7 +228,7 @@ describe("Gemini native v1beta endpoint", () => {
       502,
       expect.stringContaining("ECONNRESET"),
       "gemini",
-      "gemini-3.1-flash-tts-preview"
+      "gemini-3.1-flash-tts-preview",
     );
   });
 
@@ -225,10 +238,15 @@ describe("Gemini native v1beta endpoint", () => {
     global.fetch.mockRejectedValueOnce(new DOMException("The operation was aborted", "AbortError"));
 
     const response = await POST(
-      makeGeminiRequest("gemini-3.1-flash-tts-preview:generateContent", audioBody(), {}, controller.signal),
+      makeGeminiRequest(
+        "gemini-3.1-flash-tts-preview:generateContent",
+        audioBody(),
+        {},
+        controller.signal,
+      ),
       {
         params: Promise.resolve({ path: ["gemini-3.1-flash-tts-preview:generateContent"] }),
-      }
+      },
     );
 
     expect(response.status).toBe(499);

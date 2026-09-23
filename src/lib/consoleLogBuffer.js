@@ -46,6 +46,7 @@ function toLogLine(level, args) {
 }
 
 // Strip ANSI escape codes so terminal colors don't bleed into UI
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI stripper must match escape char
 const ANSI_RE = /\x1b\[[0-9;]*m/g;
 
 function stripAnsi(str) {

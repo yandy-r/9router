@@ -14,8 +14,14 @@ describe("roundtrip: Claude source preserves core fields → OpenAI", () => {
     max_tokens: 100,
     messages: [
       { role: "user", content: "question" },
-      { role: "assistant", content: [{ type: "tool_use", id: "call_1", name: "search", input: { q: "x" } }] },
-      { role: "user", content: [{ type: "tool_result", tool_use_id: "call_1", content: "result" }] },
+      {
+        role: "assistant",
+        content: [{ type: "tool_use", id: "call_1", name: "search", input: { q: "x" } }],
+      },
+      {
+        role: "user",
+        content: [{ type: "tool_result", tool_use_id: "call_1", content: "result" }],
+      },
     ],
   };
   const out = T(FORMATS.CLAUDE, FORMATS.OPENAI, body);
@@ -39,10 +45,24 @@ describe("roundtrip: Claude source preserves core fields → OpenAI", () => {
 });
 
 describe("roundtrip: OpenAI tools → Claude → keeps tool name", () => {
-  const out = T(FORMATS.OPENAI, FORMATS.CLAUDE, {
-    messages: [{ role: "user", content: "hi" }],
-    tools: [{ type: "function", function: { name: "my_tool", description: "d", parameters: { type: "object", properties: {} } } }],
-  }, "anthropic-compatible-x");
+  const out = T(
+    FORMATS.OPENAI,
+    FORMATS.CLAUDE,
+    {
+      messages: [{ role: "user", content: "hi" }],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "my_tool",
+            description: "d",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      ],
+    },
+    "anthropic-compatible-x",
+  );
 
   it("tool name survives openai→claude", () => {
     expect(JSON.stringify(out)).toContain("my_tool");
@@ -53,14 +73,20 @@ describe("roundtrip: parallel tool calls keep distinct ids", () => {
   // Claude assistant with 2 parallel tool_use → openai must keep 2 distinct ids
   const out = T(FORMATS.CLAUDE, FORMATS.OPENAI, {
     messages: [
-      { role: "assistant", content: [
-        { type: "tool_use", id: "call_a", name: "f1", input: {} },
-        { type: "tool_use", id: "call_b", name: "f2", input: {} },
-      ] },
-      { role: "user", content: [
-        { type: "tool_result", tool_use_id: "call_a", content: "ra" },
-        { type: "tool_result", tool_use_id: "call_b", content: "rb" },
-      ] },
+      {
+        role: "assistant",
+        content: [
+          { type: "tool_use", id: "call_a", name: "f1", input: {} },
+          { type: "tool_use", id: "call_b", name: "f2", input: {} },
+        ],
+      },
+      {
+        role: "user",
+        content: [
+          { type: "tool_result", tool_use_id: "call_a", content: "ra" },
+          { type: "tool_result", tool_use_id: "call_b", content: "rb" },
+        ],
+      },
     ],
   });
 

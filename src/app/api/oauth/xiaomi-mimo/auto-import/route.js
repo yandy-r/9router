@@ -38,9 +38,7 @@ function getCandidatePaths() {
 
   // macOS
   if (process.platform === "darwin") {
-    paths.push(
-      join(home, "Library", "Application Support", "mimocode", "auth.json"),
-    );
+    paths.push(join(home, "Library", "Application Support", "mimocode", "auth.json"));
   }
 
   return paths;
@@ -132,9 +130,6 @@ export async function GET() {
     });
   } catch (error) {
     console.log("Xiaomi MiMo auto-import error:", error);
-    return NextResponse.json(
-      { found: false, error: error.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ found: false, error: error.message }, { status: 500 });
   }
 }

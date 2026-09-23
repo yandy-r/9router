@@ -10,14 +10,17 @@ vi.mock("@/lib/db/helpers/kvStore.js", () => ({
   }),
 }));
 
-const {
-  storeGeminiThoughtSignature,
-  getGeminiThoughtSignatureSync,
-  signatureFamily,
-} = await import("../../open-sse/services/thoughtSignatureStore.js");
-const { openaiToAntigravityRequest } = await import("../../open-sse/translator/request/openai-to-gemini.js");
-const { geminiToOpenAIResponse } = await import("../../open-sse/translator/response/gemini-to-openai.js");
-const { DEFAULT_THINKING_GEMINI_CLI_SIGNATURE } = await import("../../open-sse/config/defaultThinkingSignature.js");
+const { storeGeminiThoughtSignature, getGeminiThoughtSignatureSync, signatureFamily } =
+  await import("../../open-sse/services/thoughtSignatureStore.js");
+const { openaiToAntigravityRequest } = await import(
+  "../../open-sse/translator/request/openai-to-gemini.js"
+);
+const { geminiToOpenAIResponse } = await import(
+  "../../open-sse/translator/response/gemini-to-openai.js"
+);
+const { DEFAULT_THINKING_GEMINI_CLI_SIGNATURE } = await import(
+  "../../open-sse/config/defaultThinkingSignature.js"
+);
 
 let n = 0;
 const uid = (p) => `${p}_${Date.now()}_${n++}`;
@@ -26,18 +29,27 @@ function toolHistory(callId) {
   return {
     messages: [
       { role: "user", content: "list files" },
-      { role: "assistant", content: null, tool_calls: [{ id: callId, type: "function", function: { name: "ls", arguments: "{}" } }] },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [{ id: callId, type: "function", function: { name: "ls", arguments: "{}" } }],
+      },
       { role: "tool", tool_call_id: callId, content: "a.txt" },
     ],
   };
 }
 
 function functionCallSignatures(req) {
-  return req.request.contents.flatMap((c) => c.parts || []).filter((p) => p.functionCall).map((p) => p.thoughtSignature);
+  return req.request.contents
+    .flatMap((c) => c.parts || [])
+    .filter((p) => p.functionCall)
+    .map((p) => p.thoughtSignature);
 }
 
 describe("antigravity thought signatures are scoped to the model family", () => {
-  beforeEach(() => { n++; });
+  beforeEach(() => {
+    n++;
+  });
 
   it("classifies model families", () => {
     expect(signatureFamily("claude-opus-4-6-thinking")).toBe("claude");
@@ -53,8 +65,12 @@ describe("antigravity thought signatures are scoped to the model family", () => 
     storeGeminiThoughtSignature(geminiCall, "GEMINI_SIG", "sess", "gemini-3.8-flash-tiered");
 
     expect(getGeminiThoughtSignatureSync(claudeCall, "sess", "gemini-3.8-flash")).toBe(null);
-    expect(getGeminiThoughtSignatureSync(claudeCall, "sess", "claude-opus-4-6-thinking")).toBe("CLAUDE_SIG");
-    expect(getGeminiThoughtSignatureSync(geminiCall, "sess", "gemini-3.7-flash")).toBe("GEMINI_SIG");
+    expect(getGeminiThoughtSignatureSync(claudeCall, "sess", "claude-opus-4-6-thinking")).toBe(
+      "CLAUDE_SIG",
+    );
+    expect(getGeminiThoughtSignatureSync(geminiCall, "sess", "gemini-3.7-flash")).toBe(
+      "GEMINI_SIG",
+    );
     expect(getGeminiThoughtSignatureSync(geminiCall, null, "claude-sonnet-4-6")).toBe(null);
   });
 
@@ -71,14 +87,31 @@ describe("antigravity thought signatures are scoped to the model family", () => 
   it("records the producing model from the Gemini response stream", () => {
     const call = uid("toolu_vrtx");
     const state = { model: "claude-opus-4-6-thinking", sessionId: null, toolNameMap: null };
-    geminiToOpenAIResponse({
-      response: {
-        responseId: "r1",
-        candidates: [{ content: { role: "model", parts: [{ functionCall: { id: call, name: "ls", args: {} }, thoughtSignature: "CLAUDE_SIG" }] } }],
+    geminiToOpenAIResponse(
+      {
+        response: {
+          responseId: "r1",
+          candidates: [
+            {
+              content: {
+                role: "model",
+                parts: [
+                  {
+                    functionCall: { id: call, name: "ls", args: {} },
+                    thoughtSignature: "CLAUDE_SIG",
+                  },
+                ],
+              },
+            },
+          ],
+        },
       },
-    }, state);
+      state,
+    );
     expect(getGeminiThoughtSignatureSync(call, null, "gemini-3.8-flash-tiered")).toBe(null);
-    expect(getGeminiThoughtSignatureSync(call, null, "claude-opus-4-6-thinking")).toBe("CLAUDE_SIG");
+    expect(getGeminiThoughtSignatureSync(call, null, "claude-opus-4-6-thinking")).toBe(
+      "CLAUDE_SIG",
+    );
   });
 
   it("switching Claude -> Gemini mid-conversation sends the default signature, not Claude's", () => {

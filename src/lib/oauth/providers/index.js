@@ -87,7 +87,11 @@ export async function generateAuthData(providerName, redirectUri, meta) {
   const config = provider.prepareConfig
     ? await provider.prepareConfig(provider.config, meta || {})
     : provider.config;
-  const { codeVerifier: pkceVerifier, codeChallenge, state: pkceState } = generatePKCE(provider.pkceVerifierBytes);
+  const {
+    codeVerifier: pkceVerifier,
+    codeChallenge,
+    state: pkceState,
+  } = generatePKCE(provider.pkceVerifierBytes);
   // Trae uses loginTraceID (set by prepareConfig) as the callback matcher, not PKCE state.
   const state = config.loginTraceID || pkceState;
   // Zed: codeVerifier carries the encoded RSA private key (from prepareConfig), not a PKCE verifier.
@@ -130,7 +134,14 @@ export async function exchangeTokens(providerName, code, redirectUri, codeVerifi
     ? await provider.prepareConfig(provider.config, meta || {})
     : provider.config;
 
-  const tokens = await provider.exchangeToken(config, code, redirectUri, codeVerifier, state, meta || {});
+  const tokens = await provider.exchangeToken(
+    config,
+    code,
+    redirectUri,
+    codeVerifier,
+    state,
+    meta || {},
+  );
 
   let extra = null;
   if (provider.postExchange) {
@@ -183,26 +194,31 @@ export async function pollForToken(providerName, deviceCode, codeVerifier, extra
       return { success: true, tokens };
     } else {
       // Check if it's still pending authorization
-      if (result.data.error === 'authorization_pending' || result.data.error === 'slow_down') {
+      if (result.data.error === "authorization_pending" || result.data.error === "slow_down") {
         // This is not a failure, just still waiting
         return {
           success: false,
           error: result.data.error,
           errorDescription: result.data.error_description || result.data.message,
-          pending: result.data.error === 'authorization_pending'
+          pending: result.data.error === "authorization_pending",
         };
       } else {
         // Actual error
         return {
           success: false,
-          error: result.data.error || 'no_access_token',
-          errorDescription: result.data.error_description || result.data.message || 'No access token received'
+          error: result.data.error || "no_access_token",
+          errorDescription:
+            result.data.error_description || result.data.message || "No access token received",
         };
       }
     }
   }
 
-  return { success: false, error: result.data.error, errorDescription: result.data.error_description };
+  return {
+    success: false,
+    error: result.data.error,
+    errorDescription: result.data.error_description,
+  };
 }
 
 // Run-once guard across the process lifetime

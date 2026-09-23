@@ -94,19 +94,23 @@ export async function GET() {
 export async function POST(request) {
   try {
     const { apiKey, sudoPassword, mitmRouterBaseUrl, forceKillPort443 } = await request.json();
-    const pwd = getPassword(sudoPassword) || await loadEncryptedPassword() || "";
+    const pwd = getPassword(sudoPassword) || (await loadEncryptedPassword()) || "";
 
     if (!apiKey || requiresSudoPassword(pwd)) {
       return NextResponse.json(
         { error: !apiKey ? "Missing apiKey" : "Missing sudoPassword" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (!checkPrivilege(pwd)) {
       return NextResponse.json(
-        { error: isWin ? "Administrator required — restart 9Router as Administrator" : "Root or sudo password required to start MITM" },
-        { status: 403 }
+        {
+          error: isWin
+            ? "Administrator required — restart 9Router as Administrator"
+            : "Root or sudo password required to start MITM",
+        },
+        { status: 403 },
       );
     }
 
@@ -131,10 +135,13 @@ export async function POST(request) {
     if (error.code === "PORT_443_BUSY") {
       return NextResponse.json(
         { error: error.message, code: "PORT_443_BUSY", portOwner: error.portOwner },
-        { status: 409 }
+        { status: 409 },
       );
     }
-    return NextResponse.json({ error: error.message || "Failed to start MITM server" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to start MITM server" },
+      { status: 500 },
+    );
   }
 }
 
@@ -143,7 +150,7 @@ export async function DELETE(request) {
   try {
     const body = await request.json().catch(() => ({}));
     const { sudoPassword } = body;
-    const pwd = getPassword(sudoPassword) || await loadEncryptedPassword() || "";
+    const pwd = getPassword(sudoPassword) || (await loadEncryptedPassword()) || "";
 
     if (requiresSudoPassword(pwd)) {
       return NextResponse.json({ error: "Missing sudoPassword" }, { status: 400 });
@@ -155,7 +162,10 @@ export async function DELETE(request) {
     return NextResponse.json({ success: true, running: false });
   } catch (error) {
     console.log("Error stopping MITM server:", error.message);
-    return NextResponse.json({ error: error.message || "Failed to stop MITM server" }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Failed to stop MITM server" },
+      { status: 500 },
+    );
   }
 }
 
@@ -163,7 +173,7 @@ export async function DELETE(request) {
 export async function PATCH(request) {
   try {
     const { tool, action, sudoPassword } = await request.json();
-    const pwd = getPassword(sudoPassword) || await loadEncryptedPassword() || "";
+    const pwd = getPassword(sudoPassword) || (await loadEncryptedPassword()) || "";
 
     if (!tool || !action) {
       return NextResponse.json({ error: "tool and action required" }, { status: 400 });
@@ -173,8 +183,12 @@ export async function PATCH(request) {
     }
     if (!checkPrivilege(pwd)) {
       return NextResponse.json(
-        { error: isWin ? "Administrator required — restart 9Router as Administrator" : "Root or sudo password required to modify DNS" },
-        { status: 403 }
+        {
+          error: isWin
+            ? "Administrator required — restart 9Router as Administrator"
+            : "Root or sudo password required to modify DNS",
+        },
+        { status: 403 },
       );
     }
 
@@ -188,7 +202,10 @@ export async function PATCH(request) {
       const status = await getMitmStatus();
       return NextResponse.json({ success: true, certTrusted: status.certTrusted });
     } else {
-      return NextResponse.json({ error: "action must be enable, disable, or trust-cert" }, { status: 400 });
+      return NextResponse.json(
+        { error: "action must be enable, disable, or trust-cert" },
+        { status: 400 },
+      );
     }
 
     if (!isWin && sudoPassword) setCachedPassword(sudoPassword);

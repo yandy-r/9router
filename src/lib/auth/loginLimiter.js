@@ -7,13 +7,19 @@ const FAIL_WINDOW_MS = 60 * 60 * 1000; // 1h since last fail → auto reset
 
 const attempts = new Map(); // ip → { fails, lockUntil, lockLevel, lastFailAt }
 
-function now() { return Date.now(); }
+function now() {
+  return Date.now();
+}
 
 function getEntry(ip) {
   const e = attempts.get(ip);
   if (!e) return null;
   // Auto reset if window expired and not currently locked
-  if (e.lastFailAt && now() - e.lastFailAt > FAIL_WINDOW_MS && (!e.lockUntil || now() >= e.lockUntil)) {
+  if (
+    e.lastFailAt &&
+    now() - e.lastFailAt > FAIL_WINDOW_MS &&
+    (!e.lockUntil || now() >= e.lockUntil)
+  ) {
     attempts.delete(ip);
     return null;
   }

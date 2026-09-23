@@ -42,10 +42,7 @@ export function formatKimiUsageError(status, responseText) {
   const debug = detail0?.debug || parsed?.debug || null;
   const reason = debug?.reason || parsed?.reason || "";
   const localized =
-    debug?.localizedMessage?.message ||
-    detail0?.localizedMessage?.message ||
-    parsed?.message ||
-    "";
+    debug?.localizedMessage?.message || detail0?.localizedMessage?.message || parsed?.message || "";
 
   if (status === 401) {
     return "Kimi authentication expired. Please re-authorize.";

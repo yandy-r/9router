@@ -28,10 +28,15 @@ describe("Chat → Responses tool strict (YAN-16)", () => {
     ["false preserved", false, false],
     ["true preserved", true, true],
   ])("%s", (_label, strict, expected) => {
-    const out = openaiToOpenAIResponsesRequest("gpt-5.5", {
-      messages: [{ role: "user", content: "hi" }],
-      tools: [chatTool(strict)],
-    }, true, {});
+    const out = openaiToOpenAIResponsesRequest(
+      "gpt-5.5",
+      {
+        messages: [{ role: "user", content: "hi" }],
+        tools: [chatTool(strict)],
+      },
+      true,
+      {},
+    );
     expect(out.tools[0].strict).toBe(expected);
   });
 });
@@ -43,25 +48,28 @@ const EXECUTORS = [
   ["grok-cli", () => new GrokCliExecutor(), "grok-4.5"],
 ];
 
-describe.each(EXECUTORS)("%s executor keeps function tool strict (YAN-16)", (_name, make, model) => {
-  function normalize(tool) {
-    const body = { model, input: structuredClone(INPUT), tools: [tool], stream: true };
-    const out = make().transformRequest(model, body, true, { connectionId: "yan-16" });
-    return out.tools.find((t) => t.name === "subagent");
-  }
+describe.each(EXECUTORS)(
+  "%s executor keeps function tool strict (YAN-16)",
+  (_name, make, model) => {
+    function normalize(tool) {
+      const body = { model, input: structuredClone(INPUT), tools: [tool], stream: true };
+      const out = make().transformRequest(model, body, true, { connectionId: "yan-16" });
+      return out.tools.find((t) => t.name === "subagent");
+    }
 
-  it.each([
-    ["flat false", flatTool(false), false],
-    ["nested false", chatTool(false), false],
-    ["flat true", flatTool(true), true],
-    ["nested true", chatTool(true), true],
-    ["nested absent → false", chatTool(undefined), false],
-    ["flat wins over nested", { ...flatTool(false), function: { strict: true } }, false],
-  ])("%s", (_label, tool, expected) => {
-    expect(normalize(tool).strict).toBe(expected);
-  });
+    it.each([
+      ["flat false", flatTool(false), false],
+      ["nested false", chatTool(false), false],
+      ["flat true", flatTool(true), true],
+      ["nested true", chatTool(true), true],
+      ["nested absent → false", chatTool(undefined), false],
+      ["flat wins over nested", { ...flatTool(false), function: { strict: true } }, false],
+    ])("%s", (_label, tool, expected) => {
+      expect(normalize(tool).strict).toBe(expected);
+    });
 
-  it("leaves strict absent on a flat tool that omitted it", () => {
-    expect("strict" in normalize(flatTool(undefined))).toBe(false);
-  });
-});
+    it("leaves strict absent on a flat tool that omitted it", () => {
+      expect("strict" in normalize(flatTool(undefined))).toBe(false);
+    });
+  },
+);

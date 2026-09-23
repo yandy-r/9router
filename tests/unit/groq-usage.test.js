@@ -43,9 +43,7 @@ describe("getUsageForProvider(groq)", () => {
   });
 
   it("GETs the models endpoint with Bearer apiKey", async () => {
-    proxyAwareFetch.mockResolvedValueOnce(
-      response({ data: [] }, { headers: RATE_LIMIT_HEADERS }),
-    );
+    proxyAwareFetch.mockResolvedValueOnce(response({ data: [] }, { headers: RATE_LIMIT_HEADERS }));
 
     const usage = await getUsageForProvider({
       provider: "groq",
@@ -62,9 +60,7 @@ describe("getUsageForProvider(groq)", () => {
   });
 
   it("parses request + token rate-limit headers into quotas", async () => {
-    proxyAwareFetch.mockResolvedValueOnce(
-      response({ data: [] }, { headers: RATE_LIMIT_HEADERS }),
-    );
+    proxyAwareFetch.mockResolvedValueOnce(response({ data: [] }, { headers: RATE_LIMIT_HEADERS }));
 
     const usage = await getUsageForProvider({
       provider: "groq",

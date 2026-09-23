@@ -79,7 +79,7 @@ const readAgentModel = async (agentDir) => {
 export async function GET() {
   try {
     const isInstalled = await checkOpenClawInstalled();
-    
+
     if (!isInstalled) {
       return NextResponse.json({
         installed: false,
@@ -98,7 +98,7 @@ export async function GET() {
       agentList.map(async (agent) => {
         const agentModel = agent.agentDir ? await readAgentModel(agent.agentDir) : null;
         return { ...agent, model: resolveAgentModel(agent.model), currentModel: agentModel };
-      })
+      }),
     );
 
     return NextResponse.json({
@@ -122,7 +122,9 @@ const writeAgentModels = async (agentDir, model, baseUrl, apiKey) => {
   try {
     const content = await fs.readFile(modelsPath, "utf-8");
     existing = JSON.parse(content);
-  } catch { /* No existing */ }
+  } catch {
+    /* No existing */
+  }
 
   if (!existing.providers) existing.providers = {};
   existing.providers["9router"] = {
@@ -139,7 +141,7 @@ export async function POST(request) {
   try {
     // agentModels: { [agentId]: modelId } for per-agent override
     const { baseUrl, apiKey, model, agentModels = {} } = await request.json();
-    
+
     if (!baseUrl || !model) {
       return NextResponse.json({ error: "baseUrl and model are required" }, { status: 400 });
     }
@@ -153,7 +155,9 @@ export async function POST(request) {
     try {
       const existingSettings = await fs.readFile(settingsPath, "utf-8");
       settings = JSON.parse(existingSettings);
-    } catch { /* No existing settings */ }
+    } catch {
+      /* No existing settings */
+    }
 
     if (!settings.agents) settings.agents = {};
     if (!settings.agents.defaults) settings.agents.defaults = {};
@@ -168,14 +172,18 @@ export async function POST(request) {
     // Remove all old 9router/* entries from agents.defaults.models
     Object.keys(settings.agents.defaults.models)
       .filter((k) => k.startsWith("9router/"))
-      .forEach((k) => { delete settings.agents.defaults.models[k]; });
+      .forEach((k) => {
+        delete settings.agents.defaults.models[k];
+      });
 
     // Update default model
     settings.agents.defaults.model.primary = fullModelId;
 
     // Collect all unique models (default + per-agent)
     const allModelIds = new Set([model]);
-    Object.values(agentModels).forEach((m) => { if (m) allModelIds.add(m); });
+    Object.values(agentModels).forEach((m) => {
+      if (m) allModelIds.add(m);
+    });
 
     // Add fresh 9router models to allowlist
     allModelIds.forEach((m) => {
@@ -217,7 +225,7 @@ export async function POST(request) {
           const agentModel = agentModels[agent.id];
           const modelToWrite = agentModel || model; // fallback to default
           await writeAgentModels(agent.agentDir, modelToWrite, normalizedBaseUrl, apiKey);
-        })
+        }),
       );
     }
 
@@ -257,7 +265,7 @@ export async function DELETE() {
     // Remove 9Router from models.providers
     if (settings.models && settings.models.providers) {
       delete settings.models.providers["9router"];
-      
+
       // Remove providers object if empty
       if (Object.keys(settings.models.providers).length === 0) {
         delete settings.models.providers;
@@ -266,7 +274,9 @@ export async function DELETE() {
 
     // Remove 9router models from agents.defaults.models allowlist
     if (settings.agents?.defaults?.models) {
-      const keysToRemove = Object.keys(settings.agents.defaults.models).filter((k) => k.startsWith("9router/"));
+      const keysToRemove = Object.keys(settings.agents.defaults.models).filter((k) =>
+        k.startsWith("9router/"),
+      );
       for (const key of keysToRemove) {
         delete settings.agents.defaults.models[key];
       }

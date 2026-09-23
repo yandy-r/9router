@@ -16,7 +16,9 @@ import { OpenCodeExecutor } from "../../open-sse/executors/opencode.js";
 const assistantWithToolCall = {
   role: "assistant",
   content: "",
-  tool_calls: [{ id: "call_x", type: "function", function: { name: "get_weather", arguments: "{}" } }],
+  tool_calls: [
+    { id: "call_x", type: "function", function: { name: "get_weather", arguments: "{}" } },
+  ],
 };
 
 function bodyWith(messages) {
@@ -85,11 +87,17 @@ describe("injectReasoningContent — DeepSeek thinking round-trip", () => {
 });
 
 describe("injectReasoningContent — MiniMax thinking round-trip", () => {
-  const minimaxAssistantMsg = { role: "assistant", content: "here is a response", reasoning_content: "" };
+  const minimaxAssistantMsg = {
+    role: "assistant",
+    content: "here is a response",
+    reasoning_content: "",
+  };
   const minimaxAssistantWithToolCall = {
     role: "assistant",
     content: "",
-    tool_calls: [{ id: "call_x", type: "function", function: { name: "get_weather", arguments: "{}" } }],
+    tool_calls: [
+      { id: "call_x", type: "function", function: { name: "get_weather", arguments: "{}" } },
+    ],
     reasoning_content: "",
   };
 

@@ -1,7 +1,14 @@
 // A1: locks toOpenAIFinish/fromOpenAIFinish behavior changes vs open-sse.old.
 import { describe, it, expect } from "vitest";
-import { toOpenAIFinish, fromOpenAIFinish } from "../../open-sse/translator/concerns/finishReason.js";
-import { OPENAI_FINISH, CLAUDE_STOP, GEMINI_FINISH } from "../../open-sse/translator/schema/finishReasons.js";
+import {
+  toOpenAIFinish,
+  fromOpenAIFinish,
+} from "../../open-sse/translator/concerns/finishReason.js";
+import {
+  OPENAI_FINISH,
+  CLAUDE_STOP,
+  GEMINI_FINISH,
+} from "../../open-sse/translator/schema/finishReasons.js";
 
 describe("toOpenAIFinish - gemini", () => {
   it.each([

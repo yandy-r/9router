@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const SETTINGS_RESPONSE_HEADERS = {
-  "Cache-Control": "no-store"
+  "Cache-Control": "no-store",
 };
 
 // Secrets must never be mass-assigned from request body (CWE-915)
@@ -18,17 +18,24 @@ export async function GET() {
   try {
     const settings = await getSettings();
     const { password, oidcClientSecret, ...safeSettings } = settings;
-    safeSettings.oidcConfigured = !!(safeSettings.oidcIssuerUrl && safeSettings.oidcClientId && oidcClientSecret);
-    
+    safeSettings.oidcConfigured = !!(
+      safeSettings.oidcIssuerUrl &&
+      safeSettings.oidcClientId &&
+      oidcClientSecret
+    );
+
     const enableRequestLogs = process.env.ENABLE_REQUEST_LOGS === "true";
     const enableTranslator = process.env.ENABLE_TRANSLATOR === "true";
-    
-    return NextResponse.json({ 
-      ...safeSettings, 
-      enableRequestLogs,
-      enableTranslator,
-      hasPassword: !!password
-    }, { headers: SETTINGS_RESPONSE_HEADERS });
+
+    return NextResponse.json(
+      {
+        ...safeSettings,
+        enableRequestLogs,
+        enableTranslator,
+        hasPassword: !!password,
+      },
+      { headers: SETTINGS_RESPONSE_HEADERS },
+    );
   } catch (error) {
     console.log("Error getting settings:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -60,7 +67,7 @@ export async function PATCH(request) {
         // First time setting password, no current password needed
         // Allow empty currentPassword or default "123456"
         if (body.currentPassword && body.currentPassword !== "123456") {
-           return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
+          return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
         }
       }
 
@@ -109,7 +116,11 @@ export async function PATCH(request) {
     }
 
     const { password, oidcClientSecret, ...safeSettings } = settings;
-    safeSettings.oidcConfigured = !!(safeSettings.oidcIssuerUrl && safeSettings.oidcClientId && oidcClientSecret);
+    safeSettings.oidcConfigured = !!(
+      safeSettings.oidcIssuerUrl &&
+      safeSettings.oidcClientId &&
+      oidcClientSecret
+    );
     return NextResponse.json(safeSettings, { headers: SETTINGS_RESPONSE_HEADERS });
   } catch (error) {
     console.log("Error updating settings:", error);

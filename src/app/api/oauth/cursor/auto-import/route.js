@@ -8,11 +8,7 @@ import { promisify } from "util";
 const execFileAsync = promisify(execFile);
 
 const ACCESS_TOKEN_KEYS = ["cursorAuth/accessToken", "cursorAuth/token"];
-const MACHINE_ID_KEYS = [
-  "storage.serviceMachineId",
-  "storage.machineId",
-  "telemetry.machineId",
-];
+const MACHINE_ID_KEYS = ["storage.serviceMachineId", "storage.machineId", "telemetry.machineId"];
 
 /** Get candidate db paths by platform */
 function getCandidatePaths(platform) {
@@ -20,39 +16,19 @@ function getCandidatePaths(platform) {
 
   if (platform === "darwin") {
     return [
-      join(
-        home,
-        "Library/Application Support/Cursor/User/globalStorage/state.vscdb",
-      ),
-      join(
-        home,
-        "Library/Application Support/Cursor - Insiders/User/globalStorage/state.vscdb",
-      ),
+      join(home, "Library/Application Support/Cursor/User/globalStorage/state.vscdb"),
+      join(home, "Library/Application Support/Cursor - Insiders/User/globalStorage/state.vscdb"),
     ];
   }
 
   if (platform === "win32") {
     const appData = process.env.APPDATA || join(home, "AppData", "Roaming");
-    const localAppData =
-      process.env.LOCALAPPDATA || join(home, "AppData", "Local");
+    const localAppData = process.env.LOCALAPPDATA || join(home, "AppData", "Local");
     return [
       join(appData, "Cursor", "User", "globalStorage", "state.vscdb"),
-      join(
-        appData,
-        "Cursor - Insiders",
-        "User",
-        "globalStorage",
-        "state.vscdb",
-      ),
+      join(appData, "Cursor - Insiders", "User", "globalStorage", "state.vscdb"),
       join(localAppData, "Cursor", "User", "globalStorage", "state.vscdb"),
-      join(
-        localAppData,
-        "Programs",
-        "Cursor",
-        "User",
-        "globalStorage",
-        "state.vscdb",
-      ),
+      join(localAppData, "Programs", "Cursor", "User", "globalStorage", "state.vscdb"),
     ];
   }
 
@@ -78,7 +54,6 @@ const normalize = (value) => {
  */
 function extractTokensViaBetterSqlite(dbPath) {
   // Dynamic require so the route stays importable even if native bindings fail
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Database = require("better-sqlite3");
   const db = new Database(dbPath, { readonly: true, fileMustExist: true });
 
@@ -100,13 +75,19 @@ function extractTokensViaBetterSqlite(dbPath) {
   let accessToken = null;
   for (const key of ACCESS_TOKEN_KEYS) {
     const raw = query(key);
-    if (raw) { accessToken = normalize(raw); break; }
+    if (raw) {
+      accessToken = normalize(raw);
+      break;
+    }
   }
 
   let machineId = null;
   for (const key of MACHINE_ID_KEYS) {
     const raw = query(key);
-    if (raw) { machineId = normalize(raw); break; }
+    if (raw) {
+      machineId = normalize(raw);
+      break;
+    }
   }
 
   db.close();
@@ -139,9 +120,7 @@ async function extractTokensViaCLI(dbPath) {
   let accessToken = null;
   for (const key of ACCESS_TOKEN_KEYS) {
     try {
-      const raw = await query(
-        `SELECT value FROM itemTable WHERE key='${key}' LIMIT 1`,
-      );
+      const raw = await query(`SELECT value FROM itemTable WHERE key='${key}' LIMIT 1`);
       if (raw) {
         accessToken = normalize(raw);
         break;
@@ -154,9 +133,7 @@ async function extractTokensViaCLI(dbPath) {
   let machineId = null;
   for (const key of MACHINE_ID_KEYS) {
     try {
-      const raw = await query(
-        `SELECT value FROM itemTable WHERE key='${key}' LIMIT 1`,
-      );
+      const raw = await query(`SELECT value FROM itemTable WHERE key='${key}' LIMIT 1`);
       if (raw) {
         machineId = normalize(raw);
         break;
@@ -208,12 +185,15 @@ export async function GET() {
           const desktopFile = join(homedir(), ".local/share/applications/cursor.desktop");
           await access(desktopFile, constants.R_OK);
           cursorInstalled = true;
-        } catch { /* not found */ }
+        } catch {
+          /* not found */
+        }
       }
       if (!cursorInstalled) {
         return NextResponse.json({
           found: false,
-          error: "Cursor config files found but Cursor IDE does not appear to be installed. Skipping auto-import.",
+          error:
+            "Cursor config files found but Cursor IDE does not appear to be installed. Skipping auto-import.",
         });
       }
     }
@@ -250,9 +230,6 @@ export async function GET() {
     return NextResponse.json({ found: false, windowsManual: true, dbPath });
   } catch (error) {
     console.log("Cursor auto-import error:", error);
-    return NextResponse.json(
-      { found: false, error: error.message },
-      { status: 500 },
-    );
+    return NextResponse.json({ found: false, error: error.message }, { status: 500 });
   }
 }

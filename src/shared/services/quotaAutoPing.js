@@ -81,12 +81,17 @@ function isBlockingQuotaName(name, sessionKey) {
 }
 
 function hasExhaustedBlockingQuota(quotas, sessionKey) {
-  return Object.entries(quotas || {}).some(([name, quota]) => isBlockingQuotaName(name, sessionKey) && isQuotaExhausted(quota));
+  return Object.entries(quotas || {}).some(
+    ([name, quota]) => isBlockingQuotaName(name, sessionKey) && isQuotaExhausted(quota),
+  );
 }
 
 function shouldPingForReset(providerConfig, cachedReset, resetAt, now) {
   if (providerConfig.pingWhenResetAtSlides) {
-    return Boolean(cachedReset) && getResetDriftMs(cachedReset, resetAt) >= (providerConfig.resetAtDriftMs || 0);
+    return (
+      Boolean(cachedReset) &&
+      getResetDriftMs(cachedReset, resetAt) >= (providerConfig.resetAtDriftMs || 0)
+    );
   }
 
   const resetMs = new Date(resetAt).getTime();
@@ -104,28 +109,34 @@ function buildProxyOptions(cfg) {
 }
 
 async function sendClaudePing(connection, providerConfig, proxyOptions, deps) {
-  const res = await deps.proxyAwareFetch(CLAUDE_PING_URL, {
-    method: "POST",
-    headers: {
-      ...CLAUDE_CLI_SPOOF_HEADERS,
-      "Authorization": `Bearer ${connection.accessToken}`,
-      "content-type": "application/json",
+  const res = await deps.proxyAwareFetch(
+    CLAUDE_PING_URL,
+    {
+      method: "POST",
+      headers: {
+        ...CLAUDE_CLI_SPOOF_HEADERS,
+        Authorization: `Bearer ${connection.accessToken}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: providerConfig.pingModel,
+        max_tokens: providerConfig.pingMaxTokens,
+        messages: [{ role: "user", content: providerConfig.pingText }],
+      }),
     },
-    body: JSON.stringify({
-      model: providerConfig.pingModel,
-      max_tokens: providerConfig.pingMaxTokens,
-      messages: [{ role: "user", content: providerConfig.pingText }],
-    }),
-  }, proxyOptions);
+    proxyOptions,
+  );
   return res.ok;
 }
 
 function buildCodexPingInput(text) {
-  return [{
-    type: "message",
-    role: "user",
-    content: [{ type: "input_text", text }],
-  }];
+  return [
+    {
+      type: "message",
+      role: "user",
+      content: [{ type: "input_text", text }],
+    },
+  ];
 }
 
 async function drainResponseBody(response) {
@@ -171,7 +182,11 @@ async function sendCodexPing(connection, providerConfig, proxyOptions, deps) {
     },
   });
   if (!response.ok) {
-    try { await response.body?.cancel?.(); } catch { /* noop */ }
+    try {
+      await response.body?.cancel?.();
+    } catch {
+      /* noop */
+    }
     return false;
   }
 
@@ -190,7 +205,12 @@ async function pingConnection(conn, provider, providerConfig, handler, deps, sta
 
   // resetAt is stable for time-based windows; Codex polls every tick because inactive windows slide forward.
   const cachedReset = state.resetCache[key];
-  if (!providerConfig.pingWhenResetAtSlides && cachedReset && Date.now() < new Date(cachedReset).getTime() - C.refreshAheadMs) return;
+  if (
+    !providerConfig.pingWhenResetAtSlides &&
+    cachedReset &&
+    Date.now() < new Date(cachedReset).getTime() - C.refreshAheadMs
+  )
+    return;
 
   // Avoid hammering provider auth/quota endpoints if a ping failed recently.
   if (shouldSkipAfterFailure(state, key)) return;
@@ -216,12 +236,17 @@ async function pingConnection(conn, provider, providerConfig, handler, deps, sta
 
   state.resetCache[key] = resetAt;
 
-  if (providerConfig.skipWhenBlockingQuotaExhausted && hasExhaustedBlockingQuota(quotas, providerConfig.quotaKey)) return;
+  if (
+    providerConfig.skipWhenBlockingQuotaExhausted &&
+    hasExhaustedBlockingQuota(quotas, providerConfig.quotaKey)
+  )
+    return;
   if (isQuotaExhausted(quota)) return;
 
   const now = Date.now();
   const resetKey = normalizeResetKey(resetAt);
-  const lastPingedResetKey = connection.lastPingedResetKey || normalizeResetKey(connection.lastPingedResetAt);
+  const lastPingedResetKey =
+    connection.lastPingedResetKey || normalizeResetKey(connection.lastPingedResetAt);
 
   // Claude waits for reset. Codex pings only when resetAt slides, which means the 5h window is inactive.
   if (!shouldPingForReset(providerConfig, cachedReset, resetAt, now)) return;
@@ -272,7 +297,9 @@ export async function runQuotaAutoPingTick(deps = createDefaultDeps(), state = g
       if (Object.keys(enabledMap).length === 0) continue;
 
       const conns = await deps.getProviderConnections({ provider, isActive: true });
-      const targets = conns.filter((conn) => conn.authType === "oauth" && enabledMap[conn.id] === true);
+      const targets = conns.filter(
+        (conn) => conn.authType === "oauth" && enabledMap[conn.id] === true,
+      );
       for (const conn of targets) {
         try {
           await pingConnection(conn, provider, providerConfig, handler, deps, state);
@@ -293,7 +320,9 @@ export function startQuotaAutoPing() {
   if (g.interval) return;
   console.log("[AutoPing] scheduler started");
   runQuotaAutoPingTick().catch(() => {});
-  g.interval = setInterval(() => { runQuotaAutoPingTick().catch(() => {}); }, C.tickIntervalMs);
+  g.interval = setInterval(() => {
+    runQuotaAutoPingTick().catch(() => {});
+  }, C.tickIntervalMs);
   if (g.interval.unref) g.interval.unref();
 }
 
@@ -306,7 +335,7 @@ export function stopQuotaAutoPing() {
 
 export function configureQuotaAutoPing(settings) {
   const enabled = Object.values(C.providers).some((providerConfig) =>
-    Object.values(settings?.[providerConfig.settingsKey]?.connections || {}).some(Boolean)
+    Object.values(settings?.[providerConfig.settingsKey]?.connections || {}).some(Boolean),
   );
   if (enabled) startQuotaAutoPing();
   else stopQuotaAutoPing();

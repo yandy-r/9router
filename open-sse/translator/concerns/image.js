@@ -15,7 +15,12 @@ export function parseDataUri(url) {
 import { lookup } from "node:dns/promises";
 import { Agent } from "undici";
 import { isIP, BlockList } from "node:net";
-import { MAX_IMAGE_BYTES, FETCH_TIMEOUT_MS, IMAGE_SIGNATURES, BLOCKED_HOSTS } from "../../config/mediaConfig.js";
+import {
+  MAX_IMAGE_BYTES,
+  FETCH_TIMEOUT_MS,
+  IMAGE_SIGNATURES,
+  BLOCKED_HOSTS,
+} from "../../config/mediaConfig.js";
 
 // IPs that must never be fetched (SSRF guard). BlockList semantics replace the
 // hand-rolled prefix checks and cover ::/128, deprecated ::/96, fec0::/10,
@@ -26,15 +31,38 @@ const blockSubnet = (cidr, family) => {
   BLOCKED_SUBNETS.addSubnet(address, Number(prefix), family);
 };
 for (const subnet of [
-  "0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8",
-  "169.254.0.0/16", "172.16.0.0/12", "192.0.0.0/29", "192.0.2.0/24",
-  "192.88.99.0/24", "192.168.0.0/16", "198.18.0.0/15", "198.51.100.0/24",
-  "203.0.113.0/24", "224.0.0.0/4", "240.0.0.0/4", "255.255.255.255/32",
-]) blockSubnet(subnet, "ipv4");
+  "0.0.0.0/8",
+  "10.0.0.0/8",
+  "100.64.0.0/10",
+  "127.0.0.0/8",
+  "169.254.0.0/16",
+  "172.16.0.0/12",
+  "192.0.0.0/29",
+  "192.0.2.0/24",
+  "192.88.99.0/24",
+  "192.168.0.0/16",
+  "198.18.0.0/15",
+  "198.51.100.0/24",
+  "203.0.113.0/24",
+  "224.0.0.0/4",
+  "240.0.0.0/4",
+  "255.255.255.255/32",
+])
+  blockSubnet(subnet, "ipv4");
 for (const subnet of [
-  "::/128", "::1/128", "64:ff9b::/96", "100::/64", "2001::/23", "2001:db8::/32",
-  "2002::/16", "fc00::/7", "fe80::/10", "fec0::/10", "ff00::/8",
-]) blockSubnet(subnet, "ipv6");
+  "::/128",
+  "::1/128",
+  "64:ff9b::/96",
+  "100::/64",
+  "2001::/23",
+  "2001:db8::/32",
+  "2002::/16",
+  "fc00::/7",
+  "fe80::/10",
+  "fec0::/10",
+  "ff00::/8",
+])
+  blockSubnet(subnet, "ipv6");
 
 // Expand an IPv6 address (optionally with a dotted IPv4 tail) to 8 hextets.
 function expandIPv6(ip) {
@@ -96,11 +124,24 @@ export function detectImageMime(buf) {
     if (buf.length < offset + sig.length) continue;
     let match = true;
     for (let i = 0; i < sig.length; i++) {
-      if (buf[offset + i] !== sig[i]) { match = false; break; }
+      if (buf[offset + i] !== sig[i]) {
+        match = false;
+        break;
+      }
     }
     if (!match) continue;
     // WEBP: RIFF....WEBP — bytes 8..11 must be "WEBP".
-    if (verifyWebp && !(buf.length >= 12 && buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50)) continue;
+    if (
+      verifyWebp &&
+      !(
+        buf.length >= 12 &&
+        buf[8] === 0x57 &&
+        buf[9] === 0x45 &&
+        buf[10] === 0x42 &&
+        buf[11] === 0x50
+      )
+    )
+      continue;
     return mime;
   }
   return null;
@@ -123,7 +164,11 @@ export async function fetchImageAsBase64(imageUrl, options = {}) {
   }
 
   let url;
-  try { url = new URL(imageUrl); } catch { return null; }
+  try {
+    url = new URL(imageUrl);
+  } catch {
+    return null;
+  }
   const pinnedIps = await resolvePinnedIps(url.hostname);
   if (!pinnedIps) return null;
 
@@ -134,7 +179,10 @@ export async function fetchImageAsBase64(imageUrl, options = {}) {
 
   // Pin connect to the validated IP so no second DNS resolution can rebind (TOCTOU fix).
   const dispatcher = new Agent({
-    connect: { lookup: (_h, _o, cb) => cb(null, [{ address: pinnedIps[0].address, family: pinnedIps[0].family }]) },
+    connect: {
+      lookup: (_h, _o, cb) =>
+        cb(null, [{ address: pinnedIps[0].address, family: pinnedIps[0].family }]),
+    },
   });
 
   try {
@@ -150,7 +198,14 @@ export async function fetchImageAsBase64(imageUrl, options = {}) {
       const { done, value } = await reader.read();
       if (done) break;
       total += value.length;
-      if (total > maxBytes) { try { await reader.cancel(); } catch { /* ignore */ } return null; }
+      if (total > maxBytes) {
+        try {
+          await reader.cancel();
+        } catch {
+          /* ignore */
+        }
+        return null;
+      }
       chunks.push(value);
     }
 

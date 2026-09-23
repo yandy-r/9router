@@ -25,13 +25,20 @@ export async function GET(request) {
 
     if (!provider || !PROVIDER_API[provider]) {
       return Response.json(
-        { error: { message: `provider must be one of: ${Object.keys(PROVIDER_API).join(", ")}`, type: "invalid_request_error" } },
+        {
+          error: {
+            message: `provider must be one of: ${Object.keys(PROVIDER_API).join(", ")}`,
+            type: "invalid_request_error",
+          },
+        },
         { status: 400, headers: { "Access-Control-Allow-Origin": "*" } },
       );
     }
 
     const baseUrl = PROVIDER_API[provider](origin);
-    const url = lang ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}lang=${encodeURIComponent(lang)}` : baseUrl;
+    const url = lang
+      ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}lang=${encodeURIComponent(lang)}`
+      : baseUrl;
     const res = await fetch(url, { cache: "no-store" });
     const data = await res.json();
     if (!res.ok || data.error) {
@@ -43,7 +50,7 @@ export async function GET(request) {
 
     // Internal API shape: { voices } when lang filter, else { byLang, languages }
     const rawVoices = lang
-      ? (data.voices || [])
+      ? data.voices || []
       : Object.values(data.byLang || {}).flatMap((l) => l.voices || []);
 
     // Use provider alias for /v1/audio/speech model param (matches skill convention e.g. el/, dg/, edge-tts/)
@@ -56,9 +63,12 @@ export async function GET(request) {
       model: `${alias}/${v.id}`,
     }));
 
-    return Response.json({ object: "list", data: data_out }, {
-      headers: { "Access-Control-Allow-Origin": "*" },
-    });
+    return Response.json(
+      { object: "list", data: data_out },
+      {
+        headers: { "Access-Control-Allow-Origin": "*" },
+      },
+    );
   } catch (err) {
     return Response.json(
       { error: { message: err.message || "Failed", type: "server_error" } },

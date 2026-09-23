@@ -38,4 +38,3 @@ export function getRelativeTime(isoDate) {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
-

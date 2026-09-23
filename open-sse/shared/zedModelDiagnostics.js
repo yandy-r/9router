@@ -34,19 +34,28 @@ export function describeDisabledZedModels(disabledModels = []) {
 export function describeZedAccountAccess(credentials, userInfo) {
   const organizationId = resolveZedOrganizationId(credentials, userInfo);
   const organization = (userInfo?.organizations || []).find((org) => org?.id === organizationId);
-  const orgLabel = organization?.name ? `"${organization.name}"` : organizationId ? `"${organizationId}"` : "your account";
+  const orgLabel = organization?.name
+    ? `"${organization.name}"`
+    : organizationId
+      ? `"${organizationId}"`
+      : "your account";
 
   const config = userInfo?.configuration_by_organization?.[organizationId];
   if (config && config.is_zed_model_provider_enabled === false) {
     return `Zed's hosted models are disabled by the ${orgLabel} organization's configuration.`;
   }
 
-  const plan = planName(userInfo?.plans_by_organization?.[organizationId]) || planName(userInfo?.plan);
+  const plan =
+    planName(userInfo?.plans_by_organization?.[organizationId]) || planName(userInfo?.plan);
   const parts = [`Zed returned no live models for ${orgLabel}${plan ? ` (plan: ${plan})` : ""}.`];
-  if (userInfo?.plan?.is_account_too_young) parts.push("Zed reports the account is too new to use hosted models.");
-  if (userInfo?.plan?.has_overdue_invoices) parts.push("Zed reports overdue invoices on the account.");
+  if (userInfo?.plan?.is_account_too_young)
+    parts.push("Zed reports the account is too new to use hosted models.");
+  if (userInfo?.plan?.has_overdue_invoices)
+    parts.push("Zed reports overdue invoices on the account.");
   if (plan === PLAN_LABELS.zed_free) {
-    parts.push("Hosted models may require a Zed Pro plan or trial; check your plan at zed.dev/account.");
+    parts.push(
+      "Hosted models may require a Zed Pro plan or trial; check your plan at zed.dev/account.",
+    );
   }
   return parts.join(" ");
 }

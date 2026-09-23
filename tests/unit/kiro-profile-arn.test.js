@@ -32,9 +32,7 @@ describe("kiro API-key auth (KiroService.validateApiKey)", () => {
     });
 
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe(
-      "https://q.us-east-1.amazonaws.com/ListAvailableModels?origin=AI_EDITOR"
-    );
+    expect(url).toBe("https://q.us-east-1.amazonaws.com/ListAvailableModels?origin=AI_EDITOR");
     expect(init.method).toBe("GET");
     expect(init.headers.Authorization).toBe("Bearer my-secret-key");
     expect(init.headers.TokenType).toBe("API_KEY");
@@ -54,9 +52,7 @@ describe("kiro API-key auth (KiroService.validateApiKey)", () => {
       text: async () => "Unauthorized",
     });
     const svc = new KiroService();
-    await expect(svc.validateApiKey("bad-key")).rejects.toThrow(
-      /API key validation failed/
-    );
+    await expect(svc.validateApiKey("bad-key")).rejects.toThrow(/API key validation failed/);
   });
 
   it("rejects a 200 response with an empty model catalog", async () => {
@@ -65,8 +61,6 @@ describe("kiro API-key auth (KiroService.validateApiKey)", () => {
       json: async () => ({ models: [] }),
     });
     const svc = new KiroService();
-    await expect(svc.validateApiKey("empty-key")).rejects.toThrow(
-      /returned no available models/
-    );
+    await expect(svc.validateApiKey("empty-key")).rejects.toThrow(/returned no available models/);
   });
 });

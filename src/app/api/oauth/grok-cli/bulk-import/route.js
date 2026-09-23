@@ -23,10 +23,7 @@ export async function POST(request) {
   try {
     body = await request.json();
   } catch (err) {
-    return NextResponse.json(
-      { error: `Invalid JSON body: ${err.message}` },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: `Invalid JSON body: ${err.message}` }, { status: 400 });
   }
 
   let accounts;
@@ -41,10 +38,7 @@ export async function POST(request) {
   }
 
   if (!Array.isArray(accounts) || accounts.length === 0) {
-    return NextResponse.json(
-      { error: "No accounts provided" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "No accounts provided" }, { status: 400 });
   }
 
   const results = [];
@@ -68,10 +62,7 @@ export async function POST(request) {
       }
 
       if (!email) {
-        email =
-          decodeXaiIdTokenEmail(idToken) ||
-          extractEmailFromAccessToken(accessToken) ||
-          null;
+        email = decodeXaiIdTokenEmail(idToken) || extractEmailFromAccessToken(accessToken) || null;
       }
 
       let expiresAt = raw.expires_at || raw.expiresAt || null;

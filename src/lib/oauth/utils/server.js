@@ -1,6 +1,11 @@
 import http from "http";
 import { URL } from "url";
-import { CODEX_CONFIG, TRAE_CONFIG, WINDSURF_CONFIG, ZED_HOSTED_CONFIG } from "../constants/oauth.js";
+import {
+  CODEX_CONFIG,
+  TRAE_CONFIG,
+  WINDSURF_CONFIG,
+  ZED_HOSTED_CONFIG,
+} from "../constants/oauth.js";
 
 // Loopback origin guard for local callback proxies.
 // Legit OAuth redirects are top-level navigations (no `Origin` header); a cross-site
@@ -10,7 +15,6 @@ function isLoopbackOrigin(origin) {
   if (!origin) return true; // navigation redirect — allow
   return /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(origin);
 }
-
 
 /**
  * Start a local HTTP server to receive OAuth callback
@@ -88,7 +92,11 @@ export function startLocalServer(onCallback, fixedPort = null) {
 
     server.on("error", (err) => {
       if (err.code === "EADDRINUSE" && fixedPort) {
-        reject(new Error(`Port ${fixedPort} is already in use. Please close other applications using this port.`));
+        reject(
+          new Error(
+            `Port ${fixedPort} is already in use. Please close other applications using this port.`,
+          ),
+        );
       } else {
         reject(err);
       }
@@ -229,7 +237,7 @@ export function startCodexProxy(appPort) {
             code,
             session.redirectUri,
             session.codeVerifier,
-            state
+            state,
           );
           const connection = await createProviderConnection({
             provider: "codex",
@@ -371,7 +379,7 @@ export function startXaiProxy(appPort) {
             code,
             session.redirectUri,
             session.codeVerifier,
-            state
+            state,
           );
           const connection = await createProviderConnection({
             provider: "xai",
@@ -461,7 +469,11 @@ export function clearTraeSession(state) {
 export function startTraeProxy() {
   return new Promise((resolve) => {
     if (traeProxyServer) {
-      resolve({ success: true, port: traeProxyPort, callbackUrl: `http://127.0.0.1:${traeProxyPort}${TRAE_CONFIG.callbackPath}` });
+      resolve({
+        success: true,
+        port: traeProxyPort,
+        callbackUrl: `http://127.0.0.1:${traeProxyPort}${TRAE_CONFIG.callbackPath}`,
+      });
       return;
     }
     const server = http.createServer(async (req, res) => {
@@ -526,15 +538,25 @@ export function startTraeProxy() {
       traeProxyServer = server;
       traeProxyPort = server.address().port;
       traeProxyTimeout = setTimeout(() => stopTraeProxy(), TRAE_CONFIG.oauthTimeoutMs);
-      resolve({ success: true, port: traeProxyPort, callbackUrl: `http://127.0.0.1:${traeProxyPort}${TRAE_CONFIG.callbackPath}` });
+      resolve({
+        success: true,
+        port: traeProxyPort,
+        callbackUrl: `http://127.0.0.1:${traeProxyPort}${TRAE_CONFIG.callbackPath}`,
+      });
     });
     server.on("error", (err) => resolve({ success: false, reason: err.message }));
   });
 }
 
 export function stopTraeProxy() {
-  if (traeProxyTimeout) { clearTimeout(traeProxyTimeout); traeProxyTimeout = null; }
-  if (traeProxyServer) { traeProxyServer.close(); traeProxyServer = null; }
+  if (traeProxyTimeout) {
+    clearTimeout(traeProxyTimeout);
+    traeProxyTimeout = null;
+  }
+  if (traeProxyServer) {
+    traeProxyServer.close();
+    traeProxyServer = null;
+  }
   traeProxyPort = null;
 }
 
@@ -565,7 +587,11 @@ export function clearWindsurfSession(state) {
 export function startWindsurfProxy() {
   return new Promise((resolve) => {
     if (windsurfProxyServer) {
-      resolve({ success: true, port: windsurfProxyPort, callbackUrl: `http://127.0.0.1:${windsurfProxyPort}${WINDSURF_CONFIG.callbackPath}` });
+      resolve({
+        success: true,
+        port: windsurfProxyPort,
+        callbackUrl: `http://127.0.0.1:${windsurfProxyPort}${WINDSURF_CONFIG.callbackPath}`,
+      });
       return;
     }
     const server = http.createServer(async (req, res) => {
@@ -625,15 +651,25 @@ export function startWindsurfProxy() {
       windsurfProxyServer = server;
       windsurfProxyPort = server.address().port;
       windsurfProxyTimeout = setTimeout(() => stopWindsurfProxy(), WINDSURF_CONFIG.oauthTimeoutMs);
-      resolve({ success: true, port: windsurfProxyPort, callbackUrl: `http://127.0.0.1:${windsurfProxyPort}${WINDSURF_CONFIG.callbackPath}` });
+      resolve({
+        success: true,
+        port: windsurfProxyPort,
+        callbackUrl: `http://127.0.0.1:${windsurfProxyPort}${WINDSURF_CONFIG.callbackPath}`,
+      });
     });
     server.on("error", (err) => resolve({ success: false, reason: err.message }));
   });
 }
 
 export function stopWindsurfProxy() {
-  if (windsurfProxyTimeout) { clearTimeout(windsurfProxyTimeout); windsurfProxyTimeout = null; }
-  if (windsurfProxyServer) { windsurfProxyServer.close(); windsurfProxyServer = null; }
+  if (windsurfProxyTimeout) {
+    clearTimeout(windsurfProxyTimeout);
+    windsurfProxyTimeout = null;
+  }
+  if (windsurfProxyServer) {
+    windsurfProxyServer.close();
+    windsurfProxyServer = null;
+  }
   windsurfProxyPort = null;
 }
 
@@ -674,8 +710,15 @@ export function startZedProxy(preferredPort = 0) {
       // Reuse the live listener, but renew its idle timeout so a previous
       // flow's deadline can never kill the flow that just adopted the port.
       if (zedProxyTimeout) clearTimeout(zedProxyTimeout);
-      zedProxyTimeout = setTimeout(() => { console.log("[Zed proxy] timeout, stopping"); stopZedProxy(); }, ZED_HOSTED_CONFIG.oauthTimeoutMs);
-      resolve({ success: true, port: zedProxyPort, callbackUrl: `http://127.0.0.1:${zedProxyPort}/` });
+      zedProxyTimeout = setTimeout(() => {
+        console.log("[Zed proxy] timeout, stopping");
+        stopZedProxy();
+      }, ZED_HOSTED_CONFIG.oauthTimeoutMs);
+      resolve({
+        success: true,
+        port: zedProxyPort,
+        callbackUrl: `http://127.0.0.1:${zedProxyPort}/`,
+      });
       return;
     }
     const server = http.createServer(async (req, res) => {
@@ -691,8 +734,11 @@ export function startZedProxy(preferredPort = 0) {
       // off the callback paths (favicon, probes) get a 404.
       const qp = url.searchParams;
       const hasZedParams =
-        qp.has("user_id") || qp.has("userId") ||
-        qp.has("access_token") || qp.has("accessToken") || qp.has("token");
+        qp.has("user_id") ||
+        qp.has("userId") ||
+        qp.has("access_token") ||
+        qp.has("accessToken") ||
+        qp.has("token");
       if (!hasZedParams && url.pathname !== "/" && url.pathname !== "/callback") {
         res.writeHead(404);
         res.end("Not found");
@@ -715,14 +761,23 @@ export function startZedProxy(preferredPort = 0) {
       // NOT the callback: answer without touching the session and WITHOUT
       // stopping the server, so the real redirect can still land afterwards.
       if (!hasZedParams) {
-        console.log(`[Zed proxy] ignoring non-callback ${req.method} ${url.pathname} (session kept, server kept)`);
+        console.log(
+          `[Zed proxy] ignoring non-callback ${req.method} ${url.pathname} (session kept, server kept)`,
+        );
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(renderCodexResultPage(false, "Waiting for Zed sign-in — this request carried no login data."));
+        res.end(
+          renderCodexResultPage(
+            false,
+            "Waiting for Zed sign-in — this request carried no login data.",
+          ),
+        );
         return;
       }
       // Pass raw callback path+query to exchangeTokens → parseZedCallbackPayload.
       // codeVerifier carries the encoded RSA private key for decryption.
-      const rawCallback = url.search ? `${url.pathname}?${url.searchParams.toString()}` : url.pathname;
+      const rawCallback = url.search
+        ? `${url.pathname}?${url.searchParams.toString()}`
+        : url.pathname;
       try {
         const { exchangeTokens } = await import("../providers.js");
         const { createProviderConnection } = await import("@/models");
@@ -767,7 +822,11 @@ export function startZedProxy(preferredPort = 0) {
           zedProxyPort = server.address().port;
           zedProxyTimeout = setTimeout(() => stopZedProxy(), ZED_HOSTED_CONFIG.oauthTimeoutMs);
           console.log(`[Zed proxy] listening on random port ${zedProxyPort}`);
-          resolve({ success: true, port: zedProxyPort, callbackUrl: `http://127.0.0.1:${zedProxyPort}/` });
+          resolve({
+            success: true,
+            port: zedProxyPort,
+            callbackUrl: `http://127.0.0.1:${zedProxyPort}/`,
+          });
         });
       } else {
         console.log(`[Zed proxy] listen error: ${err.message}`);
@@ -777,17 +836,30 @@ export function startZedProxy(preferredPort = 0) {
     server.listen(tryPort, "127.0.0.1", () => {
       zedProxyServer = server;
       zedProxyPort = server.address().port;
-      zedProxyTimeout = setTimeout(() => { console.log("[Zed proxy] timeout, stopping"); stopZedProxy(); }, ZED_HOSTED_CONFIG.oauthTimeoutMs);
+      zedProxyTimeout = setTimeout(() => {
+        console.log("[Zed proxy] timeout, stopping");
+        stopZedProxy();
+      }, ZED_HOSTED_CONFIG.oauthTimeoutMs);
       console.log(`[Zed proxy] listening on port ${zedProxyPort}`);
-      resolve({ success: true, port: zedProxyPort, callbackUrl: `http://127.0.0.1:${zedProxyPort}/` });
+      resolve({
+        success: true,
+        port: zedProxyPort,
+        callbackUrl: `http://127.0.0.1:${zedProxyPort}/`,
+      });
     });
   });
 }
 
 export function stopZedProxy() {
   console.log(`[Zed proxy] stopping (port ${zedProxyPort || "-"})`);
-  if (zedProxyTimeout) { clearTimeout(zedProxyTimeout); zedProxyTimeout = null; }
-  if (zedProxyServer) { zedProxyServer.close(); zedProxyServer = null; }
+  if (zedProxyTimeout) {
+    clearTimeout(zedProxyTimeout);
+    zedProxyTimeout = null;
+  }
+  if (zedProxyServer) {
+    zedProxyServer.close();
+    zedProxyServer = null;
+  }
   zedProxyPort = null;
 }
 
@@ -883,12 +955,18 @@ export function startXiaomiMimoProxy() {
 
       // Try each pending session's private key — the callback URL carries no
       // state param, so we attempt decryption with every pending key.
-      const pendingSessions = [...xiaomiMimoSessions.entries()]
-        .filter(([, s]) => s.status === "pending");
+      const pendingSessions = [...xiaomiMimoSessions.entries()].filter(
+        ([, s]) => s.status === "pending",
+      );
 
       if (pendingSessions.length === 0) {
         res.writeHead(500, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(renderXiaomiMimoResultPage(false, "No active OAuth session. Please restart the login flow."));
+        res.end(
+          renderXiaomiMimoResultPage(
+            false,
+            "No active OAuth session. Please restart the login flow.",
+          ),
+        );
         return;
       }
 
@@ -964,12 +1042,17 @@ export function startXiaomiMimoProxy() {
 
 export function stopXiaomiMimoProxy() {
   console.log(`[xiaomi-mimo oauth] stopping (port ${xiaomiMimoProxyPort || "-"})`);
-  if (xiaomiMimoProxyTimeout) { clearTimeout(xiaomiMimoProxyTimeout); xiaomiMimoProxyTimeout = null; }
-  if (xiaomiMimoProxyServer) { xiaomiMimoProxyServer.close(); xiaomiMimoProxyServer = null; }
+  if (xiaomiMimoProxyTimeout) {
+    clearTimeout(xiaomiMimoProxyTimeout);
+    xiaomiMimoProxyTimeout = null;
+  }
+  if (xiaomiMimoProxyServer) {
+    xiaomiMimoProxyServer.close();
+    xiaomiMimoProxyServer = null;
+  }
   xiaomiMimoProxyPort = null;
   // No callback can arrive once the listener is down, so drop every pending
   // session — each holds an X25519 private key and they would otherwise
   // accumulate for the process lifetime (one per /authorize call).
   xiaomiMimoSessions.clear();
 }
-

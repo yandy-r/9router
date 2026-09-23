@@ -29,10 +29,12 @@ describe("Claude → Kiro (direct route)", () => {
     expect(first.conversationState).not.toHaveProperty("agentContinuationId");
     expect(second.conversationState).not.toHaveProperty("agentTaskType");
     expect(second.conversationState.history[0].userInputMessage.content).toBe(
-      first.conversationState.currentMessage.userInputMessage.content
+      first.conversationState.currentMessage.userInputMessage.content,
     );
     expect(second.conversationState.history[0].userInputMessage.modelId).toBe("claude-sonnet-4.5");
-    expect(second.conversationState.currentMessage.userInputMessage.content).toContain("Current time");
+    expect(second.conversationState.currentMessage.userInputMessage.content).toContain(
+      "Current time",
+    );
     expect(second.conversationState.currentMessage.userInputMessage.content).toContain("second");
   });
 
@@ -50,7 +52,7 @@ describe("Claude → Kiro (direct route)", () => {
     const cur = out.conversationState.currentMessage.userInputMessage;
     expect(cur.userInputMessageContext?.toolResults).toBeFalsy();
     const everyHistoryClean = out.conversationState.history.every(
-      (h) => !h.userInputMessage?.userInputMessageContext?.toolResults
+      (h) => !h.userInputMessage?.userInputMessageContext?.toolResults,
     );
     expect(everyHistoryClean).toBe(true);
   });
@@ -61,7 +63,10 @@ describe("Claude → Kiro (direct route)", () => {
       messages: [
         { role: "user", content: "go" },
         // tool_result references a tool_use that never appears → orphan
-        { role: "user", content: [{ type: "tool_result", tool_use_id: "ghost", content: "salvage me" }] },
+        {
+          role: "user",
+          content: [{ type: "tool_result", tool_use_id: "ghost", content: "salvage me" }],
+        },
       ],
     });
     const cur = out.conversationState.currentMessage.userInputMessage;
@@ -78,11 +83,9 @@ describe("Claude → Kiro (direct route)", () => {
       { messages: [{ role: "user", content: "hi" }] },
       true,
       null,
-      "kiro"
+      "kiro",
     );
-    expect(out.systemPrompt).toContain(
-      "<thinking_mode>enabled</thinking_mode>"
-    );
+    expect(out.systemPrompt).toContain("<thinking_mode>enabled</thinking_mode>");
     expect(out).not.toHaveProperty("agentMode");
   });
 
@@ -110,10 +113,14 @@ describe("Claude → Kiro (direct route)", () => {
   });
 
   it("maps output_config.effort high to Kiro CLI-style additionalModelRequestFields for effort models", () => {
-    const out = C2K({
-      output_config: { effort: "high" },
-      messages: [{ role: "user", content: "think with adaptive effort" }],
-    }, null, "claude-sonnet-5");
+    const out = C2K(
+      {
+        output_config: { effort: "high" },
+        messages: [{ role: "user", content: "think with adaptive effort" }],
+      },
+      null,
+      "claude-sonnet-5",
+    );
 
     expect(out.additionalModelRequestFields).toEqual({
       thinking: { type: "adaptive", display: "summarized" },
@@ -124,10 +131,14 @@ describe("Claude → Kiro (direct route)", () => {
   });
 
   it("maps Claude-format effort to GPT-5.6 reasoning fields without legacy prompt tags", () => {
-    const out = C2K({
-      output_config: { effort: "low" },
-      messages: [{ role: "user", content: "think lightly" }],
-    }, null, "gpt-5.6-sol");
+    const out = C2K(
+      {
+        output_config: { effort: "low" },
+        messages: [{ role: "user", content: "think lightly" }],
+      },
+      null,
+      "gpt-5.6-sol",
+    );
 
     expect(out.additionalModelRequestFields).toEqual({
       reasoning: { effort: "low" },
@@ -139,37 +150,49 @@ describe("Claude → Kiro (direct route)", () => {
   it.each(["auto", "minimal", "ultra"])(
     "keeps the legacy thinking fallback for unsupported GPT-5.6 effort %s",
     (effort) => {
-      const out = C2K({
-        output_config: { effort },
-        messages: [{ role: "user", content: "Use legacy thinking" }],
-      }, null, "gpt-5.6-sol");
+      const out = C2K(
+        {
+          output_config: { effort },
+          messages: [{ role: "user", content: "Use legacy thinking" }],
+        },
+        null,
+        "gpt-5.6-sol",
+      );
 
       expect(out.additionalModelRequestFields).toBeUndefined();
       expect(out.systemPrompt).toContain("<thinking_mode>enabled</thinking_mode>");
       expect(out.systemPrompt).toContain("<max_thinking_length>");
-    }
+    },
   );
 
   it.each(["none", "off", "disabled"])(
     "keeps GPT-5.6 reasoning intentionally disabled for effort %s",
     (effort) => {
-      const out = C2K({
-        output_config: { effort },
-        messages: [{ role: "user", content: "Do not reason" }],
-      }, null, "gpt-5.6-sol");
+      const out = C2K(
+        {
+          output_config: { effort },
+          messages: [{ role: "user", content: "Do not reason" }],
+        },
+        null,
+        "gpt-5.6-sol",
+      );
 
       expect(out.additionalModelRequestFields).toBeUndefined();
       expect(out.systemPrompt || "").not.toContain("<thinking_mode>");
       expect(out.systemPrompt || "").not.toContain("<max_thinking_length>");
-    }
+    },
   );
 
   it("keeps explicit Claude effort ahead of an injected OpenAI effort", () => {
-    const out = C2K({
-      output_config: { effort: "low" },
-      reasoning_effort: "high",
-      messages: [{ role: "user", content: "honor the client effort" }],
-    }, null, "gpt-5.6-sol");
+    const out = C2K(
+      {
+        output_config: { effort: "low" },
+        reasoning_effort: "high",
+        messages: [{ role: "user", content: "honor the client effort" }],
+      },
+      null,
+      "gpt-5.6-sol",
+    );
 
     expect(out.additionalModelRequestFields).toEqual({
       reasoning: { effort: "low" },
@@ -183,7 +206,9 @@ describe("Claude → Kiro (direct route)", () => {
     });
 
     expect(out.systemPrompt).toContain("system-only instruction");
-    expect(out.conversationState.currentMessage.userInputMessage.content).toContain("system-only instruction");
+    expect(out.conversationState.currentMessage.userInputMessage.content).toContain(
+      "system-only instruction",
+    );
   });
 
   it("keeps top-level systemPrompt stable across turns", () => {
@@ -198,7 +223,9 @@ describe("Claude → Kiro (direct route)", () => {
 
     expect(first.systemPrompt).toBe(second.systemPrompt);
     expect(first.systemPrompt).not.toContain("Current time");
-    expect(first.conversationState.currentMessage.userInputMessage.content).toContain("Current time");
+    expect(first.conversationState.currentMessage.userInputMessage.content).toContain(
+      "Current time",
+    );
   });
 });
 
@@ -216,7 +243,7 @@ describe("Kiro → Claude (direct route, OpenAI-shaped chunks from executor)", (
         model: "claude-sonnet-4.5",
         choices: [{ index: 0, delta: { role: "assistant", content: "Hi" }, finish_reason: null }],
       },
-      state
+      state,
     );
     const types = events.map((e) => e.type);
     expect(types).toContain("message_start");
@@ -235,7 +262,7 @@ describe("Kiro → Claude (direct route, OpenAI-shaped chunks from executor)", (
         model: "m",
         choices: [{ index: 0, delta: { content: "x" }, finish_reason: null }],
       },
-      state
+      state,
     );
     const events = R(
       {
@@ -245,7 +272,7 @@ describe("Kiro → Claude (direct route, OpenAI-shaped chunks from executor)", (
         choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
         usage: { prompt_tokens: 5, completion_tokens: 3 },
       },
-      state
+      state,
     );
     const md = events.find((e) => e.type === "message_delta");
     expect(md.delta.stop_reason).toBe("end_turn");
@@ -262,7 +289,7 @@ describe("Kiro → Claude (direct route, OpenAI-shaped chunks from executor)", (
         model: "m",
         choices: [{ index: 0, delta: { reasoning_content: "pondering" }, finish_reason: null }],
       },
-      state
+      state,
     );
     const start = events.find((e) => e.type === "content_block_start");
     expect(start.content_block.type).toBe("thinking");
@@ -274,27 +301,54 @@ describe("Kiro → Claude (direct route, OpenAI-shaped chunks from executor)", (
     const state = {};
     R(
       {
-        id: "c", object: "chat.completion.chunk", model: "m",
-        choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: "tu1", type: "function", function: { name: "search", arguments: "" } }] }, finish_reason: null }],
+        id: "c",
+        object: "chat.completion.chunk",
+        model: "m",
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                {
+                  index: 0,
+                  id: "tu1",
+                  type: "function",
+                  function: { name: "search", arguments: "" },
+                },
+              ],
+            },
+            finish_reason: null,
+          },
+        ],
       },
-      state
+      state,
     );
     R(
       {
-        id: "c", object: "chat.completion.chunk", model: "m",
-        choices: [{ index: 0, delta: { tool_calls: [{ index: 0, function: { arguments: '{"q":"x"}' } }] }, finish_reason: null }],
+        id: "c",
+        object: "chat.completion.chunk",
+        model: "m",
+        choices: [
+          {
+            index: 0,
+            delta: { tool_calls: [{ index: 0, function: { arguments: '{"q":"x"}' } }] },
+            finish_reason: null,
+          },
+        ],
       },
-      state
+      state,
     );
     const events = R(
       {
-        id: "c", object: "chat.completion.chunk", model: "m",
+        id: "c",
+        object: "chat.completion.chunk",
+        model: "m",
         choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }],
       },
-      state
+      state,
     );
     const jsonDelta = events.find(
-      (e) => e.type === "content_block_delta" && e.delta.type === "input_json_delta"
+      (e) => e.type === "content_block_delta" && e.delta.type === "input_json_delta",
     );
     expect(jsonDelta.index).toBeDefined();
     expect(jsonDelta.delta.partial_json).toBe('{"q":"x"}');

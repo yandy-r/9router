@@ -200,9 +200,8 @@ function extractKiroGptEffortLevel(body) {
 }
 
 export function buildKiroAdditionalModelRequestFields(body, effortPath = "output_config") {
-  const effort = effortPath === "reasoning"
-    ? extractKiroGptEffortLevel(body)
-    : extractKiroEffortLevel(body);
+  const effort =
+    effortPath === "reasoning" ? extractKiroGptEffortLevel(body) : extractKiroEffortLevel(body);
   if (!effort) return undefined;
   if (effortPath === "reasoning") {
     // Mirrors Kiro CLI/KAS buildEffortRequestFields("reasoning") for GPT.
@@ -222,7 +221,9 @@ export function resolveKiroEffortPath(model) {
     return "reasoning";
   }
   if (!normalized.includes("claude")) return null;
-  const match = normalized.match(/(?:^|[/.])claude(?:[/.][a-z]+)*[/.](\d+)(?:[/.](\d+))?(?:[/.]|$)/);
+  const match = normalized.match(
+    /(?:^|[/.])claude(?:[/.][a-z]+)*[/.](\d+)(?:[/.](\d+))?(?:[/.]|$)/,
+  );
   if (!match) return null;
   const [, majorText, minorText] = match;
   const major = Number(majorText);
@@ -241,8 +242,7 @@ export function supportsKiroAdditionalModelRequestFields(model) {
 }
 
 export function usesKiroNativeGptEffort(body, model) {
-  return resolveKiroEffortPath(model) === "reasoning"
-    && extractKiroGptEffortLevel(body) !== null;
+  return resolveKiroEffortPath(model) === "reasoning" && extractKiroGptEffortLevel(body) !== null;
 }
 
 export function buildKiroAdditionalModelRequestFieldsForModel(body, model) {
@@ -392,6 +392,8 @@ function containsThinkingModeTag(body) {
 function containsTagInText(text) {
   if (!text) return false;
   if (!text.includes("<thinking_mode>")) return false;
-  return text.includes("<thinking_mode>enabled</thinking_mode>")
-    || text.includes("<thinking_mode>interleaved</thinking_mode>");
+  return (
+    text.includes("<thinking_mode>enabled</thinking_mode>") ||
+    text.includes("<thinking_mode>interleaved</thinking_mode>")
+  );
 }

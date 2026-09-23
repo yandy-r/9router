@@ -46,7 +46,7 @@ function runElevatedPowerShell(script) {
         (error, stdout, stderr) => {
           if (error) reject(new Error(stderr || error.message));
           else resolve(stdout);
-        }
+        },
       );
     });
   }
@@ -73,7 +73,7 @@ function runElevatedPowerShell(script) {
             reject(new Error(msg));
           }
         } else resolve(stdout);
-      }
+      },
     );
   });
 }

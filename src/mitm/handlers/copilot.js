@@ -4,8 +4,8 @@ const { fetchRouter, pipeSSE } = require("./base");
 // Map Copilot endpoint → 9Router path
 const URL_MAP = {
   "/chat/completions": "/v1/chat/completions",
-  "/v1/messages":      "/v1/messages",
-  "/responses":        "/v1/responses",
+  "/v1/messages": "/v1/messages",
+  "/responses": "/v1/responses",
 };
 
 function resolveRouterPath(reqUrl) {

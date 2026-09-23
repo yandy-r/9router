@@ -50,7 +50,10 @@ function filterBlocks(blocks, capOf, caps, removed, isLast) {
   const out = [];
   for (const block of blocks) {
     const cap = capOf(block);
-    if (cap && caps[cap] === false) { removed.add(cap); continue; }
+    if (cap && caps[cap] === false) {
+      removed.add(cap);
+      continue;
+    }
     out.push(block);
   }
   for (const cap of removed) out.push({ type: "text", text: ph(cap, isLast) });
@@ -66,12 +69,20 @@ function stripOpenAI(body, caps) {
       if (Array.isArray(msg.images)) delete msg.images;
       if (Array.isArray(msg.experimental_attachments)) {
         msg.experimental_attachments = msg.experimental_attachments.filter(
-          (a) => !(a?.contentType?.startsWith("image/") || (typeof a?.url === "string" && a.url.startsWith("data:image/")))
+          (a) =>
+            !(
+              a?.contentType?.startsWith("image/") ||
+              (typeof a?.url === "string" && a.url.startsWith("data:image/"))
+            ),
         );
       }
       if (Array.isArray(msg.attachments)) {
         msg.attachments = msg.attachments.filter(
-          (a) => !(a?.contentType?.startsWith("image/") || (typeof a?.url === "string" && a.url.startsWith("data:image/")))
+          (a) =>
+            !(
+              a?.contentType?.startsWith("image/") ||
+              (typeof a?.url === "string" && a.url.startsWith("data:image/"))
+            ),
         );
       }
     }
@@ -101,7 +112,10 @@ function stripResponses(body, caps) {
     const removed = new Set();
     item.content = item.content.filter((b) => {
       const cap = b?.type === "input_image" ? "vision" : b?.type === "input_file" ? "pdf" : null;
-      if (cap && caps[cap] === false) { removed.add(cap); return false; }
+      if (cap && caps[cap] === false) {
+        removed.add(cap);
+        return false;
+      }
       return true;
     });
     for (const cap of removed) item.content.push({ type: "input_text", text: ph(cap, i === last) });
@@ -118,7 +132,10 @@ function stripGeminiParts(contents, caps) {
     c.parts = c.parts.filter((p) => {
       const mime = p?.inlineData?.mimeType || p?.fileData?.mimeType;
       const cap = capForMime(mime);
-      if (cap && caps[cap] === false) { removed.add(cap); return false; }
+      if (cap && caps[cap] === false) {
+        removed.add(cap);
+        return false;
+      }
       return true;
     });
     for (const cap of removed) c.parts.push({ text: ph(cap, i === last) });

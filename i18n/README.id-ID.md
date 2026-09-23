@@ -1,19 +1,19 @@
 <div align="center">
   <img src="../images/9router.png?1" alt="9Router Dashboard" width="800"/>
 
-  # 9Router - Router AI Gratis
+# 9Router - Router AI Gratis
 
-  **Jangan berhenti ngoding. Otomatis dialihkan ke model AI gratis & murah dengan smart fallback.**
+**Jangan berhenti ngoding. Otomatis dialihkan ke model AI gratis & murah dengan smart fallback.**
 
-  **Hubungkan semua tool AI coding (Claude Code, Cursor, Antigravity, Copilot, Codex, Gemini, OpenCode, Cline, OpenClaw...) ke 40+ provider AI dan 100+ model.**
+**Hubungkan semua tool AI coding (Claude Code, Cursor, Antigravity, Copilot, Codex, Gemini, OpenCode, Cline, OpenClaw...) ke 40+ provider AI dan 100+ model.**
 
-  [![npm](https://img.shields.io/npm/v/9router.svg)](https://www.npmjs.com/package/9router)
-  [![Downloads](https://img.shields.io/npm/dm/9router.svg)](https://www.npmjs.com/package/9router)
-  [![License](https://img.shields.io/npm/l/9router.svg)](https://github.com/yandy-r/9router/blob/main/LICENSE)
+[![npm](https://img.shields.io/npm/v/9router.svg)](https://www.npmjs.com/package/9router)
+[![Downloads](https://img.shields.io/npm/dm/9router.svg)](https://www.npmjs.com/package/9router)
+[![License](https://img.shields.io/npm/l/9router.svg)](https://github.com/yandy-r/9router/blob/main/LICENSE)
 
-  [🚀 Mulai Cepat](#-mulai-cepat) • [💡 Fitur](#-fitur-utama) • [📖 Setup](#-panduan-setup) • [🌐 Website](https://9router.com)
+[🚀 Mulai Cepat](#-mulai-cepat) • [💡 Fitur](#-fitur-utama) • [📖 Setup](#-panduan-setup) • [🌐 Website](https://9router.com)
 
-  [🇻🇳 Tiếng Việt](./README.vi.md) • [🇨🇳 中文](./README.zh-CN.md) • [🇯🇵 日本語](./README.ja-JP.md) • [🇮🇩 Bahasa Indonesia](./README.id-ID.md)
+[🇻🇳 Tiếng Việt](./README.vi.md) • [🇨🇳 中文](./README.zh-CN.md) • [🇯🇵 日本語](./README.ja-JP.md) • [🇮🇩 Bahasa Indonesia](./README.id-ID.md)
 </div>
 
 ---
@@ -107,6 +107,7 @@ PORT=20128 HOSTNAME=0.0.0.0 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run 
 ```
 
 URL default:
+
 - Dashboard: `http://localhost:20128/dashboard`
 - API kompatibel OpenAI: `http://localhost:20128/v1`
 
@@ -121,6 +122,7 @@ URL default:
 [![9Router + Claude Code Setup](https://img.youtube.com/vi/raEyZPg5xE0/maxresdefault.jpg)](https://www.youtube.com/watch?v=raEyZPg5xE0)
 
 **🎬 Tonton tutorial langkah demi langkah:**
+
 - ✅ Install dan setup 9Router
 - ✅ Konfigurasi Claude Sonnet 4.5 gratis
 - ✅ Integrasi dengan Claude Code
@@ -347,18 +349,18 @@ URL default:
 
 ## 💡 Fitur Utama
 
-| Fitur | Ringkasan | Manfaat |
-|-------|-----------|---------|
-| 🎯 **Smart Fallback 3 Tingkat** | Routing otomatis: langganan → murah → gratis | Ngoding tanpa berhenti, zero downtime |
-| 📊 **Pelacakan Kuota Real-time** | Hitungan token live + hitung mundur reset | Nilai langganan termanfaatkan maksimal |
-| 🔄 **Konversi Format** | OpenAI ↔ Claude ↔ Gemini mulus | Bekerja dengan tool CLI apa pun |
-| 👥 **Dukungan Multi-akun** | Beberapa akun per provider | Load balancing + redundansi |
-| 🔄 **Auto Refresh Token** | Token OAuth diperbarui otomatis | Tidak perlu login ulang manual |
-| 🎨 **Combo Kustom** | Buat kombinasi model tanpa batas | Fallback sesuai kebutuhanmu |
-| 📝 **Log Request** | Log lengkap request/response | Troubleshooting jadi mudah |
-| 💾 **Cloud Sync** | Sinkronkan pengaturan antar perangkat | Setup sama di mana pun |
-| 📊 **Analitik Penggunaan** | Lacak token, biaya, dan tren | Optimalkan pengeluaran |
-| 🌐 **Deploy di Mana Saja** | Localhost, VPS, Docker, Cloudflare Workers | Opsi deployment fleksibel |
+| Fitur                            | Ringkasan                                    | Manfaat                                |
+| -------------------------------- | -------------------------------------------- | -------------------------------------- |
+| 🎯 **Smart Fallback 3 Tingkat**  | Routing otomatis: langganan → murah → gratis | Ngoding tanpa berhenti, zero downtime  |
+| 📊 **Pelacakan Kuota Real-time** | Hitungan token live + hitung mundur reset    | Nilai langganan termanfaatkan maksimal |
+| 🔄 **Konversi Format**           | OpenAI ↔ Claude ↔ Gemini mulus               | Bekerja dengan tool CLI apa pun        |
+| 👥 **Dukungan Multi-akun**       | Beberapa akun per provider                   | Load balancing + redundansi            |
+| 🔄 **Auto Refresh Token**        | Token OAuth diperbarui otomatis              | Tidak perlu login ulang manual         |
+| 🎨 **Combo Kustom**              | Buat kombinasi model tanpa batas             | Fallback sesuai kebutuhanmu            |
+| 📝 **Log Request**               | Log lengkap request/response                 | Troubleshooting jadi mudah             |
+| 💾 **Cloud Sync**                | Sinkronkan pengaturan antar perangkat        | Setup sama di mana pun                 |
+| 📊 **Analitik Penggunaan**       | Lacak token, biaya, dan tren                 | Optimalkan pengeluaran                 |
+| 🌐 **Deploy di Mana Saja**       | Localhost, VPS, Docker, Cloudflare Workers   | Opsi deployment fleksibel              |
 
 <details>
 <summary><b>📖 Detail Fitur</b></summary>
@@ -386,6 +388,7 @@ Combo: "my-coding-stack"
 ### 🔄 Konversi Format
 
 Konversi mulus antar format:
+
 - **OpenAI** ↔ **Claude** ↔ **Gemini** ↔ **OpenAI Responses**
 - Tool CLI mengirim dalam format OpenAI → 9Router mengonversi → provider menerima dalam format nativenya
 - Bekerja dengan semua tool yang mendukung custom OpenAI endpoint
@@ -461,18 +464,18 @@ Konversi mulus antar format:
 
 ## 💰 Ringkasan Harga
 
-| Tier | Provider | Biaya | Reset Kuota | Cocok Untuk |
-|------|----------|-------|-------------|-------------|
-| **💳 Langganan** | Claude Code (Pro) | $20/bulan | 5 jam + mingguan | Yang sudah punya langganan |
-| | Codex (Plus/Pro) | $20-200/bulan | 5 jam + mingguan | Pengguna OpenAI |
-| | Gemini CLI | **Gratis** | 180rb/bulan + 1rb/hari | Semua orang! |
-| | GitHub Copilot | $10-19/bulan | Bulanan | Pengguna GitHub |
-| **💰 Murah** | GLM-4.7 | $0.6/1M | Setiap hari jam 10.00 | Backup hemat |
-| | MiniMax M2.1 | $0.2/1M | Rolling 5 jam | Opsi paling murah |
-| | Kimi K2 | $9/bulan flat | 10 juta token/bulan | Biaya yang bisa diprediksi |
-| **🆓 Gratis** | iFlow | $0 | Unlimited | 8 model gratis |
-| | Qwen | $0 | Unlimited | 3 model gratis |
-| | Kiro | $0 | Unlimited | Claude gratis |
+| Tier             | Provider          | Biaya         | Reset Kuota            | Cocok Untuk                |
+| ---------------- | ----------------- | ------------- | ---------------------- | -------------------------- |
+| **💳 Langganan** | Claude Code (Pro) | $20/bulan     | 5 jam + mingguan       | Yang sudah punya langganan |
+|                  | Codex (Plus/Pro)  | $20-200/bulan | 5 jam + mingguan       | Pengguna OpenAI            |
+|                  | Gemini CLI        | **Gratis**    | 180rb/bulan + 1rb/hari | Semua orang!               |
+|                  | GitHub Copilot    | $10-19/bulan  | Bulanan                | Pengguna GitHub            |
+| **💰 Murah**     | GLM-4.7           | $0.6/1M       | Setiap hari jam 10.00  | Backup hemat               |
+|                  | MiniMax M2.1      | $0.2/1M       | Rolling 5 jam          | Opsi paling murah          |
+|                  | Kimi K2           | $9/bulan flat | 10 juta token/bulan    | Biaya yang bisa diprediksi |
+| **🆓 Gratis**    | iFlow             | $0            | Unlimited              | 8 model gratis             |
+|                  | Qwen              | $0            | Unlimited              | 3 model gratis             |
+|                  | Kiro              | $0            | Unlimited              | Claude gratis              |
 
 **💡 Tips pro:** combo Gemini CLI (180rb request/bulan gratis) + iFlow (gratis unlimited) = biaya $0!
 
@@ -493,6 +496,7 @@ Konversi mulus antar format:
 Dashboard menampilkan **estimasi biaya** seandainya kamu memakai API berbayar secara langsung. Ini **bukan tagihan**, melainkan alat pembanding yang menunjukkan penghematanmu.
 
 **Contoh skenario:**
+
 ```
 Tampilan dashboard:
 • Total request: 1.662
@@ -506,6 +510,7 @@ Kenyataannya:
 ```
 
 **Aturan pembayaran:**
+
 - **Provider langganan** (Claude Code, Codex): bayar langsung di website masing-masing
 - **Provider murah** (GLM, MiniMax): bayar langsung, 9Router hanya melakukan routing
 - **Provider gratis** (iFlow, Kiro, Qwen): benar-benar gratis selamanya, tanpa biaya tersembunyi
@@ -520,6 +525,7 @@ Kenyataannya:
 **Masalah:** kuota hangus tanpa terpakai, kena rate limit saat ngoding berat
 
 **Solusi:**
+
 ```
 Combo: "maximize-claude"
   1. cc/claude-opus-4-6        (manfaatkan langganan semaksimal mungkin)
@@ -535,6 +541,7 @@ vs. $20 + kena limit = frustrasi
 **Masalah:** tidak mampu bayar langganan, tapi butuh AI coding yang andal
 
 **Solusi:**
+
 ```
 Combo: "free-forever"
   1. gc/gemini-3-flash         (180rb request/bulan gratis)
@@ -550,6 +557,7 @@ Kualitas: model siap produksi
 **Masalah:** deadline mepet, downtime tidak dapat ditoleransi
 
 **Solusi:**
+
 ```
 Combo: "always-on"
   1. cc/claude-opus-4-6        (kualitas terbaik)
@@ -567,6 +575,7 @@ Biaya bulanan: $20-200 (langganan) + $10-20 (backup)
 **Masalah:** butuh asisten AI di aplikasi pesan (WhatsApp, Telegram, Slack...), sepenuhnya gratis
 
 **Solusi:**
+
 ```
 Combo: "openclaw-free"
   1. if/glm-4.7                (gratis unlimited)
@@ -587,6 +596,7 @@ Cara akses: WhatsApp, Telegram, Slack, Discord, iMessage, Signal...
 Dashboard melacak pemakaian token dan menampilkan **estimasi biaya** seandainya kamu memakai API berbayar secara langsung. Ini **bukan tagihan nyata**, melainkan acuan untuk melihat berapa banyak yang kamu hemat dengan memakai model gratis atau langganan yang sudah ada lewat 9Router.
 
 **Contoh:**
+
 - **Tampilan dashboard:** "Total biaya $290"
 - **Kenyataan:** sedang memakai iFlow (gratis unlimited)
 - **Biaya sebenarnya:** **$0.00**
@@ -602,6 +612,7 @@ Tampilan biaya adalah "pelacak penghematan" untuk memahami pola pemakaian dan pe
 **Tidak.** 9Router adalah software open source gratis yang berjalan di komputermu sendiri. Tidak ada penagihan sama sekali.
 
 **Kamu membayar ke:**
+
 - ✅ **Provider langganan** (Claude Code $20/bulan, Codex $20-200/bulan) → bayar langsung di website masing-masing
 - ✅ **Provider murah** (GLM, MiniMax) → bayar langsung, 9Router hanya me-routing request
 - ❌ **9Router sendiri** → **tidak menagih apa pun**
@@ -616,6 +627,7 @@ Tampilan biaya adalah "pelacak penghematan" untuk memahami pola pemakaian dan pe
 **Ya!** Provider yang ditandai gratis (iFlow, Kiro, Qwen) benar-benar unlimited dan **tanpa biaya tersembunyi**.
 
 Ini adalah layanan gratis yang disediakan masing-masing perusahaan:
+
 - **iFlow**: akses gratis unlimited ke 8+ model via OAuth
 - **Kiro**: model Claude gratis unlimited via AWS Builder ID
 - **Qwen**: akses gratis unlimited ke model Qwen via device authentication
@@ -632,17 +644,21 @@ Ini adalah layanan gratis yang disediakan masing-masing perusahaan:
 **Strategi free-first:**
 
 1. **Mulai dari combo 100% gratis:**
+
    ```
    1. gc/gemini-3-flash (180rb/bulan gratis dari Google)
    2. if/kimi-k2-thinking (gratis unlimited dari iFlow)
    3. qw/qwen3-coder-plus (gratis unlimited dari Qwen)
    ```
+
    **Biaya: $0/bulan**
 
 2. **Tambahkan backup murah hanya bila perlu:**
+
    ```
    4. glm/glm-4.7 ($0.6 per 1 juta token)
    ```
+
    **Tambahan biaya: bayar sesuai pemakaian saja**
 
 3. **Gunakan provider langganan paling akhir:**
@@ -661,10 +677,12 @@ Smart fallback 9Router mencegah tagihan tak terduga:
 **Skenario:** kuota habis di tengah sprint coding
 
 **Tanpa 9Router:**
+
 - ❌ Kena rate limit → kerja berhenti → frustrasi
 - ❌ Atau: tagihan API mahal tanpa disengaja
 
 **Dengan 9Router:**
+
 - ✅ Langganan mencapai batas → otomatis fallback ke tier murah
 - ✅ Tier murah jadi mahal → otomatis fallback ke tier gratis
 - ✅ Ngoding tidak berhenti → biaya tetap terprediksi
@@ -911,14 +929,14 @@ Atur `BASE_URL` dan `CLOUD_URL` sebagai environment variable di dashboard Cloudf
 
 ## 🧪 Troubleshooting
 
-| Masalah | Kemungkinan Penyebab | Solusi |
-|---------|----------------------|--------|
-| Tool CLI tidak bisa konek | Endpoint salah | Pastikan `http://localhost:20128/v1` |
-| 401 / Unauthorized | API key salah | Salin ulang key dari dashboard |
-| Model tidak ditemukan | Prefix provider salah | Pakai format `provider/model`, mis. `if/kimi-k2-thinking` |
-| Selalu fallback ke gratis | Kuota langganan habis | Cek hitung mundur reset di dashboard |
-| OAuth gagal | Port callback terpakai | Tutup proses lain (mis. port 1455 untuk Codex) |
-| UI menggantung saat sync | DNS/jaringan cloud bermasalah | Cek `CLOUD_URL`; sync memakai timeout fail-fast |
+| Masalah                   | Kemungkinan Penyebab          | Solusi                                                    |
+| ------------------------- | ----------------------------- | --------------------------------------------------------- |
+| Tool CLI tidak bisa konek | Endpoint salah                | Pastikan `http://localhost:20128/v1`                      |
+| 401 / Unauthorized        | API key salah                 | Salin ulang key dari dashboard                            |
+| Model tidak ditemukan     | Prefix provider salah         | Pakai format `provider/model`, mis. `if/kimi-k2-thinking` |
+| Selalu fallback ke gratis | Kuota langganan habis         | Cek hitung mundur reset di dashboard                      |
+| OAuth gagal               | Port callback terpakai        | Tutup proses lain (mis. port 1455 untuk Codex)            |
+| UI menggantung saat sync  | DNS/jaringan cloud bermasalah | Cek `CLOUD_URL`; sync memakai timeout fail-fast           |
 
 Aktifkan mode debug di dashboard untuk melihat log lengkap request/response.
 

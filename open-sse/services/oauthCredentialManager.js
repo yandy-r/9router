@@ -32,12 +32,16 @@ export function getCredentialExpiryMs(credentials) {
 export function getCredentialLastRefreshMs(credentials) {
   return parseTimeMs(
     credentials?.lastRefreshAt ??
-    credentials?.lastRefresh ??
-    credentials?.providerSpecificData?.lastRefreshAt
+      credentials?.lastRefresh ??
+      credentials?.providerSpecificData?.lastRefreshAt,
   );
 }
 
-export function isCodexRefreshStale(credentials, nowMs = Date.now(), maxAgeMs = CODEX_MAX_REFRESH_AGE_MS) {
+export function isCodexRefreshStale(
+  credentials,
+  nowMs = Date.now(),
+  maxAgeMs = CODEX_MAX_REFRESH_AGE_MS,
+) {
   const lastRefreshMs = getCredentialLastRefreshMs(credentials);
   return !lastRefreshMs || nowMs - lastRefreshMs >= maxAgeMs;
 }
@@ -67,7 +71,12 @@ export function mergeProviderSpecificData(existing, next) {
   };
 }
 
-export function mergeRefreshedCredentials(provider, currentCredentials, refreshedCredentials, nowMs = Date.now()) {
+export function mergeRefreshedCredentials(
+  provider,
+  currentCredentials,
+  refreshedCredentials,
+  nowMs = Date.now(),
+) {
   if (!refreshedCredentials) return null;
   if (isUnrecoverableRefreshError(refreshedCredentials)) return refreshedCredentials;
 
@@ -96,7 +105,7 @@ export function mergeRefreshedCredentials(provider, currentCredentials, refreshe
   if (refreshedCredentials.providerSpecificData) {
     next.providerSpecificData = mergeProviderSpecificData(
       currentCredentials?.providerSpecificData,
-      refreshedCredentials.providerSpecificData
+      refreshedCredentials.providerSpecificData,
     );
   }
 

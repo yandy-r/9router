@@ -8,14 +8,12 @@ export default {
     textIcon: "FC",
     website: "https://firecrawl.dev",
     notice: {
-      apiKeyUrl: "https://www.firecrawl.dev/app/api-keys"
-    }
+      apiKeyUrl: "https://www.firecrawl.dev/app/api-keys",
+    },
   },
   category: "apikey",
   authType: "apikey",
-  serviceKinds: [
-    "webFetch"
-  ],
+  serviceKinds: ["webFetch"],
   fetchConfig: {
     baseUrl: "https://api.firecrawl.dev/v1/scrape",
     method: "POST",
@@ -23,12 +21,8 @@ export default {
     authHeader: "bearer",
     costPerQuery: 0.002,
     freeMonthlyQuota: 500,
-    formats: [
-      "markdown",
-      "html",
-      "text"
-    ],
+    formats: ["markdown", "html", "text"],
     maxCharacters: 200000,
-    timeoutMs: 30000
-  }
+    timeoutMs: 30000,
+  },
 };

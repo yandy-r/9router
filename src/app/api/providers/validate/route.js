@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { getProviderNodeById } from "@/models";
-import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider, isCustomEmbeddingProvider, AI_PROVIDERS } from "@/shared/constants/providers";
+import {
+  isOpenAICompatibleProvider,
+  isAnthropicCompatibleProvider,
+  isCustomEmbeddingProvider,
+  AI_PROVIDERS,
+} from "@/shared/constants/providers";
 import { getDefaultModel } from "open-sse/config/providerModels.js";
-import { resolveOllamaLocalHost, resolveXiaomiTokenplanBaseUrl, PROVIDERS } from "open-sse/config/providers.js";
+import {
+  resolveOllamaLocalHost,
+  resolveXiaomiTokenplanBaseUrl,
+  PROVIDERS,
+} from "open-sse/config/providers.js";
 import { openaiToCommandCodeRequest } from "open-sse/translator/request/openai-to-commandcode.js";
 import { resolveQoderCredentials, resolveQoderModels } from "open-sse/services/qoderModels.js";
 import { normalizeProviderId } from "@/lib/providerNormalization";
@@ -26,11 +35,21 @@ async function probeWebProvider(provider, apiKey) {
 
   // Apply auth based on authHeader
   switch (cfg.authHeader) {
-    case "bearer":              headers["Authorization"] = `Bearer ${apiKey}`; break;
-    case "x-api-key":           headers["x-api-key"] = apiKey; break;
-    case "x-subscription-token":headers["x-subscription-token"] = apiKey; break;
-    case "key":                 url += `?key=${encodeURIComponent(apiKey)}&q=ping&cx=test`; break; // google-pse
-    case "api_key":             url += `?api_key=${encodeURIComponent(apiKey)}&q=ping&engine=google`; break; // searchapi
+    case "bearer":
+      headers["Authorization"] = `Bearer ${apiKey}`;
+      break;
+    case "x-api-key":
+      headers["x-api-key"] = apiKey;
+      break;
+    case "x-subscription-token":
+      headers["x-subscription-token"] = apiKey;
+      break;
+    case "key":
+      url += `?key=${encodeURIComponent(apiKey)}&q=ping&cx=test`;
+      break; // google-pse
+    case "api_key":
+      url += `?api_key=${encodeURIComponent(apiKey)}&q=ping&engine=google`;
+      break; // searchapi
   }
 
   // Minimal body for POST endpoints; GET sends nothing
@@ -38,7 +57,12 @@ async function probeWebProvider(provider, apiKey) {
     body = JSON.stringify({ query: "ping", q: "ping", url: "https://example.com" });
   }
 
-  const res = await fetch(url, { method: cfg.method, headers, body, signal: AbortSignal.timeout(8000) });
+  const res = await fetch(url, {
+    method: cfg.method,
+    headers,
+    body,
+    signal: AbortSignal.timeout(8000),
+  });
   return res.status !== 401 && res.status !== 403;
 }
 
@@ -47,11 +71,25 @@ async function probeWebProvider(provider, apiKey) {
 async function probeMediaProvider(provider, apiKey) {
   const p = AI_PROVIDERS[provider];
   if (!p) return null;
-  const MEDIA_KINDS = new Set(["tts", "embedding", "stt", "image", "video", "music", "imageToText"]);
+  const MEDIA_KINDS = new Set([
+    "tts",
+    "embedding",
+    "stt",
+    "image",
+    "video",
+    "music",
+    "imageToText",
+  ]);
   const kinds = p.serviceKinds || ["llm"];
   const isMediaOnly = kinds.every((k) => MEDIA_KINDS.has(k));
   if (!isMediaOnly) return null;
-  const cfg = p.ttsConfig || p.sttConfig || p.embeddingConfig || p.imageConfig || p.videoConfig || p.musicConfig;
+  const cfg =
+    p.ttsConfig ||
+    p.sttConfig ||
+    p.embeddingConfig ||
+    p.imageConfig ||
+    p.videoConfig ||
+    p.musicConfig;
   // No probe config → best-effort accept (validate at usage time)
   if (!cfg) return true;
   if (p.noAuth || cfg.authType === "none") return true;
@@ -61,21 +99,44 @@ async function probeMediaProvider(provider, apiKey) {
   const headers = { "Content-Type": "application/json", ...(cfg.extraHeaders || {}) };
 
   switch (cfg.authHeader) {
-    case "bearer":     headers["Authorization"] = `Bearer ${apiKey}`; break;
-    case "key":        headers["Authorization"] = `Key ${apiKey}`; break;
-    case "x-api-key":  headers["x-api-key"] = apiKey; break;
-    case "x-key":      headers["x-key"] = apiKey; break;
-    case "xi-api-key": headers["xi-api-key"] = apiKey; break;
-    case "token":      headers["Authorization"] = `Token ${apiKey}`; break;
-    case "basic":      headers["Authorization"] = `Basic ${apiKey}`; break;
-    default: return null;
+    case "bearer":
+      headers["Authorization"] = `Bearer ${apiKey}`;
+      break;
+    case "key":
+      headers["Authorization"] = `Key ${apiKey}`;
+      break;
+    case "x-api-key":
+      headers["x-api-key"] = apiKey;
+      break;
+    case "x-key":
+      headers["x-key"] = apiKey;
+      break;
+    case "xi-api-key":
+      headers["xi-api-key"] = apiKey;
+      break;
+    case "token":
+      headers["Authorization"] = `Token ${apiKey}`;
+      break;
+    case "basic":
+      headers["Authorization"] = `Basic ${apiKey}`;
+      break;
+    default:
+      return null;
   }
 
   const method = cfg.method || "POST";
   const res = await fetch(cfg.baseUrl, {
     method,
     headers,
-    body: method === "GET" ? undefined : JSON.stringify({ input: "ping", text: "ping", prompt: "ping", model: getDefaultModel(provider) || "test" }),
+    body:
+      method === "GET"
+        ? undefined
+        : JSON.stringify({
+            input: "ping",
+            text: "ping",
+            prompt: "ping",
+            model: getDefaultModel(provider) || "test",
+          }),
     signal: AbortSignal.timeout(8000),
   });
   return res.status !== 401 && res.status !== 403;
@@ -105,7 +166,7 @@ export async function POST(request) {
         }
         const modelsUrl = `${node.baseUrl?.replace(/\/$/, "")}/models`;
         const res = await fetch(modelsUrl, {
-          headers: { "Authorization": `Bearer ${apiKey}` },
+          headers: { Authorization: `Bearer ${apiKey}` },
         });
         isValid = res.ok;
         return NextResponse.json({
@@ -122,7 +183,7 @@ export async function POST(request) {
         }
         const baseUrl = node.baseUrl?.replace(/\/$/, "");
         const modelsRes = await fetch(`${baseUrl}/models`, {
-          headers: { "Authorization": `Bearer ${apiKey}` },
+          headers: { Authorization: `Bearer ${apiKey}` },
         });
         if (modelsRes.ok) {
           return NextResponse.json({ valid: true });
@@ -134,7 +195,7 @@ export async function POST(request) {
         // Fallback: probe /embeddings with a common test model — many providers lack /models
         const embedRes = await fetch(`${baseUrl}/embeddings`, {
           method: "POST",
-          headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({ model: "test", input: "ping" }),
         });
         // 401/403 = bad key; anything else (including 400 "model not found") means key works
@@ -148,7 +209,10 @@ export async function POST(request) {
       if (isAnthropicCompatibleProvider(provider)) {
         const node = await getProviderNodeById(provider);
         if (!node) {
-          return NextResponse.json({ error: "Anthropic Compatible node not found" }, { status: 404 });
+          return NextResponse.json(
+            { error: "Anthropic Compatible node not found" },
+            { status: 404 },
+          );
         }
 
         let normalizedBase = node.baseUrl?.trim().replace(/\/$/, "") || "";
@@ -165,7 +229,7 @@ export async function POST(request) {
             "x-api-key": apiKey,
             "anthropic-version": "2023-06-01",
             "content-type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
             model,
@@ -191,7 +255,7 @@ export async function POST(request) {
         const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/v1/chat/completions`;
         const cfRes = await fetch(url, {
           method: "POST",
-          headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model: getDefaultModel("cloudflare-ai"),
             messages: [{ role: "user", content: "test" }],
@@ -253,21 +317,23 @@ export async function POST(request) {
       }
 
       switch (provider) {
-        case "openai":
+        case "openai": {
           const openaiRes = await fetch("https://api.openai.com/v1/models", {
-            headers: { "Authorization": `Bearer ${apiKey}` },
+            headers: { Authorization: `Bearer ${apiKey}` },
           });
           isValid = openaiRes.ok;
           break;
+        }
 
-        case "vercel-ai-gateway":
+        case "vercel-ai-gateway": {
           const vercelAiGatewayRes = await fetch("https://ai-gateway.vercel.sh/v1/models", {
-            headers: { "Authorization": `Bearer ${apiKey}` },
+            headers: { Authorization: `Bearer ${apiKey}` },
           });
           isValid = vercelAiGatewayRes.ok;
           break;
+        }
 
-        case "anthropic":
+        case "anthropic": {
           const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
             headers: {
@@ -283,18 +349,23 @@ export async function POST(request) {
           });
           isValid = anthropicRes.status !== 401;
           break;
+        }
 
-        case "gemini":
-          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`);
+        case "gemini": {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1/models?key=${apiKey}`,
+          );
           isValid = geminiRes.ok;
           break;
+        }
 
-        case "openrouter":
+        case "openrouter": {
           const openrouterRes = await fetch("https://openrouter.ai/api/v1/models", {
-            headers: { "Authorization": `Bearer ${apiKey}` },
+            headers: { Authorization: `Bearer ${apiKey}` },
           });
           isValid = openrouterRes.ok;
           break;
+        }
 
         case "glm":
         case "glm-cn":
@@ -307,14 +378,22 @@ export async function POST(request) {
         case "agentrouter": {
           // Use baseUrl from PROVIDERS (DRY); separate openai-format vs claude-format flow
           const cfg = PROVIDERS[provider];
-          const isOpenAiFormat = provider === "glm-cn" || provider === "alicode" || provider === "alicode-intl" || provider === "alims-intl";
+          const isOpenAiFormat =
+            provider === "glm-cn" ||
+            provider === "alicode" ||
+            provider === "alicode-intl" ||
+            provider === "alims-intl";
 
           if (isOpenAiFormat) {
             const testModel = getDefaultModel(provider);
             const res = await fetch(cfg.baseUrl, {
               method: "POST",
-              headers: { "Authorization": `Bearer ${apiKey}`, "content-type": "application/json" },
-              body: JSON.stringify({ model: testModel, max_tokens: 1, messages: [{ role: "user", content: "test" }] }),
+              headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+              body: JSON.stringify({
+                model: testModel,
+                max_tokens: 1,
+                messages: [{ role: "user", content: "test" }],
+              }),
             });
             isValid = res.status !== 401 && res.status !== 403;
           } else {
@@ -327,7 +406,11 @@ export async function POST(request) {
                 "content-type": "application/json",
                 ...(cfg.headers || {}),
               },
-              body: JSON.stringify({ model: testModel, max_tokens: 1, messages: [{ role: "user", content: "test" }] }),
+              body: JSON.stringify({
+                model: testModel,
+                max_tokens: 1,
+                messages: [{ role: "user", content: "test" }],
+              }),
             });
             // 400 = model resolution error but auth passed (e.g. agentrouter "no available channel")
             isValid = res.status !== 401 && res.status !== 403;
@@ -339,7 +422,7 @@ export async function POST(request) {
           const res = await fetch(PROVIDERS[provider]?.baseUrl, {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${apiKey}`,
+              Authorization: `Bearer ${apiKey}`,
               "content-type": "application/json",
             },
             body: JSON.stringify({
@@ -374,7 +457,9 @@ export async function POST(request) {
         case "nvidia": {
           const endpoints = {
             ...Object.fromEntries(
-              Object.entries(PROVIDERS).filter(([, t]) => t.validateUrl).map(([id, t]) => [id, t.validateUrl])
+              Object.entries(PROVIDERS)
+                .filter(([, t]) => t.validateUrl)
+                .map(([id, t]) => [id, t.validateUrl]),
             ),
             // dynamic URLs (depend on providerSpecificData) — kept inline
             "ollama-local": `${resolveOllamaLocalHost({ providerSpecificData })}/api/tags`,
@@ -382,7 +467,10 @@ export async function POST(request) {
           };
           const headers = {};
           if (apiKey) headers["Authorization"] = `Bearer ${apiKey}`;
-          const res = await fetch(endpoints[provider], { headers, signal: AbortSignal.timeout(8000) });
+          const res = await fetch(endpoints[provider], {
+            headers,
+            signal: AbortSignal.timeout(8000),
+          });
           // xai returns 400 for bad key, 403 for valid-but-no-credit. Other providers use 401.
           if (provider === "xai") {
             isValid = res.status === 200 || res.status === 403;
@@ -398,7 +486,7 @@ export async function POST(request) {
         case "opencode-go": {
           const res = await fetch("https://opencode.ai/zen/go/v1/chat/completions", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
             body: JSON.stringify({
               model: getDefaultModel("opencode-go"),
               messages: [{ role: "user", content: "ping" }],
@@ -413,18 +501,22 @@ export async function POST(request) {
         case "commandcode": {
           const cfg = PROVIDERS.commandcode;
           const model = getDefaultModel("commandcode");
-          const payload = openaiToCommandCodeRequest(model, {
-            messages: [{ role: "user", content: "ping" }],
-            max_tokens: 1,
-            stream: false,
-          }, false);
+          const payload = openaiToCommandCodeRequest(
+            model,
+            {
+              messages: [{ role: "user", content: "ping" }],
+              max_tokens: 1,
+              stream: false,
+            },
+            false,
+          );
           const res = await fetch(cfg.baseUrl, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               ...(cfg.headers || {}),
               "x-session-id": crypto.randomUUID(),
-              "Authorization": `Bearer ${apiKey}`,
+              Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify(payload),
           });
@@ -434,7 +526,7 @@ export async function POST(request) {
 
         case "deepgram": {
           const res = await fetch("https://api.deepgram.com/v1/projects", {
-            headers: { "Authorization": `Token ${apiKey}` },
+            headers: { Authorization: `Token ${apiKey}` },
           });
           isValid = res.ok;
           break;
@@ -444,7 +536,7 @@ export async function POST(request) {
           const res = await fetch("https://api.blackbox.ai/chat/completions", {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${apiKey}`,
+              Authorization: `Bearer ${apiKey}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
@@ -461,7 +553,14 @@ export async function POST(request) {
         case "vertex": {
           // Raw key: probe global endpoint (always 404 for unknown model, never 401)
           // SA JSON: attempt token mint via JWT assertion
-          const saJson = (() => { try { const p = JSON.parse(apiKey); return p.type === "service_account" ? p : null; } catch { return null; } })();
+          const saJson = (() => {
+            try {
+              const p = JSON.parse(apiKey);
+              return p.type === "service_account" ? p : null;
+            } catch {
+              return null;
+            }
+          })();
           if (saJson) {
             // Validate SA JSON has required fields
             isValid = !!(saJson.client_email && saJson.private_key && saJson.project_id);
@@ -469,7 +568,7 @@ export async function POST(request) {
             // Raw key: probe Vertex — 404 means key is valid (model just doesn't exist), 401 means invalid key
             const probeRes = await fetch(
               `https://aiplatform.googleapis.com/v1/publishers/google/models/__probe__:generateContent?key=${apiKey}`,
-              { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }
+              { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
             );
             isValid = probeRes.status !== 401 && probeRes.status !== 403;
           }
@@ -477,13 +576,20 @@ export async function POST(request) {
         }
 
         case "vertex-partner": {
-          const saJson = (() => { try { const p = JSON.parse(apiKey); return p.type === "service_account" ? p : null; } catch { return null; } })();
+          const saJson = (() => {
+            try {
+              const p = JSON.parse(apiKey);
+              return p.type === "service_account" ? p : null;
+            } catch {
+              return null;
+            }
+          })();
           if (saJson) {
             isValid = !!(saJson.client_email && saJson.private_key && saJson.project_id);
           } else {
             const probeRes = await fetch(
               `https://aiplatform.googleapis.com/v1/publishers/google/models/__probe__:generateContent?key=${apiKey}`,
-              { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }
+              { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" },
             );
             isValid = probeRes.status !== 401 && probeRes.status !== 403;
           }
@@ -498,7 +604,9 @@ export async function POST(request) {
             crypto.getRandomValues(a);
             return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
           };
-          const statsigId = Buffer.from("e:TypeError: Cannot read properties of null (reading 'children')").toString("base64");
+          const statsigId = Buffer.from(
+            "e:TypeError: Cannot read properties of null (reading 'children')",
+          ).toString("base64");
           const traceId = randomHex(16);
           const spanId = randomHex(8);
           const res = await fetch("https://grok.com/rest/app-chat/conversations/new", {
@@ -519,19 +627,35 @@ export async function POST(request) {
               "Sec-Fetch-Dest": "empty",
               "Sec-Fetch-Mode": "cors",
               "Sec-Fetch-Site": "same-origin",
-              "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+              "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
               "x-statsig-id": statsigId,
               "x-xai-request-id": crypto.randomUUID(),
               traceparent: `00-${traceId}-${spanId}-00`,
             },
             body: JSON.stringify({
-              temporary: true, modelName: "grok-4", modelMode: "MODEL_MODE_GROK_4", message: "ping",
-              fileAttachments: [], imageAttachments: [],
-              disableSearch: false, enableImageGeneration: false, returnImageBytes: false,
-              returnRawGrokInXaiRequest: false, enableImageStreaming: false, imageGenerationCount: 0,
-              forceConcise: false, toolOverrides: {}, enableSideBySide: true, sendFinalMetadata: true,
-              isReasoning: false, disableTextFollowUps: true, disableMemory: true,
-              forceSideBySide: false, isAsyncChat: false, disableSelfHarmShortCircuit: false,
+              temporary: true,
+              modelName: "grok-4",
+              modelMode: "MODEL_MODE_GROK_4",
+              message: "ping",
+              fileAttachments: [],
+              imageAttachments: [],
+              disableSearch: false,
+              enableImageGeneration: false,
+              returnImageBytes: false,
+              returnRawGrokInXaiRequest: false,
+              enableImageStreaming: false,
+              imageGenerationCount: 0,
+              forceConcise: false,
+              toolOverrides: {},
+              enableSideBySide: true,
+              sendFinalMetadata: true,
+              isReasoning: false,
+              disableTextFollowUps: true,
+              disableMemory: true,
+              forceSideBySide: false,
+              isAsyncChat: false,
+              disableSelfHarmShortCircuit: false,
             }),
           });
           // Cookie valid = any non-401/403 response (200, 400, 429 all mean cookie accepted)
@@ -549,7 +673,8 @@ export async function POST(request) {
           if (sessionToken.startsWith("__Secure-next-auth.session-token=")) {
             sessionToken = sessionToken.slice("__Secure-next-auth.session-token=".length);
           }
-          const tz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+          const tz =
+            typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
           const res = await fetch("https://www.perplexity.ai/rest/sse/perplexity_ask", {
             method: "POST",
             headers: {
@@ -557,7 +682,8 @@ export async function POST(request) {
               Accept: "text/event-stream",
               Origin: "https://www.perplexity.ai",
               Referer: "https://www.perplexity.ai/",
-              "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+              "User-Agent":
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
               "X-App-ApiClient": "default",
               "X-App-ApiVersion": "2.18",
               Cookie: `__Secure-next-auth.session-token=${sessionToken}`,
@@ -565,17 +691,28 @@ export async function POST(request) {
             body: JSON.stringify({
               query_str: "ping",
               params: {
-                query_str: "ping", search_focus: "internet", mode: "concise", model_preference: "pplx_pro",
-                sources: ["web"], attachments: [],
-                frontend_uuid: crypto.randomUUID(), frontend_context_uuid: crypto.randomUUID(),
-                version: "2.18", language: "en-US", timezone: tz,
-                search_recency_filter: null, is_incognito: true, use_schematized_api: true, last_backend_uuid: null,
+                query_str: "ping",
+                search_focus: "internet",
+                mode: "concise",
+                model_preference: "pplx_pro",
+                sources: ["web"],
+                attachments: [],
+                frontend_uuid: crypto.randomUUID(),
+                frontend_context_uuid: crypto.randomUUID(),
+                version: "2.18",
+                language: "en-US",
+                timezone: tz,
+                search_recency_filter: null,
+                is_incognito: true,
+                use_schematized_api: true,
+                last_backend_uuid: null,
               },
             }),
           });
           if (res.status === 401 || res.status === 403) {
             isValid = false;
-            error = "Invalid session cookie — re-paste __Secure-next-auth.session-token from perplexity.ai";
+            error =
+              "Invalid session cookie — re-paste __Secure-next-auth.session-token from perplexity.ai";
           } else {
             isValid = true;
           }
@@ -586,7 +723,11 @@ export async function POST(request) {
           // PAT (pt-...) needs the job-token exchange before it can sign
           // anything — the generic OpenAI-compat probe below can't validate it.
           try {
-            const resolved = await resolveQoderCredentials({ apiKey, providerSpecificData }, null, AbortSignal.timeout(8000));
+            const resolved = await resolveQoderCredentials(
+              { apiKey, providerSpecificData },
+              null,
+              AbortSignal.timeout(8000),
+            );
             const result = await resolveQoderModels(resolved, { forceRefresh: true });
             isValid = !!result?.models?.length;
           } catch (err) {
@@ -600,7 +741,10 @@ export async function POST(request) {
           // Generic probe for OpenAI-compatible providers (config-driven from PROVIDERS)
           const cfg = PROVIDERS[provider];
           if (!cfg || cfg.format !== "openai" || !cfg.baseUrl) {
-            return NextResponse.json({ error: "Provider validation not supported" }, { status: 400 });
+            return NextResponse.json(
+              { error: "Provider validation not supported" },
+              { status: 400 },
+            );
           }
           if (cfg.noAuth) {
             isValid = true;
@@ -611,13 +755,17 @@ export async function POST(request) {
           if (cfg.authHeader === "x-api-key") headers["X-API-Key"] = apiKey;
           else headers["Authorization"] = `Bearer ${apiKey}`;
           // Try /models first (fast GET), fallback to chat probe on ambiguous response
-          const modelsUrl = cfg.baseUrl.replace(/\/chat\/completions$/, "/models").replace(/\/chatbot$/, "/models");
+          const modelsUrl = cfg.baseUrl
+            .replace(/\/chat\/completions$/, "/models")
+            .replace(/\/chatbot$/, "/models");
           let probeOk = null;
           try {
             const probeRes = await fetch(modelsUrl, { headers, signal: AbortSignal.timeout(8000) });
             if (probeRes.status === 401 || probeRes.status === 403) probeOk = false;
             else if (probeRes.ok) probeOk = true;
-          } catch { /* fallback to chat */ }
+          } catch {
+            /* fallback to chat */
+          }
           if (probeOk !== null) {
             isValid = probeOk;
             break;
@@ -627,7 +775,11 @@ export async function POST(request) {
           const chatRes = await fetch(cfg.baseUrl, {
             method: "POST",
             headers,
-            body: JSON.stringify({ model: defaultModel, messages: [{ role: "user", content: "ping" }], max_tokens: 1 }),
+            body: JSON.stringify({
+              model: defaultModel,
+              messages: [{ role: "user", content: "ping" }],
+              max_tokens: 1,
+            }),
             signal: AbortSignal.timeout(10000),
           });
           isValid = chatRes.status !== 401 && chatRes.status !== 403;
@@ -641,7 +793,7 @@ export async function POST(request) {
 
     return NextResponse.json({
       valid: isValid,
-      error: isValid ? null : (error || "Invalid API key"),
+      error: isValid ? null : error || "Invalid API key",
     });
   } catch (error) {
     console.log("Error validating API key:", error);

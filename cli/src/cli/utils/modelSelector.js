@@ -4,14 +4,27 @@ const { clearScreen } = require("./display");
 
 // Provider alias order: OAuth first, then API Key (matches ModelSelectModal)
 const PROVIDER_ALIAS_ORDER = [
-  "cc", "ag", "cx", "if", "qw", "gc", "gh", "kr",
-  "openrouter", "glm", "kimi", "minimax", "openai", "anthropic", "gemini"
+  "cc",
+  "ag",
+  "cx",
+  "if",
+  "qw",
+  "gc",
+  "gh",
+  "kr",
+  "openrouter",
+  "glm",
+  "kimi",
+  "minimax",
+  "openai",
+  "anthropic",
+  "gemini",
 ];
 
 // Alias to display name mapping
 const PROVIDER_ALIAS_NAMES = {
   cc: "Claude Code",
-  ag: "Antigravity", 
+  ag: "Antigravity",
   cx: "OpenAI Codex",
   if: "iFlow AI",
   qw: "Qwen Code",
@@ -24,7 +37,7 @@ const PROVIDER_ALIAS_NAMES = {
   minimax: "Minimax Coding",
   openai: "OpenAI",
   anthropic: "Anthropic",
-  gemini: "Gemini"
+  gemini: "Gemini",
 };
 
 /**
@@ -34,12 +47,12 @@ const PROVIDER_ALIAS_NAMES = {
 async function getAvailableModelsGrouped() {
   const result = await api.getAvailableModels();
   if (!result.success) return { combos: [], groups: {} };
-  
+
   const models = result.data?.data || [];
   const combos = [];
   const groups = {};
-  
-  models.forEach(m => {
+
+  models.forEach((m) => {
     if (m.owned_by === "combo") {
       combos.push(m.id);
     } else {
@@ -50,7 +63,7 @@ async function getAvailableModelsGrouped() {
       groups[provider].push(m.id);
     }
   });
-  
+
   return { combos, groups };
 }
 
@@ -72,10 +85,7 @@ async function selectModelFromList(title, currentValue = "", options = {}) {
   }
 
   // All models for flat search
-  const allModelsList = [
-    ...combos,
-    ...Object.values(groups).flat()
-  ];
+  const allModelsList = [...combos, ...Object.values(groups).flat()];
 
   // Build category list
   const categories = [];
@@ -83,7 +93,7 @@ async function selectModelFromList(title, currentValue = "", options = {}) {
     categories.push({
       id: "combos",
       name: "[Combos]",
-      models: combos
+      models: combos,
     });
   }
 
@@ -98,7 +108,7 @@ async function selectModelFromList(title, currentValue = "", options = {}) {
     categories.push({
       id: provider,
       name: providerName,
-      models: groups[provider]
+      models: groups[provider],
     });
   });
 
@@ -269,5 +279,5 @@ module.exports = {
   selectModelFromList,
   getAvailableModelsGrouped,
   PROVIDER_ALIAS_ORDER,
-  PROVIDER_ALIAS_NAMES
+  PROVIDER_ALIAS_NAMES,
 };

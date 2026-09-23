@@ -82,10 +82,12 @@ describe("Xquik search provider", () => {
   });
 
   it("rejects unsupported query types before contacting Xquik", () => {
-    expect(() => buildSearchRequest(CONFIG, {
-      ...PARAMS,
-      providerOptions: { queryType: "Popular" },
-    })).toThrow("Xquik queryType must be Latest or Top");
+    expect(() =>
+      buildSearchRequest(CONFIG, {
+        ...PARAMS,
+        providerOptions: { queryType: "Popular" },
+      }),
+    ).toThrow("Xquik queryType must be Latest or Top");
   });
 
   it("normalizes posts and preserves cursor pagination", () => {
@@ -115,11 +117,16 @@ describe("Xquik search provider", () => {
   });
 
   it("uses the stable status URL when author data is unavailable", () => {
-    const normalized = normalizeSearchResponse("xquik", {
-      tweets: [{ id: "9876543210", text: "Author data is unavailable." }],
-      has_next_page: false,
-      next_cursor: "",
-    }, PARAMS.query, "x");
+    const normalized = normalizeSearchResponse(
+      "xquik",
+      {
+        tweets: [{ id: "9876543210", text: "Author data is unavailable." }],
+        has_next_page: false,
+        next_cursor: "",
+      },
+      PARAMS.query,
+      "x",
+    );
 
     expect(normalized.results[0]).toMatchObject({
       title: "X post",
@@ -130,10 +137,16 @@ describe("Xquik search provider", () => {
   });
 
   it("reports Xquik credits without claiming an unknown USD cost", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(RESPONSE), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify(RESPONSE), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+      ),
+    );
 
     const result = await handleSearchCore({
       body: { query: PARAMS.query, max_results: 10, provider_options: PARAMS.providerOptions },

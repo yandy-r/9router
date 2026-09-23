@@ -11,10 +11,7 @@ import {
   encodeMcpResultError,
   encodeMcpResultToolNotFound,
 } from "../../open-sse/utils/cursorProtobuf.js";
-import {
-  isAgentCapableRequest,
-  buildAgentRunFrame,
-} from "../../open-sse/executors/cursor.js";
+import { isAgentCapableRequest, buildAgentRunFrame } from "../../open-sse/executors/cursor.js";
 
 // AgentService (agent.v1) codec tests — validate the production implementation
 // in cursorProtobuf.js + the executor's frame builders. Pure round-trip, no network.
@@ -22,11 +19,19 @@ import {
 
 const LEN = 2;
 // McpArgs.args map entry { field1: key, field2: Value }
-const entry = (k, v) => Buffer.concat([
-  Buffer.from(encodeField(2, LEN,
-    Buffer.concat([Buffer.from(encodeField(1, LEN, k)), Buffer.from(encodeField(2, LEN, encodeAgentValue(v)))])
-  )),
-]);
+const entry = (k, v) =>
+  Buffer.concat([
+    Buffer.from(
+      encodeField(
+        2,
+        LEN,
+        Buffer.concat([
+          Buffer.from(encodeField(1, LEN, k)),
+          Buffer.from(encodeField(2, LEN, encodeAgentValue(v))),
+        ]),
+      ),
+    ),
+  ]);
 
 describe("Cursor AgentService codec (cursorProtobuf.js)", () => {
   describe("google.protobuf.Value round-trip", () => {
@@ -52,8 +57,14 @@ describe("Cursor AgentService codec (cursorProtobuf.js)", () => {
 
   describe("McpToolDefinition", () => {
     it("encodes name, description, input_schema (Value), provider, tool_name", () => {
-      const schema = { type: "object", properties: { city: { type: "string" } }, required: ["city"] };
-      const def = encodeMcpToolDefinition({ function: { name: "get_weather", description: "Get weather", parameters: schema } });
+      const schema = {
+        type: "object",
+        properties: { city: { type: "string" } },
+        required: ["city"],
+      };
+      const def = encodeMcpToolDefinition({
+        function: { name: "get_weather", description: "Get weather", parameters: schema },
+      });
       const msg = decodeMessage(def);
       expect(Buffer.from(msg.get(1)[0].value).toString("utf8")).toBe("get_weather");
       expect(Buffer.from(msg.get(2)[0].value).toString("utf8")).toBe("Get weather");
@@ -77,7 +88,11 @@ describe("Cursor AgentService codec (cursorProtobuf.js)", () => {
     });
 
     it("accepts flat tool shape (no .function wrapper)", () => {
-      const def = encodeMcpToolDefinition({ name: "noop", description: "d", inputSchema: { type: "object" } });
+      const def = encodeMcpToolDefinition({
+        name: "noop",
+        description: "d",
+        inputSchema: { type: "object" },
+      });
       const msg = decodeMessage(def);
       expect(Buffer.from(msg.get(1)[0].value).toString("utf8")).toBe("noop");
     });
@@ -159,7 +174,9 @@ describe("Cursor AgentService codec (cursorProtobuf.js)", () => {
   describe("McpResult image content", () => {
     it("builds image item with raw bytes + mime type", () => {
       const imgBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
-      const bytes = encodeMcpResultSuccess({ imageItems: [{ data: imgBytes, mimeType: "image/png" }] });
+      const bytes = encodeMcpResultSuccess({
+        imageItems: [{ data: imgBytes, mimeType: "image/png" }],
+      });
       const success = decodeMessage(decodeMessage(bytes).get(1)[0].value);
       const item = decodeMessage(success.get(1)[0].value);
       expect(item.has(2)).toBe(true); // image variant
@@ -170,7 +187,10 @@ describe("Cursor AgentService codec (cursorProtobuf.js)", () => {
 
     it("builds mixed text + image content", () => {
       const imgBytes = new Uint8Array([1, 2, 3]);
-      const bytes = encodeMcpResultSuccess({ textItems: ["see image"], imageItems: [{ data: imgBytes, mimeType: "image/jpeg" }] });
+      const bytes = encodeMcpResultSuccess({
+        textItems: ["see image"],
+        imageItems: [{ data: imgBytes, mimeType: "image/jpeg" }],
+      });
       const success = decodeMessage(decodeMessage(bytes).get(1)[0].value);
       expect(success.get(1).length).toBe(2);
       expect(decodeMessage(success.get(1)[0].value).has(1)).toBe(true); // text
@@ -204,26 +224,45 @@ describe("Cursor AgentService executor helpers (cursor.js)", () => {
     });
 
     it("accepts array text content", () => {
-      expect(isAgentCapableRequest({ messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }] })).toBe(true);
+      expect(
+        isAgentCapableRequest({
+          messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+        }),
+      ).toBe(true);
     });
 
     it("accepts request with tools declared", () => {
-      expect(isAgentCapableRequest({ messages: [{ role: "user", content: "hi" }], tools: [{ function: { name: "t" } }] })).toBe(true);
+      expect(
+        isAgentCapableRequest({
+          messages: [{ role: "user", content: "hi" }],
+          tools: [{ function: { name: "t" } }],
+        }),
+      ).toBe(true);
     });
 
     it("accepts history with assistant tool_calls + tool results", () => {
-      expect(isAgentCapableRequest({
-        messages: [
-          { role: "user", content: "weather?" },
-          { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "get_weather", arguments: "{}" } }] },
-          { role: "tool", tool_call_id: "c1", content: "sunny" },
-          { role: "user", content: "thanks" },
-        ],
-      })).toBe(true);
+      expect(
+        isAgentCapableRequest({
+          messages: [
+            { role: "user", content: "weather?" },
+            {
+              role: "assistant",
+              content: null,
+              tool_calls: [
+                { id: "c1", type: "function", function: { name: "get_weather", arguments: "{}" } },
+              ],
+            },
+            { role: "tool", tool_call_id: "c1", content: "sunny" },
+            { role: "user", content: "thanks" },
+          ],
+        }),
+      ).toBe(true);
     });
 
     it("accepts image content (served via AgentService selected_context)", () => {
-      expect(isAgentCapableRequest({ messages: [{ role: "user", content: [{ type: "image_url" }] }] })).toBe(true);
+      expect(
+        isAgentCapableRequest({ messages: [{ role: "user", content: [{ type: "image_url" }] }] }),
+      ).toBe(true);
     });
 
     it("rejects missing messages", () => {
@@ -237,10 +276,15 @@ describe("Cursor AgentService executor helpers (cursor.js)", () => {
     const unwrap = (frame) => frame.subarray(5);
 
     it("encodes a text-only run request with system + model", () => {
-      const frame = unwrap(buildAgentRunFrame(
-        [{ role: "system", content: "be brief" }, { role: "user", content: "hi" }],
-        "gpt-5.2",
-      ));
+      const frame = unwrap(
+        buildAgentRunFrame(
+          [
+            { role: "system", content: "be brief" },
+            { role: "user", content: "hi" },
+          ],
+          "gpt-5.2",
+        ),
+      );
       const clientMsg = decodeMessage(frame);
       expect(clientMsg.has(1)).toBe(true); // run_request
       const run = decodeMessage(clientMsg.get(1)[0].value);
@@ -258,8 +302,18 @@ describe("Cursor AgentService executor helpers (cursor.js)", () => {
     });
 
     it("encodes mcp_tools (field 4) when tools are provided", () => {
-      const tools = [{ function: { name: "get_weather", description: "weather", parameters: { type: "object", properties: { city: { type: "string" } } } } }];
-      const frame = unwrap(buildAgentRunFrame([{ role: "user", content: "weather?" }], "gpt-5.2", tools));
+      const tools = [
+        {
+          function: {
+            name: "get_weather",
+            description: "weather",
+            parameters: { type: "object", properties: { city: { type: "string" } } },
+          },
+        },
+      ];
+      const frame = unwrap(
+        buildAgentRunFrame([{ role: "user", content: "weather?" }], "gpt-5.2", tools),
+      );
       const run = decodeMessage(decodeMessage(frame).get(1)[0].value);
       expect(run.has(4)).toBe(true); // mcp_tools
       const mcpTools = decodeMessage(run.get(4)[0].value);
@@ -275,7 +329,17 @@ describe("Cursor AgentService executor helpers (cursor.js)", () => {
     it("encodes conversation_history from prior turns including tool calls/results", () => {
       const messages = [
         { role: "user", content: "weather in Tokyo?" },
-        { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "get_weather", arguments: '{"city":"Tokyo"}' } }] },
+        {
+          role: "assistant",
+          content: null,
+          tool_calls: [
+            {
+              id: "c1",
+              type: "function",
+              function: { name: "get_weather", arguments: '{"city":"Tokyo"}' },
+            },
+          ],
+        },
         { role: "tool", tool_call_id: "c1", content: "18C cloudy" },
         { role: "user", content: "thanks" },
       ];

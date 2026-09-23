@@ -35,7 +35,12 @@ import {
   QODER_CONTEXT_TIER_ENV,
   qoderInferenceBase,
 } from "../shared/qoder/constants.js";
-import { getQoderModelConfig, resolveQoderModels, isQoderPat, resolveQoderCredentials } from "../services/qoderModels.js";
+import {
+  getQoderModelConfig,
+  resolveQoderModels,
+  isQoderPat,
+  resolveQoderCredentials,
+} from "../services/qoderModels.js";
 import { OPENAI_BLOCK, CLAUDE_BLOCK } from "../translator/schema/blocks.js";
 import { encodeDataUri } from "../translator/concerns/image.js";
 import { createQoderSseCoalescer } from "../shared/qoder/sse.js";
@@ -113,19 +118,26 @@ function normalizeContent(content) {
     } else if (item.type === CLAUDE_BLOCK.IMAGE && item.source) {
       // Claude base64/url image → OpenAI image_url equivalent.
       const src = item.source;
-      const url = src.type === "base64" && src.data
-        ? encodeDataUri(src.media_type || "image/png", src.data)
-        : typeof src.url === "string" && src.url ? src.url : null;
+      const url =
+        src.type === "base64" && src.data
+          ? encodeDataUri(src.media_type || "image/png", src.data)
+          : typeof src.url === "string" && src.url
+            ? src.url
+            : null;
       if (url) {
         blocks.push({ type: OPENAI_BLOCK.IMAGE_URL, image_url: { url } });
         hasImage = true;
       }
     } else if (item.type === OPENAI_BLOCK.FILE) {
       const name = item.file?.filename || item.file?.name || "file";
-      pushText(`[file omitted: ${name} — Qoder reads documents via its file API, not inlined bytes]`);
+      pushText(
+        `[file omitted: ${name} — Qoder reads documents via its file API, not inlined bytes]`,
+      );
     } else if (item.type === CLAUDE_BLOCK.DOCUMENT) {
       const name = item.title || "document";
-      pushText(`[file omitted: ${name} — Qoder reads documents via its file API, not inlined bytes]`);
+      pushText(
+        `[file omitted: ${name} — Qoder reads documents via its file API, not inlined bytes]`,
+      );
     } else if (typeof item.text === "string" && item.text) {
       pushText(item.text);
     }
@@ -182,19 +194,27 @@ function stableChatRecordId(model, messages, tools, maxTokens) {
   h.update(String(model));
   for (const m of messages) {
     if (!m || typeof m !== "object") continue;
-    if (m.role) { h.update("\0"); h.update(m.role); }
+    if (m.role) {
+      h.update("\0");
+      h.update(m.role);
+    }
     if (typeof m.content === "string" && m.content) {
-      h.update("\0"); h.update(m.content);
+      h.update("\0");
+      h.update(m.content);
     } else if (Array.isArray(m.content)) {
       // Include image refs so the same prompt with a different image gets
       // a distinct chat_record_id.
       h.update("\0");
-      try { h.update(JSON.stringify(m.content)); } catch {}
+      try {
+        h.update(JSON.stringify(m.content));
+      } catch {}
     }
   }
   if (tools) {
     h.update("\0");
-    try { h.update(JSON.stringify(tools)); } catch {}
+    try {
+      h.update(JSON.stringify(tools));
+    } catch {}
   }
   h.update(`\0mt=${maxTokens}`);
   return h.digest("hex").slice(0, 16);
@@ -207,16 +227,29 @@ function truncate(s, n) {
 /**
  * Map the OpenAI-style request body into the exact shape Qoder expects.
  */
-async function buildQoderRequestBody({ model, body, credentials, log, proxyOptions, signal, uploadFn = null }) {
+async function buildQoderRequestBody({
+  model,
+  body,
+  credentials,
+  log,
+  proxyOptions,
+  signal,
+  uploadFn = null,
+}) {
   const qoderKey = String(model || "").replace(/^qoder\//, "");
-  
+
   // Fetch model config from dynamic API instead of relying on static QODER_MODEL_MAP.
   // This allows support for new Qoder models (e.g., qmodel_latest) without code changes.
   let modelConfig = await getQoderModelConfig(credentials, qoderKey, { log, proxyOptions, signal });
   if (!modelConfig) {
     // Try a forced refresh once before giving up — the cache may simply
     // not be populated yet on first ever call for this credential.
-    const refreshed = await resolveQoderModels(credentials, { forceRefresh: true, log, proxyOptions, signal });
+    const refreshed = await resolveQoderModels(credentials, {
+      forceRefresh: true,
+      log,
+      proxyOptions,
+      signal,
+    });
     const retried = refreshed?.rawConfigs.get(qoderKey);
     if (!retried) {
       throw new Error(
@@ -228,14 +261,14 @@ async function buildQoderRequestBody({ model, body, credentials, log, proxyOptio
 
   const incoming = Array.isArray(body.messages)
     ? body.messages.map((m) => {
-      if (!m || typeof m !== "object") return m;
-      return {
-        ...m,
-        content: Array.isArray(m.content)
-          ? m.content.map((b) => (b && typeof b === "object" ? { ...b } : b))
-          : m.content,
-      };
-    })
+        if (!m || typeof m !== "object") return m;
+        return {
+          ...m,
+          content: Array.isArray(m.content)
+            ? m.content.map((b) => (b && typeof b === "object" ? { ...b } : b))
+            : m.content,
+        };
+      })
     : [];
   try {
     await rewriteQoderMessageAttachments(incoming, {
@@ -259,7 +292,11 @@ async function buildQoderRequestBody({ model, body, credentials, log, proxyOptio
   if (typeof body.max_tokens === "number" && body.max_tokens > 0 && body.max_tokens < maxTokens) {
     maxTokens = body.max_tokens;
   }
-  if (typeof body.max_completion_tokens === "number" && body.max_completion_tokens > 0 && body.max_completion_tokens < maxTokens) {
+  if (
+    typeof body.max_completion_tokens === "number" &&
+    body.max_completion_tokens > 0 &&
+    body.max_completion_tokens < maxTokens
+  ) {
     maxTokens = body.max_completion_tokens;
   }
 
@@ -368,7 +405,11 @@ async function peekFirstQoderFrame(reader, decoder) {
     if (data === "[DONE]") return { isBilling: false, consumed };
 
     let envelope;
-    try { envelope = JSON.parse(data); } catch { return { isBilling: false, consumed }; }
+    try {
+      envelope = JSON.parse(data);
+    } catch {
+      return { isBilling: false, consumed };
+    }
 
     const statusVal = typeof envelope.statusCodeValue === "number" ? envelope.statusCodeValue : 200;
     const inner = typeof envelope.body === "string" ? envelope.body : "";
@@ -417,7 +458,7 @@ async function wrapQoderSSE(response, model) {
     await reader.cancel().catch(() => {});
     return new Response(
       JSON.stringify({ error: { message: peek.message, code: peek.statusVal } }),
-      { status: 403, headers: { "Content-Type": "application/json" } }
+      { status: 403, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -447,11 +488,18 @@ async function wrapQoderSSE(response, model) {
     }
 
     let envelope;
-    try { envelope = JSON.parse(data); } catch { return; }
+    try {
+      envelope = JSON.parse(data);
+    } catch {
+      return;
+    }
     const statusVal = typeof envelope.statusCodeValue === "number" ? envelope.statusCodeValue : 200;
-    const inner = typeof envelope.body === "string"
-      ? envelope.body
-      : envelope.body != null ? JSON.stringify(envelope.body) : "";
+    const inner =
+      typeof envelope.body === "string"
+        ? envelope.body
+        : envelope.body != null
+          ? JSON.stringify(envelope.body)
+          : "";
     if (statusVal !== 200) {
       const msg = inner || `upstream status ${statusVal}`;
       const errChunk = JSON.stringify({
@@ -459,7 +507,13 @@ async function wrapQoderSSE(response, model) {
         object: "chat.completion.chunk",
         created: Math.floor(Date.now() / 1000),
         model,
-        choices: [{ index: 0, delta: { content: `\n[qoder error ${statusVal}: ${truncate(msg, 200)}]` }, finish_reason: "stop" }],
+        choices: [
+          {
+            index: 0,
+            delta: { content: `\n[qoder error ${statusVal}: ${truncate(msg, 200)}]` },
+            finish_reason: "stop",
+          },
+        ],
       });
       controller.enqueue(encoder.encode(`data: ${errChunk}\n\n`));
       controller.enqueue(encoder.encode(SSE_DONE));
@@ -529,9 +583,15 @@ async function wrapQoderSSE(response, model) {
           try {
             coalescer.flush(controller);
             doneEmitted = true;
-          } catch { /* already closed */ }
+          } catch {
+            /* already closed */
+          }
         }
-        try { controller.close(); } catch { /* already closed */ }
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
         await reader.cancel().catch(() => {});
       }
     },
@@ -580,7 +640,12 @@ export class QoderExecutor extends BaseExecutor {
           JSON.stringify({ error: { message: `qoder PAT exchange failed: ${err.message}` } }),
           { status: 401, headers: { "Content-Type": "application/json" } },
         );
-        return { response: fakeResp, url: this.buildUrl(credentials), headers: {}, transformedBody: body };
+        return {
+          response: fakeResp,
+          url: this.buildUrl(credentials),
+          headers: {},
+          transformedBody: body,
+        };
       }
     }
 
@@ -590,7 +655,9 @@ export class QoderExecutor extends BaseExecutor {
       // No user id → no way to sign. Surface a 401 so the dashboard nudges
       // the user back to OAuth.
       const fakeResp = new Response(
-        JSON.stringify({ error: { message: "qoder credential is missing userId; reconnect the account" } }),
+        JSON.stringify({
+          error: { message: "qoder credential is missing userId; reconnect the account" },
+        }),
         { status: 401, headers: { "Content-Type": "application/json" } },
       );
       return { response: fakeResp, url, headers: {}, transformedBody: body };
@@ -599,7 +666,9 @@ export class QoderExecutor extends BaseExecutor {
       // Same shape as the userId guard — clean 401 so chatCore reports
       // "reconnect" rather than bubbling cosy.js's synchronous throw as 500.
       const fakeResp = new Response(
-        JSON.stringify({ error: { message: "qoder credential is missing accessToken; reconnect the account" } }),
+        JSON.stringify({
+          error: { message: "qoder credential is missing accessToken; reconnect the account" },
+        }),
         { status: 401, headers: { "Content-Type": "application/json" } },
       );
       return { response: fakeResp, url, headers: {}, transformedBody: body };
@@ -608,12 +677,19 @@ export class QoderExecutor extends BaseExecutor {
     let qoderKey;
     let payload;
     try {
-      ({ qoderKey, payload } = await buildQoderRequestBody({ model, body, credentials, log, proxyOptions, signal }));
+      ({ qoderKey, payload } = await buildQoderRequestBody({
+        model,
+        body,
+        credentials,
+        log,
+        proxyOptions,
+        signal,
+      }));
     } catch (err) {
-      const fakeResp = new Response(
-        JSON.stringify({ error: { message: err.message } }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
+      const fakeResp = new Response(JSON.stringify({ error: { message: err.message } }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
       return { response: fakeResp, url, headers: {}, transformedBody: body };
     }
 
@@ -623,17 +699,13 @@ export class QoderExecutor extends BaseExecutor {
 
     let cosyHeaders;
     try {
-      cosyHeaders = buildCosyHeaders(
-        encodedBodyBuf,
-        url,
-        {
-          userId: psd.userId,
-          authToken: credentials.accessToken,
-          name: credentials.displayName || "",
-          email: credentials.email || "",
-          machineId: psd.machineId || "",
-        },
-      );
+      cosyHeaders = buildCosyHeaders(encodedBodyBuf, url, {
+        userId: psd.userId,
+        authToken: credentials.accessToken,
+        name: credentials.displayName || "",
+        email: credentials.email || "",
+        machineId: psd.machineId || "",
+      });
     } catch (err) {
       // cosy.js throws synchronously on missing userId/authToken — surface
       // as 401 so chatCore prompts re-auth instead of returning a 500.
@@ -659,8 +731,13 @@ export class QoderExecutor extends BaseExecutor {
     // Abort if upstream doesn't return response headers within connect timeout.
     const timeoutMs = this.config?.timeoutMs || FETCH_CONNECT_TIMEOUT_MS;
     const connectCtrl = new AbortController();
-    const connectTimer = setTimeout(() => connectCtrl.abort(new Error("fetch connect timeout")), timeoutMs);
-    const mergedSignal = signal ? AbortSignal.any([signal, connectCtrl.signal]) : connectCtrl.signal;
+    const connectTimer = setTimeout(
+      () => connectCtrl.abort(new Error("fetch connect timeout")),
+      timeoutMs,
+    );
+    const mergedSignal = signal
+      ? AbortSignal.any([signal, connectCtrl.signal])
+      : connectCtrl.signal;
 
     let response;
     try {

@@ -102,6 +102,8 @@ describe("compressWithHeadroom openai-responses format (#1998)", () => {
     expect(data).toBeNull();
     expect(global.fetch).not.toHaveBeenCalled();
     expect(body.input).toEqual(input);
-    expect(diagnostics.reason).toBe("skipped: openai-responses tool/reasoning input is not safe to compress");
+    expect(diagnostics.reason).toBe(
+      "skipped: openai-responses tool/reasoning input is not safe to compress",
+    );
   });
 });

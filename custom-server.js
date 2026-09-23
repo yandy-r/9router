@@ -58,7 +58,8 @@ http.createServer = (...args) => {
     const xff = req.headers["x-forwarded-for"];
     const xRealIp = req.headers["x-real-ip"];
     const viaProxy = !!(xff || xRealIp);
-    const isLoopbackProxy = socketIp === "127.0.0.1" || socketIp === "::1" || socketIp === "::ffff:127.0.0.1";
+    const isLoopbackProxy =
+      socketIp === "127.0.0.1" || socketIp === "::1" || socketIp === "::ffff:127.0.0.1";
     // Trust forwarding headers only when the TCP peer is a local reverse proxy.
     // Direct/public sockets remain keyed by the unspoofable peer address.
     const proxyIp = xRealIp || (xff ? String(xff).split(",")[0].trim() : "");
@@ -94,17 +95,24 @@ http.createServer = (...args) => {
     const serve = () => {
       // Replay the upgraded request through the existing HTTP/1.1 handler.
       const replay = new http.IncomingMessage(socket);
-      Object.assign(replay, { method: req.method, url: req.url, headers: req.headers, complete: true });
+      Object.assign(replay, {
+        method: req.method,
+        url: req.url,
+        headers: req.headers,
+        complete: true,
+      });
       if (received) replay.push(Buffer.concat(chunks, received).subarray(0, contentLength));
       replay.push(null);
       const res = new http.ServerResponse(replay);
       res.shouldKeepAlive = false;
       res.assignSocket(socket);
       res.once("finish", () => socket.end());
-      Promise.resolve().then(() => wrapped(replay, res)).catch((error) => {
-        console.error("Failed to downgrade h2c request", error);
-        socket.destroy();
-      });
+      Promise.resolve()
+        .then(() => wrapped(replay, res))
+        .catch((error) => {
+          console.error("Failed to downgrade h2c request", error);
+          socket.destroy();
+        });
     };
     if (received >= contentLength) serve();
     else {

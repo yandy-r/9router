@@ -1,5 +1,10 @@
 import { DefaultExecutor } from "./default.js";
-import { getMimoAccountCookie, invalidateMimoAccountCookieCache, MIMO_API_BASE, MIMO_API_UA } from "../shared/mimoAccount.js";
+import {
+  getMimoAccountCookie,
+  invalidateMimoAccountCookieCache,
+  MIMO_API_BASE,
+  MIMO_API_UA,
+} from "../shared/mimoAccount.js";
 
 // Desktop-exclusive Preview models. These are served by the account service's
 // /api/route proxy, authorized by the Xiaomi account session (NOT the sk- key).
@@ -84,7 +89,10 @@ export class XiaomiMimoExecutor extends DefaultExecutor {
     // A cached session can expire early — drop it and retry once with a fresh one.
     if (result.response.status === 401) {
       invalidateMimoAccountCookieCache();
-      const fresh = await getMimoAccountCookie(credentials?.providerSpecificData, proxyOptions).catch(() => null);
+      const fresh = await getMimoAccountCookie(
+        credentials?.providerSpecificData,
+        proxyOptions,
+      ).catch(() => null);
       if (fresh) {
         credentials[COOKIE_KEY] = fresh;
         return super.execute(args);

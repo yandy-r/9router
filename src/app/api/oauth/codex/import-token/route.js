@@ -14,10 +14,7 @@ export async function POST(request) {
     const { accessToken, name } = await request.json();
 
     if (!accessToken || typeof accessToken !== "string") {
-      return NextResponse.json(
-        { error: "Access token is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Access token is required" }, { status: 400 });
     }
 
     const token = accessToken.trim();

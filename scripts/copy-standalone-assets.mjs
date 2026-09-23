@@ -2,9 +2,14 @@ import { cpSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
-export function copyStandaloneAssets({ projectRoot = process.cwd(), distDir = process.env.NEXT_DIST_DIR || ".next" } = {}) {
+export function copyStandaloneAssets({
+  projectRoot = process.cwd(),
+  distDir = process.env.NEXT_DIST_DIR || ".next",
+} = {}) {
   if (process.env.NEXT_TRACING_ROOT_MODE === "workspace") {
-    console.log("[standalone-assets] Skipping workspace-traced CLI build; CLI packaging handles assets");
+    console.log(
+      "[standalone-assets] Skipping workspace-traced CLI build; CLI packaging handles assets",
+    );
     return;
   }
 
@@ -39,6 +44,10 @@ export function copyStandaloneAssets({ projectRoot = process.cwd(), distDir = pr
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === resolve(dirname(fileURLToPath(import.meta.url)), "copy-standalone-assets.mjs")) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) ===
+    resolve(dirname(fileURLToPath(import.meta.url)), "copy-standalone-assets.mjs")
+) {
   copyStandaloneAssets();
 }

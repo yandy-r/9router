@@ -21,9 +21,7 @@ export default {
       combined: true,
       header: "Authorization",
       scheme: "bearer",
-      hooks: [
-        "kilocodeOrg",
-      ],
+      hooks: ["kilocodeOrg"],
     },
   },
   models: [

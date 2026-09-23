@@ -10,14 +10,10 @@ import { grep } from "../../open-sse/rtk/filters/grep.js";
 const WIN_PATHS = [
   "C:\\Users\\me\\project\\src\\a.js",
   "C:\\Users\\me\\project\\src\\b.js",
-  "C:\\Users\\me\\project\\src\\c.js"
+  "C:\\Users\\me\\project\\src\\c.js",
 ].join("\n");
 
-const UNIX_PATHS = [
-  "./src/a.js",
-  "./src/b.js",
-  "./src/c.js"
-].join("\n");
+const UNIX_PATHS = ["./src/a.js", "./src/b.js", "./src/c.js"].join("\n");
 
 describe("Windows find-path detection", () => {
   it("detects Windows drive-letter paths as `find`", () => {
@@ -32,7 +28,7 @@ describe("Windows find-path detection", () => {
     const input = [
       "C:\\Users\\me\\project\\src\\a.js:10:const x = 1",
       "C:\\Users\\me\\project\\src\\b.js:20:const y = 2",
-      "C:\\Users\\me\\project\\src\\c.js:30:const z = 3"
+      "C:\\Users\\me\\project\\src\\c.js:30:const z = 3",
     ].join("\n");
     // Each line is grep-shaped (file:line:content), so it routes to `grep`
     // — but a drive-letter-only dump would route to `find`. Both are

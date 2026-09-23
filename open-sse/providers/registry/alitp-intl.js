@@ -20,7 +20,8 @@ export default {
   },
   category: "apikey",
   transport: {
-    baseUrl: "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions",
+    baseUrl:
+      "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1/chat/completions",
     headers: {},
     quirks: { preserveCacheControl: true },
   },

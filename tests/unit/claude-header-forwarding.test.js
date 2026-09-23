@@ -35,23 +35,33 @@ describe("DefaultExecutor.buildHeaders() — claude provider", () => {
   it("includes heavy-agent beta flags for claude-opus-5", () => {
     const executor = new DefaultExecutor("claude");
     const headers = executor.buildHeaders({ apiKey: "sk-test" }, true, undefined, "claude-opus-5");
-    const betaFlags = headers["Anthropic-Beta"].split(",").map(s => s.trim());
+    const betaFlags = headers["Anthropic-Beta"].split(",").map((s) => s.trim());
     expect(betaFlags).toContain("advanced-tool-use-2025-11-20");
     expect(betaFlags).toContain("effort-2025-11-24");
   });
 
   it("includes heavy-agent beta flags for claude-sonnet-5", () => {
     const executor = new DefaultExecutor("claude");
-    const headers = executor.buildHeaders({ apiKey: "sk-test" }, true, undefined, "claude-sonnet-5");
-    const betaFlags = headers["Anthropic-Beta"].split(",").map(s => s.trim());
+    const headers = executor.buildHeaders(
+      { apiKey: "sk-test" },
+      true,
+      undefined,
+      "claude-sonnet-5",
+    );
+    const betaFlags = headers["Anthropic-Beta"].split(",").map((s) => s.trim());
     expect(betaFlags).toContain("advanced-tool-use-2025-11-20");
     expect(betaFlags).toContain("effort-2025-11-24");
   });
 
   it("omits heavy-agent beta flags for claude-haiku-4-5-20251001", () => {
     const executor = new DefaultExecutor("claude");
-    const headers = executor.buildHeaders({ apiKey: "sk-test" }, true, undefined, "claude-haiku-4-5-20251001");
-    const betaFlags = headers["Anthropic-Beta"].split(",").map(s => s.trim());
+    const headers = executor.buildHeaders(
+      { apiKey: "sk-test" },
+      true,
+      undefined,
+      "claude-haiku-4-5-20251001",
+    );
+    const betaFlags = headers["Anthropic-Beta"].split(",").map((s) => s.trim());
     expect(betaFlags).not.toContain("advanced-tool-use-2025-11-20");
     expect(betaFlags).not.toContain("effort-2025-11-24");
     expect(betaFlags).toContain("claude-code-20250219");
@@ -60,7 +70,7 @@ describe("DefaultExecutor.buildHeaders() — claude provider", () => {
   it("omits heavy-agent beta flags for claude-fable-5", () => {
     const executor = new DefaultExecutor("claude");
     const headers = executor.buildHeaders({ apiKey: "sk-test" }, true, undefined, "claude-fable-5");
-    const betaFlags = headers["Anthropic-Beta"].split(",").map(s => s.trim());
+    const betaFlags = headers["Anthropic-Beta"].split(",").map((s) => s.trim());
     expect(betaFlags).not.toContain("advanced-tool-use-2025-11-20");
     expect(betaFlags).not.toContain("effort-2025-11-24");
   });
@@ -115,7 +125,7 @@ describe("DefaultExecutor.buildHeaders() — anthropic-compatible stripping", ()
         apiKey: "key",
         providerSpecificData: { baseUrl: "https://myproxy.example.com/v1" },
       },
-      true
+      true,
     );
 
     expect(headers["x-app"]).toBeUndefined();
@@ -131,7 +141,7 @@ describe("DefaultExecutor.buildHeaders() — anthropic-compatible stripping", ()
         apiKey: "key",
         providerSpecificData: { baseUrl: "https://myproxy.example.com/v1" },
       },
-      true
+      true,
     );
 
     const betaVal = headers["anthropic-beta"] || headers["Anthropic-Beta"] || "";
@@ -147,7 +157,7 @@ describe("DefaultExecutor.buildHeaders() — anthropic-compatible stripping", ()
         apiKey: "key",
         providerSpecificData: { baseUrl: "https://myproxy.example.com/v1" },
       },
-      false
+      false,
     );
 
     const betaVal = headers["anthropic-beta"] || headers["Anthropic-Beta"] || "";
@@ -164,12 +174,11 @@ describe("DefaultExecutor.buildHeaders() — anthropic-compatible stripping", ()
         apiKey: "key",
         providerSpecificData: { baseUrl: "https://api.anthropic.com/v1" },
       },
-      true
+      true,
     );
 
     // No stripping — anthropic-version should survive
-    const hasVersion =
-      headers["Anthropic-Version"] || headers["anthropic-version"];
+    const hasVersion = headers["Anthropic-Version"] || headers["anthropic-version"];
     expect(hasVersion).toBeDefined();
   });
 
@@ -180,11 +189,10 @@ describe("DefaultExecutor.buildHeaders() — anthropic-compatible stripping", ()
         apiKey: "key",
         providerSpecificData: {},
       },
-      true
+      true,
     );
 
-    const hasVersion =
-      headers["Anthropic-Version"] || headers["anthropic-version"];
+    const hasVersion = headers["Anthropic-Version"] || headers["anthropic-version"];
     expect(hasVersion).toBeDefined();
   });
 
@@ -202,11 +210,12 @@ describe("DefaultExecutor.buildHeaders() — anthropic-compatible stripping", ()
       },
       true,
       undefined,
-      "claude-opus-5"
+      "claude-opus-5",
     );
 
     const betaFlags = (headers["Anthropic-Beta"] || headers["anthropic-beta"] || "")
-      .split(",").map(s => s.trim());
+      .split(",")
+      .map((s) => s.trim());
     expect(betaFlags).toContain("context-management-2025-06-27");
     // The first-party identity flag is still stripped for a non-Anthropic host.
     expect(betaFlags).not.toContain("claude-code-20250219");
@@ -221,7 +230,7 @@ describe("DefaultExecutor.buildHeaders() — anthropic-compatible stripping", ()
       },
       true,
       undefined,
-      "kimi-k3"
+      "kimi-k3",
     );
 
     const betaVal = headers["Anthropic-Beta"] || headers["anthropic-beta"] || "";

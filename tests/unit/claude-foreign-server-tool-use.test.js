@@ -8,7 +8,12 @@ const glmServerToolUse = () => ({
   role: "assistant",
   content: [
     { type: "text", text: "searching" },
-    { type: "server_tool_use", id: "call_50b82aba1b754d82a4408a53", name: "analyze_image", input: {} },
+    {
+      type: "server_tool_use",
+      id: "call_50b82aba1b754d82a4408a53",
+      name: "analyze_image",
+      input: {},
+    },
   ],
 });
 
@@ -35,13 +40,23 @@ describe("normalizeClaudePassthrough — foreign server_tool_use ids", () => {
   });
 
   it("keeps a well-formed Anthropic server_tool_use block", () => {
-    const block = { type: "server_tool_use", id: "srvtoolu_01EUi6RNgHntbStfCjgLyLzz", name: "web_search", input: {} };
+    const block = {
+      type: "server_tool_use",
+      id: "srvtoolu_01EUi6RNgHntbStfCjgLyLzz",
+      name: "web_search",
+      input: {},
+    };
     const out = normalizeClaudePassthrough({ messages: [{ role: "assistant", content: [block] }] });
     expect(out.messages[0].content).toEqual([block]);
   });
 
   it("keeps regular tool_use blocks, whatever their id looks like", () => {
-    const block = { type: "tool_use", id: "call_942248714fef4a9abb8e8eff", name: "Bash", input: { command: "ls" } };
+    const block = {
+      type: "tool_use",
+      id: "call_942248714fef4a9abb8e8eff",
+      name: "Bash",
+      input: { command: "ls" },
+    };
     const out = normalizeClaudePassthrough({ messages: [{ role: "assistant", content: [block] }] });
     expect(out.messages[0].content).toEqual([block]);
   });
@@ -50,17 +65,28 @@ describe("normalizeClaudePassthrough — foreign server_tool_use ids", () => {
     const out = normalizeClaudePassthrough({
       messages: [
         { role: "user", content: [{ type: "text", text: "hi" }] },
-        { role: "assistant", content: [{ type: "server_tool_use", id: "call_x", name: "analyze_image", input: {} }] },
+        {
+          role: "assistant",
+          content: [{ type: "server_tool_use", id: "call_x", name: "analyze_image", input: {} }],
+        },
         { role: "user", content: [{ type: "text", text: "bye" }] },
       ],
     });
     expect(out.messages).toHaveLength(2);
-    expect(out.messages.map(m => m.role)).toEqual(["user", "user"]);
+    expect(out.messages.map((m) => m.role)).toEqual(["user", "user"]);
   });
 
   it("strips empty text blocks a client put in the history (Anthropic 400s them)", () => {
     const out = normalizeClaudePassthrough({
-      messages: [{ role: "assistant", content: [{ type: "text", text: "real" }, { type: "text", text: "" }] }],
+      messages: [
+        {
+          role: "assistant",
+          content: [
+            { type: "text", text: "real" },
+            { type: "text", text: "" },
+          ],
+        },
+      ],
     });
     expect(out.messages[0].content).toEqual([{ type: "text", text: "real" }]);
   });
