@@ -3,6 +3,9 @@
 // Max bytes accepted from a remote image fetch (reject larger to prevent memory DoS).
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
 
+// Max total decoded image bytes attached to one Cursor AgentService turn.
+export const CURSOR_MAX_TOTAL_IMAGE_BYTES = 20 * 1024 * 1024; // 20MB
+
 // Fetch timeout for remote media.
 export const FETCH_TIMEOUT_MS = 10000;
 

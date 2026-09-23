@@ -10,6 +10,7 @@ import { register } from "../index.js";
 import { FORMATS } from "../formats.js";
 import { ROLE, OPENAI_BLOCK, CLAUDE_BLOCK } from "../schema/index.js";
 import { DEFAULT_MIN_TOKENS } from "../../config/runtimeConfig.js";
+import { encodeDataUri } from "../concerns/image.js";
 
 function extractContent(content) {
   if (typeof content === "string") return content;
@@ -23,6 +24,38 @@ function extractContent(content) {
       .join("");
   }
   return "";
+}
+
+// Normalize OpenAI image_url / Claude image blocks to one OpenAI image_url part.
+// Cursor AgentService carries the bytes separately (selected_context); dropping
+// them here would silently lose the image.
+function toImagePart(block) {
+  if (!block || typeof block !== "object") return null;
+  if (block.type === OPENAI_BLOCK.IMAGE_URL) {
+    const url = typeof block.image_url === "string" ? block.image_url : block.image_url?.url;
+    return url ? { type: OPENAI_BLOCK.IMAGE_URL, image_url: { url } } : null;
+  }
+  if (block.type === CLAUDE_BLOCK.IMAGE && block.source) {
+    const { source } = block;
+    if (source.type === "base64" && source.data) {
+      return { type: OPENAI_BLOCK.IMAGE_URL, image_url: { url: encodeDataUri(source.media_type, source.data) } };
+    }
+    if (source.type === "url" && source.url) {
+      return { type: OPENAI_BLOCK.IMAGE_URL, image_url: { url: source.url } };
+    }
+  }
+  return null;
+}
+
+function imagePartsOf(content) {
+  return Array.isArray(content) ? content.map(toImagePart).filter(Boolean) : [];
+}
+
+// Text-only string when there are no images (keeps the legacy shape), else an
+// OpenAI content array with the text first, then the images in order.
+function withImages(text, images) {
+  if (!images.length) return text;
+  return [...(text ? [{ type: OPENAI_BLOCK.TEXT, text }] : []), ...images];
 }
 
 function sanitizeToolResultText(text) {
@@ -51,7 +84,6 @@ function normalizeToolCallId(id) {
 
 function convertMessages(messages) {
   const result = [];
-  
   // Build a map of tool_call_id -> tool name from assistant tool calls
   const toolCallMetaMap = new Map();
   const rememberToolMeta = (toolCallId, toolName) => {
@@ -96,7 +128,7 @@ function convertMessages(messages) {
       const toolName = msg.name || toolMeta.name || "tool";
       result.push({
         role: ROLE.USER,
-        content: buildToolResultBlock(toolName, toolCallId, toolContent)
+        content: withImages(buildToolResultBlock(toolName, toolCallId, toolContent), imagePartsOf(msg.content))
       });
       continue;
     }
@@ -104,12 +136,18 @@ function convertMessages(messages) {
     if (msg.role === ROLE.USER || msg.role === ROLE.ASSISTANT) {
       if (msg.role === ROLE.USER && Array.isArray(msg.content)) {
         const parts = [];
+        const images = [];
         for (const block of msg.content) {
           if (!block || typeof block !== "object") continue;
           if (block.type === CLAUDE_BLOCK.TEXT) {
             if (typeof block.text === "string") {
               parts.push(block.text || "");
             }
+            continue;
+          }
+          const image = toImagePart(block);
+          if (image) {
+            images.push(image);
             continue;
           }
           if (block.type === CLAUDE_BLOCK.TOOL_RESULT) {
@@ -120,17 +158,20 @@ function convertMessages(messages) {
             const toolName = toolMeta?.name || "tool";
             const toolContent = extractContent(block.content);
             parts.push(buildToolResultBlock(toolName, toolCallId, toolContent));
+            images.push(...imagePartsOf(block.content));
           }
         }
         const joined = parts.filter(Boolean).join("\n");
-        if (joined) result.push({ role: ROLE.USER, content: joined });
+        if (joined || images.length) result.push({ role: ROLE.USER, content: withImages(joined, images) });
         continue;
       }
 
+      // Preserve image parts through the generic passthrough below.
+      const images = imagePartsOf(msg.content);
       const content = extractContent(msg.content);
 
       if (msg.role === ROLE.ASSISTANT && msg.tool_calls && msg.tool_calls.length > 0) {
-        const assistantMsg = { role: ROLE.ASSISTANT, content: content || "" };
+        const assistantMsg = { role: ROLE.ASSISTANT, content: withImages(content || "", images) };
         assistantMsg.tool_calls = msg.tool_calls.map(tc => {
           const { index, ...rest } = tc || {};
           return rest;
@@ -152,22 +193,22 @@ function convertMessages(messages) {
         if (extractedToolCalls.length > 0) {
           result.push({
             role: ROLE.ASSISTANT,
-            content: content || "",
+            content: withImages(content || "", images),
             tool_calls: extractedToolCalls
           });
-        } else if (content) {
-          result.push({ role: ROLE.ASSISTANT, content });
+        } else if (content || images.length) {
+          result.push({ role: ROLE.ASSISTANT, content: withImages(content, images) });
         }
-      } else {
-        if (content) {
-          result.push({ role: msg.role, content });
-        }
+      } else if (content || images.length) {
+        result.push({ role: msg.role, content: withImages(content, images) });
       }
     }
   }
 
   return result;
 }
+
+export { convertMessages };
 
 export function openaiToCursorRequest(model, body, stream, credentials) {
   const messages = convertMessages(body.messages || []);

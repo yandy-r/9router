@@ -222,8 +222,8 @@ describe("Cursor AgentService executor helpers (cursor.js)", () => {
       })).toBe(true);
     });
 
-    it("rejects non-text (image) content", () => {
-      expect(isAgentCapableRequest({ messages: [{ role: "user", content: [{ type: "image_url" }] }] })).toBe(false);
+    it("accepts image content (served via AgentService selected_context)", () => {
+      expect(isAgentCapableRequest({ messages: [{ role: "user", content: [{ type: "image_url" }] }] })).toBe(true);
     });
 
     it("rejects missing messages", () => {
@@ -246,6 +246,15 @@ describe("Cursor AgentService executor helpers (cursor.js)", () => {
       const run = decodeMessage(clientMsg.get(1)[0].value);
       expect(run.has(2)).toBe(true); // action
       expect(run.has(9)).toBe(true); // requested_model
+      // custom_system_prompt (field 8) makes AgentService return an empty turn.
+      expect(run.has(8)).toBe(false);
+      expect(run.has(3)).toBe(true); // ModelDetails — required for thinking variants
+      const action = decodeMessage(run.get(2)[0].value);
+      const userAction = decodeMessage(action.get(1)[0].value);
+      const userMessage = decodeMessage(userAction.get(1)[0].value);
+      const userText = Buffer.from(userMessage.get(1)[0].value).toString("utf8");
+      expect(userText).toContain("be brief");
+      expect(userText).toContain("hi");
     });
 
     it("encodes mcp_tools (field 4) when tools are provided", () => {

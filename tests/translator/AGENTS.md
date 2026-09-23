@@ -114,7 +114,6 @@ Grouped per CLI/provider test file. Each row is an `it.fails` case.
 | Bug | Source |
 |---|---|
 | Only the last system message kept | `request/openai-to-gemini.js:92-96` |
-| Cursor drops image content | `request/openai-to-cursor.js:12-24` |
 | Cursor `max_tokens` hardcoded to 32000 | `request/openai-to-cursor.js:179` |
 | CommandCode bad JSON args → `{}` silently | `request/openai-to-commandcode.js:53-57` |
 | CommandCode image → `[image omitted]` | `request/openai-to-commandcode.js:41-42` |

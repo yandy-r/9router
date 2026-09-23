@@ -2,19 +2,20 @@ import { BaseExecutor } from "./base.js";
 import { PROVIDERS, PROVIDER_OAUTH } from "../config/providers.js";
 import { HTTP_STATUS } from "../config/runtimeConfig.js";
 import {
-  generateCursorBody,
   encodeField,
   wrapConnectRPCFrame,
   decodeMessage,
-  parseConnectRPCFrame,
-  extractTextFromResponse
+  encodeMcpTools,
+  encodeSelectedContextImages,
+  decodeMcpArgs,
 } from "../utils/cursorProtobuf.js";
+import { resolveCursorImages, CursorImageError } from "../utils/cursorImages.js";
 import { buildCursorHeaders } from "../utils/cursorChecksum.js";
 import { estimateUsage } from "../utils/usageTracking.js";
 import { SSE_DONE, SSE_HEADERS } from "../utils/sseConstants.js";
 import { chatChunkSse, sseChunk } from "../utils/sse.js";
 import { FORMATS } from "../translator/formats.js";
-import { proxyAwareFetch } from "../utils/proxyFetch.js";
+import { ROLE, OPENAI_BLOCK } from "../translator/schema/index.js";
 import zlib from "zlib";
 import crypto from "crypto";
 
@@ -65,55 +66,82 @@ function textFromContent(content) {
   if (typeof content === "string") return content;
   if (!Array.isArray(content)) return "";
   return content
-    .filter((part) => part?.type === "text" && typeof part.text === "string")
+    .filter((part) => part?.type === OPENAI_BLOCK.TEXT && typeof part.text === "string")
     .map((part) => part.text)
     .join("\n");
 }
 
-function isAgentTextRequest(body) {
-  // Many compatible clients always attach their built-in tool schemas, even
-  // for a normal text turn. Cursor's retired ChatService rejects those
-  // requests; AgentService can still answer the text turn, so ignore schemas
-  // here. A real tool-call/result conversation is kept on the legacy path
-  // until its AgentService tool protocol is implemented.
-  return Array.isArray(body?.messages) && body.messages.every((message) => {
-    if (message?.tool_calls?.length || message?.role === "tool") return false;
-    return typeof message?.content === "string"
-      || Array.isArray(message?.content) && message.content.every((part) => part?.type === "text");
-  });
+export function isAgentCapableRequest(body) {
+  // Every supported chat shape runs on AgentService: text, declared tool
+  // schemas, tool-call history, and images (via selected_context). The retired
+  // ChatService answers "Update Required" for all shapes at api2.cursor.sh, so
+  // nothing is allowed onto the legacy path anymore.
+  return Array.isArray(body?.messages) && body.messages.length > 0;
 }
 
 function encodeHistoryMessage(message) {
   const content = textFromContent(message?.content);
-  if (!content) return null;
+  const extras = [];
+  if (message?.role === ROLE.ASSISTANT && message.tool_calls?.length) {
+    for (const tc of message.tool_calls) {
+      extras.push(`[tool_call id=${tc.id || ""} name=${tc.function?.name || "tool"} args=${tc.function?.arguments || "{}"}]`);
+    }
+  }
+  if (message?.role === ROLE.TOOL) {
+    extras.push(`[tool_result id=${message.tool_call_id || ""}]`);
+  }
+  const textBody = [content, ...extras].filter(Boolean).join("\n");
+  if (!textBody) return null;
 
   // ConversationHistoryMessage.user / .assistant -> repeated content -> text.
-  const text = agentString(1, content);
-  if (message.role === "assistant") {
+  const text = agentString(1, textBody);
+  if (message.role === ROLE.ASSISTANT) {
     return agentMessage(2, agentMessage(1, agentMessage(1, text)));
   }
   return agentMessage(1, agentMessage(1, agentMessage(1, text)));
 }
 
-function buildAgentRunFrame(messages, model) {
+export function buildAgentRunFrame(messages, model, tools = [], { images = [] } = {}) {
+  // custom_system_prompt (RunRequest field 8) makes AgentService return an
+  // empty turn. Fold system text into the current user message instead.
   const system = messages
-    .filter((message) => message?.role === "system")
+    .filter((message) => message?.role === ROLE.SYSTEM)
     .map((message) => textFromContent(message.content))
     .filter(Boolean)
     .join("\n\n");
-  const chatMessages = messages.filter((message) => message?.role !== "system");
-  const currentIndex = [...chatMessages].map((message) => message?.role).lastIndexOf("user");
+  const chatMessages = messages.filter((message) => message?.role !== ROLE.SYSTEM);
+  const currentIndex = [...chatMessages].map((message) => message?.role).lastIndexOf(ROLE.USER);
   const current = currentIndex >= 0 ? chatMessages[currentIndex] : chatMessages.at(-1);
+  // History turns before the current one, including tool_calls / tool_results
+  // as text. The agent protocol carries images only on the current turn
+  // (selected_context.selected_images), so images from earlier turns are
+  // replayed into the current turn and marked [image N=M ref] here.
   const history = chatMessages
     .slice(0, currentIndex >= 0 ? currentIndex : -1)
     .map(encodeHistoryMessage)
     .filter(Boolean);
-  const userText = textFromContent(current?.content) || "Continue.";
+  const rawUser = textFromContent(current?.content) || "Continue.";
+  const allImages = images;
+  const currentMessageIndex = messages.indexOf(current);
+  const historical = allImages.filter((image) => image.messageIndex !== currentMessageIndex);
+  const imageRefs = historical.length
+    ? `\n\n${historical.map((image, index) => {
+      const turn = messages.slice(0, image.messageIndex + 1)
+        .filter((message) => message?.role !== ROLE.SYSTEM).length;
+      return `[image ${index + 1} from prior turn ${turn}]`;
+    }).join("\n")}`
+    : "";
+  const userText = `${system ? `${system}\n\n` : ""}${rawUser}${imageRefs}`;
+  const selectedContext = encodeSelectedContextImages(allImages);
 
   // agent.v1.UserMessageAction.user_message and its optional history.
+  // selected_context (3) + mode=1 (4) match cursor-agent's wire format; without
+  // them the server may accept the RPC and stream an empty turn.
   const userMessage = concatBuffers(
     agentString(1, userText),
     agentString(2, crypto.randomUUID()),
+    agentMessage(3, selectedContext),
+    encodeField(4, PROTOBUF_VARINT, 1),
   );
   const conversationHistory = history.length
     ? concatBuffers(...history.map((entry) => agentMessage(1, entry)))
@@ -124,11 +152,20 @@ function buildAgentRunFrame(messages, model) {
   );
   const conversationAction = agentMessage(1, userAction);
   const requestedModel = concatBuffers(agentString(1, model), agentBool(7, true));
+  // ModelDetails (field 3): thinking variants (Composer, Grok, *-thinking)
+  // return an empty turn when only RequestedModel (field 9) is set.
+  const modelDetails = concatBuffers(
+    agentString(1, model),
+    agentString(3, model),
+    agentString(4, model),
+  );
+  const mcpTools = encodeMcpTools(tools);
   const runRequest = concatBuffers(
     // An empty ConversationStateStructure starts a fresh local agent session.
     agentMessage(1, new Uint8Array()),
     agentMessage(2, conversationAction),
-    ...(system ? [agentString(8, system)] : []),
+    agentMessage(3, modelDetails),
+    ...(mcpTools.length ? [agentMessage(4, mcpTools)] : []),
     agentMessage(9, requestedModel),
   );
 
@@ -141,7 +178,10 @@ function extractAgentString(message, field) {
   return value ? Buffer.from(value).toString("utf8") : "";
 }
 
-function decodeAgentFrames(buffer, onFrame) {
+// Split Connect frames. Data frames go to onFrame; the end-of-stream trailer
+// (flag 0x02) is the only channel for a terminal error when HTTP status is 200
+// (Update Required, quota, …) — hand it to onTrailer instead of dropping it.
+function decodeAgentFrames(buffer, onFrame, onTrailer) {
   let pending = Buffer.from(buffer || []);
   while (pending.length >= 5) {
     const flags = pending[0];
@@ -152,18 +192,57 @@ function decodeAgentFrames(buffer, onFrame) {
     if (flags & COMPRESS_FLAG.GZIP) {
       payload = zlib.gunzipSync(payload);
     }
-    if (!(flags & COMPRESS_FLAG.TRAILER)) onFrame(payload);
+    if (flags & COMPRESS_FLAG.TRAILER) onTrailer?.(payload);
+    else onFrame(payload);
   }
   return pending;
 }
 
-function createRequestContextResponse() {
-  // AgentService asks every run for client context. 9router has no IDE file
-  // context, so acknowledge with an empty RequestContext.
+function execIds(execRequest) {
+  const id = Number(execRequest?.get(1)?.[0]?.value || 0);
+  const execId = extractAgentString(execRequest, 15);
+  return { id, execId };
+}
+
+function wrapExecClientMessage(execMsgId, execId, resultField, resultPayload) {
+  const parts = [];
+  if (execMsgId) parts.push(encodeField(1, PROTOBUF_VARINT, execMsgId));
+  parts.push(agentString(15, execId || ""));
+  parts.push(encodeField(resultField, PROTOBUF_LEN, resultPayload || new Uint8Array()));
+  return wrapConnectRPCFrame(agentMessage(2, concatBuffers(...parts)));
+}
+
+function createRequestContextResponse(execRequest) {
+  // Tools already go out on AgentRunRequest.mcp_tools. Echoing them again on
+  // this ack makes AgentService stall silently (0 SSE bytes until abort).
+  const { id, execId } = execIds(execRequest);
   const requestContextSuccess = agentMessage(1, new Uint8Array());
   const requestContextResult = agentMessage(1, requestContextSuccess);
-  const execClientMessage = agentMessage(10, requestContextResult);
-  return wrapConnectRPCFrame(agentMessage(2, execClientMessage));
+  return wrapExecClientMessage(id, execId, 10, requestContextResult);
+}
+
+// ExecServerMessage variant → ExecClientMessage result field (same numbers).
+const EXEC_RESULT_FIELD = {
+  2: 2, 3: 3, 4: 4, 5: 5, 7: 7, 8: 8, 9: 9, 16: 16, 20: 20, 23: 23,
+};
+
+function rejectExecRequest(execRequest) {
+  const { id, execId } = execIds(execRequest);
+  const variant = [...(execRequest?.keys?.() || [])].find((field) => field !== 1 && field !== 15);
+  const resultField = EXEC_RESULT_FIELD[variant];
+  if (!resultField) return null;
+  // Diagnostics has no rejected variant — empty success unblocks the stream.
+  if (variant === 9) return wrapExecClientMessage(id, execId, 9, new Uint8Array());
+  const rejected = agentMessage(2, agentString(2, "Tool not available in this environment. Use the MCP tools provided instead."));
+  return wrapExecClientMessage(id, execId, resultField, rejected);
+}
+
+function encodeKvClientMessage(kvId, resultField, resultPayload, metadata) {
+  const parts = [];
+  if (kvId) parts.push(encodeField(1, PROTOBUF_VARINT, kvId));
+  parts.push(encodeField(resultField, PROTOBUF_LEN, resultPayload || new Uint8Array()));
+  if (metadata && metadata.length) parts.push(encodeField(4, PROTOBUF_LEN, metadata));
+  return wrapConnectRPCFrame(agentMessage(3, concatBuffers(...parts)));
 }
 
 const CURSOR_STREAM_DEBUG = process.env.CURSOR_STREAM_DEBUG === "1";
@@ -184,94 +263,41 @@ function visibleComposerContentFromThinking(thinking) {
   return thinking.slice(endIdx + endTag.length).trimStart();
 }
 
-function decompressPayload(payload, flags) {
-  // Check if payload is JSON error (starts with {"error")
-  if (payload.length > 10 && payload[0] === 0x7b && payload[1] === 0x22) {
-    try {
-      const text = payload.toString("utf-8");
-      if (text.startsWith('{"error"')) {
-        debugLog(`[DECOMPRESS] Detected JSON error, skipping decompression`);
-        return payload;
-      }
-    } catch {}
+/**
+ * Classify a Cursor Connect error envelope ({ error: { code, message, details } }).
+ * YAN-134: Cursor answers stale-client shapes with resource_exhausted +
+ * title "Update Required" — an incompatibility, not quota. It must be a
+ * request-scoped 400 so accountFallback never backoff-locks healthy accounts
+ * (its message carries no rate-limit wording, so no text rule matches either).
+ * Plain resource_exhausted stays 429 so genuine quota still rotates accounts.
+ */
+export function classifyCursorError(jsonError) {
+  const debug = jsonError?.error?.details?.[0]?.debug;
+  const title = debug?.details?.title || "";
+  const detail = debug?.details?.detail || "";
+  const message = title || detail || jsonError?.error?.message || "Cursor API error";
+  if (/update required/i.test(`${title} ${detail} ${jsonError?.error?.message || ""}`)) {
+    return {
+      status: HTTP_STATUS.BAD_REQUEST,
+      type: "invalid_request_error",
+      code: "cursor_client_update_required",
+      message: `Cursor rejected this request as coming from an outdated client: ${message}`,
+    };
   }
-
-  if (
-    flags === COMPRESS_FLAG.GZIP ||
-    flags === COMPRESS_FLAG.TRAILER ||
-    flags === COMPRESS_FLAG.GZIP_TRAILER
-  ) {
-    // Primary: try gzip decompression (standard gzip header 0x1f 0x8b)
-    try {
-      return zlib.gunzipSync(payload);
-    } catch (gzipErr) {
-      // Fallback: TRAILER and GZIP_TRAILER frames sometimes use raw zlib deflate format
-      try {
-        return zlib.inflateSync(payload);
-      } catch (deflateErr) {
-        // Last resort: try raw deflate (no zlib header)
-        try {
-          return zlib.inflateRawSync(payload);
-        } catch (rawErr) {
-          debugLog(
-            `[DECOMPRESS ERROR] flags=${flags}, payloadSize=${payload.length}, gzip=${gzipErr.message}, deflate=${deflateErr.message}, raw=${rawErr.message}`
-          );
-          debugLog(
-            `[DECOMPRESS ERROR] First 50 bytes (hex):`,
-            payload.slice(0, 50).toString("hex")
-          );
-          return payload;
-        }
-      }
-    }
+  if (jsonError?.error?.code === "resource_exhausted") {
+    return { status: HTTP_STATUS.RATE_LIMITED, type: "rate_limit_error", code: debug?.error || "resource_exhausted", message };
   }
-  return payload;
+  return { status: HTTP_STATUS.BAD_REQUEST, type: "api_error", code: debug?.error || jsonError?.error?.code || "unknown", message };
 }
 
-// Read one cursor protobuf frame: header + bounds + decompress. Returns status + payload + new offset.
-function readCursorFrame(buffer, offset, frameNum, tag) {
-  if (offset + 5 > buffer.length) {
-    debugLog(`[CURSOR BUFFER${tag}] Reached end, offset=${offset}, remaining=${buffer.length - offset}`);
-    return { status: "done" };
+// Connect end-of-stream trailer frame → JSON error, if any.
+function parseConnectTrailerError(payload) {
+  try {
+    const json = JSON.parse(Buffer.from(payload).toString("utf8"));
+    return json?.error ? json : null;
+  } catch {
+    return null;
   }
-
-  const flags = buffer[offset];
-  const length = buffer.readUInt32BE(offset + 1);
-  debugLog(`[CURSOR BUFFER${tag}] Frame ${frameNum + 1}: flags=0x${flags.toString(16).padStart(2, "0")}, length=${length}`);
-
-  if (offset + 5 + length > buffer.length) {
-    debugLog(`[CURSOR BUFFER${tag}] Incomplete frame, offset=${offset}, length=${length}, buffer.length=${buffer.length}`);
-    return { status: "done" };
-  }
-
-  let payload = buffer.slice(offset + 5, offset + 5 + length);
-  const newOffset = offset + 5 + length;
-  payload = decompressPayload(payload, flags);
-  if (!payload) {
-    debugLog(`[CURSOR BUFFER${tag}] Frame ${frameNum + 1}: decompression failed, skipping`);
-    return { status: "skip", offset: newOffset };
-  }
-  return { status: "ok", payload, offset: newOffset };
-}
-
-function createErrorResponse(jsonError) {
-  const errorMsg = jsonError?.error?.details?.[0]?.debug?.details?.title
-    || jsonError?.error?.details?.[0]?.debug?.details?.detail
-    || jsonError?.error?.message
-    || "API Error";
-  
-  const isRateLimit = jsonError?.error?.code === "resource_exhausted";
-  
-  return new Response(JSON.stringify({
-    error: {
-      message: errorMsg,
-      type: isRateLimit ? "rate_limit_error" : "api_error",
-      code: jsonError?.error?.details?.[0]?.debug?.error || "unknown"
-    }
-  }), {
-    status: isRateLimit ? HTTP_STATUS.RATE_LIMITED : HTTP_STATUS.BAD_REQUEST,
-    headers: { "Content-Type": "application/json" }
-  });
 }
 
 export class CursorExecutor extends BaseExecutor {
@@ -279,10 +305,6 @@ export class CursorExecutor extends BaseExecutor {
     super("cursor", PROVIDERS.cursor);
     // No OAuth refresh mechanism (refreshCredentials → null).
     this.supportsRefresh = false;
-  }
-
-  buildUrl() {
-    return `${this.config.baseUrl}${this.config.chatPath}`;
   }
 
   buildHeaders(credentials) {
@@ -295,92 +317,6 @@ export class CursorExecutor extends BaseExecutor {
     }
 
     return buildCursorHeaders(accessToken, machineId, ghostMode);
-  }
-
-  transformRequest(model, body, stream, credentials) {
-    // Messages are already translated by chatCore (claude→openai→cursor)
-    // Do NOT call openaiToCursorRequest again — double-translation drops tool_results
-    const messages = body.messages || [];
-    const tools = body.tools || [];
-    const reasoningEffort = body.reasoning_effort || null;
-    // Detect Claude Code UA to force Agent mode (issue #643)
-    const ua = credentials?.rawHeaders?.["user-agent"] || "";
-    const forceAgentMode = ua.includes("claude-cli") || ua.includes("claude-code") || ua.includes("Claude Code");
-    return generateCursorBody(messages, model, tools, reasoningEffort, forceAgentMode);
-  }
-
-  async makeFetchRequest(url, headers, body, signal, proxyOptions = null) {
-    const response = await proxyAwareFetch(url, {
-      method: "POST",
-      headers,
-      body,
-      signal
-    }, proxyOptions);
-
-    return {
-      status: response.status,
-      headers: Object.fromEntries(response.headers.entries()),
-      body: Buffer.from(await response.arrayBuffer())
-    };
-  }
-
-  makeHttp2Request(url, headers, body, signal) {
-    if (!http2) {
-      throw new Error("http2 module not available");
-    }
-
-    const HTTP2_TIMEOUT_MS = 60000; // 60s max — prevent hung sessions
-
-    return new Promise((resolve, reject) => {
-      const urlObj = new URL(url);
-      const client = http2.connect(`https://${urlObj.host}`);
-      const chunks = [];
-      let responseHeaders = {};
-      let settled = false;
-
-      // Ensure client is always closed on settle
-      const finish = (fn) => (...args) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(hangTimeout);
-        client.close();
-        fn(...args);
-      };
-
-      // Hard timeout: close session if server never responds
-      const hangTimeout = setTimeout(finish(() => {
-        reject(new Error("HTTP/2 request timed out"));
-      }), HTTP2_TIMEOUT_MS);
-
-      client.on("error", finish(reject));
-
-      const req = client.request({
-        ":method": "POST",
-        ":path": urlObj.pathname,
-        ":authority": urlObj.host,
-        ":scheme": "https",
-        ...headers
-      });
-
-      req.on("response", (hdrs) => { responseHeaders = hdrs; });
-      req.on("data", (chunk) => { chunks.push(chunk); });
-      req.on("end", finish(() => {
-        resolve({
-          status: responseHeaders[":status"],
-          headers: responseHeaders,
-          body: Buffer.concat(chunks)
-        });
-      }));
-      req.on("error", finish(reject));
-
-      if (signal) {
-        const onAbort = finish(() => reject(new Error("Request aborted")));
-        signal.addEventListener("abort", onAbort, { once: true });
-      }
-
-      req.write(body);
-      req.end();
-    });
   }
 
   /**
@@ -481,22 +417,29 @@ export class CursorExecutor extends BaseExecutor {
     };
   }
 
-  async executeAgent({ model, body, stream, credentials, signal }) {
+  async executeAgent({ model, body, stream, credentials, signal, log }) {
     const agentEndpoint = PROVIDER_OAUTH.cursor?.agentEndpoint;
     if (!agentEndpoint) throw new Error("Cursor AgentService endpoint is not configured");
 
     const url = `${agentEndpoint}${AGENT_RUN_PATH}`;
     const headers = this.buildHeaders(credentials);
     const requestController = new AbortController();
-    if (signal?.addEventListener) {
+    if (signal?.aborted) requestController.abort(signal.reason);
+    else if (signal?.addEventListener) {
       signal.addEventListener("abort", () => requestController.abort(signal.reason), { once: true });
     }
 
     let session;
+    const tools = body.tools || [];
     try {
+      // Resolve + validate images before opening the stream: failures are
+      // request-scoped, account-neutral errors, never silently dropped media.
+      const images = await resolveCursorImages(body.messages || [], { signal: requestController.signal });
       session = this.openAgentHttp2Stream(url, headers, requestController.signal);
-      session.write(buildAgentRunFrame(body.messages || [], model));
+      session.write(buildAgentRunFrame(body.messages || [], model, tools, { images }));
     } catch (error) {
+      try { session?.close(); } catch {}
+      if (error instanceof CursorImageError) throw error;
       throw new Error(`Cursor AgentService request failed: ${error.message}`);
     }
 
@@ -519,10 +462,17 @@ export class CursorExecutor extends BaseExecutor {
         }
       } catch {}
       session.close();
+      // Classify structured Connect errors (Update Required, quota); fall back
+      // to the raw upstream status otherwise.
+      let classified = null;
+      try { classified = JSON.parse(errorText); } catch {}
+      const detail = classified?.error ? classifyCursorError(classified) : null;
       return {
         response: new Response(JSON.stringify({
-          error: { message: `Cursor AgentService ${status}: ${errorText || "request failed"}`, type: "api_error" },
-        }), { status: status || HTTP_STATUS.SERVER_ERROR, headers: { "Content-Type": "application/json" } }),
+          error: detail
+            ? { message: detail.message, type: detail.type, code: detail.code }
+            : { message: `Cursor AgentService ${status}: ${errorText || "request failed"}`, type: "api_error" },
+        }), { status: detail?.status || status || HTTP_STATUS.SERVER_ERROR, headers: { "Content-Type": "application/json" } }),
         url,
         headers,
         transformedBody: body,
@@ -535,8 +485,23 @@ export class CursorExecutor extends BaseExecutor {
     // so strict clients such as Claude Code accept the completed stream.
     const responseId = `chatcmpl-msg_${Date.now()}`;
     const created = Math.floor(Date.now() / 1000);
+    const composerModel = isComposerModel(model);
     let pending = Buffer.alloc(0);
     let finished = false;
+    let thinkingAcc = "";
+    let emittedVisible = 0;
+    let emittedText = false;
+
+    const flushThinkingFallback = (onEvent) => {
+      if (emittedText || !thinkingAcc) return;
+      const fallback = composerModel
+        ? visibleComposerContentFromThinking(thinkingAcc)
+        : thinkingAcc.trim();
+      if (fallback) {
+        emittedText = true;
+        onEvent({ type: "text", value: fallback });
+      }
+    };
 
     const consume = async (onEvent) => {
       try {
@@ -555,40 +520,103 @@ export class CursorExecutor extends BaseExecutor {
               const update = decodeMessage(serverMessage.get(1)[0].value);
               if (update.has(1)) {
                 const textDelta = extractAgentString(decodeMessage(update.get(1)[0].value), 1);
-                if (textDelta) onEvent({ type: "text", value: textDelta });
+                if (textDelta) {
+                  emittedText = true;
+                  onEvent({ type: "text", value: textDelta });
+                }
               }
-              // Cursor's AgentService emits internal reasoning without the
-              // cryptographic signature required by Anthropic thinking blocks.
-              // Forwarding it makes strict Anthropic clients (Claude Code)
-              // discard or wait on an otherwise complete response. Keep the
-              // reasoning upstream-only and emit the normal answer text.
+              // thinking_delta (field 4). Composer (and some Grok variants) put
+              // the visible answer after </think> here and never send text_delta.
+              if (update.has(4)) {
+                const thinkingDelta = extractAgentString(decodeMessage(update.get(4)[0].value), 1);
+                if (thinkingDelta) {
+                  thinkingAcc += thinkingDelta;
+                  if (composerModel) {
+                    const visible = visibleComposerContentFromThinking(thinkingAcc);
+                    if (visible.length > emittedVisible) {
+                      const deltaContent = visible.slice(emittedVisible);
+                      emittedVisible = visible.length;
+                      emittedText = true;
+                      onEvent({ type: "text", value: deltaContent });
+                    }
+                  }
+                }
+              }
+              // Keep unsigned reasoning upstream-only for Anthropic clients.
               if (update.has(14)) {
+                flushThinkingFallback(onEvent);
                 finished = true;
                 onEvent({ type: "done" });
               }
             }
 
+            // KvServerMessage (field 4): get/set blob. Ack so the stream proceeds.
+            if (serverMessage.has(4)) {
+              const kv = decodeMessage(serverMessage.get(4)[0].value);
+              const kvId = kv.get(1)?.[0]?.value || 0;
+              const metadata = kv.get(4)?.[0]?.value || null;
+              if (kv.has(2)) {
+                session.write(encodeKvClientMessage(kvId, 2, agentMessage(1, new Uint8Array()), metadata));
+              } else if (kv.has(3)) {
+                session.write(encodeKvClientMessage(kvId, 3, new Uint8Array(), metadata));
+              }
+            }
+
             // AgentService requests IDE context before producing a response.
-            // Return an empty context; 9router is not coupled to an editor.
             if (serverMessage.has(2)) {
               const execRequest = decodeMessage(serverMessage.get(2)[0].value);
               if (execRequest.has(10)) {
-                session.write(createRequestContextResponse());
+                log?.info?.("CURSOR", "AgentService request_context ack");
+                session.write(createRequestContextResponse(execRequest));
+              } else if (execRequest.has(11)) {
+                const mcp = decodeMcpArgs(execRequest.get(11)[0].value);
+                const name = mcp.toolName || mcp.name;
+                if (name) {
+                  log?.info?.("CURSOR", `AgentService MCP tool_call ${name}`);
+                  finished = true;
+                  onEvent({
+                    type: "tool_call",
+                    value: {
+                      id: mcp.toolCallId || `call_${crypto.randomUUID()}`,
+                      name,
+                      arguments: JSON.stringify(mcp.args || {}),
+                    },
+                  });
+                  onEvent({ type: "done", finishReason: "tool_calls" });
+                } else {
+                  debugLog(`[CURSOR AGENT] Unsupported exec request fields: ${[...execRequest.keys()].join(",")}`);
+                  finished = true;
+                  onEvent({ type: "error", value: "Cursor AgentService requested an unsupported IDE tool" });
+                }
               } else {
-                // Every other ExecServerMessage variant is an editor-backed tool
-                // (shell, read, write, …) that 9router cannot service. Fail the
-                // turn rather than narrating protocol state as assistant text.
-                debugLog(`[CURSOR AGENT] Unsupported exec request fields: ${[...execRequest.keys()].join(",")}`);
-                finished = true;
-                onEvent({ type: "error", value: "Cursor AgentService requested an unsupported IDE tool" });
+                // Auto/Composer often probe IDE builtins (shell/read/…). Reject
+                // them so the model can continue with MCP tools or a text answer
+                // instead of stalling the h2 stream.
+                const rejection = rejectExecRequest(execRequest);
+                if (rejection) {
+                  log?.info?.("CURSOR", `AgentService rejected IDE exec fields=${[...execRequest.keys()].join(",")}`);
+                  session.write(rejection);
+                } else {
+                  debugLog(`[CURSOR AGENT] Unsupported exec request fields: ${[...execRequest.keys()].join(",")}`);
+                  finished = true;
+                  onEvent({ type: "error", value: "Cursor AgentService requested an unsupported IDE tool" });
+                }
               }
             }
+          }, (trailer) => {
+            const trailerError = parseConnectTrailerError(trailer);
+            if (!trailerError || finished) return;
+            finished = true;
+            onEvent({ type: "error", value: classifyCursorError(trailerError) });
           });
         }
       } finally {
         try { session.end(); } catch {}
         try { session.close(); } catch {}
-        if (!finished) onEvent({ type: "done" });
+        if (!finished) {
+          flushThinkingFallback(onEvent);
+          onEvent({ type: "done" });
+        }
       }
     };
 
@@ -596,15 +624,31 @@ export class CursorExecutor extends BaseExecutor {
       let content = "";
       let reasoning = "";
       let agentError = null;
+      const toolCalls = [];
+      let finishReason = "stop";
       await consume((event) => {
         if (event.type === "text") content += event.value;
         else if (event.type === "thinking") reasoning += event.value;
+        else if (event.type === "tool_call") {
+          toolCalls.push({
+            id: event.value.id,
+            type: "function",
+            function: { name: event.value.name, arguments: event.value.arguments },
+          });
+          finishReason = "tool_calls";
+        }
         else if (event.type === "error") agentError = event.value;
+        else if (event.type === "done" && event.finishReason) finishReason = event.finishReason;
       });
       if (agentError) {
+        // Structured upstream errors keep their classified status (Update
+        // Required → 400, quota → 429); protocol errors are request-scoped 400.
+        const detail = typeof agentError === "string"
+          ? { status: HTTP_STATUS.BAD_REQUEST, message: agentError, type: "api_error" }
+          : agentError;
         return {
-          response: new Response(JSON.stringify({ error: { message: agentError, type: "api_error" } }), {
-            status: HTTP_STATUS.BAD_REQUEST,
+          response: new Response(JSON.stringify({ error: { message: detail.message, type: detail.type, ...(detail.code ? { code: detail.code } : {}) } }), {
+            status: detail.status,
             headers: { "Content-Type": "application/json" },
           }),
           url,
@@ -613,13 +657,19 @@ export class CursorExecutor extends BaseExecutor {
           responseFormat: FORMATS.OPENAI,
         };
       }
+      const message = {
+        role: "assistant",
+        content: content || null,
+        ...(reasoning ? { reasoning_content: reasoning } : {}),
+        ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
+      };
       return {
         response: new Response(JSON.stringify({
           id: responseId,
           object: "chat.completion",
           created,
           model,
-          choices: [{ index: 0, message: { role: "assistant", content: content || null, ...(reasoning ? { reasoning_content: reasoning } : {}) }, finish_reason: "stop" }],
+          choices: [{ index: 0, message, finish_reason: finishReason }],
           usage: estimateUsage(body, content.length, FORMATS.OPENAI),
         }), { headers: { "Content-Type": "application/json" } }),
         url,
@@ -637,15 +687,33 @@ export class CursorExecutor extends BaseExecutor {
             controller.enqueue(encoder.encode(chatChunkSse({ id: responseId, created, model, delta: { content: event.value } })));
           } else if (event.type === "thinking") {
             controller.enqueue(encoder.encode(chatChunkSse({ id: responseId, created, model, delta: { reasoning_content: event.value } })));
+          } else if (event.type === "tool_call") {
+            controller.enqueue(encoder.encode(chatChunkSse({
+              id: responseId, created, model,
+              delta: {
+                tool_calls: [{
+                  index: 0,
+                  id: event.value.id,
+                  type: "function",
+                  function: { name: event.value.name, arguments: event.value.arguments },
+                }],
+              },
+            })));
           } else if (event.type === "error") {
             // An SSE error frame, not a content delta: a protocol failure must not
             // be rendered to the user as the assistant's reply, and downstream
             // usage tracking must not record the turn as a success.
-            controller.enqueue(encoder.encode(sseChunk({ error: { message: event.value, type: "api_error" } })));
+            const detail = typeof event.value === "string"
+              ? { message: event.value, type: "api_error" }
+              : { message: event.value.message, type: event.value.type, code: event.value.code };
+            controller.enqueue(encoder.encode(sseChunk({ error: detail })));
             controller.enqueue(encoder.encode(SSE_DONE));
             controller.close();
           } else if (event.type === "done") {
-            controller.enqueue(encoder.encode(chatChunkSse({ id: responseId, created, model, delta: {}, finishReason: "stop" })));
+            controller.enqueue(encoder.encode(chatChunkSse({
+              id: responseId, created, model, delta: {},
+              finishReason: event.finishReason || "stop",
+            })));
             controller.enqueue(encoder.encode(SSE_DONE));
             controller.close();
           }
@@ -666,445 +734,38 @@ export class CursorExecutor extends BaseExecutor {
   }
 
   async execute({ model, body, stream, credentials, signal, log, proxyOptions = null }) {
-    if (isAgentTextRequest(body)) {
-      try {
-        return await this.executeAgent({ model, body, stream, credentials, signal });
-      } catch (error) {
-        return {
-          response: new Response(JSON.stringify({
-            error: { message: error.message, type: "connection_error", code: "" },
-          }), { status: HTTP_STATUS.SERVER_ERROR, headers: { "Content-Type": "application/json" } }),
-          url: `${PROVIDER_OAUTH.cursor?.agentEndpoint || ""}${AGENT_RUN_PATH}`,
-          headers: {},
-          transformedBody: body,
-        };
-      }
+    const agentUrl = `${PROVIDER_OAUTH.cursor?.agentEndpoint || ""}${AGENT_RUN_PATH}`;
+    const errorResult = (status, message, type, code) => ({
+      response: new Response(JSON.stringify({ error: { message, type, code } }), {
+        status, headers: { "Content-Type": "application/json" },
+      }),
+      url: agentUrl,
+      headers: {},
+      transformedBody: body,
+    });
+
+    // ponytail: AgentService is raw HTTP/2 and has no proxy transport yet.
+    // Honour strictProxy by failing instead of silently going direct; add an
+    // h2-over-CONNECT tunnel when proxied Cursor traffic is needed.
+    if (proxyOptions?.strictProxy === true) {
+      return errorResult(HTTP_STATUS.BAD_REQUEST,
+        "Cursor AgentService is HTTP/2-only and cannot use the configured proxy (strictProxy=true)",
+        "invalid_request_error", "cursor_proxy_unsupported");
     }
-
-    const url = this.buildUrl();
-    const headers = this.buildHeaders(credentials);
-    const transformedBody = this.transformRequest(model, body, stream, credentials);
-
+    if (!isAgentCapableRequest(body)) {
+      return errorResult(HTTP_STATUS.BAD_REQUEST, "Cursor AgentService: request has no messages",
+        "invalid_request_error", "empty_request");
+    }
     try {
-      const shouldForceFetch = proxyOptions?.enabled === true || proxyOptions?.connectionProxyEnabled === true || !!proxyOptions?.vercelRelayUrl;
-      const response = (http2 && !shouldForceFetch)
-        ? await this.makeHttp2Request(url, headers, transformedBody, signal)
-        : await this.makeFetchRequest(url, headers, transformedBody, signal, proxyOptions);
-
-      if (response.status !== 200) {
-        const errorText = response.body?.toString() || "Unknown error";
-        const errorResponse = new Response(JSON.stringify({
-          error: {
-            message: `[${response.status}]: ${errorText}`,
-            type: "invalid_request_error",
-            code: ""
-          }
-        }), {
-          status: response.status,
-          headers: { "Content-Type": "application/json" }
-        });
-        return { response: errorResponse, url, headers, transformedBody: body };
-      }
-
-      const transformedResponse = stream !== false
-        ? this.transformProtobufToSSE(response.body, model, body)
-        : this.transformProtobufToJSON(response.body, model, body);
-
-      return { response: transformedResponse, url, headers, transformedBody: body };
+      return await this.executeAgent({ model, body, stream, credentials, signal, log });
     } catch (error) {
-      const errorResponse = new Response(JSON.stringify({
-        error: {
-          message: error.message,
-          type: "connection_error",
-          code: ""
-        }
-      }), {
-        status: HTTP_STATUS.SERVER_ERROR,
-        headers: { "Content-Type": "application/json" }
-      });
-      return { response: errorResponse, url, headers, transformedBody: body };
+      // Invalid images are the caller's fault — request-scoped 400, never an
+      // account-level failure that would rotate or cool down Cursor accounts.
+      if (error instanceof CursorImageError) {
+        return errorResult(HTTP_STATUS.BAD_REQUEST, error.message, "invalid_request_error", "invalid_image");
+      }
+      return errorResult(HTTP_STATUS.SERVER_ERROR, error.message, "connection_error", "");
     }
-  }
-
-  transformProtobufToJSON(buffer, model, body) {
-    const responseId = `chatcmpl-cursor-${Date.now()}`;
-    const created = Math.floor(Date.now() / 1000);
-
-    let offset = 0;
-    let totalContent = "";
-    let totalThinking = "";
-    const toolCalls = [];
-    const toolCallsMap = new Map(); // Track streaming tool calls by ID
-    const finalizedIds = new Set();
-    let frameCount = 0;
-
-    debugLog(`[CURSOR BUFFER] Total length: ${buffer.length} bytes`);
-
-    while (offset < buffer.length) {
-      const frame = readCursorFrame(buffer, offset, frameCount, "");
-      if (frame.status === "done") break;
-      offset = frame.offset;
-      frameCount++;
-      if (frame.status === "skip") continue;
-      const payload = frame.payload;
-
-      // Check for JSON error frames (byte guard: skip toString on non-JSON frames)
-      if (payload.length > 0 && payload[0] === 0x7b) {
-        try {
-          const text = payload.toString("utf-8");
-          if (text.includes('"error"')) {
-            const hasContent = totalContent || toolCallsMap.size > 0;
-            debugLog(
-              `[CURSOR BUFFER] Error frame (hasContent=${hasContent}): ${text.slice(0, 500)}`
-            );
-            if (hasContent) {
-              break;
-            }
-            return createErrorResponse(JSON.parse(text));
-          }
-        } catch {}
-      }
-
-      const result = extractTextFromResponse(new Uint8Array(payload));
-      debugLog(`[CURSOR DECODED] Frame ${frameCount}:`, result);
-
-      if (result.error) {
-        const hasContent = totalContent || toolCallsMap.size > 0;
-        debugLog(`[CURSOR BUFFER] Decoded error (hasContent=${hasContent}): ${result.error}`);
-        if (hasContent) {
-          break;
-        }
-        return new Response(
-          JSON.stringify({
-            error: {
-              message: result.error,
-              type: "rate_limit_error",
-              code: "rate_limited"
-            }
-          }),
-          {
-            status: HTTP_STATUS.RATE_LIMITED,
-            headers: { "Content-Type": "application/json" }
-          }
-        );
-      }
-
-      if (result.toolCall) {
-        const tc = result.toolCall;
-
-        if (toolCallsMap.has(tc.id)) {
-          // Accumulate arguments for existing tool call
-          const existing = toolCallsMap.get(tc.id);
-          existing.function.arguments += tc.function.arguments;
-          existing.isLast = tc.isLast;
-        } else {
-          // New tool call
-          toolCallsMap.set(tc.id, { ...tc });
-        }
-
-        // Push to final array when isLast is true
-        if (tc.isLast) {
-          const finalToolCall = toolCallsMap.get(tc.id);
-          finalizedIds.add(tc.id);
-          toolCalls.push({
-            id: finalToolCall.id,
-            type: finalToolCall.type,
-            function: {
-              name: finalToolCall.function.name,
-              arguments: finalToolCall.function.arguments
-            }
-          });
-        }
-      }
-
-      if (result.text) totalContent += result.text;
-      if (result.thinking) totalThinking += result.thinking;
-    }
-
-    const visibleComposerContent = isComposerModel(model)
-      ? visibleComposerContentFromThinking(totalThinking)
-      : "";
-    const finalContent = totalContent || visibleComposerContent;
-
-    debugLog(
-      `[CURSOR BUFFER] Parsed ${frameCount} frames, toolCallsMap size: ${toolCallsMap.size}, finalized toolCalls: ${toolCalls.length}`
-    );
-
-    // Finalize all remaining tool calls in map (in case stream ended without isLast=true)
-    for (const [id, tc] of toolCallsMap.entries()) {
-      // Check if already in final array
-      if (!finalizedIds.has(id)) {
-        debugLog(`[CURSOR BUFFER] Finalizing incomplete tool call: ${id}, isLast=${tc.isLast}`);
-        toolCalls.push({
-          id: tc.id,
-          type: tc.type,
-          function: {
-            name: tc.function.name,
-            arguments: tc.function.arguments
-          }
-        });
-      }
-    }
-
-    debugLog(`[CURSOR BUFFER] Final toolCalls count: ${toolCalls.length}`);
-
-
-    const message = {
-      role: "assistant",
-      content: finalContent || null
-    };
-
-    if (toolCalls.length > 0) {
-      message.tool_calls = toolCalls;
-    }
-
-    const usage = estimateUsage(body, finalContent.length, FORMATS.OPENAI);
-
-    const completion = {
-      id: responseId,
-      object: "chat.completion",
-      created,
-      model,
-      choices: [{
-        index: 0,
-        message,
-        finish_reason: toolCalls.length > 0 ? "tool_calls" : "stop"
-      }],
-      usage
-    };
-
-    return new Response(JSON.stringify(completion), {
-      status: 200,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-
-  transformProtobufToSSE(buffer, model, body) {
-    const responseId = `chatcmpl-cursor-${Date.now()}`;
-    const created = Math.floor(Date.now() / 1000);
-
-    const chunks = [];
-    let offset = 0;
-    let totalContent = "";
-    let totalThinking = "";
-    let emittedComposerThinkingContentLength = 0;
-    const toolCalls = [];
-    const toolCallsMap = new Map(); // Track streaming tool calls by ID
-    const finalizedIds = new Set();
-    const emittedToolCallIds = new Set();
-    let frameCount = 0;
-
-    debugLog(`[CURSOR BUFFER SSE] Total length: ${buffer.length} bytes`);
-
-    while (offset < buffer.length) {
-      const frame = readCursorFrame(buffer, offset, frameCount, " SSE");
-      if (frame.status === "done") break;
-      offset = frame.offset;
-      frameCount++;
-      if (frame.status === "skip") continue;
-      const payload = frame.payload;
-
-      // Check for JSON error frames (byte-guard: only decode if starts with '{')
-      if (payload[0] === 0x7b) {
-        try {
-          const text = payload.toString("utf-8");
-          if (text.includes('"error"')) {
-            const hasContent = chunks.length > 0 || totalContent || toolCallsMap.size > 0;
-            debugLog(
-              `[CURSOR BUFFER SSE] Error frame (hasContent=${hasContent}): ${text.slice(0, 500)}`
-            );
-            if (hasContent) {
-              break;
-            }
-            return createErrorResponse(JSON.parse(text));
-          }
-        } catch {}
-      }
-
-      const result = extractTextFromResponse(new Uint8Array(payload));
-      debugLog(`[CURSOR DECODED SSE] Frame ${frameCount}:`, result);
-
-      if (result.error) {
-        const hasContent = chunks.length > 0 || totalContent || toolCallsMap.size > 0;
-        debugLog(`[CURSOR BUFFER SSE] Decoded error (hasContent=${hasContent}): ${result.error}`);
-        if (hasContent) {
-          break;
-        }
-        return new Response(
-          JSON.stringify({
-            error: {
-              message: result.error,
-              type: "rate_limit_error",
-              code: "rate_limited"
-            }
-          }),
-          {
-            status: HTTP_STATUS.RATE_LIMITED,
-            headers: { "Content-Type": "application/json" }
-          }
-        );
-      }
-
-      if (result.toolCall) {
-        const tc = result.toolCall;
-
-        if (chunks.length === 0) {
-          chunks.push(chatChunkSse({ id: responseId, created, model, delta: { role: "assistant", content: "" } }));
-        }
-
-        if (toolCallsMap.has(tc.id)) {
-          // Accumulate arguments for existing tool call
-          const existing = toolCallsMap.get(tc.id);
-          const oldArgsLen = existing.function.arguments.length;
-          existing.function.arguments += tc.function.arguments;
-          existing.isLast = tc.isLast;
-
-          // Stream the delta arguments
-          if (tc.function.arguments) {
-            emittedToolCallIds.add(tc.id);
-            chunks.push(chatChunkSse({
-              id: responseId, created, model,
-              delta: {
-                tool_calls: [
-                  {
-                    index: existing.index,
-                    id: tc.id,
-                    type: "function",
-                    function: {
-                      name: tc.function.name,
-                      arguments: tc.function.arguments
-                    }
-                  }
-                ]
-              }
-            }));
-          }
-        } else {
-          // New tool call - assign index and add to map
-          const toolCallIndex = toolCalls.length;
-          finalizedIds.add(tc.id);
-          toolCalls.push({ ...tc, index: toolCallIndex });
-          toolCallsMap.set(tc.id, { ...tc, index: toolCallIndex });
-
-          // Stream initial tool call with name
-          emittedToolCallIds.add(tc.id);
-          chunks.push(chatChunkSse({
-            id: responseId, created, model,
-            delta: {
-              tool_calls: [
-                {
-                  index: toolCallIndex,
-                  id: tc.id,
-                  type: "function",
-                  function: {
-                    name: tc.function.name,
-                    arguments: tc.function.arguments
-                  }
-                }
-              ]
-            }
-          }));
-        }
-      }
-
-      if (result.text) {
-        totalContent += result.text;
-        chunks.push(chatChunkSse({
-          id: responseId, created, model,
-          delta:
-            chunks.length === 0 && toolCalls.length === 0
-              ? { role: "assistant", content: result.text }
-              : { content: result.text }
-        }));
-      }
-
-      if (isComposerModel(model) && result.thinking) {
-        totalThinking += result.thinking;
-        const visibleContent = visibleComposerContentFromThinking(totalThinking);
-        if (visibleContent.length > emittedComposerThinkingContentLength) {
-          const deltaContent = visibleContent.slice(emittedComposerThinkingContentLength);
-          emittedComposerThinkingContentLength = visibleContent.length;
-          totalContent += deltaContent;
-          chunks.push(chatChunkSse({
-            id: responseId, created, model,
-            delta:
-              chunks.length === 0 && toolCalls.length === 0
-                ? { role: "assistant", content: deltaContent }
-                : { content: deltaContent }
-          }));
-        }
-      }
-    }
-
-    debugLog(
-      `[CURSOR BUFFER SSE] Parsed ${frameCount} frames, toolCallsMap size: ${toolCallsMap.size}, toolCalls array: ${toolCalls.length}`
-    );
-
-    // Finalize all remaining tool calls in map (stream may have ended without isLast=true)
-    for (const [id, tc] of toolCallsMap.entries()) {
-      if (!finalizedIds.has(id)) {
-        debugLog(`[CURSOR BUFFER SSE] Finalizing incomplete tool call: ${id}, isLast=${tc.isLast}`);
-        const toolCallIndex = toolCalls.length;
-        toolCalls.push({
-          id: tc.id,
-          type: tc.type,
-          index: toolCallIndex,
-          function: {
-            name: tc.function.name,
-            arguments: tc.function.arguments
-          }
-        });
-
-        // Emit SSE chunk for the finalized tool call if not already emitted
-        if (!emittedToolCallIds.has(tc.id)) {
-          chunks.push(chatChunkSse({
-            id: responseId, created, model,
-            delta: {
-              tool_calls: [
-                {
-                  index: toolCallIndex,
-                  id: tc.id,
-                  type: "function",
-                  function: {
-                    name: tc.function.name,
-                    arguments: tc.function.arguments
-                  }
-                }
-              ]
-            }
-          }));
-        }
-      }
-    }
-
-    if (chunks.length === 0 && toolCalls.length === 0) {
-      chunks.push(chatChunkSse({ id: responseId, created, model, delta: { role: "assistant", content: "" } }));
-    }
-
-    const usage = estimateUsage(body, totalContent.length, FORMATS.OPENAI);
-
-    chunks.push(
-      `data: ${JSON.stringify({
-        id: responseId,
-        object: "chat.completion.chunk",
-        created,
-        model,
-        choices: [
-          {
-            index: 0,
-            delta: {},
-            finish_reason: toolCalls.length > 0 ? "tool_calls" : "stop"
-          }
-        ],
-        usage
-      })}\n\n`
-    );
-    chunks.push(SSE_DONE);
-
-    return new Response(chunks.join(""), {
-      status: 200,
-      headers: { ...SSE_HEADERS }
-    });
   }
 
   async refreshCredentials() {
