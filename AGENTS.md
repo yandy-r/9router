@@ -14,7 +14,7 @@ npm run build && PORT=20128 npm run start   # production
 npm run lint        # Biome via scripts/style.sh
 npm run lint:fix    # auto-fix
 npm run format      # format everything
-cd tests && npx vitest run                  # test suite (independent package)
+npm test            # vitest + known-fails regression gate (needs tests/ deps)
 ```
 
 Commits follow Conventional Commits 1.0.0 (commitlint-enforced, see `.gitmessage`).
