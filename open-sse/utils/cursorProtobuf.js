@@ -813,6 +813,12 @@ export function decodeField(buffer, offset) {
   return [fieldNum, wireType, value, pos];
 }
 
+/** UTF-8 string of the first occurrence of a field in a decodeMessage() map, or "". */
+export function decodeStringField(message, field) {
+  const value = message?.get(field)?.[0]?.value;
+  return value ? Buffer.from(value).toString("utf8") : "";
+}
+
 export function decodeMessage(data) {
   const fields = new Map();
   let pos = 0;

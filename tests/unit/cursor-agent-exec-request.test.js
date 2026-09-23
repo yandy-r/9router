@@ -171,9 +171,7 @@ describe("CursorExecutor AgentService exec_request handling", () => {
       stream: true,
     });
 
-    const body = await result.response.text();
-    expect(body).not.toContain("unsupported IDE tool");
-    const events = parseSSE(body);
+    const events = parseSSE(await result.response.text());
     const content = events.map((e) => e.choices?.[0]?.delta?.content || "").join("");
     expect(content).toBe("partial answer more");
     expect(events.some((e) => e.error)).toBe(false);
@@ -187,7 +185,7 @@ describe("CursorExecutor AgentService exec_request handling", () => {
     });
 
     const body = await result.response.text();
-    expect(body).not.toContain("unsupported IDE tool");
+    expect(parseSSE(body).some((e) => e.error)).toBe(false);
     expect(body).toContain("late");
   });
 
@@ -200,6 +198,16 @@ describe("CursorExecutor AgentService exec_request handling", () => {
     expect(result.response.status).not.toBe(200);
     const payload = await result.response.json();
     expect(payload.error.code).toBe("cursor_unsupported_exec");
+  });
+
+  it("ends a streaming turn with the same code for a malformed exec request", async () => {
+    const { result } = await runAgent({
+      frames: [execFrame(null), textFrame("dropped")],
+      stream: true,
+    });
+
+    const error = parseSSE(await result.response.text()).find((e) => e.error)?.error;
+    expect(error?.code).toBe("cursor_unsupported_exec");
   });
 
   it.each([20, 23, 17, 24])(
@@ -292,7 +300,7 @@ describe("CursorExecutor AgentService exec_request handling", () => {
 
   it("warns with the variant number for an unknown exec variant", async () => {
     const executor = new CursorExecutor();
-    stubAgentSession(executor, [execFrame(24), textFrame("ok")]);
+    const written = stubAgentSession(executor, [execFrame(24), textFrame("ok")]);
     const log = { info: vi.fn(), warn: vi.fn() };
 
     await executor.executeAgent({
@@ -304,6 +312,8 @@ describe("CursorExecutor AgentService exec_request handling", () => {
     });
 
     expect(log.warn).toHaveBeenCalledWith("CURSOR", expect.stringContaining("variant=24"));
+    // Unknown result shape → empty result, which always parses upstream.
+    expect(decodeReply(written[1]).get(24)[0].value.length).toBe(0);
   });
 
   it("folds the environment note into the run frame user text", () => {

@@ -4,8 +4,8 @@
  * AgentService is trained for the Cursor IDE and asks the client to run built-in
  * tools (shell, read, grep, …) even when the request declares MCP tools. 9router
  * has no IDE, so every built-in gets a typed rejection and the model falls back
- * to the declared MCP tools or a text answer. Unknown variants get a generic
- * error reply instead of aborting the turn.
+ * to the declared MCP tools or a text answer. Unknown variants get an empty
+ * result instead of aborting the turn.
  *
  * Field numbers come from agent.proto (can1357/oh-my-pi, mirrored by
  * enderzcx/cursor-agent2api, 2026-09).
@@ -13,6 +13,7 @@
 import {
   encodeField,
   decodeMessage,
+  decodeStringField,
   wrapConnectRPCFrame,
   concatArrays,
   encodeMcpToolDefinition,
@@ -67,10 +68,18 @@ const EXEC_REJECTIONS = {
   21: rejectAs(21, 4, 1), // record_screen → failure
   22: rejectAs(22, 2, 1), // computer_use → error
   23: rejectAs(23, 2, 1), // write_shell_stdin → error
+  27: { result: 27 }, // execute_hook (no error case)
+  28: rejectAs(28, 2, 2), // subagent → error
   29: rejectAs(29, 3, 2), // redacted_read → ReadResult.rejected
+  30: { result: 30 }, // force_background_shell (no error case)
+  31: { result: 31 }, // force_background_subagent (no error case)
+  37: rejectAs(37, 4, 2), // subagent_await → error
+  38: rejectAs(38, 2, 1), // smart_mode_classifier → error
+  40: rejectAs(40, 2, 2), // canvas_diagnostics → error
   41: { result: 41 }, // shell_allowlist_precheck
   42: { result: 42 }, // mcp_allowlist_precheck
   43: { result: 43 }, // web_fetch_allowlist_precheck
+  44: { result: 44 }, // git_diff (no error case)
   // pi_* result fields are shifted by one from their args fields.
   45: rejectAs(46, 2, 1), // pi_read → error
   46: rejectAs(47, 2, 1), // pi_bash → error
@@ -80,28 +89,27 @@ const EXEC_REJECTIONS = {
   50: rejectAs(51, 2, 1), // pi_find → error
   51: rejectAs(52, 2, 1), // pi_ls → error
   52: rejectAs(55, 4, 3), // mini_swe_agent_bash → ShellResult.rejected
+  53: rejectAs(53, 2, 1), // conversation_search → error
+  54: rejectAs(54, 2, 1), // agent_store_conflict → error
 };
 
-// Unknown variants: nearly every result has `error = 2` whose field 1 is text.
-const GENERIC_ERROR_CASE = 2;
-const GENERIC_ERROR_REASON = 1;
+const isKnownVariant = (field) =>
+  field in EXEC_REJECTIONS || Object.values(EXEC_VARIANT).includes(field);
 
-/** The tool variant of an ExecServerMessage: its first non-envelope message field. */
+/**
+ * The tool variant of an ExecServerMessage: a message field outside the
+ * envelope, preferring a known variant over a field this table doesn't know.
+ */
 export function execVariant(execRequest) {
-  for (const [field, entries] of execRequest || []) {
-    if (!EXEC_ENVELOPE_FIELDS.has(field) && entries[0]?.wireType === LEN) return field;
-  }
-  return null;
-}
-
-function readString(message, field) {
-  const value = message?.get(field)?.[0]?.value;
-  return value ? Buffer.from(value).toString("utf8") : "";
+  const candidates = [...(execRequest || [])]
+    .filter(([field, entries]) => !EXEC_ENVELOPE_FIELDS.has(field) && entries[0]?.wireType === LEN)
+    .map(([field]) => field);
+  return candidates.find(isKnownVariant) ?? candidates[0] ?? null;
 }
 
 function wrapExecClientMessage(execRequest, resultField, resultPayload) {
   const id = Number(execRequest?.get(EXEC_ID)?.[0]?.value || 0);
-  const execId = readString(execRequest, EXEC_EXEC_ID);
+  const execId = decodeStringField(execRequest, EXEC_EXEC_ID);
   const parts = [];
   if (id) parts.push(encodeField(EXEC_ID, VARINT, id));
   parts.push(encodeField(EXEC_EXEC_ID, LEN, execId));
@@ -192,9 +200,10 @@ export function buildExecReply(execRequest, { tools = [] } = {}) {
       `rejected IDE exec variant=${variant} fields=${fields}`,
     );
   }
+  // Unknown result shape: an empty result always parses and unblocks the turn.
   return reply(
     variant,
-    rejectionResult(GENERIC_ERROR_CASE, GENERIC_ERROR_REASON),
+    new Uint8Array(),
     "warn",
     `rejected unrecognized IDE exec variant=${variant} fields=${fields}`,
   );

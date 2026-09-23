@@ -5,6 +5,7 @@ import {
   encodeField,
   wrapConnectRPCFrame,
   decodeMessage,
+  decodeStringField,
   encodeMcpTools,
   encodeSelectedContextImages,
   decodeMcpArgs,
@@ -168,11 +169,6 @@ export function buildAgentRunFrame(messages, model, tools = [], { images = [] } 
 
   // agent.v1.AgentClientMessage.run_request.
   return wrapConnectRPCFrame(agentMessage(1, runRequest));
-}
-
-function extractAgentString(message, field) {
-  const value = message?.get(field)?.[0]?.value;
-  return value ? Buffer.from(value).toString("utf8") : "";
 }
 
 // Split Connect frames. Data frames go to onFrame; the end-of-stream trailer
@@ -520,7 +516,7 @@ export class CursorExecutor extends BaseExecutor {
               if (serverMessage.has(1)) {
                 const update = decodeMessage(serverMessage.get(1)[0].value);
                 if (update.has(1)) {
-                  const textDelta = extractAgentString(decodeMessage(update.get(1)[0].value), 1);
+                  const textDelta = decodeStringField(decodeMessage(update.get(1)[0].value), 1);
                   if (textDelta) {
                     emittedText = true;
                     onEvent({ type: "text", value: textDelta });
@@ -529,10 +525,7 @@ export class CursorExecutor extends BaseExecutor {
                 // thinking_delta (field 4). Composer (and some Grok variants) put
                 // the visible answer after </think> here and never send text_delta.
                 if (update.has(4)) {
-                  const thinkingDelta = extractAgentString(
-                    decodeMessage(update.get(4)[0].value),
-                    1,
-                  );
+                  const thinkingDelta = decodeStringField(decodeMessage(update.get(4)[0].value), 1);
                   if (thinkingDelta) {
                     thinkingAcc += thinkingDelta;
                     if (composerModel) {
