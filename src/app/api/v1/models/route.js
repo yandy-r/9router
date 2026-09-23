@@ -7,132 +7,8 @@ import {
 } from "@/shared/constants/providers";
 import { getProviderConnections, getCombos, getCustomModels, getModelAliases } from "@/lib/localDb";
 import { getDisabledModels } from "@/lib/disabledModelsDb";
-import { resolveKiroModels } from "open-sse/services/kiroModels.js";
-import { resolveKimchiModels } from "open-sse/services/kimchiModels.js";
-import { resolveQoderModels, routableQoderModels } from "open-sse/services/qoderModels.js";
-import { resolveCopilotModels } from "open-sse/services/copilotModels.js";
-import { resolveClinepassModels, resolveClineModels } from "open-sse/services/clinepassModels.js";
-import { resolveGrokCliModels } from "open-sse/services/grokCliModels.js";
-import { resolveCursorModels } from "open-sse/services/cursorModels.js";
-import { resolveZedModels } from "open-sse/shared/zedAuth.js";
-import { updateProviderCredentials } from "@/sse/services/tokenRefresh";
-import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
+import { hasLiveModelResolver, resolveLiveModels } from "@/lib/providerModels/liveResolvers.js";
 import { capabilitiesFromServiceKind, getCapabilitiesForModel } from "open-sse/providers/capabilities.js";
-
-// Per-provider live model resolvers. Each receives a connection record and
-// returns { models: [{ id, name? }, ...] } | null on failure.
-// Adding a provider here makes /v1/models prefer the live catalog for it.
-const LIVE_MODEL_RESOLVERS = {
-  kiro: async (conn) => {
-    const result = await resolveKiroModels({
-      accessToken: conn.accessToken,
-      refreshToken: conn.refreshToken,
-      providerSpecificData: conn.providerSpecificData || {}
-    }, { log: console });
-    return result?.models?.length ? { models: result.models } : null;
-  },
-  qoder: async (conn) => {
-    const result = await resolveQoderModels({
-      accessToken: conn.accessToken,
-      // PAT (pt-...) connections keep the token in apiKey; without it the live
-      // catalog silently fails and /v1/models falls back to the static list.
-      apiKey: conn.apiKey,
-      refreshToken: conn.refreshToken,
-      email: conn.email,
-      displayName: conn.displayName,
-      providerSpecificData: conn.providerSpecificData || {}
-    });
-    // Visible + hidden (enable:false) catalog keys — chat routes all of them.
-    const models = routableQoderModels(result);
-    if (!models.length) return null;
-    return { models: models.map((m) => ({ id: m.id, name: m.name })) };
-  },
-  kimchi: async (conn) => {
-    const result = await resolveKimchiModels({
-      accessToken: conn.accessToken,
-      apiKey: conn.apiKey,
-      providerSpecificData: conn.providerSpecificData || {}
-    }, { log: console });
-    return result?.models?.length ? { models: result.models } : null;
-  },
-  github: async (conn) => {
-    const result = await resolveCopilotModels({
-      accessToken: conn.accessToken,
-      refreshToken: conn.refreshToken,
-      providerSpecificData: conn.providerSpecificData || {}
-    }, {
-      log: console,
-      onCredentialsRefreshed: async (refreshed) => {
-        await updateProviderCredentials(conn.id, {
-          copilotToken: refreshed.copilotToken,
-          copilotTokenExpiresAt: refreshed.copilotTokenExpiresAt,
-          existingProviderSpecificData: conn.providerSpecificData || {},
-        });
-      },
-    });
-    return result?.models?.length ? { models: result.models } : null;
-  },
-  clinepass: async (conn) => {
-    const result = await resolveClinepassModels({
-      accessToken: conn.accessToken,
-      apiKey: conn.apiKey,
-    });
-    return result?.models?.length ? { models: result.models } : null;
-  },
-  cline: async (conn) => {
-    const result = await resolveClineModels({
-      accessToken: conn.accessToken,
-      apiKey: conn.apiKey,
-    });
-    return result?.models?.length ? { models: result.models } : null;
-  },
-  "grok-cli": async (conn) => {
-    const proxy = await resolveConnectionProxyConfig(conn.providerSpecificData || {});
-    const result = await resolveGrokCliModels({
-      ...conn,
-      connectionId: conn.id,
-    }, {
-      log: console,
-      proxyOptions: {
-        connectionProxyEnabled: proxy.connectionProxyEnabled === true,
-        connectionProxyUrl: proxy.connectionProxyUrl || "",
-        connectionNoProxy: proxy.connectionNoProxy || "",
-        vercelRelayUrl: proxy.vercelRelayUrl || "",
-        strictProxy: proxy.strictProxy === true,
-      },
-      onCredentialsRefreshed: async (refreshed) => {
-        await updateProviderCredentials(conn.id, {
-          ...refreshed,
-          existingProviderSpecificData: conn.providerSpecificData || {},
-        });
-      },
-    });
-    return result?.models?.length ? { models: result.models } : null;
-  },
-  cursor: async (conn) => {
-    const result = await resolveCursorModels({
-      accessToken: conn.accessToken,
-      providerSpecificData: conn.providerSpecificData || {},
-    }, { log: console });
-    return result?.models?.length ? { models: result.models } : null;
-  },
-  zed: async (conn) => {
-    const result = await resolveZedModels({
-      accessToken: conn.accessToken,
-      providerSpecificData: conn.providerSpecificData || {},
-    });
-    if (!result?.models?.length) return null;
-    return {
-      models: result.models
-        .filter((m) => !m.isDisabled)
-        .map((m) => ({
-          id: m.id,
-          name: m.name,
-          capabilities: m.supportsTools ? { tools: true } : undefined,
-        })),
-    };
-  },
-};
 
 const parseOpenAIStyleModels = (data) => {
   if (Array.isArray(data)) return data;
@@ -389,44 +265,36 @@ export async function buildModelsList(kindFilter, options = {}) {
         rawModelIds = await fetchCompatibleModelIds(conn);
       }
 
-      // Config-driven live catalog override (e.g. Kiro returns dynamic
-      // -thinking/-agentic variants per account). On failure, fall back to
-      // whatever rawModelIds already holds.
-      const liveResolver = LIVE_MODEL_RESOLVERS[providerId];
-      if (liveResolver && !hasExplicitEnabledModels) {
-        try {
-          const live = await liveResolver(conn);
-          if (live?.models?.length) {
-            rawModelIds = live.models.map((m) => m.id);
-            liveModelKindById = new Map(
-              live.models
-                .filter((m) => m?.id)
-                .map((m) => [m.id, modelKind(m)])
-            );
-            liveCapabilitiesById = new Map(
-              live.models
-                .filter((m) => m?.id && m.capabilities)
-                .map((m) => [m.id, m.capabilities])
-            );
-          }
-        } catch (err) {
-          console.log(`Live model fetch failed for ${providerId}: ${err?.message || err}`);
+      // Catalog ids may carry a provider prefix (Qoder's live ids are
+      // "qoder/<key>"); strip it so every lookup below uses the bare id.
+      const stripProviderPrefix = (modelId) => {
+        for (const prefix of [outputAlias, staticAlias, providerId]) {
+          if (modelId.startsWith(`${prefix}/`)) return modelId.slice(prefix.length + 1);
+        }
+        return modelId;
+      };
+
+      // Live catalog override (e.g. Kiro returns dynamic -thinking/-agentic
+      // variants per account). Hidden entries stay: chat routes them too. On
+      // an empty or failed fetch, keep whatever rawModelIds already holds.
+      if (hasLiveModelResolver(providerId) && !hasExplicitEnabledModels) {
+        const live = await resolveLiveModels(conn);
+        if (live.models.length) {
+          const liveModels = live.models.filter((m) => m?.id);
+          rawModelIds = liveModels.map((m) => m.id);
+          liveModelKindById = new Map(
+            liveModels.map((m) => [stripProviderPrefix(m.id), modelKind(m)])
+          );
+          liveCapabilitiesById = new Map(
+            liveModels
+              .map((m) => [stripProviderPrefix(m.id), m.capabilities || (m.supportsTools ? { tools: true } : null)])
+              .filter(([, caps]) => caps)
+          );
         }
       }
 
       const modelIds = rawModelIds
-        .map((modelId) => {
-          if (modelId.startsWith(`${outputAlias}/`)) {
-            return modelId.slice(outputAlias.length + 1);
-          }
-          if (modelId.startsWith(`${staticAlias}/`)) {
-            return modelId.slice(staticAlias.length + 1);
-          }
-          if (modelId.startsWith(`${providerId}/`)) {
-            return modelId.slice(providerId.length + 1);
-          }
-          return modelId;
-        })
+        .map(stripProviderPrefix)
         .filter((modelId) => typeof modelId === "string" && modelId.trim() !== "");
 
       const customModelKindById = new Map();
@@ -456,18 +324,7 @@ export async function buildModelsList(kindFilter, options = {}) {
             fullModel.startsWith(`${providerId}/`)
           );
         })
-        .map((fullModel) => {
-          if (fullModel.startsWith(`${outputAlias}/`)) {
-            return fullModel.slice(outputAlias.length + 1);
-          }
-          if (fullModel.startsWith(`${staticAlias}/`)) {
-            return fullModel.slice(staticAlias.length + 1);
-          }
-          if (fullModel.startsWith(`${providerId}/`)) {
-            return fullModel.slice(providerId.length + 1);
-          }
-          return fullModel;
-        })
+        .map(stripProviderPrefix)
         .filter((modelId) => typeof modelId === "string" && modelId.trim() !== "");
 
       const mergedModelIds = Array.from(new Set([...modelIds, ...customModelIds, ...aliasModelIds]));

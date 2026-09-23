@@ -93,6 +93,9 @@ export default {
 
   // ── optional flags ───────────────────────────────────────────────────────
   // features: { usage: true },
+  // features: { liveModels: true }, // live catalog from the connection's upstream /models
+  //   (GET /api/providers/{connectionId}/models) — shown on the provider page and in the
+  //   model picker, with a "Fetch Models" button to import it as custom models.
   // thinkingConfig: { options: ["auto", "none", "low", "high"], defaultMode: "auto" },
   // passthroughModels: true,
 };

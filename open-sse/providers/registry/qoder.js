@@ -55,6 +55,7 @@ export default {
   },
   features: {
     usage: true,
+    liveModels: true,
     // PAT (apikey) connections also carry quota usage (via job-token exchange).
     usageApikey: true,
   },

@@ -163,3 +163,9 @@ export const USAGE_SUPPORTED_PROVIDERS = REGISTRY
 export const USAGE_APIKEY_PROVIDERS = REGISTRY
   .filter(r => r.features?.usageApikey)
   .map(r => r.id);
+
+// Providers whose connection exposes a live upstream /models catalog
+// (GET /api/providers/{connectionId}/models) — see features.liveModels.
+export const LIVE_MODEL_PROVIDERS = REGISTRY
+  .filter(r => r.features?.liveModels)
+  .map(r => r.id);
