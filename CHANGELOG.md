@@ -1,3 +1,8 @@
+# Unreleased
+
+## Fixes
+- **Tests**: the test suite no longer writes fixture connections, `jwt-secret`, `machine-id` or MITM logs into your real `~/.9router`. Every test file now runs against its own temp data dir and home, and `verify-no-regression.mjs` works on local checkouts again.
+
 # v0.1.1 (2026-09-23)
 
 ## Fixes
