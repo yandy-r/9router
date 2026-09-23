@@ -12,6 +12,7 @@ import {
   clampResponsesCallId,
   coerceResponsesArguments,
   coerceResponsesOutput,
+  readFunctionToolStrict,
 } from "../translator/formats/responsesApi.js";
 
 const OPENCODE_UA = "opencode/1.18.31";
@@ -382,11 +383,13 @@ function normalizeResponsesTools(body) {
       ? tool.parameters
       : (fn?.parameters && typeof fn.parameters === "object" && !Array.isArray(fn.parameters) ? fn.parameters : { type: "object", properties: {} });
     if (parameters.type === "object" && !parameters.properties) parameters = { ...parameters, properties: {} };
+    const strict = readFunctionToolStrict(tool);
     for (const k of Object.keys(tool)) delete tool[k];
     tool.type = "function";
     tool.name = name.slice(0, MAX_TOOL_NAME_LEN);
     if (description) tool.description = description;
     tool.parameters = parameters;
+    if (strict !== undefined) tool.strict = strict;
     validNames.add(tool.name);
     return true;
   });

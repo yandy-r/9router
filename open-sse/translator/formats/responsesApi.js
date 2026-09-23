@@ -56,6 +56,20 @@ export function coerceResponsesArguments(value) {
   }
 }
 
+/**
+ * Read the explicit `strict` flag of a function tool declaration.
+ * Accepts both the Responses flat shape (`tool.strict`) and the Chat Completions
+ * nested shape (`tool.function.strict`); the flat value wins, matching how the
+ * Responses executors resolve name/description/parameters.
+ * @param {object} tool - function tool declaration (flat or nested)
+ * @returns {boolean|undefined} the boolean flag, or undefined when not set
+ */
+export function readFunctionToolStrict(tool) {
+  if (typeof tool?.strict === "boolean") return tool.strict;
+  const nested = tool?.function?.strict;
+  return typeof nested === "boolean" ? nested : undefined;
+}
+
 // function_call_output.output must be a string — never null/object.
 export function coerceResponsesOutput(value) {
   if (typeof value === "string") return value;

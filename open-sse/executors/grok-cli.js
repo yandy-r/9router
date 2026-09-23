@@ -5,7 +5,7 @@ import {
   refreshProviderCredentials,
   shouldRefreshCredentials,
 } from "../services/oauthCredentialManager.js";
-import { normalizeResponsesInput } from "../translator/formats/responsesApi.js";
+import { normalizeResponsesInput, readFunctionToolStrict } from "../translator/formats/responsesApi.js";
 import { getModelUpstreamId } from "../config/providerModels.js";
 import {
   GROK_CLI_CLIENT_IDENTIFIER,
@@ -297,11 +297,13 @@ function normalizeGrokCliTools(body) {
           ? fn.parameters
           : { type: "object", properties: {} };
 
+    const strict = readFunctionToolStrict(tool);
     for (const k of Object.keys(tool)) delete tool[k];
     tool.type = "function";
     tool.name = name.slice(0, 128);
     if (description) tool.description = description;
     tool.parameters = parameters;
+    if (strict !== undefined) tool.strict = strict;
     validNames.add(tool.name);
     return true;
   });

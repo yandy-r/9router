@@ -11,6 +11,7 @@ import {
   clampResponsesCallId,
   coerceResponsesArguments,
   coerceResponsesOutput,
+  readFunctionToolStrict,
 } from "../formats/responsesApi.js";
 import { ROLE, OPENAI_BLOCK, RESPONSES_ITEM } from "../schema/index.js";
 
@@ -437,7 +438,9 @@ export function openaiToOpenAIResponsesRequest(model, body, stream, credentials)
           name: name.slice(0, MAX_TOOL_NAME_LEN),
           description: String(tool.function.description || ""),
           parameters: normalizeToolParameters(tool.function.parameters),
-          strict: tool.function.strict
+          // Chat tools are non-strict unless they opt in; Responses treats an
+          // absent `strict` as strict and forces every optional field (YAN-16).
+          strict: readFunctionToolStrict(tool) ?? false
         };
       }
       return tool;
