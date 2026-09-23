@@ -1,6 +1,9 @@
-# Unreleased
+# v0.1.2 (2026-09-23)
 
 ## Fixes
+- **Claude**: subscription (OAuth) requests no longer fail with 400 "You're out of extra usage" while the plan still has headroom. 9router sent the fast-mode beta on every request. It now goes out only when a request asks for `speed: "fast"`, even if `CLAUDE_CLI_BETA_FLAGS` lists it. A fast-mode request that runs out of extra usage is retried once at standard speed, as Claude Code does. An "out of extra usage" error now moves on to the next account or combo model instead of stopping there (#3).
+- **Zed**: 9router now identifies itself as the Zed client, sending `User-Agent: Zed/<version> (<os>; <arch>)` and a current `x-zed-version`. When Zed returns no usable models, the dashboard now says why: the models' disabled reasons, the org's model-provider settings or plan, or the minimum client version. The new `ZED_CLIENT_VERSION` env var sets the version (default `1.20.2`) (#8).
+- **Zed**: a 401/403 from Zed (for example on a plan-gated model) now comes back right away. Before, 9router spent about 3s on token-refresh retries that could never succeed. Qoder, Cursor, Trae and Windsurf, which also have no token refresh, get the same fix (#12).
 - **Tests**: the test suite no longer writes fixture connections, `jwt-secret`, `machine-id` or MITM logs into your real `~/.9router`. Every test file now runs against its own temp data dir and home, and `verify-no-regression.mjs` works on local checkouts again.
 
 # v0.1.1 (2026-09-23)
