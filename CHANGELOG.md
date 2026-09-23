@@ -1,3 +1,15 @@
+# v0.1.3 (2026-09-23)
+
+## Features
+- **Models**: Claude connections now show Anthropic's live model list on the provider page, in the model picker and in `/v1/models`, so new models appear without waiting for a 9router update. A new **Fetch Models** button refreshes the list on demand and adds any missing models. It replaces the separate Qoder and Cline import buttons. Cursor, Zed, Qoder, Cline and ClinePass use the same live list. When a live list can't be loaded, the page keeps the built-in list and shows why (#21).
+- **Claude**: added Claude Opus 5.5 (`claude-opus-5-5`, 1M context, $4/$20) (#19).
+
+## Fixes
+- **Claude**: subscription (OAuth) requests no longer fail with 400 "You're out of extra usage" when Headroom compression is on. Headroom rebuilt the request's system prompt and dropped the billing header that marks it as Claude Code traffic, so Anthropic billed it to extra usage. Headroom now compresses only the conversation messages (#16, #17).
+- **Claude**: a "none" reasoning setting on models that can't turn thinking off (Opus 5.5, Fable 5.1) now sends the lowest effort, `low`. Before, it sent `thinking: disabled` or the unsupported effort `minimal`, and both failed with a 400 (#19).
+- **Claude**: loading models for a subscription (OAuth) connection no longer fails with "API key is invalid" (#18, #19).
+- **Cursor**: tool-call and image turns now go through Cursor's AgentService, and Cursor's "Update Required" response no longer puts the account on a quota cooldown (#20).
+
 # v0.1.2 (2026-09-23)
 
 ## Fixes
