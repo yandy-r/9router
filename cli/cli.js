@@ -32,6 +32,7 @@ const {
   writePidFile,
   removePidFileIfOwner,
   getCommandLine,
+  getParentPid,
   findListeningPids,
   isAlive,
   killPid,
@@ -271,9 +272,15 @@ function killProxyByPidFile() {
 }
 
 // Kill whatever LISTENS on exactly this port (never clients connected to it).
+// If the listener was spawned by another 9router launcher (e.g. one without a PID
+// file), stop that launcher first so it doesn't respawn the server into a crash loop.
 function killProcessOnPort(port) {
   const pids = findListeningPids(port).filter((pid) => pid !== process.pid);
-  pids.forEach((pid) => killPid(pid, { graceful: false }));
+  pids.forEach((pid) => {
+    const ppid = getParentPid(pid);
+    if (ppid && ppid !== process.pid && (getCommandLine(ppid) || "").includes("9router")) killPid(ppid);
+    killPid(pid, { graceful: false });
+  });
   // Wait for port to be released
   return new Promise((resolve) => setTimeout(resolve, pids.length ? 500 : 0));
 }

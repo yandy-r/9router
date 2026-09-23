@@ -66,6 +66,37 @@ function getCommandLine(pid) {
   }
 }
 
+function getParentPid(pid) {
+  if (!isPid(pid)) return null;
+  try {
+    let out;
+    if (process.platform === "linux") {
+      // /proc/<pid>/stat: "pid (comm) state ppid ..."; comm may contain spaces/parens.
+      const stat = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
+      out = stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1];
+    } else if (process.platform === "win32") {
+      out = execFileSync(
+        "powershell",
+        [
+          "-NonInteractive",
+          "-Command",
+          `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").ParentProcessId`,
+        ],
+        { encoding: "utf8", windowsHide: true, timeout: 5000 },
+      );
+    } else {
+      out = execFileSync("ps", ["-o", "ppid=", "-p", String(pid)], {
+        encoding: "utf8",
+        timeout: 5000,
+      });
+    }
+    const ppid = Number(String(out).trim());
+    return isPid(ppid) ? ppid : null;
+  } catch {
+    return null;
+  }
+}
+
 // `netstat -ano` rows: Proto  Local  Foreign  State  PID. Match the local port exactly
 // (`findstr :80` also matched :8080) and only LISTENING rows (not connected clients).
 function parseListeningPidsWindows(output, port) {
@@ -145,6 +176,7 @@ module.exports = {
   writePidFile,
   removePidFileIfOwner,
   getCommandLine,
+  getParentPid,
   parseListeningPidsWindows,
   findListeningPids,
   isAlive,
