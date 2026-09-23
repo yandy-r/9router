@@ -82,6 +82,24 @@ async function runAgent({ frames, stream, model = "gpt-5.2", tools }) {
 }
 
 describe("CursorExecutor AgentService exec_request handling", () => {
+  it("closes the h2 session when writing the run frame throws", async () => {
+    const executor = new CursorExecutor();
+    let closed = false;
+    executor.openAgentHttp2Stream = () => ({
+      responseHeaders: Promise.resolve({ ":status": 200 }),
+      write() { throw new Error("write failed"); },
+      close() { closed = true; },
+    });
+
+    await expect(executor.executeAgent({
+      model: "gpt-5.2",
+      body: { messages: [{ role: "user", content: "hi" }] },
+      stream: false,
+      credentials,
+    })).rejects.toThrow("write failed");
+    expect(closed).toBe(true);
+  });
+
   it("acknowledges a request-context exec request without ending the turn", async () => {
     const { result, written } = await runAgent({
       frames: [execRequestFrame(10), textFrame("hello")],

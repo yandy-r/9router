@@ -133,7 +133,7 @@ function convertMessages(messages) {
       continue;
     }
 
-    if (msg.role === ROLE.USER || msg.role === ROLE.ASSISTANT || msg.role === ROLE.TOOL) {
+    if (msg.role === ROLE.USER || msg.role === ROLE.ASSISTANT) {
       if (msg.role === ROLE.USER && Array.isArray(msg.content)) {
         const parts = [];
         const images = [];
@@ -167,11 +167,11 @@ function convertMessages(messages) {
       }
 
       // Preserve image parts through the generic passthrough below.
-      const images = msg.role === ROLE.ASSISTANT ? [] : imagePartsOf(msg.content);
+      const images = imagePartsOf(msg.content);
       const content = extractContent(msg.content);
 
       if (msg.role === ROLE.ASSISTANT && msg.tool_calls && msg.tool_calls.length > 0) {
-        const assistantMsg = { role: ROLE.ASSISTANT, content: content || "" };
+        const assistantMsg = { role: ROLE.ASSISTANT, content: withImages(content || "", images) };
         assistantMsg.tool_calls = msg.tool_calls.map(tc => {
           const { index, ...rest } = tc || {};
           return rest;
@@ -193,11 +193,11 @@ function convertMessages(messages) {
         if (extractedToolCalls.length > 0) {
           result.push({
             role: ROLE.ASSISTANT,
-            content: content || "",
+            content: withImages(content || "", images),
             tool_calls: extractedToolCalls
           });
-        } else if (content) {
-          result.push({ role: ROLE.ASSISTANT, content });
+        } else if (content || images.length) {
+          result.push({ role: ROLE.ASSISTANT, content: withImages(content, images) });
         }
       } else if (content || images.length) {
         result.push({ role: msg.role, content: withImages(content, images) });

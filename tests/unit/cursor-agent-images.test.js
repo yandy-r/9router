@@ -53,6 +53,7 @@ describe("image turn → AgentService frame", () => {
 
   it("replays historical images into the current turn with a marker", async () => {
     const messages = [
+      { role: "system", content: "inspect images" },
       { role: "user", content: [{ type: "text", text: "look" }, imagePart()] },
       { role: "assistant", content: "seen" },
       { role: "user", content: "and now?" },
@@ -63,15 +64,17 @@ describe("image turn → AgentService frame", () => {
     expect(Buffer.from(userMessage.get(1)[0].value).toString()).toContain("[image 1 from prior turn 1]");
   });
 
-  it("translator keeps user and tool-result images instead of dropping them", () => {
+  it("translator keeps user, assistant, and tool-result images instead of dropping them", () => {
     const out = convertMessages([
       { role: "user", content: [{ type: "text", text: "hi" }, imagePart()] },
+      { role: "assistant", content: [{ type: "text", text: "seen" }, imagePart()] },
       { role: "assistant", content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "shot", arguments: "{}" } }] },
       { role: "tool", tool_call_id: "c1", content: [{ type: "text", text: "ok" }, imagePart()] },
     ]);
     expect(out[0].content.filter((p) => p.type === "image_url")).toHaveLength(1);
-    expect(out[2].content.filter((p) => p.type === "image_url")).toHaveLength(1);
-    expect(out[2].content[0].text).toContain("<tool_result>");
+    expect(out[1].content.filter((p) => p.type === "image_url")).toHaveLength(1);
+    expect(out[3].content.filter((p) => p.type === "image_url")).toHaveLength(1);
+    expect(out[3].content[0].text).toContain("<tool_result>");
   });
 
   it.each([
@@ -105,7 +108,7 @@ describe("image turn → AgentService frame", () => {
     expect(checkFallbackError(400, error.message)).toEqual({ shouldFallback: false, cooldownMs: 0 });
   });
   it("blocks private and mapped addresses (net.BlockList SSRF guard)", () => {
-    for (const privateIp of ["127.0.0.1", "10.1.2.3", "192.168.1.1", "169.254.169.254", "::1", "fd00::1", "fe80::1", "::ffff:127.0.0.1", "::ffff:7f00:1"]) {
+    for (const privateIp of ["127.0.0.1", "10.1.2.3", "192.168.1.1", "169.254.169.254", "::1", "fd00::1", "fe80::1", "::ffff:127.0.0.1", "::ffff:7f00:1", "::ffff:0:7f00:1", "0:0:0:0:0:ffff:7f00:1", "2002:a00:1::1"]) {
       expect(isPrivateIp(privateIp), privateIp).toBe(true);
     }
     for (const publicIp of ["8.8.8.8", "1.1.1.1", "2606:4700:4700::1111"]) {

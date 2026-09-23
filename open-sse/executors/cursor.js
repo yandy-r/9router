@@ -125,7 +125,11 @@ export function buildAgentRunFrame(messages, model, tools = [], { images = [] } 
   const currentMessageIndex = messages.indexOf(current);
   const historical = allImages.filter((image) => image.messageIndex !== currentMessageIndex);
   const imageRefs = historical.length
-    ? `\n\n${historical.map((image, index) => `[image ${index + 1} from prior turn ${image.messageIndex + 1}]`).join("\n")}`
+    ? `\n\n${historical.map((image, index) => {
+      const turn = messages.slice(0, image.messageIndex + 1)
+        .filter((message) => message?.role !== ROLE.SYSTEM).length;
+      return `[image ${index + 1} from prior turn ${turn}]`;
+    }).join("\n")}`
     : "";
   const userText = `${system ? `${system}\n\n` : ""}${rawUser}${imageRefs}`;
   const selectedContext = encodeSelectedContextImages(allImages);
@@ -420,7 +424,8 @@ export class CursorExecutor extends BaseExecutor {
     const url = `${agentEndpoint}${AGENT_RUN_PATH}`;
     const headers = this.buildHeaders(credentials);
     const requestController = new AbortController();
-    if (signal?.addEventListener) {
+    if (signal?.aborted) requestController.abort(signal.reason);
+    else if (signal?.addEventListener) {
       signal.addEventListener("abort", () => requestController.abort(signal.reason), { once: true });
     }
 
@@ -433,6 +438,7 @@ export class CursorExecutor extends BaseExecutor {
       session = this.openAgentHttp2Stream(url, headers, requestController.signal);
       session.write(buildAgentRunFrame(body.messages || [], model, tools, { images }));
     } catch (error) {
+      try { session?.close(); } catch {}
       if (error instanceof CursorImageError) throw error;
       throw new Error(`Cursor AgentService request failed: ${error.message}`);
     }
