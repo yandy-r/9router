@@ -4,9 +4,11 @@
 // matches a combo name, an alias or a `provider/model` pair, so a request that
 // carries it dies at model resolution with "Invalid model format".
 //
-// The capability itself travels in the `anthropic-beta: context-1m-2025-08-07`
-// header, which is forwarded untouched — stripping the marker is enough to let
-// the request route normally and still reach the upstream as a 1M request.
+// The marker is stripped only so the model resolves. 9router rebuilds the
+// upstream `Anthropic-Beta` itself and never forwards the client's, so
+// `context-1m-2025-08-07` is not sent (on many subscription plans it bills the
+// request to extra usage);
+// current Claude models serve 1M context natively without it.
 
 const CONTEXT_MARKER = /\[1m\]$/i;
 

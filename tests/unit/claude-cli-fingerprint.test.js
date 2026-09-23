@@ -5,6 +5,7 @@
  *  - defaults match the captured Claude Code 2.1.280 request
  *  - CLAUDE_CLI_* env overrides flow into User-Agent, Stainless headers, betas, billing header
  *  - malformed env overrides fail fast at module load
+ *  - the fast-mode beta is sent only when the request opts in with speed:"fast"
  *  - x-claude-code-session-id is emitted from metadata.user_id and stripped for third-party hosts
  */
 
@@ -51,6 +52,14 @@ describe("Claude CLI fingerprint defaults", () => {
     }
   });
 
+  it("sends the fast-mode beta only for speed:\"fast\" requests, once", async () => {
+    const { CLAUDE_CLI_SPOOF_HEADERS: h, selectAnthropicBeta, ANTHROPIC_BETA_FAST_MODE } = await loadShared();
+    expect(h["Anthropic-Beta"].split(",")).not.toContain(ANTHROPIC_BETA_FAST_MODE);
+    expect(selectAnthropicBeta("claude-opus-5").split(",")).not.toContain(ANTHROPIC_BETA_FAST_MODE);
+    const flags = selectAnthropicBeta("claude-opus-5", { speed: "fast" }).split(",");
+    expect(flags.filter((f) => f === ANTHROPIC_BETA_FAST_MODE)).toHaveLength(1);
+  });
+
   it("keeps the registry entry pinned to a MacOS/arm64 host", async () => {
     const { default: claude } = await import("open-sse/providers/registry/claude.js");
     expect(claude.transport.headers["X-Stainless-Os"]).toBe("MacOS");
@@ -82,6 +91,12 @@ describe("Claude CLI fingerprint env overrides", () => {
     expect(selectAnthropicBeta("claude-opus-5")).toBe(
       "claude-code-20250219,oauth-2025-04-20,advanced-tool-use-2025-11-20,effort-2025-11-24",
     );
+  });
+
+  it("does not duplicate a fast-mode flag already in CLAUDE_CLI_BETA_FLAGS", async () => {
+    process.env.CLAUDE_CLI_BETA_FLAGS = "claude-code-20250219,fast-mode-2026-02-01";
+    const { selectAnthropicBeta } = await loadShared();
+    expect(selectAnthropicBeta("claude-haiku-4-5-20251001", { speed: "fast" })).toBe("claude-code-20250219,fast-mode-2026-02-01");
   });
 
   it.each([

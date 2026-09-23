@@ -41,6 +41,10 @@ export const TRANSIENT_COOLDOWN_MS = 30 * 1000;
 // Hard cap for provider-reported rate limit cooldown (e.g. codex resets_at can be 5-6h)
 export const MAX_RATE_LIMIT_COOLDOWN_MS = 30 * 60 * 1000;
 
+// Anthropic subscription 400 when a feature billed only to extra usage (e.g. fast
+// mode) finds no credits left. No leading "You're" so either apostrophe matches.
+export const EXTRA_USAGE_EXHAUSTED_TEXT = "out of extra usage";
+
 // Cooldown durations (ms)
 const COOLDOWN = {
   long: 2 * 60 * 1000,
@@ -64,6 +68,9 @@ export const ERROR_RULES = [
   { text: "rate limit",               backoff: true },
   { text: "too many requests",        backoff: true },
   { text: "quota exceeded",           backoff: true },
+  // Account-scoped, not request-scoped: rotate away. Fixed cooldown, since extra
+  // usage doesn't refill in seconds like a rate limit.
+  { text: EXTRA_USAGE_EXHAUSTED_TEXT, cooldownMs: COOLDOWN.long },
   { text: "capacity",                 backoff: true },
   { text: "overloaded",               backoff: true },
 

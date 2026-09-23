@@ -1,6 +1,8 @@
 import { BaseExecutor } from "./base.js";
 import { PROVIDERS, PROVIDER_OAUTH } from "../config/providers.js";
-import { ANTHROPIC_API_VERSION, OPENAI_COMPAT_BASE, ANTHROPIC_COMPAT_BASE, selectAnthropicBeta } from "../providers/shared.js";
+import { ANTHROPIC_API_VERSION, OPENAI_COMPAT_BASE, ANTHROPIC_COMPAT_BASE, selectAnthropicBeta, isFastModeRequest } from "../providers/shared.js";
+import { HTTP_STATUS } from "../config/runtimeConfig.js";
+import { EXTRA_USAGE_EXHAUSTED_TEXT } from "../config/errorConfig.js";
 import { resolveOpenAICompatibleApiType } from "../services/provider.js";
 import { OAUTH_ENDPOINTS, buildKimiHeaders } from "../config/appConstants.js";
 import { buildClineHeaders } from "../shared/clineAuth.js";
@@ -66,6 +68,20 @@ const REFRESH_GRANTS = Object.fromEntries(
 export class DefaultExecutor extends BaseExecutor {
   constructor(provider) {
     super(provider, PROVIDERS[provider] || PROVIDERS.openai);
+  }
+
+  // Fast mode is billed only to extra usage, even with plan usage left. When
+  // that runs out, retry once at standard speed like Claude Code does; dropping
+  // `speed` also drops the fast-mode beta (selectAnthropicBeta).
+  async execute(args) {
+    const result = await super.execute(args);
+    if (!isFastModeRequest(args.body) || result.response.status !== HTTP_STATUS.BAD_REQUEST) return result;
+    // Read a clone so the original response stays readable for the caller.
+    const text = await result.response.clone().text().catch(() => "");
+    if (!text.toLowerCase().includes(EXTRA_USAGE_EXHAUSTED_TEXT)) return result;
+    args.log?.warn?.("FAST_MODE", "out of extra usage — retrying at standard speed");
+    const { speed, ...standardBody } = args.body;
+    return super.execute({ ...args, body: standardBody });
   }
 
   transformRequest(model, body) {
