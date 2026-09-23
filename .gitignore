@@ -36,6 +36,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+# dotenvx: commit the encrypted env, never the private decryption keys
+!.env.encrypted
+.env.keys
 
 # vercel
 .vercel
