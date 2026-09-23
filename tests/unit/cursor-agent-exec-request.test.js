@@ -1,15 +1,47 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
-import { CursorExecutor } from "../../open-sse/executors/cursor.js";
-import { encodeField, wrapConnectRPCFrame } from "../../open-sse/utils/cursorProtobuf.js";
+import { buildAgentRunFrame, CursorExecutor } from "../../open-sse/executors/cursor.js";
+import { AGENT_ENVIRONMENT_NOTE } from "../../open-sse/utils/cursorAgentExec.js";
+import {
+  decodeMessage,
+  encodeField,
+  wrapConnectRPCFrame,
+} from "../../open-sse/utils/cursorProtobuf.js";
 
+const VARINT = 0;
 const LEN = 2;
 
-// agent.v1.AgentServerMessage.exec_request (field 2) carrying one ExecServerMessage variant.
-function execRequestFrame(execField) {
-  const execServerMessage = Buffer.from(encodeField(execField, LEN, new Uint8Array()));
+// agent.v1.AgentServerMessage.exec_request (field 2) carrying an ExecServerMessage in
+// the server's ascending field order: 1 id, <variant>, 15 exec_id, 19 span_context,
+// 55 accept_hook_additional_contexts. `variantField: null` sends the envelope only.
+function execFrame(
+  variantField,
+  { id = 7, execId = "exec-1", envelope = true, args = new Uint8Array() } = {},
+) {
+  const fields = [];
+  if (variantField != null) fields.push([variantField, encodeField(variantField, LEN, args)]);
+  if (envelope) {
+    fields.push(
+      [1, encodeField(1, VARINT, id)],
+      [15, encodeField(15, LEN, execId)],
+      [19, encodeField(19, LEN, encodeField(1, LEN, "trace"))],
+      [55, encodeField(55, VARINT, 1)],
+    );
+  }
+  fields.sort((a, b) => a[0] - b[0]);
+  const execServerMessage = Buffer.concat(fields.map(([, bytes]) => Buffer.from(bytes)));
   return Buffer.from(wrapConnectRPCFrame(encodeField(2, LEN, execServerMessage)));
 }
+
+// Written AgentClientMessage frame → decoded ExecClientMessage (field 2).
+function decodeReply(frame) {
+  const clientMessage = decodeMessage(frame.subarray(5));
+  return decodeMessage(clientMessage.get(2)[0].value);
+}
+
+const sub = (fields, field) => decodeMessage(fields.get(field)[0].value);
+const str = (fields, field) => Buffer.from(fields.get(field)[0].value).toString("utf8");
+const contentOf = (events) => events.map((e) => e.choices?.[0]?.delta?.content || "").join("");
 
 // agent.v1.AgentServerMessage.interaction_update (field 1) → text delta.
 function textFrame(text) {
@@ -108,7 +140,7 @@ describe("CursorExecutor AgentService exec_request handling", () => {
 
   it("acknowledges a request-context exec request without ending the turn", async () => {
     const { result, written } = await runAgent({
-      frames: [execRequestFrame(10), textFrame("hello")],
+      frames: [execFrame(10, { envelope: false }), textFrame("hello")],
       stream: true,
     });
 
@@ -121,7 +153,7 @@ describe("CursorExecutor AgentService exec_request handling", () => {
   it("does not echo client tools on the request_context ack", async () => {
     const { written, result } = await runAgent({
       tools: [{ function: { name: "read_file", parameters: { type: "object" } } }],
-      frames: [execRequestFrame(10), textFrame("hello")],
+      frames: [execFrame(10, { envelope: false }), textFrame("hello")],
       stream: true,
     });
 
@@ -135,7 +167,7 @@ describe("CursorExecutor AgentService exec_request handling", () => {
 
   it("does not render an unsupported exec request as assistant content", async () => {
     const { result, written } = await runAgent({
-      frames: [textFrame("partial answer"), execRequestFrame(2), textFrame(" more")],
+      frames: [textFrame("partial answer"), execFrame(2, { envelope: false }), textFrame(" more")],
       stream: true,
     });
 
@@ -150,7 +182,7 @@ describe("CursorExecutor AgentService exec_request handling", () => {
 
   it("still emits later text after rejecting an IDE exec in the same read", async () => {
     const { result } = await runAgent({
-      frames: [Buffer.concat([execRequestFrame(2), textFrame("late")])],
+      frames: [Buffer.concat([execFrame(2, { envelope: false }), textFrame("late")])],
       stream: true,
     });
 
@@ -159,15 +191,131 @@ describe("CursorExecutor AgentService exec_request handling", () => {
     expect(body).toContain("late");
   });
 
-  it("returns a non-200 error body for an unsupported exec request when not streaming", async () => {
+  it("fails a malformed exec request that carries no variant with a stable code", async () => {
     const { result } = await runAgent({
-      frames: [execRequestFrame(11)],
+      frames: [execFrame(null)],
       stream: false,
     });
 
     expect(result.response.status).not.toBe(200);
     const payload = await result.response.json();
-    expect(payload.error.message).toContain("unsupported IDE tool");
+    expect(payload.error.code).toBe("cursor_unsupported_exec");
+  });
+
+  it.each([20, 23, 17, 24])(
+    "answers exec variant %i and keeps streaming the turn",
+    async (variant) => {
+      const { result, written } = await runAgent({
+        frames: [textFrame("a"), execFrame(variant), textFrame("b")],
+        stream: true,
+      });
+
+      const events = parseSSE(await result.response.text());
+      expect(events.some((e) => e.error)).toBe(false);
+      expect(contentOf(events)).toBe("ab");
+      expect(written.length).toBe(2);
+      const reply = decodeReply(written[1]);
+      expect(reply.get(1)[0].value).toBe(7);
+      expect(str(reply, 15)).toBe("exec-1");
+      expect(reply.has(variant)).toBe(true);
+    },
+  );
+
+  it.each([20, 24])("answers exec variant %i when not streaming", async (variant) => {
+    const { result, written } = await runAgent({
+      frames: [textFrame("a"), execFrame(variant), textFrame("b")],
+      stream: false,
+    });
+
+    expect(result.response.status).toBe(200);
+    const payload = await result.response.json();
+    expect(payload.choices[0].message.content).toBe("ab");
+    expect(written.length).toBe(2);
+  });
+
+  it.each([
+    // [args field, result field, oneof case, reason field]
+    ["grep", 5, 5, 2, 1],
+    ["read", 7, 7, 3, 2],
+    ["shell", 2, 2, 4, 3],
+  ])(
+    "sends the proto-exact %s rejection with a reason",
+    async (_name, variant, resultField, caseField, reasonField) => {
+      const { written } = await runAgent({ frames: [execFrame(variant)], stream: true });
+
+      const reply = decodeReply(written[1]);
+      const payload = sub(sub(reply, resultField), caseField);
+      expect(str(payload, reasonField).length).toBeGreaterThan(0);
+    },
+  );
+
+  it("maps pi_read (45) onto result field 46", async () => {
+    const { written } = await runAgent({ frames: [execFrame(45)], stream: true });
+
+    const reply = decodeReply(written[1]);
+    expect(reply.has(46)).toBe(true);
+    expect(reply.has(45)).toBe(false);
+  });
+
+  it("answers mcp_state (36) with the declared tools and keeps streaming", async () => {
+    const { result, written } = await runAgent({
+      tools: [
+        {
+          type: "function",
+          function: { name: "read_file", description: "Read", parameters: { type: "object" } },
+        },
+      ],
+      frames: [execFrame(36, { args: encodeField(1, LEN, "9router") }), textFrame("later")],
+      stream: true,
+    });
+
+    expect(contentOf(parseSSE(await result.response.text()))).toBe("later");
+    const server = sub(sub(sub(decodeReply(written[1]), 36), 1), 1);
+    expect(str(server, 2)).toBe("9router");
+    expect(server.has(5)).toBe(true);
+    expect(str(sub(server, 5), 1)).toBe("read_file");
+  });
+
+  it("answers an MCP exec without a tool name and keeps streaming", async () => {
+    const { result, written } = await runAgent({
+      frames: [execFrame(11), textFrame("ok")],
+      stream: true,
+    });
+
+    const events = parseSSE(await result.response.text());
+    expect(events.some((e) => e.error)).toBe(false);
+    expect(contentOf(events)).toBe("ok");
+    expect(written.length).toBe(2);
+    // McpResult.error (2) → McpError.error (1).
+    expect(str(sub(sub(decodeReply(written[1]), 11), 2), 1)).toContain("missing a tool name");
+  });
+
+  it("warns with the variant number for an unknown exec variant", async () => {
+    const executor = new CursorExecutor();
+    stubAgentSession(executor, [execFrame(24), textFrame("ok")]);
+    const log = { info: vi.fn(), warn: vi.fn() };
+
+    await executor.executeAgent({
+      model: "gpt-5.2",
+      body: { messages: [{ role: "user", content: "hi" }] },
+      stream: false,
+      credentials,
+      log,
+    });
+
+    expect(log.warn).toHaveBeenCalledWith("CURSOR", expect.stringContaining("variant=24"));
+  });
+
+  it("folds the environment note into the run frame user text", () => {
+    const frame = buildAgentRunFrame(
+      [
+        { role: "system", content: "be brief" },
+        { role: "user", content: "hi" },
+      ],
+      "gpt-5.2",
+    );
+
+    expect(Buffer.from(frame).toString("utf8")).toContain(AGENT_ENVIRONMENT_NOTE);
   });
 
   it("streams Composer visible content from thinking_delta after </think>", async () => {
