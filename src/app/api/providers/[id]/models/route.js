@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getProviderConnectionById } from "@/models";
 import { isOpenAICompatibleProvider, isAnthropicCompatibleProvider } from "@/shared/constants/providers";
 import { GEMINI_CONFIG, ZED_HOSTED_CONFIG } from "@/lib/oauth/constants/oauth";
-import { refreshGoogleToken, refreshCodexToken, updateProviderCredentials } from "@/sse/services/tokenRefresh";
+import { refreshGoogleToken, refreshCodexToken, refreshClaudeOAuthToken, updateProviderCredentials } from "@/sse/services/tokenRefresh";
+import { ANTHROPIC_API_VERSION } from "open-sse/providers/shared.js";
 import { resolveOllamaLocalHost } from "open-sse/config/providers.js";
 import { getModelsByProviderId } from "open-sse/config/providerModels.js";
 import { resolveKiroModels } from "open-sse/services/kiroModels.js";
@@ -128,17 +129,41 @@ const buildOAuthResolver = ({ refreshFn, fetchFn, parseFn, errorLabel }) => asyn
   return { models: [], warning };
 };
 
+// The default page is 20 models; ask for the maximum so none are cut off.
+const ANTHROPIC_MODELS_URL = "https://api.anthropic.com/v1/models?limit=1000";
+const ANTHROPIC_OAUTH_BETA = "oauth-2025-04-20";
+
+const parseAnthropicModels = (data) => data?.data || [];
+
+const fetchAnthropicModels = (authHeaders) => fetch(ANTHROPIC_MODELS_URL, {
+  method: "GET",
+  headers: { "Anthropic-Version": ANTHROPIC_API_VERSION, "Content-Type": "application/json", ...authHeaders },
+});
+
+// Subscription (OAuth) tokens are rejected as `x-api-key`; Anthropic accepts them
+// only as a Bearer token with the OAuth beta.
+const resolveClaudeOAuthModels = buildOAuthResolver({
+  refreshFn: (conn) => refreshClaudeOAuthToken(conn.refreshToken),
+  fetchFn: (token) => fetchAnthropicModels({ "Authorization": `Bearer ${token}`, "Anthropic-Beta": ANTHROPIC_OAUTH_BETA }),
+  parseFn: parseAnthropicModels,
+  errorLabel: "Failed to fetch Claude models",
+});
+
+async function resolveClaudeModels(connection) {
+  if (connection.accessToken) return resolveClaudeOAuthModels(connection);
+  if (!connection.apiKey) return { error: "No valid token found", status: 401 };
+  const response = await fetchAnthropicModels({ "x-api-key": connection.apiKey });
+  if (!response.ok) {
+    console.log("Error fetching models from claude:", await response.text());
+    return { error: `Failed to fetch models: ${response.status}`, status: response.status };
+  }
+  return { models: parseAnthropicModels(await response.json()) };
+}
+
 // Provider models endpoints configuration
 const PROVIDER_MODELS_CONFIG = {
   claude: {
-    url: "https://api.anthropic.com/v1/models",
-    method: "GET",
-    headers: {
-      "Anthropic-Version": "2023-06-01",
-      "Content-Type": "application/json"
-    },
-    authHeader: "x-api-key",
-    parseResponse: (data) => data.data || []
+    customResolver: resolveClaudeModels,
   },
   gemini: {
     url: "https://generativelanguage.googleapis.com/v1beta/models",
