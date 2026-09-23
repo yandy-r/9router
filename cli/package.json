@@ -10,9 +10,9 @@
     "dev": "nodemon -I --watch cli.js --watch src --watch hooks --ext js,json cli.js",
     "build": "node scripts/build-cli.js",
     "pack:cli": "npm run build && npm pack --pack-destination ..",
-    "publish:cli": "npm run build && npm publish",
+    "publish:cli": "npm publish",
     "postinstall": "node hooks/postinstall.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build && node ../scripts/write-oauth-clients.cjs --check app"
   },
   "dependencies": {
     "enquirer": "^2.4.1",

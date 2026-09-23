@@ -113,10 +113,15 @@ live model list can silently miss new models. Bump this with your Codex CLI
 | `CODEX_CLI_VERSION` | `0.155.1` | `User-Agent: codex_cli_rs/<v>` and `client_version` on the model catalog |
 
 **Google OAuth clients** — required only for OAuth login and token refresh on these
-providers. Both are installed-application clients that ship inside the product itself.
+providers. Official Docker images and the npm package ship these built in, so login
+just works. Set the env vars only to override the built-in pair, or when running from
+source (`npm run build`/`npm start`, a local `docker build`). Both are
+installed-application clients that ship inside the product itself.
 [Google does not treat that client secret as a secret](https://developers.google.com/identity/protocols/oauth2#installed);
-this repo still does not commit the values. Put them in `.env`. Without them, login
-fails with an error naming the missing variables.
+this repo still does not commit the values. Put them in `.env`. Override is per pair:
+setting either var of a pair drops the built-in pair for that provider, so set both.
+Without a value from either source, login fails with an error naming the missing
+variables.
 
 | Variables                                                        | Providers              |
 | ---------------------------------------------------------------- | ---------------------- |
@@ -170,6 +175,15 @@ The workflow can also be run manually (**Actions → Docker Image → Run workfl
 build any branch; it only pushes when the `push` input is checked, and never tags
 `:latest`.
 
+**Maintainer note.** The image and the npm CLI package embed the 4 Google OAuth
+client vars above. Docker reads them from GitHub Actions repository secrets of the
+same names (`GEMINI_OAUTH_CLIENT_ID`, `GEMINI_OAUTH_CLIENT_SECRET`,
+`ANTIGRAVITY_OAUTH_CLIENT_ID`, `ANTIGRAVITY_OAUTH_CLIENT_SECRET`) at build time. The
+npm package is published with `npx dotenvx run -f .env.encrypted -- npm run
+cli:publish`, which fails the publish if those defaults are missing. Both artifacts
+are public; the values aren't confidential per Google's installed-app model above,
+but secret scanners may flag the `GOCSPX-` string in them — accepted.
+
 ## Development
 
 ```bash
@@ -181,6 +195,8 @@ PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev
 Production build: `npm run build && PORT=20128 HOSTNAME=0.0.0.0 npm run start`.
 Local image: `docker build -t 9router-local .` (pass `--build-arg APK_MIRROR=dl-cdn.alpinelinux.org
 --build-arg NPM_REGISTRY=https://registry.npmjs.org` to skip the default CN mirrors).
+To bake the Google OAuth clients into a local image, pass them as BuildKit secrets
+(see [DOCKER.md](DOCKER.md)).
 
 Tests live in `tests/` as a separate package:
 

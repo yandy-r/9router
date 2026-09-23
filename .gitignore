@@ -38,6 +38,8 @@ yarn-error.log*
 !.env.example
 # dotenvx: commit the encrypted env, never the private decryption keys
 !.env.encrypted
+# built-in OAuth defaults, generated at build time by scripts/write-oauth-clients.cjs
+/oauth-clients.json
 .env.keys
 
 # vercel

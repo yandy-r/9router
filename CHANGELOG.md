@@ -1,3 +1,8 @@
+# Unreleased
+
+## Features
+- **Google OAuth**: official Docker images and the npm CLI package now embed public Google "installed app" OAuth clients, so gemini, gemini-cli and antigravity OAuth login and token refresh work with no env vars set. Set `GEMINI_OAUTH_CLIENT_ID`/`_SECRET` or `ANTIGRAVITY_OAUTH_CLIENT_ID`/`_SECRET` (both of a pair) to override, or when running from source (#6, #7).
+
 # v0.1.4 (2026-09-23)
 
 ## Fixes

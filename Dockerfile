@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.10
 ARG NODE_IMAGE=node:22-alpine
 FROM ${NODE_IMAGE} AS base
 WORKDIR /app
@@ -18,6 +18,20 @@ RUN npm install --registry=${NPM_REGISTRY}
 COPY . ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
+# Public Google "installed app" OAuth clients, embedded for published images only
+# (docker-publish.yml passes them as BuildKit secrets; not in ARG/ENV or image history).
+# Without the secrets this is a no-op and the image behaves as before.
+# REQUIRE_OAUTH_DEFAULTS=1 (publish only) fails the build if they're missing, and keeps
+# publish off PR-build cache layers, whose keys don't include secret values.
+ARG REQUIRE_OAUTH_DEFAULTS=
+RUN --mount=type=secret,id=GEMINI_OAUTH_CLIENT_ID,env=GEMINI_OAUTH_CLIENT_ID \
+    --mount=type=secret,id=GEMINI_OAUTH_CLIENT_SECRET,env=GEMINI_OAUTH_CLIENT_SECRET \
+    --mount=type=secret,id=ANTIGRAVITY_OAUTH_CLIENT_ID,env=ANTIGRAVITY_OAUTH_CLIENT_ID \
+    --mount=type=secret,id=ANTIGRAVITY_OAUTH_CLIENT_SECRET,env=ANTIGRAVITY_OAUTH_CLIENT_SECRET \
+    node scripts/write-oauth-clients.cjs .next/standalone && \
+    if [ -n "$REQUIRE_OAUTH_DEFAULTS" ]; then \
+      node scripts/write-oauth-clients.cjs --check .next/standalone; \
+    fi
 
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
