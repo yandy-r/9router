@@ -22,7 +22,7 @@
     "dev:docker:down": "docker compose -f compose.dev.yml down",
     "cli:pack": "npm --prefix cli run pack:cli",
     "cli:publish": "npm --prefix cli run publish:cli",
-    "test": "cd tests && npx vitest run --update=new --reporter=json --outputFile=results.json; node __baseline__/verify-no-regression.mjs results.json",
+    "test": "cd tests && rm -f results.json && npx vitest run --update=new --reporter=json --outputFile=results.json; node __baseline__/verify-no-regression.mjs results.json",
     "lint": "./scripts/style.sh lint",
     "lint:modified": "./scripts/style.sh lint --modified",
     "lint:staged": "./scripts/style.sh lint --staged",
