@@ -54,11 +54,14 @@ describe.each(EXECUTORS)("%s executor keeps function tool strict (YAN-16)", (_na
     ["flat false", flatTool(false), false],
     ["nested false", chatTool(false), false],
     ["flat true", flatTool(true), true],
+    ["nested true", chatTool(true), true],
+    ["nested absent → false", chatTool(undefined), false],
+    ["flat wins over nested", { ...flatTool(false), function: { strict: true } }, false],
   ])("%s", (_label, tool, expected) => {
     expect(normalize(tool).strict).toBe(expected);
   });
 
-  it("leaves strict absent when the client omitted it", () => {
+  it("leaves strict absent on a flat tool that omitted it", () => {
     expect("strict" in normalize(flatTool(undefined))).toBe(false);
   });
 });
