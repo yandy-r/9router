@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { killAppProcesses } from "@/lib/appUpdater";
+import { killAppProcesses, stopLauncher } from "@/lib/appUpdater";
 
 // Shutdown app to release file locks for manual update
 export async function POST() {
@@ -14,7 +14,14 @@ export async function POST() {
     message: "Shutting down for manual update...",
   });
 
-  setTimeout(() => process.exit(0), 500);
+  setTimeout(() => {
+    try {
+      stopLauncher();
+    } catch {
+      /* best effort */
+    }
+    process.exit(0);
+  }, 500);
 
   return response;
 }
