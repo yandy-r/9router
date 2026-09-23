@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 9Router (`9router-app`) — a local AI routing gateway + Next.js dashboard. It exposes one OpenAI-compatible endpoint (`/v1/*`) and routes traffic across 40+ upstream providers with format translation, model-combo fallback, multi-account fallback, OAuth/API-key credential management, token refresh, quota/usage tracking, and optional cloud sync.
 
 Two published artifacts live in this one repo:
+
 - The **dashboard + gateway** (root `package.json`, `9router-app`) — the Next.js server that does the actual routing.
 - The **CLI launcher** (`cli/`, published to npm as `9router`) — a separate package that installs/starts the server and manages the tray. It has its own `package.json`, version, and build.
 
@@ -15,48 +16,60 @@ The code lives in `src/` (Next.js app + dashboard/compat APIs), `open-sse/` (the
 ## Commands
 
 Dashboard/gateway (run from repo root):
+
 ```bash
 cp .env.example .env
 npm install
 PORT=20128 NEXT_PUBLIC_BASE_URL=http://localhost:20128 npm run dev   # dev (webpack, port 20127 by default via next dev)
 npm run build && PORT=20128 HOSTNAME=0.0.0.0 npm run start           # production
 ```
+
 - Bun variants: `npm run dev:bun` / `build:bun` / `start:bun`.
 - Default runtime port is **20128** (dashboard at `/dashboard`, API at `/v1`).
-- Lint: `npx eslint .` (config `eslint.config.mjs`, extends `eslint-config-next`).
+- Lint/format: `npm run lint` (Biome for JS/JSON/CSS, markdownlint + Prettier for Markdown/YAML, ShellCheck), `npm run lint:fix`, `npm run format`. Config: `biome.json`, `.markdownlint.json`, `.prettierrc`. Many legacy a11y/React rules are warnings, not errors — don't add new ones. Import sorting is off on purpose: translators self-register via import side effects, so import order matters.
+- Git hooks (lefthook, auto-installed by `npm install`): pre-commit formats + lints staged files, commit-msg runs commitlint (Conventional Commits), pre-push runs full lint. Bypass once with `--no-verify`.
+- CI: `.github/workflows/ci.yml` (tests vs known-fails baseline, alias/OAuth baselines, `next build`), `lint.yml`, `pr-title.yml`. Node version pinned in `.nvmrc`.
 
 CLI package (`cli/`):
+
 ```bash
 npm run cli:pack       # build + npm pack from root
 cd cli && npm run dev  # nodemon watch
 ```
 
 Tests (vitest, in `tests/`, an **independent** ESM package — not wired into root `npm test`):
+
 ```bash
 npm install                             # ROOT deps first — tests import from src/ which needs `open`, `undici`, etc.
 cd tests && npm install                 # then tests' own deps (vitest) → tests/node_modules (allowed by tests/.gitignore)
 npx vitest run                          # all tests; auto-discovers tests/vitest.config.js
 npx vitest run unit/capabilities.test.js   # single file (path relative to tests/)
 ```
+
 > `vitest.config.js` resolves the `open-sse`/`@/` aliases from the repo root regardless of where vitest lives.
 >
 > **Runs are isolated by default.** Every test file gets its own temp `DATA_DIR`/`HOME` (`tests/setup/`, forks pool), so `~/.9router` is never touched and no `DATA_DIR=$(mktemp -d)` prefix is needed. Only `translator/real/**` under `RUN_REAL=1`/`RUN_E2E=1` uses the real data dir. Guarded by `unit/test-data-isolation.test.js`; details in `tests/README.md`.
 >
 > **The suite is NOT expected to be all-green on a plain checkout.** Judge regressions against `tests/__baseline__/known-fails.txt`, not a raw run (from `tests/`):
+>
 > ```bash
 > npx vitest run --reporter=json --outputFile=results.json; node __baseline__/verify-no-regression.mjs results.json
 > ```
+>
 > Expected red: everything in `known-fails.txt` (regenerated from an isolated master run — refresh it when a fix turns a known failure green), including `unit/embeddings.cloud.test.js` (the `cloud/` worker dir is **not in this repo**) and `unit/xai-oauth-service.test.js` (times out when xAI endpoint discovery isn't reachable).
+
 - `*.real.test.js` under `tests/translator/real/` make live provider calls — skip unless credentials are set.
 - Regression baselines: `tests/__baseline__/verify-*.mjs` compare against committed snapshots (providers, aliases, OAuth URLs). Run these after touching provider registry / alias logic.
 
 ## Architecture
 
 Two authoritative docs already exist — read them before working in these areas rather than re-deriving:
+
 - `docs/ARCHITECTURE.md` — full system: request lifecycle, combo/account fallback, OAuth + token refresh, cloud sync, data model.
 - `open-sse/AGENTS.md` — the routing/translation engine's own conventions and "how to add a provider/executor/translator". **Read this before editing anything under `open-sse/`.**
 
 ### Request flow (the thing to understand first)
+
 `src/app/api/v1/*` route (Next rewrite maps `/v1/*` → `/api/v1/*` in `next.config.mjs`)
 → `src/sse/handlers/chat.js` (parse, combo expansion, account-selection loop)
 → `open-sse/handlers/chatCore.js` (detect source format, translate request, dispatch to executor, retry/refresh, stream setup)
@@ -67,21 +80,26 @@ Two authoritative docs already exist — read them before working in these areas
 `src/sse/` is the app-side entry glue; `open-sse/` is the provider-agnostic engine (also usable standalone). Cross that boundary consciously.
 
 ### Translator engine (`open-sse/translator/`)
+
 - Pivots through **OpenAI as the intermediate format**. A translator registered on an exact `source:target` pair (e.g. `claude:kiro`) runs as a **direct route**, skipping the lossy double-hop. Prefer a direct route for fragile pairs (thinking blocks, tool ids, non-base64 images, `is_error`).
 - Translators **self-register** via `register(from, to, reqFn, resFn)` as an import side effect — a new translator file MUST be imported in `open-sse/translator/index.js` or it never runs.
 - Never hardcode role/block/model strings — use `open-sse/translator/schema/` and `open-sse/config/` constants. Config-driven and DRY is enforced by convention here.
 
 ### Provider registry (`open-sse/providers/registry/*`)
+
 - One file per provider. `providers/registry/index.js` is an **auto-generated** static import list — regenerate it with `scripts/migrate-registry.mjs` / `injectDisplayToRegistry.mjs`, don't hand-edit.
 - Add a provider: copy `providers/REGISTRY_TEMPLATE.js`, add models to `config/providerModels.js`. Only add an executor for non-OpenAI-compatible upstreams.
 
 ### Persistence — IMPORTANT (ARCHITECTURE.md is stale here)
+
 State is **no longer `db.json`**. It's a SQLite layer under `src/lib/db/` with an adapter fallback chain (`driver.js`): `bun:sqlite` → `better-sqlite3` (optional native dep) → `node:sqlite` (Node ≥22.5) → `sql.js` (pure-JS fallback, always works). `better-sqlite3` is deliberately in `optionalDependencies` so install never fails without build tools.
+
 - `src/lib/localDb.js` is a **backward-compat shim** re-exporting `src/lib/db/index.js`. New code should import from `@/lib/db/index.js`; per-entity logic lives in `src/lib/db/repos/*`. Schema/migrations in `src/lib/db/migrations/`.
 - DB file location resolves via `src/lib/db/paths.js` (`DATA_DIR`, else `~/.9router/`).
 - Usage and request logs live in the same SQLite DB under `DATA_DIR` — `src/lib/usageDb.js` is just a shim re-exporting `@/lib/db/index.js`. `usage.json` is only a legacy one-time migration source; `log.txt` no longer exists.
 
 ### RTK token saver (`open-sse/rtk/`)
+
 Pre-translate hooks that compress `tool_result` content in-place to cut tokens. **Fail-open**: any error returns null and leaves the body untouched — never throw out of them. Skips `is_error`/`status:"error"` results to preserve traces.
 
 ## Conventions & gotchas

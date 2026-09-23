@@ -36,7 +36,7 @@ Or with Compose, pinned to a version:
 ```yaml
 services:
   9router:
-    image: ghcr.io/yandy-r/9router:1.0.0   # or :latest
+    image: ghcr.io/yandy-r/9router:1.0.0 # or :latest
     restart: unless-stopped
     ports:
       - "20128:20128"
@@ -76,32 +76,32 @@ curl http://localhost:20128/v1/chat/completions \
 The full env contract is in [`.env.example`](.env.example). `.env` is not baked into the
 image; pass it with `--env-file` / `env_file`.
 
-| Variable | Default | Notes |
-| --- | --- | --- |
-| `JWT_SECRET` | generated | Dashboard session signing secret. Set it explicitly. |
-| `INITIAL_PASSWORD` | `123456` | First dashboard login. **Override it.** |
-| `DATA_DIR` | `/app/data` (image) | SQLite database and backups. |
-| `PORT` / `HOSTNAME` | `20128` / `0.0.0.0` (image) | Listen address. |
-| `REQUIRE_API_KEY` | `false` | Enforce an API key on `/v1/*`. Enable for any non-local deploy. |
-| `AUTH_COOKIE_SECURE` | `false` | Set `true` behind an HTTPS reverse proxy. |
-| `API_KEY_SECRET`, `MACHINE_ID_SALT` | built-in | Secrets for generated API keys / machine IDs. |
-| `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` | — | Outbound proxy for upstream calls. |
+| Variable                                             | Default                     | Notes                                                           |
+| ---------------------------------------------------- | --------------------------- | --------------------------------------------------------------- |
+| `JWT_SECRET`                                         | generated                   | Dashboard session signing secret. Set it explicitly.            |
+| `INITIAL_PASSWORD`                                   | `123456`                    | First dashboard login. **Override it.**                         |
+| `DATA_DIR`                                           | `/app/data` (image)         | SQLite database and backups.                                    |
+| `PORT` / `HOSTNAME`                                  | `20128` / `0.0.0.0` (image) | Listen address.                                                 |
+| `REQUIRE_API_KEY`                                    | `false`                     | Enforce an API key on `/v1/*`. Enable for any non-local deploy. |
+| `AUTH_COOKIE_SECURE`                                 | `false`                     | Set `true` behind an HTTPS reverse proxy.                       |
+| `API_KEY_SECRET`, `MACHINE_ID_SALT`                  | built-in                    | Secrets for generated API keys / machine IDs.                   |
+| `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY` | —                           | Outbound proxy for upstream calls.                              |
 
 **Claude Code fingerprint** — these ship together in each Claude Code release; bump them
 as a set. A malformed value fails startup rather than sending an impossible fingerprint.
 
-| Variable | Default | Sent as |
-| --- | --- | --- |
-| `CLAUDE_CLI_VERSION` | `2.1.280` | `User-Agent: claude-cli/<v>` and billing `cc_version` |
-| `CLAUDE_CLI_SDK_VERSION` | `0.112.1` | `X-Stainless-Package-Version` |
-| `CLAUDE_CLI_RUNTIME_VERSION` | `v26.3.0` | `X-Stainless-Runtime-Version` |
-| `CLAUDE_CLI_BETA_FLAGS` | see `open-sse/config/claudeCliFingerprint.js` | `Anthropic-Beta` base list (comma-separated) |
+| Variable                     | Default                                       | Sent as                                               |
+| ---------------------------- | --------------------------------------------- | ----------------------------------------------------- |
+| `CLAUDE_CLI_VERSION`         | `2.1.280`                                     | `User-Agent: claude-cli/<v>` and billing `cc_version` |
+| `CLAUDE_CLI_SDK_VERSION`     | `0.112.1`                                     | `X-Stainless-Package-Version`                         |
+| `CLAUDE_CLI_RUNTIME_VERSION` | `v26.3.0`                                     | `X-Stainless-Runtime-Version`                         |
+| `CLAUDE_CLI_BETA_FLAGS`      | see `open-sse/config/claudeCliFingerprint.js` | `Anthropic-Beta` base list (comma-separated)          |
 
 **Zed client version** — Zed Cloud gates clients by version. Bump this if Zed reports a
 minimum required version. A malformed value fails startup.
 
-| Variable | Default | Sent as |
-| --- | --- | --- |
+| Variable             | Default  | Sent as                                                                               |
+| -------------------- | -------- | ------------------------------------------------------------------------------------- |
 | `ZED_CLIENT_VERSION` | `1.20.2` | `User-Agent: Zed/<v> (<os>; <arch>)` on all Zed calls, `x-zed-version` on completions |
 
 **Google OAuth clients** — required only for OAuth login and token refresh on these
@@ -110,10 +110,10 @@ providers. Both are installed-application clients that ship inside the product i
 this repo still does not commit the values. Put them in `.env`. Without them, login
 fails with an error naming the missing variables.
 
-| Variables | Providers |
-| --- | --- |
-| `GEMINI_OAUTH_CLIENT_ID`, `GEMINI_OAUTH_CLIENT_SECRET` | `gemini`, `gemini-cli` |
-| `ANTIGRAVITY_OAUTH_CLIENT_ID`, `ANTIGRAVITY_OAUTH_CLIENT_SECRET` | `antigravity` |
+| Variables                                                        | Providers              |
+| ---------------------------------------------------------------- | ---------------------- |
+| `GEMINI_OAUTH_CLIENT_ID`, `GEMINI_OAUTH_CLIENT_SECRET`           | `gemini`, `gemini-cli` |
+| `ANTIGRAVITY_OAUTH_CLIENT_ID`, `ANTIGRAVITY_OAUTH_CLIENT_SECRET` | `antigravity`          |
 
 **Gemini CLI** (one pair for both `gemini` and `gemini-cli`). In the
 [Gemini CLI](https://github.com/google-gemini/gemini-cli) tree, open
@@ -148,11 +148,11 @@ Pushing a `v*` tag runs [`docker-publish.yml`](.github/workflows/docker-publish.
 which builds `linux/amd64` + `linux/arm64` and pushes to `ghcr.io/yandy-r/9router`.
 Branch pushes run nothing, and nothing is published to npm.
 
-| Tag | When |
-| --- | --- |
-| `:1.2.3`, `:1.2` | From the git tag `v1.2.3` |
-| `:latest` | Only when the tag is the highest stable `vX.Y.Z` in the repo — prerelease tags (`v1.3.0-rc.1`) and older-version backports don't move it |
-| `:sha-<commit>` | Every build |
+| Tag              | When                                                                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `:1.2.3`, `:1.2` | From the git tag `v1.2.3`                                                                                                                |
+| `:latest`        | Only when the tag is the highest stable `vX.Y.Z` in the repo — prerelease tags (`v1.3.0-rc.1`) and older-version backports don't move it |
+| `:sha-<commit>`  | Every build                                                                                                                              |
 
 ```bash
 git tag v1.2.3 && git push origin v1.2.3        # builds and publishes the image
@@ -190,3 +190,16 @@ Architecture notes: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (system overv
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## Linting & Formatting
+
+```bash
+npm run lint       # Biome (JS/JSON/CSS), markdownlint + Prettier (Markdown/YAML), ShellCheck
+npm run lint:fix   # auto-fix what is fixable
+npm run format     # format everything
+```
+
+`*:modified`, `*:staged` and `*:unstaged` variants limit the run to changed files. Git hooks
+(lefthook) are installed by `npm install`: pre-commit formats and lints staged files, commit-msg
+enforces [Conventional Commits](https://www.conventionalcommits.org/). CI runs the same checks
+plus tests and a production build on every pull request.

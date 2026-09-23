@@ -20,7 +20,11 @@ CLIProxyAPI/
 .gitignore
 .env*
 jsconfig.json
-eslint.config.mjs
+biome.json
+lefthook.yml
+commitlint.config.cjs
+.editorconfig
+.gitmessage
 postcss.config.mjs
 next.config.mjs
 tsconfig.json
