@@ -33,6 +33,7 @@ const {
   removePidFileIfOwner,
   getCommandLine,
   getParentPid,
+  isLauncherCommandLine,
   findListeningPids,
   isAlive,
   killPid,
@@ -212,7 +213,7 @@ function killAllAppProcesses(appPort) {
   const launcherCmd = cmdOf(recorded.launcher);
   // The recorded PID plus a "9router" command line guards against PID reuse; a previous
   // launcher may have been started via another path (npx, global bin symlink, source).
-  if (launcherCmd.includes("9router")) {
+  if (isLauncherCommandLine(launcherCmd)) {
     killPid(recorded.launcher); // SIGTERM lets it stop its own tray/MITM/tunnel/server
     killed = true;
   }
@@ -278,7 +279,10 @@ function killProcessOnPort(port) {
   const pids = findListeningPids(port).filter((pid) => pid !== process.pid);
   pids.forEach((pid) => {
     const ppid = getParentPid(pid);
-    if (ppid && ppid !== process.pid && (getCommandLine(ppid) || "").includes("9router")) killPid(ppid);
+    const isOurServer = (getCommandLine(pid) || "").includes("next-server");
+    if (isOurServer && ppid && ppid !== process.pid && isLauncherCommandLine(getCommandLine(ppid))) {
+      killPid(ppid);
+    }
     killPid(pid, { graceful: false });
   });
   // Wait for port to be released

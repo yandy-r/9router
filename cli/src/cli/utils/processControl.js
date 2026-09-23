@@ -66,6 +66,16 @@ function getCommandLine(pid) {
   }
 }
 
+// A 9router launcher is node running a script whose path ends in `9router` (npm bin
+// shim) or `9router/cli.js`. A bare "9router" substring is not enough: shells, editors
+// and test runners inside a 9router checkout contain it too.
+function isLauncherCommandLine(cmd) {
+  if (!cmd) return false;
+  const runsNode = /^"?(?:[^"]*[\\/])?node(?:\.exe)?"?(?:\s|$)/i.test(cmd.trim());
+  const runs9router = /[\\/]9router(?:[\\/]cli\.js)?"?(?:\s|$)/i.test(cmd);
+  return runsNode && runs9router;
+}
+
 function getParentPid(pid) {
   if (!isPid(pid)) return null;
   try {
@@ -177,6 +187,7 @@ module.exports = {
   removePidFileIfOwner,
   getCommandLine,
   getParentPid,
+  isLauncherCommandLine,
   parseListeningPidsWindows,
   findListeningPids,
   isAlive,

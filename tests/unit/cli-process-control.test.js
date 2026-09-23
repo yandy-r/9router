@@ -23,6 +23,28 @@ describe("parseListeningPidsWindows", () => {
   });
 });
 
+describe("isLauncherCommandLine", () => {
+  it("accepts node running a 9router launcher script only", () => {
+    for (const cmd of [
+      "node /usr/local/bin/9router",
+      "/usr/bin/node --dns-result-order=ipv4first /home/u/.npm/lib/node_modules/9router/cli.js --tray -p 20128",
+      '"C:\\Program Files\\nodejs\\node.exe" "C:\\Users\\u\\AppData\\Roaming\\npm\\node_modules\\9router\\cli.js"',
+    ]) {
+      expect(pc.isLauncherCommandLine(cmd)).toBe(true);
+    }
+    for (const cmd of [
+      "bash -lc cd /home/u/src/9router && python -m http.server 20128",
+      "/bin/zsh -c cd /home/u/9router && npx vitest run",
+      "node /home/u/9router/node_modules/vitest/vitest.mjs run",
+      "next-server (v16.3.6)",
+      "",
+      null,
+    ]) {
+      expect(pc.isLauncherCommandLine(cmd)).toBe(false);
+    }
+  });
+});
+
 describe("launcher PID file", () => {
   it("round-trips under DATA_DIR and is only removed by its owner", () => {
     process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "9r-pid-"));
