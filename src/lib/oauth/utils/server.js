@@ -686,7 +686,14 @@ export function startZedProxy(preferredPort = 0) {
         if (redacted[k]) redacted[k] = "<redacted>";
       }
       console.log("[Zed proxy]", req.method, url.pathname, JSON.stringify(redacted));
-      if (url.pathname !== "/" && url.pathname !== "/callback") {
+      // A genuine Zed redirect always carries user_id + access_token. Like the
+      // upstream Zed client, accept it on ANY path; only param-less requests
+      // off the callback paths (favicon, probes) get a 404.
+      const qp = url.searchParams;
+      const hasZedParams =
+        qp.has("user_id") || qp.has("userId") ||
+        qp.has("access_token") || qp.has("accessToken") || qp.has("token");
+      if (!hasZedParams && url.pathname !== "/" && url.pathname !== "/callback") {
         res.writeHead(404);
         res.end("Not found");
         return;
@@ -704,14 +711,9 @@ export function startZedProxy(preferredPort = 0) {
         res.end(renderCodexResultPage(false, "Cross-origin callback rejected"));
         return;
       }
-      // A genuine Zed redirect always carries user_id + access_token. Anything
-      // else (probe, prefetch, stray navigation, favicon-style miss) is NOT
-      // the callback: answer without touching the session and WITHOUT
+      // Anything without login params (probe, prefetch, stray navigation) is
+      // NOT the callback: answer without touching the session and WITHOUT
       // stopping the server, so the real redirect can still land afterwards.
-      const qp = url.searchParams;
-      const hasZedParams =
-        qp.has("user_id") || qp.has("userId") ||
-        qp.has("access_token") || qp.has("accessToken") || qp.has("token");
       if (!hasZedParams) {
         console.log(`[Zed proxy] ignoring non-callback ${req.method} ${url.pathname} (session kept, server kept)`);
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });

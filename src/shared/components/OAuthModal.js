@@ -4,31 +4,11 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import ProxyOAuthPanel, { PASTE_TOKEN_PROVIDERS } from "./ProxyOAuthPanel";
 
 // Providers using the dynamic-port local callback proxy.
 // Browser OAuth: popup → auto callback → auto exchange → poll-status.
 const PROXY_OAUTH_PROVIDERS = new Set(["trae", "windsurf", "zed"]);
-
-// Providers offering a paste-token fallback (import-token flow).
-// UX warns if the IDE (which issues the token) is not installed.
-const PASTE_TOKEN_PROVIDERS = {
-  trae: {
-    label: "Cloud-IDE-JWT",
-    instructions:
-      "Sign in at trae.ai (or solo.trae.ai), open DevTools → Network, copy the Cloud-IDE-JWT token from any request's Authorization header (~14-day lifetime).",
-    placeholder: "Paste Cloud-IDE-JWT here...",
-    ideName: "Trae",
-    ideOptional: true, // token can be grabbed from DevTools without the IDE
-  },
-  windsurf: {
-    label: "Windsurf API key",
-    instructions:
-      "In the Windsurf/VS Code IDE, run the \"Windsurf: Provide Auth Token\" command, then copy the displayed sk-ws-... key.",
-    placeholder: "Paste sk-ws-... key here...",
-    ideName: "Windsurf",
-    ideOptional: false,
-  },
-};
 
 /**
  * OAuth Modal Component
@@ -682,6 +662,9 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
+        // Done out-of-band: stop the poll-status loop and free the proxy port.
+        callbackProcessedRef.current = true;
+        stopOwnedProxy();
         setStep("success");
         onSuccessRef.current?.();
         return;
@@ -752,78 +735,25 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
   return (
     <Modal isOpen={isOpen} title={modalTitle} onClose={handleClose} size="lg">
       <div className="flex flex-col gap-4">
-        {/* Trae/Windsurf: browser OAuth (proxy) + paste-token fallback */}
+        {/* Trae/Windsurf/Zed: browser OAuth (proxy) + manual callback / paste-token fallbacks */}
         {PROXY_OAUTH_PROVIDERS.has(provider) && (step === "waiting" || step === "input" || step === "error") && (
-          <>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => { setAuthMode("browser"); setError(null); setStep("waiting"); startOAuthFlow(); }}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${authMode === "browser" ? "border-primary bg-primary/10 text-primary" : "border-border text-text-muted hover:text-primary"}`}
-              >
-                🌐 Sign in with browser
-              </button>
-              <button
-                type="button"
-                onClick={() => { setAuthMode("paste-token"); setError(null); setStep("input"); }}
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm transition-colors ${authMode === "paste-token" ? "border-primary bg-primary/10 text-primary" : "border-border text-text-muted hover:text-primary"}`}
-              >
-                🔑 Paste token
-              </button>
-            </div>
-
-            {authMode === "browser" && (
-              <>
-                {step === "waiting" && (
-                  <div className="flex items-center gap-2 px-3 py-2 border border-border rounded-lg bg-sidebar/50">
-                    <span className="material-symbols-outlined text-base text-primary animate-spin">progress_activity</span>
-                    <span className="text-sm">Waiting for browser authorization…</span>
-                  </div>
-                )}
-                {step === "input" && (
-                  <div className="space-y-3">
-                    <p className="text-sm text-text-muted">
-                      Popup was blocked. After authorizing in the browser, paste the full callback URL here:
-                    </p>
-                    <Input
-                      value={callbackUrl}
-                      onChange={(e) => setCallbackUrl(e.target.value)}
-                      placeholder="http://127.0.0.1:.../callback?..."
-                      className="font-mono text-xs"
-                    />
-                    <div className="flex gap-2">
-                      <Button onClick={handleManualSubmit} fullWidth disabled={!callbackUrl}>Connect</Button>
-                      <Button onClick={handleClose} variant="ghost" fullWidth>Cancel</Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {authMode === "paste-token" && (
-              <div className="space-y-3">
-                {ideStatus && !ideStatus.installed && (
-                  <div className={`px-3 py-2 rounded-lg text-sm ${PASTE_TOKEN_PROVIDERS[provider].ideOptional ? "bg-blue-500/10 text-blue-700 dark:text-blue-300" : "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300"}`}>
-                    {PASTE_TOKEN_PROVIDERS[provider].ideName} IDE not detected.
-                    {PASTE_TOKEN_PROVIDERS[provider].ideOptional
-                      ? " You can still grab the token from DevTools."
-                      : ` Install ${PASTE_TOKEN_PROVIDERS[provider].ideName} IDE to get the token, or use "Sign in with browser".`}
-                  </div>
-                )}
-                <p className="text-sm text-text-muted">{PASTE_TOKEN_PROVIDERS[provider].instructions}</p>
-                <Input
-                  value={pasteToken}
-                  onChange={(e) => setPasteToken(e.target.value)}
-                  placeholder={PASTE_TOKEN_PROVIDERS[provider].placeholder}
-                  className="font-mono text-xs"
-                />
-                <div className="flex gap-2">
-                  <Button onClick={handleManualSubmit} fullWidth disabled={!pasteToken}>Connect</Button>
-                  <Button onClick={handleClose} variant="ghost" fullWidth>Cancel</Button>
-                </div>
-              </div>
-            )}
-          </>
+          <ProxyOAuthPanel
+            provider={provider}
+            step={step}
+            authMode={authMode}
+            authUrl={authData?.authUrl}
+            callbackUrl={callbackUrl}
+            onCallbackUrlChange={setCallbackUrl}
+            pasteToken={pasteToken}
+            onPasteTokenChange={setPasteToken}
+            ideStatus={ideStatus}
+            onSelectBrowser={() => { setAuthMode("browser"); setError(null); setStep("waiting"); startOAuthFlow(); }}
+            onSelectPasteToken={() => { setAuthMode("paste-token"); setError(null); setStep("input"); }}
+            onSubmit={handleManualSubmit}
+            onCancel={handleClose}
+            copied={copied}
+            onCopy={copy}
+          />
         )}
 
         {/* Waiting + Manual Input combined (non-device-code, non-proxy) */}

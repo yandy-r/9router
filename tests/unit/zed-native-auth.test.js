@@ -264,3 +264,73 @@ describe("criterion L — decrypt failure errors the session but keeps the serve
     clearZedSession(state);
   });
 });
+
+describe("YAN-5 / #1 — callback accepted on any path (upstream Zed parity)", () => {
+  it("user_id + access_token on a non-root path completes the session", async () => {
+    const started = await startTestProxy();
+    const auth = createZedNativeAuthData({}, { nativeAppPort: started.port });
+    const state = `anypath-state-${Date.now()}`;
+    registerZedSession({ state, codeVerifier: auth.privateKeyVerifier, systemId: auth.systemId });
+
+    const cb = new URL(`http://127.0.0.1:${started.port}/native_app_signin/callback`);
+    cb.searchParams.set("user_id", "user-456");
+    cb.searchParams.set("access_token", encryptForCallback(auth.publicKey, "any-path-token"));
+    const res = await realFetch(cb.toString());
+    expect(res.status).toBe(200);
+
+    const session = getZedSessionStatus(state);
+    expect(session?.status).toBe("done");
+    const { getProviderConnectionById } = await import("@/models/index.js");
+    const conn = await getProviderConnectionById(session.connectionId);
+    expect(conn.accessToken).toBe("any-path-token");
+  });
+
+  it("param-less request on an unknown path is a 404 that keeps the session", async () => {
+    const started = await startTestProxy();
+    const auth = createZedNativeAuthData({}, { nativeAppPort: started.port });
+    registerZedSession({ state: "favicon-state", codeVerifier: auth.privateKeyVerifier });
+
+    const res = await realFetch(`http://127.0.0.1:${started.port}/favicon.ico`);
+    expect(res.status).toBe(404);
+    expect(getZedSessionStatus("favicon-state")?.status).toBe("pending");
+    const again = await startZedProxy(0);
+    expect(again.port).toBe(started.port);
+    clearZedSession("favicon-state");
+  });
+});
+
+describe("YAN-5 / #1 — manual callback-URL paste completes via /exchange", () => {
+  it("full pasted 127.0.0.1 URL + attempt material → connection saved", async () => {
+    const redirectUri = "http://127.0.0.1:58443/";
+    const auth = await generateAuthData("zed", redirectUri, { nativeAppPort: 58443 });
+    const pub = new URL(auth.authUrl).searchParams.get("native_app_public_key");
+    const pasted = new URL(redirectUri);
+    pasted.searchParams.set("user_id", "user-789");
+    pasted.searchParams.set("access_token", encryptForCallback(pub, "pasted-token"));
+
+    // Exactly the body OAuthModal's manual submit sends for proxy providers.
+    const { POST } = await import("@/app/api/oauth/[provider]/[action]/route.js");
+    const req = new Request("http://localhost/api/oauth/zed/exchange", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: pasted.toString(),
+        state: auth.state,
+        redirectUri: auth.redirectUri,
+        codeVerifier: auth.codeVerifier,
+        systemId: auth.systemId,
+      }),
+    });
+    const res = await POST(req, { params: Promise.resolve({ provider: "zed", action: "exchange" }) });
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.success).toBe(true);
+
+    const { getProviderConnectionById } = await import("@/models/index.js");
+    const conn = await getProviderConnectionById(data.connection.id);
+    expect(conn.provider).toBe("zed");
+    expect(conn.accessToken).toBe("pasted-token");
+    expect(conn.providerSpecificData?.userId).toBe("user-789");
+    expect(conn.providerSpecificData?.systemId).toBe(auth.systemId);
+  });
+});
