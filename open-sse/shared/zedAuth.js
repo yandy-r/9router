@@ -11,6 +11,7 @@
 
 import crypto from "node:crypto";
 import { proxyAwareFetch } from "../utils/proxyFetch.js";
+import { ZED_CLIENT_USER_AGENT } from "../config/zedClientFingerprint.js";
 
 export const ZED_WEB_BASE_URL = "https://zed.dev";
 export const ZED_CLOUD_BASE_URL = "https://cloud.zed.dev";
@@ -25,6 +26,8 @@ export const ZED_HEADERS = {
   serverSupportsStatus: "x-zed-server-supports-status-messages",
   clientSupportsXai: "x-zed-client-supports-x-ai",
   systemId: "x-zed-system-id",
+  version: "x-zed-version",
+  minimumRequiredVersion: "x-zed-minimum-required-version",
 };
 
 const PRIVATE_KEY_PREFIX = "zed-rsa-pkcs1:";
@@ -215,6 +218,7 @@ export async function fetchZedAuthenticatedUser(credentials, options = {}) {
   const config = options.config || {};
   const headers = {
     Accept: "application/json",
+    "User-Agent": ZED_CLIENT_USER_AGENT,
     Authorization: buildZedUserAuthHeader(credentials),
   };
   const systemId = getSystemId(credentials);
@@ -284,6 +288,7 @@ export async function fetchZedLlmToken(credentials, options = {}) {
   const headers = {
     "Content-Type": "application/json",
     Accept: "application/json",
+    "User-Agent": ZED_CLIENT_USER_AGENT,
     Authorization: buildZedUserAuthHeader(credentials),
   };
   const systemId = getSystemId(credentials);
@@ -322,6 +327,7 @@ export async function zedLlmFetch(credentials, path, options = {}) {
     return proxyAwareFetch(url, {
       ...options.fetchOptions,
       headers: {
+        "User-Agent": ZED_CLIENT_USER_AGENT,
         ...(options.fetchOptions?.headers || {}),
         Authorization: `Bearer ${token}`,
       },
@@ -394,14 +400,19 @@ export async function resolveZedModels(credentials, options = {}) {
     });
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      throw new Error(`Zed models failed: ${response.status} ${text}`);
+      const minVersion = response.headers?.get?.(ZED_HEADERS.minimumRequiredVersion);
+      const hint = minVersion
+        ? ` (Zed requires client version >= ${minVersion}; set ZED_CLIENT_VERSION)`
+        : "";
+      throw new Error(`Zed models failed: ${response.status} ${text}${hint}`);
     }
     const data = await response.json();
     const rawModels = Array.isArray(data?.models) ? data.models : [];
-    const models = rawModels
-      .map(mapZedModel)
-      .filter(Boolean)
-      .filter((model) => !model.isDisabled);
+    const mapped = rawModels.map(mapZedModel).filter(Boolean);
+    const models = mapped.filter((model) => !model.isDisabled);
+    // Kept (with disabledReason) so an all-disabled catalog can be explained
+    // instead of collapsing into an unexplained empty list.
+    const disabledModels = mapped.filter((model) => model.isDisabled);
     const rawById = new Map();
     for (const raw of rawModels) {
       const id = normalizeZedModelId(raw?.id);
@@ -410,6 +421,7 @@ export async function resolveZedModels(credentials, options = {}) {
     const entry = {
       expiresAt: Date.now() + MODEL_CACHE_TTL_MS,
       models,
+      disabledModels,
       rawModels,
       rawById,
       defaultModel: normalizeZedModelId(data?.default_model ?? data?.defaultModel),
