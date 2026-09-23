@@ -226,6 +226,7 @@ describe("login limiter client IP", () => {
       request("/api/auth/login", { "x-forwarded-for": "198.51.100.7, 10.0.0.1" }),
     );
 
-    expect(ip).toBe("198.51.100.7");
+    // Rightmost hop: the leftmost entry is client-controlled behind an appending proxy.
+    expect(ip).toBe("10.0.0.1");
   });
 });
