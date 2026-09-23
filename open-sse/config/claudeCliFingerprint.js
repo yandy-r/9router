@@ -24,8 +24,10 @@ export const CLAUDE_CLI_RUNTIME_VERSION = envString("CLAUDE_CLI_RUNTIME_VERSION"
 export const CLAUDE_CLI_USER_AGENT = `claude-cli/${CLAUDE_CLI_VERSION} (external, sdk-cli)`;
 
 // Sent by Claude Code 2.1.280 on every OAuth request regardless of model, plus
-// flags 9router's own features depend on (structured outputs, fast mode,
-// redacted thinking — the latter is dropped per-request in selectAnthropicBeta).
+// flags 9router's own features depend on (structured outputs, redacted thinking —
+// the latter is dropped per-request in selectAnthropicBeta). The fast-mode beta is
+// not here: fast mode bills only from extra usage, so selectAnthropicBeta adds it
+// per request, when the body opts in.
 export const CLAUDE_CLI_BETA_FLAGS = envList("CLAUDE_CLI_BETA_FLAGS", [
   "claude-code-20250219",
   "oauth-2025-04-20",
@@ -36,6 +38,5 @@ export const CLAUDE_CLI_BETA_FLAGS = envList("CLAUDE_CLI_BETA_FLAGS", [
   "mid-conversation-system-2026-04-07",
   "extended-cache-ttl-2025-04-11",
   "structured-outputs-2025-12-15",
-  "fast-mode-2026-02-01",
   "redact-thinking-2026-02-12",
 ], BETA_FLAG);

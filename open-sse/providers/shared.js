@@ -46,6 +46,15 @@ const ANTHROPIC_BETA_HEAVY_AGENT = ["advanced-tool-use-2025-11-20", "effort-2025
 // client explicitly requested with `thinking.display: "summarized"`.
 const ANTHROPIC_BETA_REDACT_THINKING = "redact-thinking-2026-02-12";
 
+// Fast mode bills only from extra usage, even with plan usage left, so the beta
+// is sent only when the request opts in with `speed: "fast"` (as Claude Code does) —
+// even if a CLAUDE_CLI_BETA_FLAGS override lists it.
+export const ANTHROPIC_BETA_FAST_MODE = "fast-mode-2026-02-01";
+
+export function isFastModeRequest(body) {
+  return body?.speed === "fast";
+}
+
 /**
  * Full Claude CLI fingerprint headers (base list + heavy-agent betas), as sent
  * for an opus/sonnet request. Callers that know the model should override
@@ -55,7 +64,9 @@ const ANTHROPIC_BETA_REDACT_THINKING = "redact-thinking-2026-02-12";
 export function buildClaudeCliHeaders({ os = mapStainlessOs(), arch: cpuArch = mapStainlessArch() } = {}) {
   return {
     "Anthropic-Version": ANTHROPIC_API_VERSION,
-    "Anthropic-Beta": [...CLAUDE_CLI_BETA_FLAGS, ...ANTHROPIC_BETA_HEAVY_AGENT].join(","),
+    // Static headers never see a request body, so they never opt into fast mode.
+    "Anthropic-Beta": [...CLAUDE_CLI_BETA_FLAGS.filter((flag) => flag !== ANTHROPIC_BETA_FAST_MODE),
+      ...ANTHROPIC_BETA_HEAVY_AGENT].join(","),
     "Anthropic-Dangerous-Direct-Browser-Access": "true",
     "User-Agent": CLAUDE_CLI_USER_AGENT,
     "X-App": "cli",
@@ -78,8 +89,11 @@ export function wantsThinkingSummaries(body) {
 }
 
 export function selectAnthropicBeta(model = "", body = null) {
-  const flags = CLAUDE_CLI_BETA_FLAGS.filter((flag) => flag !== ANTHROPIC_BETA_REDACT_THINKING || !wantsThinkingSummaries(body));
+  const dropRedactThinking = wantsThinkingSummaries(body);
+  const flags = CLAUDE_CLI_BETA_FLAGS.filter((flag) =>
+    flag !== ANTHROPIC_BETA_FAST_MODE && !(flag === ANTHROPIC_BETA_REDACT_THINKING && dropRedactThinking));
   if (/^claude-(opus|sonnet)/.test(model)) flags.push(...ANTHROPIC_BETA_HEAVY_AGENT);
+  if (isFastModeRequest(body)) flags.push(ANTHROPIC_BETA_FAST_MODE);
   return flags.join(",");
 }
 
