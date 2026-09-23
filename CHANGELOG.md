@@ -1,3 +1,13 @@
+# v0.1.4 (2026-09-23)
+
+## Fixes
+- **Cursor**: 9router now answers every AgentService exec request instead of aborting the turn, so Cursor no longer hangs mid-turn waiting for a reply (#33).
+
+## Changes
+- **Dev**: added `compose.dev.yml` and `dev:docker`/`dev:docker:down` scripts for running the dashboard in Docker while developing.
+- **Deps**: bumped better-sqlite3 to 13.0.3, http-proxy-middleware to 4.2.0, chalk to 6.0.0, react-is to 19.3.0, socks-proxy-agent to 10.1.0, vitest to 5.0.1, and the minor-and-patch group (#24–#31).
+- **Build**: added formatters, linters, git hooks and CI workflows; formatting commit ignored in git blame (#22).
+
 # v0.1.3 (2026-09-23)
 
 ## Features
