@@ -206,6 +206,7 @@ function buildEnvWithRuntime(baseEnv = process.env) {
 }
 
 module.exports = {
+  getDataDir,
   ensureSqliteRuntime,
   buildEnvWithRuntime,
   getRuntimeDir,

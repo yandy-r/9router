@@ -1,165 +1,108 @@
-import { execSync } from "child_process";
-import path from "path";
-import fs from "fs";
-import os from "os";
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { DATA_DIR } from "@/lib/dataDir.js";
+import { clearPid, loadPid } from "@/lib/tunnel/cloudflare/pid.js";
 
-const KILL_TIMEOUT_MS = 5000;
-const PROCESS_WAIT_MS = 1500;
+const MITM_PID_FILE = path.join(DATA_DIR, "mitm", ".mitm.pid");
+// Written by the 9router CLI launcher (cli/src/cli/utils/processControl.js).
+const LAUNCHER_PID_FILE = path.join(DATA_DIR, "9router.pid");
 
-// Kill MITM server by PID file (MITM may run as admin/sudo)
-function killMitmByPidFile() {
+const isPid = (pid) => Number.isInteger(pid) && pid > 0 && pid !== process.pid;
+
+function readPid(file) {
   try {
-    const mitmPidFile = path.join(
-      process.platform === "win32"
-        ? path.join(process.env.APPDATA || "", "9router")
-        : path.join(os.homedir(), ".9router"),
-      "mitm",
-      ".mitm.pid",
-    );
-    if (!fs.existsSync(mitmPidFile)) return;
-    const pid = parseInt(fs.readFileSync(mitmPidFile, "utf8").trim(), 10);
-    if (!pid) return;
+    return parseInt(fs.readFileSync(file, "utf8").trim(), 10);
+  } catch {
+    return null;
+  }
+}
 
+function forceKill(pid) {
+  if (!isPid(pid)) return;
+  try {
     if (process.platform === "win32") {
-      // taskkill first (works if same user); fallback to PowerShell Stop-Process which can kill admin process if our token allows
-      try {
-        execSync(`taskkill /F /T /PID ${pid}`, {
-          stdio: "ignore",
-          windowsHide: true,
-          timeout: 3000,
-        });
-      } catch {
-        try {
-          execSync(
-            `powershell -NonInteractive -WindowStyle Hidden -Command "Stop-Process -Id ${pid} -Force"`,
-            { stdio: "ignore", windowsHide: true, timeout: 3000 },
-          );
-        } catch {
-          /* best effort */
-        }
-      }
+      execSync(`taskkill /F /T /PID ${pid}`, { stdio: "ignore", windowsHide: true, timeout: 3000 });
     } else {
+      process.kill(pid, "SIGKILL");
+    }
+  } catch {
+    /* already dead */
+  }
+}
+
+// MITM may run as admin/sudo, so fall back to privileged kills.
+function killMitmByPidFile() {
+  const pid = readPid(MITM_PID_FILE);
+  if (!isPid(pid)) return;
+  if (process.platform === "win32") {
+    try {
+      execSync(`taskkill /F /T /PID ${pid}`, { stdio: "ignore", windowsHide: true, timeout: 3000 });
+    } catch {
       try {
-        execSync(`sudo -n kill -9 ${pid} 2>/dev/null`, { stdio: "ignore", timeout: 3000 });
+        execSync(
+          `powershell -NonInteractive -WindowStyle Hidden -Command "Stop-Process -Id ${pid} -Force"`,
+          {
+            stdio: "ignore",
+            windowsHide: true,
+            timeout: 3000,
+          },
+        );
       } catch {
-        try {
-          process.kill(pid, "SIGKILL");
-        } catch {
-          /* best effort */
-        }
+        /* best effort */
       }
     }
+  } else {
     try {
-      fs.unlinkSync(mitmPidFile);
+      execSync(`sudo -n kill -9 ${pid} 2>/dev/null`, { stdio: "ignore", timeout: 3000 });
     } catch {
-      /* best effort */
+      forceKill(pid);
     }
+  }
+  try {
+    fs.unlinkSync(MITM_PID_FILE);
   } catch {
     /* best effort */
   }
 }
 
-// Collect PIDs of all 9router-related processes (excluding current)
-function collectAppPids() {
-  const pids = [];
-  const platform = process.platform;
-
-  if (platform === "win32") {
-    try {
-      const psCmd = `powershell -NonInteractive -WindowStyle Hidden -Command "Get-WmiObject Win32_Process -Filter 'Name=\\"node.exe\\"' | Select-Object ProcessId,CommandLine | ConvertTo-Csv -NoTypeInformation"`;
-      const output = execSync(psCmd, {
-        encoding: "utf8",
-        windowsHide: true,
-        timeout: KILL_TIMEOUT_MS,
-      });
-      const lines = output
-        .split("\n")
-        .slice(1)
-        .filter((l) => l.trim());
-      lines.forEach((line) => {
-        const lower = line.toLowerCase();
-        // Match anything running from 9router install dir or wrapper cli.js
-        const isAppProcess =
-          lower.includes("9router") ||
-          lower.includes("next-server") ||
-          lower.includes("\\bin\\app\\") ||
-          lower.includes("/bin/app/") ||
-          lower.includes("cli.js");
-        if (isAppProcess) {
-          const match = line.match(/^"(\d+)"/);
-          if (match && match[1] && match[1] !== process.pid.toString()) pids.push(match[1]);
-        }
-      });
-    } catch {
-      /* no processes */
-    }
-
-    // Kill cloudflared + tray binaries (hold app dir lock)
-    for (const procName of ["cloudflared", "tray_windows_release"]) {
-      try {
-        const cmd = `powershell -NonInteractive -WindowStyle Hidden -Command "Get-Process ${procName} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id"`;
-        const out = execSync(cmd, {
-          encoding: "utf8",
-          windowsHide: true,
-          timeout: KILL_TIMEOUT_MS,
-        });
-        out.split("\n").forEach((l) => {
-          const pid = l.trim();
-          if (pid && !isNaN(pid)) pids.push(pid);
-        });
-      } catch {
-        /* not running */
-      }
-    }
-  } else {
-    try {
-      const output = execSync("ps aux 2>/dev/null", { encoding: "utf8", timeout: KILL_TIMEOUT_MS });
-      output.split("\n").forEach((line) => {
-        const isAppProcess =
-          line.includes("9router") ||
-          line.includes("next-server") ||
-          line.includes("cloudflared") ||
-          line.includes("/bin/app/") ||
-          line.includes("tray_darwin") ||
-          line.includes("tray_linux");
-        if (isAppProcess) {
-          const parts = line.trim().split(/\s+/);
-          const pid = parts[1];
-          if (pid && !isNaN(pid) && pid !== process.pid.toString()) pids.push(pid);
-        }
-      });
-    } catch {
-      /* no processes */
-    }
-  }
-
-  return pids;
+function killCloudflaredByPidFile() {
+  const pid = loadPid();
+  if (!isPid(pid)) return;
+  forceKill(pid);
+  clearPid(pid);
 }
 
-// Kill all app-related processes to release file locks (esp. on Windows)
+// Stop only processes this install recorded in PID files — never match by name,
+// which would kill unrelated Next.js apps, cloudflared tunnels, npm/npx, editors.
 export async function killAppProcesses() {
   killMitmByPidFile();
-  const pids = collectAppPids();
-  const platform = process.platform;
+  killCloudflaredByPidFile();
+}
 
-  pids.forEach((pid) => {
-    try {
-      if (platform === "win32") {
-        execSync(`taskkill /F /PID ${pid} 2>nul`, {
-          stdio: "ignore",
-          shell: true,
-          windowsHide: true,
-          timeout: 3000,
-        });
-      } else {
-        execSync(`kill -9 ${pid} 2>/dev/null`, { stdio: "ignore", timeout: 3000 });
-      }
-    } catch {
-      /* already dead */
+// Ask the CLI launcher that spawned this server to shut down, so its own cleanup
+// (tray, MITM, tunnel, server) runs and it does not restart us. Only signals our
+// direct parent, and only when the launcher PID file confirms it is the launcher.
+export function stopLauncher() {
+  let launcher;
+  try {
+    launcher = JSON.parse(fs.readFileSync(LAUNCHER_PID_FILE, "utf8"))?.launcher;
+  } catch {
+    return false;
+  }
+  if (!isPid(launcher) || launcher !== process.ppid) return false;
+  try {
+    if (process.platform === "win32") {
+      execSync(`taskkill /F /T /PID ${launcher}`, {
+        stdio: "ignore",
+        windowsHide: true,
+        timeout: 3000,
+      });
+    } else {
+      process.kill(launcher, "SIGTERM");
     }
-  });
-
-  if (pids.length > 0) {
-    await new Promise((r) => setTimeout(r, PROCESS_WAIT_MS));
+    return true;
+  } catch {
+    return false;
   }
 }
