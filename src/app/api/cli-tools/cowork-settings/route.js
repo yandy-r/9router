@@ -399,7 +399,7 @@ export async function POST(request) {
     }
 
     // Best-effort cleanup of legacy 1p mcpServers entries written by earlier versions.
-    let localMcpResult = { applied: localPluginNames, via: "3p-sse-bridge" };
+    const localMcpResult = { applied: localPluginNames, via: "3p-sse-bridge" };
     try {
       await cleanup1pLegacy();
     } catch {

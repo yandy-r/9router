@@ -80,12 +80,9 @@ export class GitHubService extends OAuthService {
           scope: data.scope,
         };
       } else if (data.error === "authorization_pending") {
-        // Continue polling
-        continue;
       } else if (data.error === "slow_down") {
         // Increase polling interval
         interval += 5000;
-        continue;
       } else if (data.error === "expired_token") {
         spinner.fail("Device code expired. Please try again.");
         throw new Error("Device code expired");

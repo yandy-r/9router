@@ -45,7 +45,7 @@ function safeJSONParse(str, fallback) {
  * Returns { history, currentMessage }.
  */
 function convertMessages(messages, model) {
-  let history = [];
+  const history = [];
   let currentMessage = null;
 
   let pendingUserContent = [];

@@ -25,9 +25,7 @@ export async function POST(request) {
     const samlEntryPoint = String(body.samlEntryPoint || settings.samlEntryPoint || "").trim();
     const samlIssuer = String(body.samlIssuer || settings.samlIssuer || "urn:9router:sp").trim();
     const samlCert = String(
-      Object.prototype.hasOwnProperty.call(body, "samlCert")
-        ? body.samlCert
-        : settings.samlCert || "",
+      Object.hasOwn(body, "samlCert") ? body.samlCert : settings.samlCert || "",
     ).trim();
 
     if (!samlEntryPoint) {

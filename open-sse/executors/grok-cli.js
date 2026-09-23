@@ -475,7 +475,7 @@ export class GrokCliExecutor extends BaseExecutor {
     body.store = false;
 
     // Resolve upstream model id (strip effort suffix virtual models)
-    let modelEffort = resolveEffortFromModel(body.model || model);
+    const modelEffort = resolveEffortFromModel(body.model || model);
     let resolvedModel = body.model || model;
     if (modelEffort) {
       resolvedModel = resolvedModel.replace(new RegExp(`-${modelEffort}$`), "");

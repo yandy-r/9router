@@ -176,7 +176,6 @@ export function openaiResponsesToOpenAIRequest(model, body, stream, credentials)
         // Prefer attaching to the next assistant message we create
         pendingReasoningEncrypted = item.encrypted_content;
       }
-      continue;
     }
   }
 

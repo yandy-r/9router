@@ -30,7 +30,7 @@ import { ROLE, GEMINI_ROLE, OPENAI_BLOCK, CLAUDE_BLOCK } from "../schema/index.j
 function sanitizeGeminiFunctionName(name) {
   if (!name) return "_unknown";
   // Replace any char not in [a-zA-Z0-9_.:\-] with '_'
-  let sanitized = name.replace(/[^a-zA-Z0-9_.:\-]/g, "_");
+  let sanitized = name.replace(/[^a-zA-Z0-9_.:-]/g, "_");
   // First char must be letter or underscore
   if (!/^[a-zA-Z_]/.test(sanitized)) {
     sanitized = "_" + sanitized;

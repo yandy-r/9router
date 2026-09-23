@@ -117,10 +117,10 @@ function unwrapZedLine(line) {
   if (text === "[DONE]") return { done: true };
   try {
     const parsed = JSON.parse(text);
-    if (parsed && Object.prototype.hasOwnProperty.call(parsed, "event")) {
+    if (parsed && Object.hasOwn(parsed, "event")) {
       return { event: parsed.event };
     }
-    if (parsed && Object.prototype.hasOwnProperty.call(parsed, "status")) {
+    if (parsed && Object.hasOwn(parsed, "status")) {
       return { status: parsed.status };
     }
     return { event: parsed };

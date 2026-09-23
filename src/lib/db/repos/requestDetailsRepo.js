@@ -74,7 +74,7 @@ async function getObservabilityConfig() {
   return cachedConfig;
 }
 
-let writeBuffer = [];
+const writeBuffer = [];
 let flushTimer = null;
 let isFlushing = false;
 

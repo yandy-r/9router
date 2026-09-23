@@ -820,7 +820,7 @@ export class KiroExecutor extends BaseExecutor {
             if (typeof input.name !== "string" || !input.name.trim()) {
               throw new Error("Invalid Kiro tool_call payload: missing nested MCP tool name");
             }
-            if (!Object.prototype.hasOwnProperty.call(input, "arguments")) {
+            if (!Object.hasOwn(input, "arguments")) {
               throw new Error("Invalid Kiro tool_call payload: missing nested MCP tool arguments");
             }
           }

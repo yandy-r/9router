@@ -9,7 +9,7 @@ import {
 function normalizeProxyPoolUpdate(body = {}) {
   const updates = {};
 
-  if (Object.prototype.hasOwnProperty.call(body, "name")) {
+  if (Object.hasOwn(body, "name")) {
     const name = typeof body?.name === "string" ? body.name.trim() : "";
     if (!name) {
       return { error: "Name is required" };
@@ -17,7 +17,7 @@ function normalizeProxyPoolUpdate(body = {}) {
     updates.name = name;
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, "proxyUrl")) {
+  if (Object.hasOwn(body, "proxyUrl")) {
     const proxyUrl = typeof body?.proxyUrl === "string" ? body.proxyUrl.trim() : "";
     if (!proxyUrl) {
       return { error: "Proxy URL is required" };
@@ -25,19 +25,19 @@ function normalizeProxyPoolUpdate(body = {}) {
     updates.proxyUrl = proxyUrl;
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, "noProxy")) {
+  if (Object.hasOwn(body, "noProxy")) {
     updates.noProxy = typeof body?.noProxy === "string" ? body.noProxy.trim() : "";
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, "isActive")) {
+  if (Object.hasOwn(body, "isActive")) {
     updates.isActive = body?.isActive === true;
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, "strictProxy")) {
+  if (Object.hasOwn(body, "strictProxy")) {
     updates.strictProxy = body?.strictProxy === true;
   }
 
-  if (Object.prototype.hasOwnProperty.call(body, "type")) {
+  if (Object.hasOwn(body, "type")) {
     const validTypes = ["http", "vercel", "cloudflare"];
     updates.type = validTypes.includes(body?.type) ? body.type : "http";
   }

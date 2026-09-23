@@ -106,7 +106,7 @@ function parseInner(inner) {
 export function createQoderSseCoalescer({ model, encoder, sseDone }) {
   let pendingFinish = null;
   let pendingUsage = null;
-  let lastMeta = { id: null, created: null, model };
+  const lastMeta = { id: null, created: null, model };
   let doneEmitted = false;
   let finishAlreadyForwarded = false;
 

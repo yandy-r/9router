@@ -103,7 +103,7 @@ describe("Gemini 3.8 MITM tools and catalog", () => {
 
   it("keeps the standalone CLI Antigravity catalog synchronized", () => {
     const source = readFileSync(join(here, "../../cli/src/cli/menus/providers.js"), "utf8");
-    const agCatalog = source.match(/\n  ag: \[([\s\S]*?)\n  \],/)?.[1] || "";
+    const agCatalog = source.match(/\n {2}ag: \[([\s\S]*?)\n {2}\],/)?.[1] || "";
 
     expect(agCatalog).toContain("gemini-3.8-flash-high");
     expect(agCatalog).toContain("gemini-3.8-flash-medium");

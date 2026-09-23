@@ -8,7 +8,7 @@ export async function createNodeSqliteAdapter(filePath) {
   // Suppress "ExperimentalWarning: SQLite is an experimental feature" from node:sqlite.
   // Stable enough for production use as of Node 22.x (RC quality).
   const origEmit = process.emit;
-  process.emit = function (name, data, ...rest) {
+  process.emit = (name, data, ...rest) => {
     if (
       name === "warning" &&
       data?.name === "ExperimentalWarning" &&

@@ -126,7 +126,7 @@ export function convertResponsesApiFormat(body) {
 
   // Group items by conversation turn
   let currentAssistantMsg = null;
-  let pendingToolCalls = [];
+  const pendingToolCalls = [];
   let pendingToolResults = [];
 
   const inputItems = normalizeResponsesInput(body.input);
@@ -201,8 +201,6 @@ export function convertResponsesApiFormat(body) {
         content: typeof item.output === "string" ? item.output : JSON.stringify(item.output),
       });
     } else if (itemType === RESPONSES_ITEM.REASONING) {
-      // Skip reasoning items - they are for display only
-      continue;
     }
   }
 

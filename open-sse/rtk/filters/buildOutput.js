@@ -97,7 +97,6 @@ export function buildOutput(input) {
       /packages are looking for funding/i.test(trimmed)
     ) {
       summary = summary ? `${summary}\n${line}` : line;
-      continue;
     }
   }
 

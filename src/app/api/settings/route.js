@@ -77,7 +77,7 @@ export async function PATCH(request) {
       delete body.currentPassword;
     }
 
-    if (Object.prototype.hasOwnProperty.call(body, "oidcClientSecret")) {
+    if (Object.hasOwn(body, "oidcClientSecret")) {
       if (!body.oidcClientSecret || !String(body.oidcClientSecret).trim()) {
         delete body.oidcClientSecret;
       }
@@ -87,26 +87,23 @@ export async function PATCH(request) {
 
     // Apply outbound proxy settings immediately (no restart required)
     if (
-      Object.prototype.hasOwnProperty.call(body, "outboundProxyEnabled") ||
-      Object.prototype.hasOwnProperty.call(body, "outboundProxyUrl") ||
-      Object.prototype.hasOwnProperty.call(body, "outboundNoProxy")
+      Object.hasOwn(body, "outboundProxyEnabled") ||
+      Object.hasOwn(body, "outboundProxyUrl") ||
+      Object.hasOwn(body, "outboundNoProxy")
     ) {
       applyOutboundProxyEnv(settings);
     }
 
     // Invalidate combo rotation state when strategy settings change
     if (
-      Object.prototype.hasOwnProperty.call(body, "comboStrategy") ||
-      Object.prototype.hasOwnProperty.call(body, "comboStickyRoundRobinLimit") ||
-      Object.prototype.hasOwnProperty.call(body, "comboStrategies")
+      Object.hasOwn(body, "comboStrategy") ||
+      Object.hasOwn(body, "comboStickyRoundRobinLimit") ||
+      Object.hasOwn(body, "comboStrategies")
     ) {
       resetComboRotation();
     }
 
-    if (
-      Object.prototype.hasOwnProperty.call(body, "claudeAutoPing") ||
-      Object.prototype.hasOwnProperty.call(body, "codexAutoPing")
-    ) {
+    if (Object.hasOwn(body, "claudeAutoPing") || Object.hasOwn(body, "codexAutoPing")) {
       // Keep the scheduler absent when no account opted in; load its provider graph only on demand.
       import("@/shared/services/quotaAutoPing")
         .then(({ configureQuotaAutoPing }) => {

@@ -379,7 +379,7 @@ function isBillingBlock(inner) {
   if (!inner || typeof inner !== "string") return false;
   const lowerMsg = inner.toLowerCase();
   // Match: {"code":"112",...}, {"code":"10605",...}, or pricingUrl field
-  return /\"code\"\s*:\s*\"(112|10605)\"/.test(inner) || lowerMsg.includes("pricingurl");
+  return /"code"\s*:\s*"(112|10605)"/.test(inner) || lowerMsg.includes("pricingurl");
 }
 
 /**

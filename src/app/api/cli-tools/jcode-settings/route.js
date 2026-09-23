@@ -141,7 +141,7 @@ export async function POST(request) {
 
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
 
-    let config = await readConfig();
+    const config = await readConfig();
 
     if (!config.providers) {
       config.providers = {};

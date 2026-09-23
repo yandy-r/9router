@@ -21,7 +21,7 @@ export async function POST(request) {
 
     // Extract account info from the JWT (email, workspace, plan)
     let email = null;
-    let providerSpecificData = { authMethod: "access_token" };
+    const providerSpecificData = { authMethod: "access_token" };
 
     // Try decoding as JWT to extract email + workspace
     try {

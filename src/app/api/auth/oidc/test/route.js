@@ -28,9 +28,7 @@ export async function POST(request) {
       String(body.scopes || settings.oidcScopes || "openid profile email").trim() ||
       "openid profile email";
     const clientSecret = String(
-      Object.prototype.hasOwnProperty.call(body, "clientSecret")
-        ? body.clientSecret
-        : settings.oidcClientSecret || "",
+      Object.hasOwn(body, "clientSecret") ? body.clientSecret : settings.oidcClientSecret || "",
     ).trim();
 
     if (!issuerUrl) {

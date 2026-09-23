@@ -56,9 +56,7 @@ export async function GET() {
             tokenData = data;
             break;
           }
-        } catch (error) {
-          continue;
-        }
+        } catch (error) {}
       }
     }
 
@@ -117,9 +115,7 @@ export async function GET() {
           );
           break;
         }
-      } catch (error) {
-        continue;
-      }
+      } catch (error) {}
     }
 
     return NextResponse.json({

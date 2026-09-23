@@ -44,7 +44,7 @@ export const PROVIDER_ALIASES = {
   "cloudflare-ai": "cloudflare-workers-ai",
 };
 
-let state = {
+const state = {
   running: false,
   lastSync: null,
   lastError: null,

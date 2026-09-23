@@ -154,7 +154,7 @@ export function stripHistoryForContext(body, contextWindow) {
   let total = systemMsgs.concat(headKept, tail).reduce((s, m) => s + blockLength(contentOf(m)), 0);
 
   // If head + tail overflow, drop head turns from the end (closest to middle) first.
-  let head = headKept;
+  const head = headKept;
   while (total > budgetChars && head.length > 0) {
     const dropped = head.pop();
     total -= blockLength(contentOf(dropped));

@@ -413,7 +413,7 @@ export class WindsurfExecutor extends BaseExecutor {
 
     const b = body ?? {};
     const rawMessages = Array.isArray(b.messages) ? b.messages : [];
-    let wsMessages = openAIMessagesToWs(rawMessages);
+    const wsMessages = openAIMessagesToWs(rawMessages);
     if (wsMessages.length === 0) {
       wsMessages.push({ role: "user", content: "" });
     }

@@ -299,7 +299,7 @@ function injectGeminiSystem(body, prompt) {
     } catch (_) {}
     let useSnake = false;
     try {
-      useSnake = Object.prototype.hasOwnProperty.call(target, "system_instruction");
+      useSnake = Object.hasOwn(target, "system_instruction");
     } catch (_) {}
     const key = useSnake ? "system_instruction" : "systemInstruction";
     let sys;

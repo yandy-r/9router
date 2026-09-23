@@ -1,5 +1,3 @@
-"use strict";
-
 // Rewrite Antigravity IDE markers on generation requests so upstream AG 2.x
 // backend accepts them. Catalog and other passthrough requests retain the
 // client's current identity. Hardcoded MVP — toggle/version configurable later.
@@ -11,7 +9,7 @@ function shouldRewriteMetadata(metadata) {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return false;
   if (String(metadata.ideName || "").toLowerCase() === "antigravity") return true;
   if (String(metadata.ideType || "").toUpperCase() === "ANTIGRAVITY") return true;
-  return Object.prototype.hasOwnProperty.call(metadata, "ideVersion");
+  return Object.hasOwn(metadata, "ideVersion");
 }
 
 function rewriteAntigravityUserAgent(userAgent, version) {

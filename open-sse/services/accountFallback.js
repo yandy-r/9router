@@ -8,7 +8,7 @@ import { ERROR_RULES, BACKOFF_CONFIG, TRANSIENT_COOLDOWN_MS } from "../config/er
  */
 export function getQuotaCooldown(backoffLevel = 0) {
   const level = Math.max(0, backoffLevel - 1);
-  const cooldown = BACKOFF_CONFIG.base * Math.pow(2, level);
+  const cooldown = BACKOFF_CONFIG.base * 2 ** level;
   return Math.min(cooldown, BACKOFF_CONFIG.max);
 }
 

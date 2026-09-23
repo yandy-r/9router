@@ -292,7 +292,7 @@ export const LIVE_MODEL_RESOLVERS = {
 };
 
 export function hasLiveModelResolver(providerId) {
-  return Object.prototype.hasOwnProperty.call(LIVE_MODEL_RESOLVERS, providerId);
+  return Object.hasOwn(LIVE_MODEL_RESOLVERS, providerId);
 }
 
 const cache = new Map();

@@ -142,7 +142,7 @@ describe("Gemini 3.6 catalogs and pricing", () => {
 
   it("keeps the standalone CLI Gemini catalog synchronized", () => {
     const source = readFileSync(join(here, "../../cli/src/cli/menus/providers.js"), "utf8");
-    const geminiCatalog = source.match(/\n  gemini: \[([\s\S]*?)\n  \],/)?.[1] || "";
+    const geminiCatalog = source.match(/\n {2}gemini: \[([\s\S]*?)\n {2}\],/)?.[1] || "";
 
     expect(geminiCatalog).toContain("gemini-3.6-flash");
     expect(geminiCatalog).toContain("gemini-3.5-flash-lite");

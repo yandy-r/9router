@@ -48,7 +48,7 @@ export function gitLog(text, maxLines = GIT_LOG_MAX_LINES) {
       // blank — skip
       if (trimmed === "") continue;
       // indented subject (4 spaces, optionally preceded by graph decoration) — first one is subject
-      if (!subjectSeen && /^[*|/\\ ]*    \S/.test(line)) {
+      if (!subjectSeen && /^[*|/\\ ]* {4}\S/.test(line)) {
         pushLine("  Subject: " + trimmed);
         subjectSeen = true;
         continue;

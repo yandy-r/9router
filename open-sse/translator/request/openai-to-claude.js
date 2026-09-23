@@ -50,7 +50,7 @@ export function openaiToClaudeRequest(model, body, stream) {
 
     // Process messages with merging logic
     // CRITICAL: tool_result must be in separate message immediately after tool_use
-    let currentRole = undefined;
+    let currentRole;
     let currentParts = [];
 
     const flushCurrentMessage = () => {
