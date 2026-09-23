@@ -118,10 +118,12 @@ export async function handleImageGenerationCore({
     return createErrorResult(HTTP_STATUS.BAD_GATEWAY, errMsg);
   }
 
-  // Handle 401/403 — try token refresh (skipped for noAuth providers)
+  // Handle 401/403 — try token refresh (skip for noAuth providers and
+  // executors with no refresh mechanism)
   const executor = getExecutor(provider);
   if (
     !executor?.noAuth &&
+    executor?.supportsRefresh !== false &&
     !adapter.noAuth &&
     (providerResponse.status === HTTP_STATUS.UNAUTHORIZED ||
       providerResponse.status === HTTP_STATUS.FORBIDDEN)

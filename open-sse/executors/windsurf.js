@@ -373,6 +373,8 @@ function openAIMessagesToWs(messages) {
 export class WindsurfExecutor extends BaseExecutor {
   constructor() {
     super("windsurf", PROVIDERS.windsurf || { id: "windsurf", baseUrl: WS_CHAT_URL });
+    // Long-lived apiKey; no chat-path refresh (refreshCredentials → null).
+    this.supportsRefresh = false;
   }
 
   buildUrl() {

@@ -13,6 +13,12 @@ export class BaseExecutor {
     this.provider = provider;
     this.config = config;
     this.noAuth = config?.noAuth || false;
+    // Capability flag: false when the provider has no OAuth refresh mechanism
+    // (refreshCredentials() unconditionally returns null), so 401/403 handlers
+    // skip the futile refreshWithRetry path (~3s of 1s+2s waits) and return the
+    // upstream error immediately. ponytail: default true keeps every existing
+    // executor on the refresh path; only no-mechanism executors opt out.
+    this.supportsRefresh = true;
   }
 
   getProvider() {
