@@ -56,6 +56,24 @@ export function coerceResponsesArguments(value) {
   }
 }
 
+/**
+ * Resolve the `strict` flag to send for a function tool on a Responses upstream.
+ * An explicit boolean wins, flat (`tool.strict`) over nested (`tool.function.strict`),
+ * matching how the Responses executors resolve name/description/parameters.
+ * A Chat Completions-shaped tool without one resolves to `false`: Chat tools are
+ * non-strict by default, while Responses treats an absent `strict` as strict and
+ * forces every optional field. A flat Responses tool without one stays unset so
+ * the upstream default applies.
+ * @param {object} tool - function tool declaration (flat or nested)
+ * @returns {boolean|undefined} the flag to send, or undefined to omit it
+ */
+export function resolveFunctionToolStrict(tool) {
+  if (typeof tool?.strict === "boolean") return tool.strict;
+  const fn = tool?.function;
+  if (!fn || typeof fn !== "object") return undefined;
+  return typeof fn.strict === "boolean" ? fn.strict : false;
+}
+
 // function_call_output.output must be a string — never null/object.
 export function coerceResponsesOutput(value) {
   if (typeof value === "string") return value;
