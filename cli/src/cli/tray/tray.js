@@ -38,7 +38,7 @@ function isTraySupported() {
 
 /**
  * Initialize system tray with menu
- * @param {Object} options - { port, onQuit, onOpenDashboard }
+ * @param {Object} options - { port, host, onQuit, onOpenDashboard }
  * @returns {Object|null} tray instance or null if not supported/failed
  */
 function initTray(options) {
@@ -88,7 +88,7 @@ function getAutostartEnabled() {
  * Handle menu item click (shared logic)
  */
 function handleClick(index, options, onAutostartToggle) {
-  const { onQuit, onOpenDashboard, port } = options;
+  const { onQuit, onOpenDashboard, port, host } = options;
   if (index === MENU_INDEX.DASHBOARD) {
     if (onOpenDashboard) onOpenDashboard();
     else openBrowser(`http://localhost:${port}/dashboard`);
@@ -97,7 +97,8 @@ function handleClick(index, options, onAutostartToggle) {
     try {
       const { enableAutoStart, disableAutoStart } = require("./autostart");
       if (enabled) disableAutoStart();
-      else enableAutoStart();
+      // Keep the boot instance on the same host/port (e.g. local-only 127.0.0.1).
+      else enableAutoStart(undefined, { port, host });
       onAutostartToggle(!enabled);
     } catch (e) {}
   } else if (index === MENU_INDEX.QUIT) {
