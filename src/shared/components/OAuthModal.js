@@ -293,6 +293,7 @@ export default function OAuthModal({
         "codebuddy-intl",
         "qoder",
         "grok-cli",
+        "meta-code",
       ];
       if (deviceCodeProviders.includes(provider)) {
         setIsDeviceCode(true);

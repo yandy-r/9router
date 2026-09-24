@@ -21,6 +21,7 @@ const ALIAS_TOKENS = [
   "cu",
   "kc",
   "kmc",
+  "mc",
   "cl",
   "oc",
   "ocg",

@@ -62,7 +62,9 @@ export function getModelTargetFormat(aliasOrId, modelId) {
       aliasOrId === "oc" ||
       aliasOrId === "opencode" ||
       aliasOrId === "ocg" ||
-      aliasOrId === "opencode-go") &&
+      aliasOrId === "opencode-go" ||
+      aliasOrId === "mc" ||
+      aliasOrId === "meta-code") &&
     isMuseSparkModel(modelId)
   ) {
     return FORMATS.OPENAI_RESPONSES;

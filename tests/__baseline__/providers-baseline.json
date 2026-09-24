@@ -1030,5 +1030,11 @@
       "preserveCacheControl": true
     },
     "format": "openai"
+  },
+  "meta-code": {
+    "baseUrl": "https://api.meta.ai/v1/responses",
+    "format": "openai-responses",
+    "validateUrl": "https://api.meta.ai/v1/models",
+    "tokenUrl": "https://auth.meta.com/oidc/device/token/"
   }
 }

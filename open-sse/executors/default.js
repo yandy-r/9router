@@ -16,6 +16,7 @@ import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { stripUnsupportedParams } from "../translator/concerns/paramSupport.js";
 import { CLAUDE_CODE_SESSION_HEADER, extractClaudeCodeSession } from "../utils/sessionManager.js";
+import { refreshMetaCodeToken } from "../services/tokenRefresh/providers.js";
 
 // Auth header descriptors — derived from registry transport.auth, fallback to hardcoded defaults.
 const BEARER = { combined: true, header: "Authorization", scheme: "bearer" };
@@ -29,6 +30,18 @@ const AUTH_DESCRIPTORS = Object.fromEntries(
 // Apply a token to a header per scheme (matches legacy: combined always sets, even when undefined).
 function setAuth(headers, spec, token) {
   headers[spec.header] = spec.scheme === "bearer" ? `Bearer ${token}` : token;
+}
+
+// Responses API has no top-level `reasoning_effort` (strict upstreams like Meta 400 on it);
+// applyThinking emits the Chat-style field, so fold it into `reasoning.effort`.
+function foldReasoningEffort(body) {
+  if (body.reasoning_effort === undefined) return;
+  const reasoning =
+    body.reasoning && typeof body.reasoning === "object" && !Array.isArray(body.reasoning)
+      ? body.reasoning
+      : {};
+  body.reasoning = { summary: "auto", ...reasoning, effort: body.reasoning_effort };
+  delete body.reasoning_effort;
 }
 
 // Resolve auth onto headers from a descriptor.
@@ -143,6 +156,12 @@ export class DefaultExecutor extends BaseExecutor {
         delete transformed.client_metadata;
       }
       stripUnsupportedParams(this.provider, model, transformed);
+      if (this.config.format === "openai-responses") {
+        foldReasoningEffort(transformed);
+        // chatCore always reads forceStream upstreams as SSE; a same-format client
+        // body can still carry stream:false, which would return JSON instead.
+        if (this.config.forceStream) transformed.stream = true;
+      }
     }
 
     return injectReasoningContent({ provider: this.provider, model, body: transformed });
@@ -307,6 +326,8 @@ export class DefaultExecutor extends BaseExecutor {
       kimi: () => this.refreshKimi(credentials, proxyOptions),
       "kimi-coding": () => this.refreshKimi(credentials, proxyOptions),
       kilocode: () => this.refreshKilocode(credentials.refreshToken, proxyOptions),
+      // No refresh grant: refreshToken is the `dca:` device token, re-mint the key.
+      "meta-code": () => refreshMetaCodeToken(credentials.refreshToken, log),
     };
 
     const refresher = refreshers[this.provider];

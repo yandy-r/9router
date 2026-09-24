@@ -22,6 +22,7 @@ const ENV = {
   ANTIGRAVITY_OAUTH_CLIENT_SECRET: "ag-test-secret",
   GEMINI_OAUTH_CLIENT_ID: "gemini-test-client.apps.example",
   GEMINI_OAUTH_CLIENT_SECRET: "gemini-test-secret",
+  META_CODE_OAUTH_CLIENT_ID: "meta-code-test-client",
 };
 const EXPECTED = {
   clientId: ENV.ANTIGRAVITY_OAUTH_CLIENT_ID,
@@ -173,6 +174,7 @@ describe("loadOAuthClientDefaults", () => {
     GEMINI_OAUTH_CLIENT_SECRET: "built-in-gemini-secret",
     ANTIGRAVITY_OAUTH_CLIENT_ID: "built-in-ag.apps.example",
     ANTIGRAVITY_OAUTH_CLIENT_SECRET: "built-in-ag-secret",
+    META_CODE_OAUTH_CLIENT_ID: "built-in-meta-code-client",
   };
 
   it("applies built-ins when env is unset", () => {
@@ -185,7 +187,26 @@ describe("loadOAuthClientDefaults", () => {
       "GEMINI_OAUTH_CLIENT_SECRET",
       "ANTIGRAVITY_OAUTH_CLIENT_ID",
       "ANTIGRAVITY_OAUTH_CLIENT_SECRET",
+      "META_CODE_OAUTH_CLIENT_ID",
     ]);
+  });
+
+  it("single-key group (META_CODE_OAUTH_CLIENT_ID) is applied and written", () => {
+    const file = writeDefaultsFile({ META_CODE_OAUTH_CLIENT_ID: "built-in-meta-code-client" });
+    const env = {};
+    expect(loadOAuthClientDefaults(file, env)).toEqual(["META_CODE_OAUTH_CLIENT_ID"]);
+    expect(env.META_CODE_OAUTH_CLIENT_ID).toBe("built-in-meta-code-client");
+
+    const { writeOAuthClients, checkOAuthClients } = createRequire(import.meta.url)(
+      "../../scripts/write-oauth-clients.cjs",
+    );
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "oauth-writer-meta-"));
+    expect(
+      writeOAuthClients(dir, { META_CODE_OAUTH_CLIENT_ID: " built-in-meta-code-client " }),
+    ).toEqual(["META_CODE_OAUTH_CLIENT_ID"]);
+    const written = JSON.parse(fs.readFileSync(path.join(dir, "oauth-clients.json"), "utf8"));
+    expect(written.META_CODE_OAUTH_CLIENT_ID).toBe("built-in-meta-code-client");
+    expect(checkOAuthClients(dir)).toBe(false); // other groups still missing
   });
 
   it("env wins pair-wise: gemini untouched, antigravity applied", () => {

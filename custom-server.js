@@ -19,19 +19,21 @@ function loadOAuthClientDefaults(file, env = process.env) {
     throw new Error(`OAuth client defaults at ${file} must be a JSON object`);
   }
 
+  // Each group is applied atomically: env wins if any key in the group is set,
+  // built-ins apply only when every key in the group is present.
   const applied = [];
-  for (const [clientId, clientSecret] of [
+  for (const keys of [
     ["GEMINI_OAUTH_CLIENT_ID", "GEMINI_OAUTH_CLIENT_SECRET"],
     ["ANTIGRAVITY_OAUTH_CLIENT_ID", "ANTIGRAVITY_OAUTH_CLIENT_SECRET"],
+    ["META_CODE_OAUTH_CLIENT_ID"],
   ]) {
-    const hasEnvValue = [clientId, clientSecret].some((key) => String(env[key] ?? "").trim());
-    const hasDefaults = [clientId, clientSecret].every(
+    const hasEnvValue = keys.some((key) => String(env[key] ?? "").trim());
+    const hasDefaults = keys.every(
       (key) => typeof defaults[key] === "string" && defaults[key].trim(),
     );
     if (!hasEnvValue && hasDefaults) {
-      env[clientId] = defaults[clientId];
-      env[clientSecret] = defaults[clientSecret];
-      applied.push(clientId, clientSecret);
+      for (const key of keys) env[key] = defaults[key];
+      applied.push(...keys);
     }
   }
   return applied;

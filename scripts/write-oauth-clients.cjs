@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const PAIRS = [
+const ENTRIES = [
   {
     provider: "gemini",
     keys: ["GEMINI_OAUTH_CLIENT_ID", "GEMINI_OAUTH_CLIENT_SECRET"],
@@ -12,15 +12,19 @@ const PAIRS = [
     provider: "antigravity",
     keys: ["ANTIGRAVITY_OAUTH_CLIENT_ID", "ANTIGRAVITY_OAUTH_CLIENT_SECRET"],
   },
+  {
+    provider: "meta-code",
+    keys: ["META_CODE_OAUTH_CLIENT_ID"],
+  },
 ];
-const ALL_KEYS = PAIRS.flatMap(({ keys }) => keys);
+const ALL_KEYS = ENTRIES.flatMap(({ keys }) => keys);
 const FILE_NAME = "oauth-clients.json";
 
 function writeOAuthClients(outDir, env = process.env) {
   const clients = {};
   const providers = [];
 
-  for (const { provider, keys } of PAIRS) {
+  for (const { provider, keys } of ENTRIES) {
     const values = keys.map((key) => (typeof env[key] === "string" ? env[key].trim() : ""));
     if (values.every(Boolean)) {
       providers.push(provider);
@@ -33,7 +37,7 @@ function writeOAuthClients(outDir, env = process.env) {
   const writtenKeys = Object.keys(clients);
   if (writtenKeys.length === 0) {
     console.warn(
-      "Google OAuth defaults were not embedded; gemini/gemini-cli/antigravity login needs environment variables at runtime.",
+      "OAuth client defaults were not embedded; gemini/gemini-cli/antigravity/meta-code login needs environment variables at runtime.",
     );
     return [];
   }
@@ -42,7 +46,7 @@ function writeOAuthClients(outDir, env = process.env) {
   const outputPath = path.join(outDir, FILE_NAME);
   fs.writeFileSync(outputPath, `${JSON.stringify(clients, null, 2)}\n`, { mode: 0o644 });
   fs.chmodSync(outputPath, 0o644);
-  console.log(`Embedded Google OAuth defaults for: ${providers.join(", ")}`);
+  console.log(`Embedded OAuth client defaults for: ${providers.join(", ")}`);
   return writtenKeys;
 }
 

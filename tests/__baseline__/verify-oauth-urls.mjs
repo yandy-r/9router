@@ -20,6 +20,7 @@ const resolved = {
     xai: PROVIDERS.xai?.tokenUrl,
     // Grok CLI injects oauth.tokenUrl onto PROVIDERS via OAUTH_INJECT_FIELDS
     "grok-cli": PROVIDERS["grok-cli"]?.tokenUrl,
+    "meta-code": PROVIDERS["meta-code"]?.tokenUrl,
     cline: PROVIDERS.cline?.tokenUrl,
     kimi: PROVIDERS.kimi?.tokenUrl,
   },
