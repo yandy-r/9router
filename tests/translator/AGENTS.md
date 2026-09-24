@@ -71,7 +71,7 @@ Only add a dedicated test when a provider has a special format that does not rou
 
 - `kiro` (binary AWS EventStream), `cursor` (protobuf ConnectRPC), `commandcode` (NDJSON) → responses do NOT round-trip cleanly through openai; test via their executors, not just the translator.
 - Single-provider-two-formats (most fragile): `opencode-go` (minimax models → claude, others openai), `github` (escalates `/chat/completions` → `/responses` at runtime), `xiaomi-tokenplan` (claude alias).
-- `gemini`/`gemini-cli`: only the LAST system message is kept → earlier system messages are lost.
+- `gemini`/`gemini-cli`: system and developer instructions accumulate in `systemInstruction.parts`; keep their order.
 
 ## 8. Current known bugs (currently `it.fails`)
 
@@ -122,7 +122,6 @@ Grouped per CLI/provider test file. Each row is an `it.fails` case.
 
 | Bug                                       | Source                                   |
 | ----------------------------------------- | ---------------------------------------- |
-| Only the last system message kept         | `request/openai-to-gemini.js:92-96`      |
 | Cursor `max_tokens` hardcoded to 32000    | `request/openai-to-cursor.js:179`        |
 | CommandCode bad JSON args → `{}` silently | `request/openai-to-commandcode.js:53-57` |
 | CommandCode image → `[image omitted]`     | `request/openai-to-commandcode.js:41-42` |

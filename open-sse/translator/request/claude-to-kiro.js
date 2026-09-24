@@ -80,17 +80,24 @@ function convertClaudeMessagesToKiro(messages, model) {
   };
 
   for (const msg of messages) {
-    const role = msg.role;
+    // Mid-conversation system turns fold into the user turn at their position,
+    // wrapped as <instructions> like openai-to-kiro (Kiro has no system role).
+    const isInstruction = msg.role === ROLE.SYSTEM;
+    const role = isInstruction ? ROLE.USER : msg.role;
+    const pushText = (text) => {
+      if (!isInstruction) pendingUserContent.push(text);
+      else if (text) pendingUserContent.push(`<instructions>\n${text}\n</instructions>`);
+    };
     if (role !== currentRole && currentRole !== null) flushPending();
     currentRole = role;
 
     if (role === ROLE.USER) {
       if (typeof msg.content === "string") {
-        pendingUserContent.push(msg.content);
+        pushText(msg.content);
       } else if (Array.isArray(msg.content)) {
         for (const block of msg.content) {
           if (block.type === CLAUDE_BLOCK.TEXT) {
-            pendingUserContent.push(block.text);
+            pushText(block.text);
           } else if (block.type === CLAUDE_BLOCK.IMAGE && block.source?.type === "base64") {
             const mediaType = block.source.media_type || DEFAULT_IMAGE_MIME;
             const format = mediaType.split("/")[1] || mediaType;
