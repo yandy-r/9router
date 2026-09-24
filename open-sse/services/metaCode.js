@@ -1,27 +1,29 @@
 /**
- * Meta Code (Muse Spark) subscription helpers.
+ * Meta Code (Muse Spark) subscription key mint.
  *
  * The muse CLI signs in with a device-code OAuth grant, then trades the resulting
  * `dca:` token for the API key tied to the Muse Code subscription ("mint"). Only
  * that key is billed at subscription rates; any other key is pay-as-you-go.
- * Minting is idempotent: it returns the same key every time and does not rotate it.
- * The mint response also includes the current subscription usage (5h + weekly windows).
+ * Minting is idempotent (same key every call, no rotation) and the response also
+ * carries current subscription usage (5h + weekly windows).
  */
 
-import { fetchWithTimeout, parseResetTime, toFiniteNumber } from "./usage/shared.js";
+import { PROVIDER_OAUTH } from "../providers/index.js";
+import { fetchWithTimeout } from "./usage/shared.js";
 
-export const META_CODE_KEY_URL = "https://api.meta.ai/muse-code/key";
+const MINT_TIMEOUT_MS = 15000;
 
 /**
  * Mint (or re-fetch) the subscription API key for a Meta device-code token.
  * @param {string} dcaToken - OAuth access token from auth.meta.com (`dca:…`)
  * @returns {Promise<object>} Mint payload; `api_key` is guaranteed non-empty.
- * @throws {Error} with `.status` on HTTP failure, or when Meta returns no key.
+ * @throws {Error} with `.status` on HTTP failure (upstream body on `.detail`, kept out
+ *   of `.message` so it never reaches logs or API responses), or when Meta returns no key.
  */
 export async function mintMetaCodeKey(dcaToken, proxyOptions = null) {
   if (!dcaToken) throw new Error("Meta Code: missing OAuth token");
   const res = await fetchWithTimeout(
-    META_CODE_KEY_URL,
+    PROVIDER_OAUTH["meta-code"].mintUrl,
     {
       method: "POST",
       headers: {
@@ -32,13 +34,13 @@ export async function mintMetaCodeKey(dcaToken, proxyOptions = null) {
       },
       body: "{}",
     },
-    15000,
+    MINT_TIMEOUT_MS,
     proxyOptions,
   );
   if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    const err = new Error(`Meta Code key mint failed (${res.status}): ${detail.slice(0, 200)}`);
+    const err = new Error(`Meta Code key mint failed (${res.status})`);
     err.status = res.status;
+    err.detail = (await res.text().catch(() => "")).slice(0, 200);
     throw err;
   }
   const data = await res.json();
@@ -47,45 +49,4 @@ export async function mintMetaCodeKey(dcaToken, proxyOptions = null) {
     throw new Error(`Meta Code: account has no Model API key yet.${hint}`);
   }
   return data;
-}
-
-function percentQuota(win) {
-  const used = Math.min(100, Math.max(0, toFiniteNumber(win?.used_percent, 0)));
-  return {
-    used,
-    total: 100,
-    remainingPercentage: 100 - used,
-    resetAt: parseResetTime(win?.resets_at),
-    unlimited: false,
-  };
-}
-
-/** Map Meta `subs_usage` ({window, weekly}) to dashboard percent quotas. */
-export function parseMetaSubsUsage(subs) {
-  const quotas = {};
-  if (subs?.window) quotas["Session (5h)"] = percentQuota(subs.window);
-  if (subs?.weekly) quotas.Weekly = percentQuota(subs.weekly);
-  return quotas;
-}
-
-/** Usage handler: re-mint with the stored `dca:` token (refreshToken) to read quota. */
-export async function getMetaCodeUsage(dcaToken, proxyOptions = null) {
-  if (!dcaToken) {
-    return { message: "Quota is only available for Meta Code accounts connected via sign-in." };
-  }
-  try {
-    const data = await mintMetaCodeKey(dcaToken, proxyOptions);
-    if (!data.is_subs_active) {
-      return { plan: "Pay-as-you-go", message: "No active Muse Code subscription." };
-    }
-    return {
-      plan: data.subs_tier_name || "Muse Code",
-      quotas: parseMetaSubsUsage(data.subs_usage),
-    };
-  } catch (error) {
-    if (error.status === 401 || error.status === 403) {
-      return { message: "Meta Code sign-in expired. Please re-authorize." };
-    }
-    return { message: `Meta Code connected. Unable to fetch usage: ${error.message}` };
-  }
 }

@@ -129,12 +129,9 @@ export const KIMCHI_CONFIG = { ...PROVIDER_OAUTH["kimchi"] };
 export const GROK_CLI_CONFIG = { ...PROVIDER_OAUTH["grok-cli"] };
 
 // Meta Code (Muse Spark) OAuth Configuration (Device Code Flow, mirrors the muse CLI)
-// clientId: public muse CLI client, supplied ONLY via env META_CODE_OAUTH_CLIENT_ID
-// (never committed to source). Endpoints are literal here as the source of truth;
-// PROVIDER_OAUTH["meta-code"] overrides when the registry entry is present.
+// Endpoints from the registry; clientId (public muse CLI client) only via env
+// META_CODE_OAUTH_CLIENT_ID so it never lives in source.
 export const META_CODE_CONFIG = {
-  deviceCodeUrl: "https://auth.meta.com/oidc/device/authorization/",
-  tokenUrl: "https://auth.meta.com/oidc/device/token/",
   ...PROVIDER_OAUTH["meta-code"],
   clientId: process.env.META_CODE_OAUTH_CLIENT_ID?.trim() || undefined,
 };

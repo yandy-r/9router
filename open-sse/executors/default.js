@@ -16,7 +16,7 @@ import { proxyAwareFetch } from "../utils/proxyFetch.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { stripUnsupportedParams } from "../translator/concerns/paramSupport.js";
 import { CLAUDE_CODE_SESSION_HEADER, extractClaudeCodeSession } from "../utils/sessionManager.js";
-import { refreshMetaCodeToken } from "../services/tokenRefresh/providers.js";
+import { refreshMetaCodeToken } from "../services/tokenRefresh.js";
 
 // Auth header descriptors — derived from registry transport.auth, fallback to hardcoded defaults.
 const BEARER = { combined: true, header: "Authorization", scheme: "bearer" };
@@ -157,7 +157,7 @@ export class DefaultExecutor extends BaseExecutor {
       }
       stripUnsupportedParams(this.provider, model, transformed);
       if (this.config.format === "openai-responses") {
-        foldReasoningEffort(transformed);
+        if (this.config.quirks?.foldReasoningEffort) foldReasoningEffort(transformed);
         // chatCore always reads forceStream upstreams as SSE; a same-format client
         // body can still carry stream:false, which would return JSON instead.
         if (this.config.forceStream) transformed.stream = true;
@@ -335,7 +335,7 @@ export class DefaultExecutor extends BaseExecutor {
 
     try {
       const result = await refresher();
-      if (result) log?.info?.("TOKEN", `${this.provider} refreshed`);
+      if (result?.accessToken) log?.info?.("TOKEN", `${this.provider} refreshed`);
       return result;
     } catch (error) {
       log?.error?.("TOKEN", `${this.provider} refresh error: ${error.message}`);
