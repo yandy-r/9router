@@ -267,6 +267,75 @@ describe("Gemini native v1beta endpoint", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
+  it("routes multi-segment model ids with the stream action intact", async () => {
+    const path = ["cl", "anthropic", "claude-opus-4.7:streamGenerateContent"];
+    await POST(makeGeminiRequest(path.join("/"), { contents: [{ parts: [{ text: "hi" }] }] }), {
+      params: Promise.resolve({ path }),
+    });
+
+    const forwarded = await mocks.handleChat.mock.calls[0][0].json();
+    expect(forwarded.model).toBe("cl/anthropic/claude-opus-4.7");
+    expect(forwarded.stream).toBe(true);
+  });
+
+  it("answers countTokens locally and rejects unknown actions without a chat call", async () => {
+    const counted = await POST(
+      makeGeminiRequest("gemini-2.5-pro:countTokens", {
+        contents: [{ parts: [{ text: "12345678" }] }],
+      }),
+      { params: Promise.resolve({ path: ["gemini-2.5-pro:countTokens"] }) },
+    );
+    expect(await counted.json()).toEqual({ totalTokens: 2 });
+
+    const unknown = await POST(makeGeminiRequest("gemini-2.5-pro:embedContent", {}), {
+      params: Promise.resolve({ path: ["gemini-2.5-pro:embedContent"] }),
+    });
+    expect(unknown.status).toBe(400);
+    expect(mocks.handleChat).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for a malformed JSON body", async () => {
+    const request = new Request(
+      "https://router.test/v1beta/models/gemini-2.5-pro:generateContent",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{bad",
+      },
+    );
+
+    const response = await POST(request, {
+      params: Promise.resolve({ path: ["gemini-2.5-pro:generateContent"] }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(mocks.handleChat).not.toHaveBeenCalled();
+  });
+
+  it("keeps SSE lines that are split across network chunks", async () => {
+    const line = 'data: {"choices":[{"delta":{"content":"Hello world"}}]}\n\n';
+    const bytes = new TextEncoder().encode(line);
+    mocks.handleChat.mockResolvedValue(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(bytes.slice(0, 30));
+            controller.enqueue(bytes.slice(30));
+            controller.close();
+          },
+        }),
+        { headers: { "Content-Type": "text/event-stream" } },
+      ),
+    );
+
+    const response = await POST(
+      makeGeminiRequest("gemini-2.5-pro:streamGenerateContent", { contents: [] }),
+      { params: Promise.resolve({ path: ["gemini-2.5-pro:streamGenerateContent"] }) },
+    );
+
+    expect(await response.text()).toContain('"text":"Hello world"');
+  });
+
   it("does not hijack provider-prefixed non-Gemini audio requests", async () => {
     await POST(makeGeminiRequest("openai/gpt-4o-mini-tts:generateContent", audioBody()), {
       params: Promise.resolve({ path: ["openai", "gpt-4o-mini-tts:generateContent"] }),
