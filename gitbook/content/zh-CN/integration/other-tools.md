@@ -364,7 +364,7 @@ Error: Model 'cc/claude-opus' not found
 **方案:**
 
 - 使用精确的模型名(大小写敏感)
-- 查看可用模型:`curl http://localhost:20128/v1/models`
+- 查看可用模型:`curl http://localhost:20128/v1/models -H "Authorization: Bearer your-api-key"`
 - 确认套餐中已启用该模型
 
 ### 超时问题

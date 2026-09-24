@@ -364,7 +364,7 @@ Error: Model 'cc/claude-opus' not found
 **解決策:**
 
 - 正確なモデル名を使用 (大文字小文字を区別)
-- 利用可能なモデルを確認: `curl http://localhost:20128/v1/models`
+- 利用可能なモデルを確認: `curl http://localhost:20128/v1/models -H "Authorization: Bearer your-api-key"`
 - プランでモデルが有効になっていることを確認
 
 ### タイムアウトの問題
