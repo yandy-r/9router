@@ -1,10 +1,24 @@
-# Unreleased
+# v0.2.0 (2026-09-24)
 
-## Fixes
-- **CLI tools**: Apply/Reset no longer wipes a tool config it can't parse. JSON configs are read as JSONC (comments, trailing commas); an unparseable `opencode.json`, Codex `config.toml`, etc. now returns an error and is left untouched (#60, #62). Codex Reset only removes an `auth.json` key 9Router itself wrote (#61). Changing a Claude Code model from the terminal UI keeps the Exa MCP server and auto-compact setting (#63).
+## Security
+- **Login lockout**: the client IP now comes from the rightmost `X-Forwarded-For` hop, falling back to `X-Real-IP`. Before, behind Cloudflare/cloudflared, nginx or Caddy the leftmost (client-supplied) value was used, so rotating it gave every login attempt a fresh lockout bucket. `TRUST_PROXY` follows the same rule (#35).
+- **SAML**: an ACS post without a pending `saml_state` request ID is rejected, and `InResponseTo` is enforced with a one-time request-ID cache (10 min), blocking assertion replay, including concurrent replay (#40).
+- **h2c**: upgrade requests whose `Content-Length` exceeds `NINEROUTER_PROXY_CLIENT_MAX_BODY_SIZE` (default 128mb) get 413 before anything is buffered, closing a pre-auth memory DoS (#41).
+- **CLI tools**: the whole `/api/cli-tools/` API is now local-only, so remote clients can't read or rewrite host tool configs when login is off (#42).
 
 ## Features
 - **Google OAuth**: official Docker images and the npm CLI package now embed public Google "installed app" OAuth clients, so gemini, gemini-cli and antigravity OAuth login and token refresh work with no env vars set. Set `GEMINI_OAUTH_CLIENT_ID`/`_SECRET` or `ANTIGRAVITY_OAUTH_CLIENT_ID`/`_SECRET` (both of a pair) to override, or when running from source (#6, #7).
+- **Codex**: OpenAI Codex connections now use Codex's live model list, like Claude and Cursor. A warning appears when the live list lacks built-in models, which usually means `CODEX_CLI_VERSION` is stale. Retired `gpt-5.4`, `gpt-5.4-mini` and `gpt-5.3-codex-spark` are gone from the built-in list (#37, #39).
+- **Codex**: the new `CODEX_CLI_VERSION` env var sets the Codex client version 9router sends (default `0.155.1`, which unlocks `gpt-6-sol` and `gpt-6-luna`).
+
+## Fixes
+- **Gemini API (`/v1beta`)**: `x-goog-api-key` and `?key=` auth work instead of returning 401; streamed text is no longer lost when an SSE line spans chunks; model ids with several path segments are no longer cut short; `:countTokens` is answered locally instead of running a billable chat; bad JSON returns 400 instead of 500 (also on `/v1/responses/compact`); `/v1beta/models` lists only configured chat models (#65–#70).
+- **CLI tools**: Apply/Reset no longer wipes a tool config it can't parse. JSON configs are read as JSONC (comments, trailing commas); an unparseable `opencode.json`, Codex `config.toml`, etc. now returns an error and is left untouched (#60, #62). Codex Reset only removes an `auth.json` key 9Router itself wrote (#61). Changing a Claude Code model from the terminal UI keeps the Exa MCP server and auto-compact setting (#63).
+- **CLI**: startup, port reclaim and "Shutdown for manual update" now stop only 9router's own processes, tracked in `DATA_DIR/9router.pid`. Before, they matched process names and could kill unrelated Next.js apps, test runners, shells or personal cloudflared tunnels, and port reclaim could hit clients connected to the port (#36, #38).
+- **Dashboard**: the local endpoint option and media curl examples use the dashboard's real origin instead of assuming port 20128, and media example cards show the tunnel URL again (#44–#46).
+
+## Changes
+- **CI**: added CLI package, PR Docker build and provider baseline checks, plus a root `npm test` script (vitest + known-fails regression gate). `engines.node` is now `>=22.5` (#48).
 
 # v0.1.4 (2026-09-23)
 
