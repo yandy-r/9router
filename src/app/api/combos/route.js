@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCombos, createCombo, getComboByName } from "@/lib/localDb";
-import { findComboCycle } from "open-sse/services/combo.js";
+import { findComboCycle, isModelList } from "open-sse/services/combo.js";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +40,10 @@ export async function POST(request) {
     const existing = await getComboByName(name);
     if (existing) {
       return NextResponse.json({ error: "Combo name already exists" }, { status: 400 });
+    }
+
+    if (models !== undefined && !isModelList(models)) {
+      return NextResponse.json({ error: "Models must be an array of strings" }, { status: 400 });
     }
 
     const cycle = findComboCycle(name, models || [], await getCombos());

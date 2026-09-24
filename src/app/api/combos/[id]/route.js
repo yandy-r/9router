@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCombos, getComboById, updateCombo, deleteCombo, getComboByName } from "@/lib/localDb";
-import { findComboCycle, resetComboRotation } from "open-sse/services/combo.js";
+import { findComboCycle, isModelList, resetComboRotation } from "open-sse/services/combo.js";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
@@ -27,6 +27,7 @@ export async function PUT(request, { params }) {
   try {
     const { id } = await params;
     const body = await request.json();
+    // Capture previous name to invalidate rotation state on rename
     const prev = await getComboById(id);
     if (!prev) {
       return NextResponse.json({ error: "Combo not found" }, { status: 404 });
@@ -48,6 +49,10 @@ export async function PUT(request, { params }) {
       }
     }
 
+    if (body.models !== undefined && !isModelList(body.models)) {
+      return NextResponse.json({ error: "Models must be an array of strings" }, { status: 400 });
+    }
+
     if (body.name !== undefined || body.models !== undefined) {
       const others = (await getCombos()).filter((c) => c.id !== id);
       const cycle = findComboCycle(
@@ -63,7 +68,6 @@ export async function PUT(request, { params }) {
       }
     }
 
-    // Capture previous name to invalidate rotation state on rename
     const combo = await updateCombo(id, body);
 
     if (!combo) {

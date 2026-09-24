@@ -210,11 +210,9 @@ async function handleSingleModelChat(
     const comboModels = await getComboModels(modelStr);
     if (comboModels) {
       if (comboPath.includes(modelStr)) {
-        log.warn("CHAT", `Combo cycle detected: ${[...comboPath, modelStr].join(" → ")}`);
-        return errorResponse(
-          HTTP_STATUS.BAD_REQUEST,
-          `Combo cycle detected: ${[...comboPath, modelStr].join(" → ")}`,
-        );
+        const cycleMsg = `Combo cycle detected: ${[...comboPath, modelStr].join(" → ")}`;
+        log.warn("CHAT", cycleMsg);
+        return errorResponse(HTTP_STATUS.BAD_REQUEST, cycleMsg);
       }
       const nextPath = [...comboPath, modelStr];
       const chatSettings = await getSettings();

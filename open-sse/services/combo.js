@@ -276,6 +276,11 @@ export function getComboModelsFromData(modelStr, combosData) {
   return null;
 }
 
+/** True when `models` is a valid combo member list (array of strings). */
+export function isModelList(models) {
+  return Array.isArray(models) && models.every((m) => typeof m === "string");
+}
+
 /**
  * Find a combo reference cycle that passes through `name` once `name` resolves to `models`.
  * Members without "/" that name another combo are edges (same rule as getComboModels).
@@ -301,6 +306,13 @@ export function findComboCycle(name, models, combos) {
   return walk(name, [name]);
 }
 
+/** Convert a Retry-After header value to an ISO timestamp. */
+function retryAfterToIso(value) {
+  if (!value) return null;
+  const date = /^\d+$/.test(value) ? new Date(Date.now() + Number(value) * 1000) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 /**
  * Handle combo chat with fallback
  * @param {Object} options
@@ -313,13 +325,6 @@ export function findComboCycle(name, models, combos) {
  * @param {number|string} [options.comboStickyLimit=1] - Requests per combo model before switching
  * @returns {Promise<Response>}
  */
-/** Convert a Retry-After header value to an ISO timestamp. */
-function retryAfterToIso(value) {
-  if (!value) return null;
-  const date = /^\d+$/.test(value) ? new Date(Date.now() + Number(value) * 1000) : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-
 export async function handleComboChat({
   body,
   models,
