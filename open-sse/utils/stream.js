@@ -256,12 +256,13 @@ export function createSSEStream(options = {}) {
                 parsed,
               );
 
+              // Estimates only go to the client chunk; finalizeStream() owns the
+              // persistence fallback, so a real usage chunk after finish still wins.
               const isFinishChunk = parsed.choices?.[0]?.finish_reason;
-              if (isFinishChunk && !hasValidUsage(parsed.usage)) {
+              if (isFinishChunk && !hasValidUsage(parsed.usage) && !hasValidUsage(usage)) {
                 const estimated = estimateUsage(body, totalContentLength, FORMATS.OPENAI);
                 parsed.usage = filterUsageForFormat(estimated, FORMATS.OPENAI);
                 output = `data: ${JSON.stringify(parsed)}\n`;
-                usage = estimated;
                 injectedUsage = true;
               } else if (isFinishChunk && usage) {
                 const buffered = addBufferToUsage(usage);
@@ -412,21 +413,18 @@ export function createSSEStream(options = {}) {
               continue; // Skip this empty chunk
             }
 
-            // Inject estimated usage if finish chunk has no valid usage
+            // Inject usage on the finish chunk only; state.usage stays real (or null)
+            // so finalizeStream() remains the single persistence fallback.
             const isFinishChunk = item.type === "message_delta" || item.choices?.[0]?.finish_reason;
-            if (
-              state.finishReason &&
-              isFinishChunk &&
-              !hasValidUsage(item.usage) &&
-              totalContentLength > 0
-            ) {
-              const estimated = estimateUsage(body, totalContentLength, sourceFormat);
-              item.usage = filterUsageForFormat(estimated, sourceFormat); // Filter + already has buffer
-              state.usage = estimated;
-            } else if (state.finishReason && isFinishChunk && state.usage) {
-              // Add buffer and filter usage for client (but keep original in state.usage for logging)
-              const buffered = addBufferToUsage(state.usage);
-              item.usage = filterUsageForFormat(buffered, sourceFormat);
+            if (state.finishReason && isFinishChunk) {
+              if (hasValidUsage(state.usage)) {
+                // Buffer/filter for the client, keep original in state.usage for logging
+                const buffered = addBufferToUsage(state.usage);
+                item.usage = filterUsageForFormat(buffered, sourceFormat);
+              } else if (!hasValidUsage(item.usage) && totalContentLength > 0) {
+                const estimated = estimateUsage(body, totalContentLength, sourceFormat);
+                item.usage = filterUsageForFormat(estimated, sourceFormat); // Filter + already has buffer
+              }
             }
 
             const output = formatSSE(item, sourceFormat);

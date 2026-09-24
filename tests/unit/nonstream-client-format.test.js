@@ -41,6 +41,34 @@ const sseCtx = (raw, { sourceFormat, targetFormat, provider }) => {
   };
 };
 
+const responsesSse = () => {
+  const event = (type, data) => `event: ${type}\ndata: ${JSON.stringify(data)}`;
+  return [
+    event("response.created", { response: { id: "resp_1", created_at: 1700000000 } }),
+    event("response.output_item.done", {
+      output_index: 0,
+      item: {
+        type: "message",
+        role: "assistant",
+        content: [{ type: "output_text", text: "Done", annotations: [] }],
+      },
+    }),
+    event("response.completed", {
+      response: {
+        status: "completed",
+        usage: {
+          input_tokens: 5344,
+          output_tokens: 2,
+          total_tokens: 5346,
+          input_tokens_details: { cached_tokens: 5332 },
+          output_tokens_details: { reasoning_tokens: 1 },
+        },
+      },
+    }),
+    "",
+  ].join("\n\n");
+};
+
 describe("non-stream responses in the client's format (YAN-73 / YAN-74)", () => {
   it("YAN-74: Claude upstream body → Responses body for a Responses client", () => {
     const claudeBody = {
@@ -212,5 +240,50 @@ describe("non-stream responses in the client's format (YAN-73 / YAN-74)", () => 
     expect(json.content).toContainEqual({ type: "text", text: "Done" });
     expect(json.stop_reason).toBe("end_turn");
     expect(json.usage).toEqual({ input_tokens: 4, output_tokens: 2 });
+  });
+
+  it("YAN-252: forced cached Responses SSE upstream → Claude message reports cache", async () => {
+    const result = await handleForcedSSEToJson(
+      sseCtx(responsesSse(), {
+        sourceFormat: FORMATS.CLAUDE,
+        targetFormat: FORMATS.OPENAI_RESPONSES,
+        provider: "codex",
+      }),
+    );
+    expect(result.success).toBe(true);
+    const json = await result.response.json();
+    expect(json.usage).toEqual({
+      input_tokens: 12,
+      output_tokens: 2,
+      cache_read_input_tokens: 5332,
+    });
+  });
+
+  it("YAN-252: forced cached Responses SSE upstream → chat client keeps prompt/cache", async () => {
+    const result = await handleForcedSSEToJson(
+      sseCtx(responsesSse(), {
+        sourceFormat: FORMATS.OPENAI,
+        targetFormat: FORMATS.OPENAI_RESPONSES,
+        provider: "codex",
+      }),
+    );
+    expect(result.success).toBe(true);
+    const json = await result.response.json();
+    expect(json.usage.prompt_tokens).toBe(5344);
+    expect(json.usage.prompt_tokens_details.cached_tokens).toBe(5332);
+    expect(json.usage.completion_tokens_details.reasoning_tokens).toBe(1);
+  });
+
+  it("YAN-252: forced cached Responses SSE upstream → Responses client keeps details", async () => {
+    const result = await handleForcedSSEToJson(
+      sseCtx(responsesSse(), {
+        sourceFormat: FORMATS.OPENAI_RESPONSES,
+        targetFormat: FORMATS.OPENAI_RESPONSES,
+        provider: "codex",
+      }),
+    );
+    expect(result.success).toBe(true);
+    const json = await result.response.json();
+    expect(json.usage.input_tokens_details.cached_tokens).toBe(5332);
   });
 });

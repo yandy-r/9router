@@ -52,6 +52,7 @@ export function extractUsageFromResponse(responseBody) {
       completion_tokens: responseBody.usage.output_tokens || 0,
       cached_tokens:
         responseBody.usage.cached_tokens ?? responseBody.usage.input_tokens_details?.cached_tokens,
+      reasoning_tokens: responseBody.usage.output_tokens_details?.reasoning_tokens,
       cache_read_input_tokens: responseBody.usage.cache_read_input_tokens,
       cache_creation_input_tokens: responseBody.usage.cache_creation_input_tokens,
     };
@@ -72,8 +73,11 @@ export function extractUsageFromResponse(responseBody) {
   const usageMetadata = responseBody.usageMetadata || responseBody.response?.usageMetadata;
   if (usageMetadata) {
     return {
+      // Gemini excludes thoughts from candidatesTokenCount; store completion reasoning-inclusive
+      // (matches toOpenAIUsage in translator/concerns/usage.js).
       prompt_tokens: usageMetadata.promptTokenCount || 0,
-      completion_tokens: usageMetadata.candidatesTokenCount || 0,
+      completion_tokens:
+        (usageMetadata.candidatesTokenCount || 0) + (usageMetadata.thoughtsTokenCount || 0),
       cached_tokens: usageMetadata.cachedContentTokenCount || 0,
       reasoning_tokens: usageMetadata.thoughtsTokenCount || 0,
     };

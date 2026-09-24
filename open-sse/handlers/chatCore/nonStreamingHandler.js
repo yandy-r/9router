@@ -96,9 +96,14 @@ export function translateNonStreamingResponse(
 
     if (usage) {
       result.usage = {
-        prompt_tokens: (usage.promptTokenCount || 0) + (usage.thoughtsTokenCount || 0),
-        completion_tokens: usage.candidatesTokenCount || 0,
-        total_tokens: usage.totalTokenCount || 0,
+        // Gemini excludes thoughts from candidatesTokenCount: thoughts go on the completion side.
+        prompt_tokens: usage.promptTokenCount || 0,
+        completion_tokens: (usage.candidatesTokenCount || 0) + (usage.thoughtsTokenCount || 0),
+        total_tokens:
+          usage.totalTokenCount ||
+          (usage.promptTokenCount || 0) +
+            (usage.candidatesTokenCount || 0) +
+            (usage.thoughtsTokenCount || 0),
       };
       // promptTokenCount already includes cachedContentTokenCount.
       if (usage.cachedContentTokenCount > 0) {

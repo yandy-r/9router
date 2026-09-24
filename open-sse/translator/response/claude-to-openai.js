@@ -53,6 +53,7 @@ export function claudeToOpenAIResponse(chunk, state) {
           total_tokens: promptTokens,
           input_tokens: inputTokens,
           output_tokens: 0,
+          cached_tokens: cacheReadTokens,
         };
         if (cacheReadTokens > 0) state.usage.cache_read_input_tokens = cacheReadTokens;
         if (cacheCreationTokens > 0) state.usage.cache_creation_input_tokens = cacheCreationTokens;
@@ -166,6 +167,7 @@ export function claudeToOpenAIResponse(chunk, state) {
           total_tokens: promptTokens + outputTokens,
           input_tokens: inputTokens,
           output_tokens: outputTokens,
+          cached_tokens: cacheReadTokens,
         };
 
         if (cacheReadTokens > 0) state.usage.cache_read_input_tokens = cacheReadTokens;
