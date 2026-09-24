@@ -6,6 +6,7 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import { configErrorResponse, readJsonConfig } from "@/lib/cliToolConfig";
 
 const execAsync = promisify(exec);
 
@@ -114,13 +115,7 @@ export async function POST(request) {
     await fs.mkdir(configDir, { recursive: true });
 
     // Read existing config or start fresh
-    let config = {};
-    try {
-      const existing = await fs.readFile(configPath, "utf-8");
-      config = JSON.parse(existing);
-    } catch {
-      /* No existing config */
-    }
+    const config = (await readJsonConfig(configPath)) ?? {};
 
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
     const keyToUse = apiKey || "sk_9router";
@@ -185,6 +180,8 @@ export async function POST(request) {
       configPath,
     });
   } catch (error) {
+    const configRes = configErrorResponse(error);
+    if (configRes) return configRes;
     console.log("Error applying opencode settings:", error);
     return NextResponse.json({ error: "Failed to apply settings" }, { status: 500 });
   }
@@ -196,15 +193,9 @@ export async function PATCH(request) {
     const { clearActiveModel } = await request.json();
     const configPath = getConfigPath();
 
-    let config = {};
-    try {
-      const existing = await fs.readFile(configPath, "utf-8");
-      config = JSON.parse(existing);
-    } catch (error) {
-      if (error.code === "ENOENT") {
-        return NextResponse.json({ success: true, message: "No config file found" });
-      }
-      throw error;
+    const config = await readJsonConfig(configPath);
+    if (!config) {
+      return NextResponse.json({ success: true, message: "No config file found" });
     }
 
     if (clearActiveModel === true) {
@@ -221,6 +212,8 @@ export async function PATCH(request) {
       message: "Settings updated",
     });
   } catch (error) {
+    const configRes = configErrorResponse(error);
+    if (configRes) return configRes;
     console.log("Error patching opencode settings:", error);
     return NextResponse.json({ error: "Failed to patch settings" }, { status: 500 });
   }
@@ -233,15 +226,9 @@ export async function DELETE(request) {
     const modelToRemove = searchParams.get("model");
     const configPath = getConfigPath();
 
-    let config = {};
-    try {
-      const existing = await fs.readFile(configPath, "utf-8");
-      config = JSON.parse(existing);
-    } catch (error) {
-      if (error.code === "ENOENT") {
-        return NextResponse.json({ success: true, message: "No config file to reset" });
-      }
-      throw error;
+    const config = await readJsonConfig(configPath);
+    if (!config) {
+      return NextResponse.json({ success: true, message: "No config file to reset" });
     }
 
     // If specific model provided, remove just that model
@@ -279,6 +266,8 @@ export async function DELETE(request) {
         : "9Router settings removed from OpenCode",
     });
   } catch (error) {
+    const configRes = configErrorResponse(error);
+    if (configRes) return configRes;
     console.log("Error resetting opencode settings:", error);
     return NextResponse.json({ error: "Failed to reset opencode settings" }, { status: 500 });
   }

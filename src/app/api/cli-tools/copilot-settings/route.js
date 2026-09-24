@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import { configErrorResponse, readJsonConfig } from "@/lib/cliToolConfig";
 
 // Resolve chatLanguageModels.json path per OS
 const getConfigPath = () => {
@@ -80,14 +81,7 @@ export async function POST(request) {
     await fs.mkdir(path.dirname(configPath), { recursive: true });
 
     // Read existing config array
-    let config = [];
-    try {
-      const existing = await fs.readFile(configPath, "utf-8");
-      const parsed = JSON.parse(existing);
-      config = Array.isArray(parsed) ? parsed : [];
-    } catch {
-      /* No existing config */
-    }
+    const config = (await readJsonConfig(configPath, "array")) ?? [];
 
     const endpointUrl = `${baseUrl}/chat/completions#models.ai.azure.com`;
     const keyToUse = apiKey || "sk_9router";
@@ -123,6 +117,8 @@ export async function POST(request) {
       configPath,
     });
   } catch (error) {
+    const configRes = configErrorResponse(error);
+    if (configRes) return configRes;
     console.log("Error updating copilot settings:", error);
     return NextResponse.json({ error: "Failed to update copilot settings" }, { status: 500 });
   }
@@ -133,16 +129,9 @@ export async function DELETE() {
   try {
     const configPath = getConfigPath();
 
-    let config = [];
-    try {
-      const existing = await fs.readFile(configPath, "utf-8");
-      const parsed = JSON.parse(existing);
-      config = Array.isArray(parsed) ? parsed : [];
-    } catch (error) {
-      if (error.code === "ENOENT") {
-        return NextResponse.json({ success: true, message: "No config file to reset" });
-      }
-      throw error;
+    let config = await readJsonConfig(configPath, "array");
+    if (!config) {
+      return NextResponse.json({ success: true, message: "No config file to reset" });
     }
 
     config = config.filter((e) => e.name !== "9Router");
@@ -153,6 +142,8 @@ export async function DELETE() {
       message: "9Router removed from Copilot config",
     });
   } catch (error) {
+    const configRes = configErrorResponse(error);
+    if (configRes) return configRes;
     console.log("Error resetting copilot settings:", error);
     return NextResponse.json({ error: "Failed to reset copilot settings" }, { status: 500 });
   }

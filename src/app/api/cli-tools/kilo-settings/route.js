@@ -6,6 +6,7 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import { configErrorResponse, readJsonConfig } from "@/lib/cliToolConfig";
 
 const execAsync = promisify(exec);
 
@@ -35,12 +36,8 @@ const checkInstalled = async () => {
 
 const readJson = async (filePath) => {
   try {
-    const content = await fs.readFile(filePath, "utf-8");
-    // Tolerate JSONC (trailing commas) and treat unparseable files as "no config"
-    // rather than throwing a 500 that the UI misreads as "tool not installed".
-    const stripped = content.replace(/,(\s*[}\]])/g, "$1");
-    return JSON.parse(stripped);
-  } catch (error) {
+    return await readJsonConfig(filePath);
+  } catch {
     return null;
   }
 };
@@ -92,7 +89,7 @@ export async function POST(request) {
 
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
 
-    const auth = (await readJson(getAuthPath())) || {};
+    const auth = (await readJsonConfig(getAuthPath())) || {};
     auth["openai-compatible"] = {
       type: "api-key",
       apiKey,
@@ -101,9 +98,10 @@ export async function POST(request) {
     };
     await fs.writeFile(getAuthPath(), JSON.stringify(auth, null, 2));
 
-    // Best-effort: update VS Code extension settings
+    // Best-effort: update VS Code extension settings. An unparseable (JSONC) file
+    // throws before the write, so it is skipped rather than overwritten.
     try {
-      const vscode = (await readJson(getVscodeSettingsPath())) || {};
+      const vscode = (await readJsonConfig(getVscodeSettingsPath())) || {};
       vscode["kilocode.customProvider"] = { name: "9Router", baseURL: normalizedBaseUrl, apiKey };
       vscode["kilocode.defaultModel"] = model;
       await fs.writeFile(getVscodeSettingsPath(), JSON.stringify(vscode, null, 2));
@@ -117,6 +115,8 @@ export async function POST(request) {
       authPath: getAuthPath(),
     });
   } catch (error) {
+    const res = configErrorResponse(error);
+    if (res) return res;
     console.log("Error updating kilo settings:", error);
     return NextResponse.json({ error: "Failed to update kilo settings" }, { status: 500 });
   }
@@ -124,7 +124,7 @@ export async function POST(request) {
 
 export async function DELETE() {
   try {
-    const auth = await readJson(getAuthPath());
+    const auth = await readJsonConfig(getAuthPath());
     if (!auth) {
       return NextResponse.json({ success: true, message: "No settings file to reset" });
     }
@@ -133,7 +133,7 @@ export async function DELETE() {
     await fs.writeFile(getAuthPath(), JSON.stringify(auth, null, 2));
 
     try {
-      const vscode = await readJson(getVscodeSettingsPath());
+      const vscode = await readJsonConfig(getVscodeSettingsPath());
       if (vscode) {
         delete vscode["kilocode.customProvider"];
         delete vscode["kilocode.defaultModel"];
@@ -145,6 +145,8 @@ export async function DELETE() {
 
     return NextResponse.json({ success: true, message: "9Router settings removed from Kilo Code" });
   } catch (error) {
+    const res = configErrorResponse(error);
+    if (res) return res;
     console.log("Error resetting kilo settings:", error);
     return NextResponse.json({ error: "Failed to reset kilo settings" }, { status: 500 });
   }

@@ -1,5 +1,8 @@
 # Unreleased
 
+## Fixes
+- **CLI tools**: Apply/Reset no longer wipes a tool config it can't parse. JSON configs are read as JSONC (comments, trailing commas); an unparseable `opencode.json`, Codex `config.toml`, etc. now returns an error and is left untouched (#60, #62). Codex Reset only removes an `auth.json` key 9Router itself wrote (#61). Changing a Claude Code model from the terminal UI keeps the Exa MCP server and auto-compact setting (#63).
+
 ## Features
 - **Google OAuth**: official Docker images and the npm CLI package now embed public Google "installed app" OAuth clients, so gemini, gemini-cli and antigravity OAuth login and token refresh work with no env vars set. Set `GEMINI_OAUTH_CLIENT_ID`/`_SECRET` or `ANTIGRAVITY_OAUTH_CLIENT_ID`/`_SECRET` (both of a pair) to override, or when running from source (#6, #7).
 

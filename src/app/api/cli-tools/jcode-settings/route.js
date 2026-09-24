@@ -7,6 +7,7 @@ import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { parseTOML, stringifyTOML } from "confbox";
+import { configErrorResponse, readTomlConfig } from "@/lib/cliToolConfig";
 
 const execAsync = promisify(exec);
 
@@ -141,7 +142,7 @@ export async function POST(request) {
 
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl : `${baseUrl}/v1`;
 
-    const config = await readConfig();
+    const config = (await readTomlConfig(getConfigPath())) ?? {};
 
     if (!config.providers) {
       config.providers = {};
@@ -176,6 +177,8 @@ export async function POST(request) {
       configPath: getConfigPath(),
     });
   } catch (error) {
+    const configRes = configErrorResponse(error);
+    if (configRes) return configRes;
     console.error("Error configuring jcode:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -183,9 +186,9 @@ export async function POST(request) {
 
 export async function DELETE() {
   try {
-    const config = await readConfig();
+    const config = await readTomlConfig(getConfigPath());
 
-    if (!config.providers) {
+    if (!config?.providers) {
       return NextResponse.json({ success: true, message: "No configuration to remove" });
     }
 
@@ -202,6 +205,8 @@ export async function DELETE() {
       message: "9router configuration removed from jcode",
     });
   } catch (error) {
+    const configRes = configErrorResponse(error);
+    if (configRes) return configRes;
     console.error("Error removing jcode configuration:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

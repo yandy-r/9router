@@ -6,7 +6,9 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import { parseTOML, stringifyTOML } from "confbox";
+import { stringifyTOML } from "confbox";
+import { getApiKeys } from "@/lib/localDb";
+import { configErrorResponse, readTomlConfig } from "@/lib/cliToolConfig";
 
 const execAsync = promisify(exec);
 
@@ -14,8 +16,16 @@ const getCodexDir = () => path.join(os.homedir(), ".codex");
 const getCodexConfigPath = () => path.join(getCodexDir(), "config.toml");
 const getCodexAuthPath = () => path.join(getCodexDir(), "auth.json");
 
-// Flatten confbox-parsed TOML into a writable object, preserving nested tables
-const parsedToWritable = (obj) => obj ?? {};
+// True only when the key is one 9Router itself wrote to auth.json (legacy flow).
+// A DB failure must mean "don't delete".
+const isRouterApiKey = async (key) => {
+  try {
+    const apiKeys = await getApiKeys();
+    return apiKeys.some((apiKey) => apiKey.key === key);
+  } catch {
+    return false;
+  }
+};
 
 // Set a nested key from a flat dotted path, creating intermediate objects as needed
 const setNestedSection = (obj, dottedKey, value) => {
@@ -126,14 +136,8 @@ export async function POST(request) {
     // Ensure directory exists
     await fs.mkdir(codexDir, { recursive: true });
 
-    // Read and parse existing config
-    let parsed = {};
-    try {
-      const existingConfig = await fs.readFile(configPath, "utf-8");
-      parsed = parsedToWritable(parseTOML(existingConfig));
-    } catch {
-      /* No existing config */
-    }
+    // Read and parse existing config (unparseable file → 422, left untouched)
+    const parsed = (await readTomlConfig(configPath)) ?? {};
 
     // Update only 9Router related fields (api_key goes to auth.json, not config.toml)
     parsed.model = model;
@@ -165,6 +169,8 @@ export async function POST(request) {
     });
   } catch (error) {
     console.log("Error updating codex settings:", error);
+    const parseError = configErrorResponse(error);
+    if (parseError) return parseError;
     return NextResponse.json({ error: "Failed to update codex settings" }, { status: 500 });
   }
 }
@@ -175,18 +181,12 @@ export async function DELETE() {
     const configPath = getCodexConfigPath();
 
     // Read and parse existing config
-    let parsed = {};
-    try {
-      const existingConfig = await fs.readFile(configPath, "utf-8");
-      parsed = parsedToWritable(parseTOML(existingConfig));
-    } catch (error) {
-      if (error.code === "ENOENT") {
-        return NextResponse.json({
-          success: true,
-          message: "No config file to reset",
-        });
-      }
-      throw error;
+    const parsed = await readTomlConfig(configPath);
+    if (!parsed) {
+      return NextResponse.json({
+        success: true,
+        message: "No config file to reset",
+      });
     }
 
     // Remove 9Router related root fields only if they point to 9router
@@ -206,22 +206,19 @@ export async function DELETE() {
     const configContent = stringifyTOML(parsed);
     await fs.writeFile(configPath, configContent);
 
-    // Remove OPENAI_API_KEY from auth.json
+    // Legacy cleanup: older 9Router versions wrote their key into auth.json.
+    // Remove it only when it is ours — never touch a user's own key, never unlink.
     const authPath = getCodexAuthPath();
     try {
-      const existingAuth = await fs.readFile(authPath, "utf-8");
-      const authData = JSON.parse(existingAuth);
-      delete authData.OPENAI_API_KEY;
-      delete authData.auth_mode;
-
-      // Write back or delete if empty
-      if (Object.keys(authData).length === 0) {
-        await fs.unlink(authPath);
-      } else {
+      const authData = JSON.parse(await fs.readFile(authPath, "utf-8"));
+      const key = authData?.OPENAI_API_KEY;
+      if (key && (key === "sk_9router" || (await isRouterApiKey(key)))) {
+        delete authData.OPENAI_API_KEY;
+        if (authData.auth_mode === "apikey") delete authData.auth_mode;
         await fs.writeFile(authPath, JSON.stringify(authData, null, 2));
       }
     } catch {
-      /* No auth file */
+      /* No or unparseable auth file — leave it untouched */
     }
 
     return NextResponse.json({
@@ -230,6 +227,8 @@ export async function DELETE() {
     });
   } catch (error) {
     console.log("Error resetting codex settings:", error);
+    const parseError = configErrorResponse(error);
+    if (parseError) return parseError;
     return NextResponse.json({ error: "Failed to reset codex settings" }, { status: 500 });
   }
 }

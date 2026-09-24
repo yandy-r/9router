@@ -6,6 +6,7 @@ import { promisify } from "util";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
+import { configErrorResponse, readJsonConfig } from "@/lib/cliToolConfig";
 
 const execAsync = promisify(exec);
 
@@ -118,13 +119,7 @@ export async function GET() {
 const writeAgentModels = async (agentDir, model, baseUrl, apiKey) => {
   await fs.mkdir(agentDir, { recursive: true });
   const modelsPath = path.join(agentDir, "models.json");
-  let existing = {};
-  try {
-    const content = await fs.readFile(modelsPath, "utf-8");
-    existing = JSON.parse(content);
-  } catch {
-    /* No existing */
-  }
+  const existing = (await readJsonConfig(modelsPath)) ?? {};
 
   if (!existing.providers) existing.providers = {};
   existing.providers["9router"] = {
@@ -151,13 +146,7 @@ export async function POST(request) {
 
     await fs.mkdir(openclawDir, { recursive: true });
 
-    let settings = {};
-    try {
-      const existingSettings = await fs.readFile(settingsPath, "utf-8");
-      settings = JSON.parse(existingSettings);
-    } catch {
-      /* No existing settings */
-    }
+    const settings = (await readJsonConfig(settingsPath)) ?? {};
 
     if (!settings.agents) settings.agents = {};
     if (!settings.agents.defaults) settings.agents.defaults = {};
@@ -237,6 +226,8 @@ export async function POST(request) {
       settingsPath,
     });
   } catch (error) {
+    const configRes = configErrorResponse(error);
+    if (configRes) return configRes;
     console.log("Error updating openclaw settings:", error);
     return NextResponse.json({ error: "Failed to update openclaw settings" }, { status: 500 });
   }
@@ -248,18 +239,12 @@ export async function DELETE() {
     const settingsPath = getOpenClawSettingsPath();
 
     // Read existing settings
-    let settings = {};
-    try {
-      const existingSettings = await fs.readFile(settingsPath, "utf-8");
-      settings = JSON.parse(existingSettings);
-    } catch (error) {
-      if (error.code === "ENOENT") {
-        return NextResponse.json({
-          success: true,
-          message: "No settings file to reset",
-        });
-      }
-      throw error;
+    const settings = await readJsonConfig(settingsPath);
+    if (!settings) {
+      return NextResponse.json({
+        success: true,
+        message: "No settings file to reset",
+      });
     }
 
     // Remove 9Router from models.providers
@@ -298,6 +283,8 @@ export async function DELETE() {
       message: "9Router settings removed successfully",
     });
   } catch (error) {
+    const configRes = configErrorResponse(error);
+    if (configRes) return configRes;
     console.log("Error resetting openclaw settings:", error);
     return NextResponse.json({ error: "Failed to reset openclaw settings" }, { status: 500 });
   }
