@@ -55,6 +55,7 @@ logs/*
 source/*
 .cursor/*
 docs/*
+!docs/plans/
 !docs/ARCHITECTURE.md
 test/*
 open-sse/test/*
