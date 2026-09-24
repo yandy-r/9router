@@ -12,9 +12,8 @@ const O2CC = (body) =>
   translateRequest(FORMATS.OPENAI, FORMATS.COMMANDCODE, "m", body, true, null, "commandcode");
 
 describe("OpenAI → Gemini", () => {
-  // openai-to-gemini.js:92-96 — each system message overwrites systemInstruction → only last kept
-  // KNOWN BUG
-  it.fails("multiple system messages are all kept", () => {
+  // System messages accumulate in systemInstruction instead of overwriting each other.
+  it("multiple system messages are all kept", () => {
     const out = O2G({
       messages: [
         { role: "system", content: "RULE_ONE" },

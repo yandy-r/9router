@@ -105,12 +105,14 @@ function renderConversationHistory(history) {
 export function buildAgentRunFrame(messages, model, tools = [], { images = [] } = {}) {
   // custom_system_prompt (RunRequest field 8) makes AgentService return an
   // empty turn. Fold system text into the current user message instead.
+  const isInstruction = (message) =>
+    message?.role === ROLE.SYSTEM || message?.role === ROLE.DEVELOPER;
   const system = messages
-    .filter((message) => message?.role === ROLE.SYSTEM)
+    .filter(isInstruction)
     .map((message) => textFromContent(message.content))
     .filter(Boolean)
     .join("\n\n");
-  const chatMessages = messages.filter((message) => message?.role !== ROLE.SYSTEM);
+  const chatMessages = messages.filter((message) => !isInstruction(message));
   const currentIndex = [...chatMessages].map((message) => message?.role).lastIndexOf(ROLE.USER);
   const current = currentIndex >= 0 ? chatMessages[currentIndex] : chatMessages.at(-1);
   // History turns before the current one, including tool_calls / tool_results
@@ -130,7 +132,7 @@ export function buildAgentRunFrame(messages, model, tools = [], { images = [] } 
         .map((image, index) => {
           const turn = messages
             .slice(0, image.messageIndex + 1)
-            .filter((message) => message?.role !== ROLE.SYSTEM).length;
+            .filter((message) => !isInstruction(message)).length;
           return `[image ${index + 1} from prior turn ${turn}]`;
         })
         .join("\n")}`
