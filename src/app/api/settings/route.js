@@ -45,20 +45,38 @@ async function handleComboStrategyPatch(body) {
 
   // Validation against the merged entry happens inside the transaction too (weight-count cap).
   let mergedError;
-  const settings = await updateComboStrategies((strategies) => {
-    const base = Object.hasOwn(strategies, name) ? strategies[name] : {};
-    const next = { ...base, ...patch };
-    if (patch.weights) next.weights = { ...base?.weights, ...patch.weights };
-    mergedError = validateComboStrategySettings({ comboStrategies: { [name]: next } });
-    if (mergedError) return strategies;
-    const updated = { ...strategies };
-    if (!next.fallbackStrategy || next.fallbackStrategy === "fallback") {
-      delete updated[name];
-    } else {
-      updated[name] = next;
+  let missingWeightedEntry = false;
+  let settings;
+  try {
+    settings = await updateComboStrategies((strategies) => {
+      const base = Object.hasOwn(strategies, name) ? strategies[name] : {};
+      if (
+        Object.hasOwn(patch, "weights") &&
+        !Object.hasOwn(patch, "fallbackStrategy") &&
+        base?.fallbackStrategy !== "weighted"
+      ) {
+        missingWeightedEntry = true;
+        return strategies;
+      }
+      const next = { ...base, ...patch };
+      if (patch.weights) next.weights = { ...base?.weights, ...patch.weights };
+      mergedError = validateComboStrategySettings({ comboStrategies: { [name]: next } });
+      if (mergedError) return strategies;
+      const updated = { ...strategies };
+      if (!next.fallbackStrategy || next.fallbackStrategy === "fallback") {
+        delete updated[name];
+      } else {
+        updated[name] = next;
+      }
+      return updated;
+    }, name);
+  } catch (error) {
+    if (error.code === "COMBO_NOT_FOUND") {
+      return NextResponse.json({ error: "Combo not found" }, { status: 409 });
     }
-    return updated;
-  });
+    throw error;
+  }
+  if (missingWeightedEntry) return NextResponse.json({ error: "Combo not found" }, { status: 409 });
   if (mergedError) return NextResponse.json({ error: mergedError }, { status: 400 });
 
   resetComboRotation();

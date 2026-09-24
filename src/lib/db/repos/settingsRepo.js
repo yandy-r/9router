@@ -110,11 +110,21 @@ export async function updateSettings(updates) {
   return mergeWithDefaults(next);
 }
 
+export const COMBO_NOT_FOUND = "COMBO_NOT_FOUND";
+
 // Transform the latest strategy map under one synchronous SQLite transaction.
-export async function updateComboStrategies(transform) {
+// requireComboName: combo must exist in the same transaction (guards stale names after
+// rename/delete); otherwise throws an Error with code COMBO_NOT_FOUND and writes nothing.
+export async function updateComboStrategies(transform, requireComboName) {
   const db = await getAdapter();
   let next;
   db.transaction(() => {
+    if (
+      requireComboName !== undefined &&
+      !db.get(`SELECT id FROM combos WHERE name = ?`, [requireComboName])
+    ) {
+      throw Object.assign(new Error("Combo not found"), { code: COMBO_NOT_FOUND });
+    }
     const row = db.get(`SELECT data FROM settings WHERE id = 1`);
     const current = row ? parseJson(row.data, {}) : {};
     const strategies = Object.hasOwn(current, "comboStrategies") ? current.comboStrategies : {};

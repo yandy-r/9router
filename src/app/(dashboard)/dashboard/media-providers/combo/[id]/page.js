@@ -60,6 +60,9 @@ export default function ComboDetailPage() {
   const [roundRobin, setRoundRobin] = useState(false);
   const [savingStrategy, setSavingStrategy] = useState(false);
   const savingStrategyRef = useRef(false);
+  // Serializes rename + strategy toggle so the toggle PATCH never targets a stale name.
+  const opQueueRef = useRef(Promise.resolve());
+  const comboNameRef = useRef("");
   const [showPicker, setShowPicker] = useState(false);
   const [logs, setLogs] = useState([]);
   const [testing, setTesting] = useState(false);
@@ -92,6 +95,7 @@ export default function ComboDetailPage() {
         return;
       }
       const c = await comboRes.json();
+      comboNameRef.current = c.name;
       setCombo(c);
       setName(c.name);
       setProviders(c.models || []);
@@ -137,11 +141,21 @@ export default function ComboDetailPage() {
     return true;
   };
 
-  const handleSaveName = async () => {
+  // Chain fn after any in-flight rename/toggle; a failure never blocks later ops.
+  const enqueue = (fn) => {
+    const run = opQueueRef.current.then(fn);
+    opQueueRef.current = run.catch(() => {});
+    return run;
+  };
+
+  const handleSaveName = () => {
     if (!validateName(name)) return;
-    if (name === combo.name) return;
-    const ok = await saveCombo({ name });
-    if (ok) await fetchAll();
+    const nextName = name;
+    return enqueue(async () => {
+      if (nextName === comboNameRef.current) return;
+      const ok = await saveCombo({ name: nextName });
+      if (ok) await fetchAll();
+    }).catch(() => alert("Failed to save — network error"));
   };
 
   const handleAddModel = async (model) => {
@@ -181,38 +195,51 @@ export default function ComboDetailPage() {
   // existing weights (server merges); switching off sets "fallback", which drops the
   // whole entry (weights included) per the existing prune semantics.
   // Disable while saving; ref closes the gap before React applies disabled state.
+  // Queued behind any pending rename and reads the name at send time, so it never
+  // PATCHes a stale combo name. 409 = name changed server-side: refetch, don't revert.
   const handleToggleRoundRobin = async (enabled) => {
-    if (savingStrategyRef.current) return;
+    if (savingStrategyRef.current || !comboNameRef.current) return;
     savingStrategyRef.current = true;
     const previous = roundRobin;
     setRoundRobin(enabled);
     setSavingStrategy(true);
     let error = "";
+    let conflict = false;
     try {
-      const res = await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          comboStrategyPatch: {
-            name: combo.name,
-            patch: { fallbackStrategy: enabled ? "round-robin" : "fallback" },
-          },
-        }),
+      await enqueue(async () => {
+        const res = await fetch("/api/settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            comboStrategyPatch: {
+              name: comboNameRef.current,
+              patch: { fallbackStrategy: enabled ? "round-robin" : "fallback" },
+            },
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          error = err.error || `Failed to save (${res.status})`;
+          conflict = res.status === 409;
+          if (conflict) {
+            error = "Combo was renamed elsewhere — refreshed, please retry";
+            await fetchAll();
+          }
+        }
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        error = err.error || `Failed to save (${res.status})`;
-      }
     } catch {
       error = "Failed to save — network error";
     } finally {
       savingStrategyRef.current = false;
       setSavingStrategy(false);
     }
-    if (error) {
-      setRoundRobin(previous);
-      alert(error);
+    if (!error) {
+      // A queued rename's fetchAll may have reset the toggle to pre-save server state.
+      setRoundRobin(enabled);
+      return;
     }
+    if (!conflict) setRoundRobin(previous);
+    alert(error);
   };
 
   const handleDelete = async () => {
