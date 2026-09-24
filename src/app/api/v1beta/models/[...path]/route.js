@@ -1,3 +1,4 @@
+import { extractClientApiKey } from "@/lib/auth/clientApiKey";
 import { handleChat } from "@/sse/handlers/chat.js";
 import {
   clearAccountError,
@@ -55,32 +56,43 @@ export async function POST(request, { params }) {
 
   try {
     const { path } = await params;
-    // path = ["provider", "model:action"] or ["model:action"]
+    // path = ["provider", "model:action"] or ["model:action"]. Model ids may
+    // themselves contain ":" (e.g. "ollama/llama3:8b"), so the action is the
+    // text after the LAST ":" and the model is everything before it.
+    const full = path.join("/");
+    const colonIndex = full.lastIndexOf(":");
+    const model = colonIndex === -1 ? full : full.slice(0, colonIndex);
+    const actionName = colonIndex === -1 ? "" : full.slice(colonIndex + 1);
 
-    let model;
-    let action; // ":generateContent" | ":streamGenerateContent"
+    if (
+      actionName !== "generateContent" &&
+      actionName !== "streamGenerateContent" &&
+      actionName !== "countTokens"
+    ) {
+      return Response.json(
+        { error: { message: `Unsupported action: ${actionName}`, code: 400 } },
+        { status: 400 },
+      );
+    }
+    // The native TTS path passes `action` with a leading ":" to
+    // buildGeminiNativeUrl, which appends it to the upstream model URL.
+    const action = `:${actionName}`;
 
-    if (path.length >= 2) {
-      // Format: /v1beta/models/provider/model:generateContent
-      const provider = path[0];
-      const modelAction = path[1];
-      action = modelAction.includes(":streamGenerateContent")
-        ? ":streamGenerateContent"
-        : ":generateContent";
-      const modelName = modelAction
-        .replace(":streamGenerateContent", "")
-        .replace(":generateContent", "");
-      model = provider + "/" + modelName;
-    } else {
-      // Format: /v1beta/models/model:generateContent
-      const modelAction = path[0];
-      action = modelAction.includes(":streamGenerateContent")
-        ? ":streamGenerateContent"
-        : ":generateContent";
-      model = modelAction.replace(":streamGenerateContent", "").replace(":generateContent", "");
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ error: { message: "Invalid JSON body", code: 400 } }, { status: 400 });
     }
 
-    const body = await request.json();
+    if (actionName === "countTokens") {
+      const authError = await validateGeminiNativeClientKey(request);
+      if (authError) return authError;
+      return Response.json(
+        { totalTokens: countGeminiTextTokens(body) },
+        { headers: { "Access-Control-Allow-Origin": "*" } },
+      );
+    }
 
     if (isGeminiNativeTtsRequest(model, body)) {
       return await forwardGeminiNativeRequest(request, body, model, action);
@@ -118,15 +130,29 @@ export async function POST(request, { params }) {
   }
 }
 
-function extractGeminiClientApiKey(request) {
-  const authHeader = request.headers.get("Authorization");
-  if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
+function contentTextLength(content) {
+  const parts = Array.isArray(content?.parts) ? content.parts : [];
+  return parts.reduce(
+    (sum, part) => sum + (typeof part?.text === "string" ? part.text.length : 0),
+    0,
+  );
+}
 
-  const googleApiKey = request.headers.get("x-goog-api-key");
-  if (googleApiKey) return googleApiKey;
-
-  const url = new URL(request.url);
-  return url.searchParams.get("key");
+/**
+ * Local token estimate for :countTokens (chars/4, same heuristic as
+ * /v1/messages/count_tokens). Accepts both the top-level and the
+ * `generateContentRequest` request shapes.
+ * ponytail: text-only; inlineData/fileData media parts count as 0. Forward to
+ * upstream :countTokens when a client needs exact counts.
+ */
+function countGeminiTextTokens(body) {
+  let chars = 0;
+  for (const req of [body, body?.generateContentRequest]) {
+    const contents = Array.isArray(req?.contents) ? req.contents : [];
+    for (const content of contents) chars += contentTextLength(content);
+    chars += contentTextLength(req?.systemInstruction);
+  }
+  return Math.ceil(chars / 4);
 }
 
 function normalizeGeminiNativeModel(model) {
@@ -184,7 +210,7 @@ async function validateGeminiNativeClientKey(request) {
   const settings = await getSettings();
   if (!settings.requireApiKey) return null;
 
-  const apiKey = extractGeminiClientApiKey(request);
+  const apiKey = extractClientApiKey(request);
   if (!apiKey) {
     return Response.json({ error: { message: "Missing API key" } }, { status: 401 });
   }
@@ -426,6 +452,70 @@ const FINISH_REASON_MAP = {
   content_filter: "SAFETY",
 };
 
+/** Convert one OpenAI SSE line to a Gemini chunk, or null to skip it. */
+function openAISSELineToGeminiChunk(line, model) {
+  if (!line.startsWith("data:")) return null;
+
+  const data = line.slice(5).trim();
+
+  // Drop empty lines and the OpenAI [DONE] sentinel.
+  // Gemini SSE ends by stream close, no sentinel needed.
+  if (!data || data === "[DONE]") return null;
+
+  let parsed;
+  try {
+    parsed = JSON.parse(data);
+  } catch {
+    return null;
+  }
+
+  const choice = parsed.choices?.[0];
+  if (!choice) return null;
+
+  const delta = choice.delta || {};
+
+  const parts = [];
+  if (delta.reasoning_content) {
+    parts.push({ text: delta.reasoning_content, thought: true });
+  }
+  if (delta.content) {
+    parts.push({ text: delta.content });
+  }
+
+  // Skip pure role-only deltas with no content and no finish signal
+  if (parts.length === 0 && !choice.finish_reason) return null;
+
+  const candidate = {
+    content: {
+      role: "model",
+      parts: parts.length > 0 ? parts : [{ text: "" }],
+    },
+    index: 0,
+  };
+
+  if (choice.finish_reason) {
+    candidate.finishReason = FINISH_REASON_MAP[choice.finish_reason] || "STOP";
+  }
+
+  const geminiChunk = { candidates: [candidate] };
+
+  // Attach usage + modelVersion on the final chunk (when finish_reason is set)
+  if (choice.finish_reason && parsed.usage) {
+    geminiChunk.usageMetadata = {
+      promptTokenCount: parsed.usage.prompt_tokens || 0,
+      candidatesTokenCount: parsed.usage.completion_tokens || 0,
+      totalTokenCount: parsed.usage.total_tokens || 0,
+    };
+    const reasoningTokens = parsed.usage.completion_tokens_details?.reasoning_tokens;
+    if (reasoningTokens) {
+      geminiChunk.usageMetadata.thoughtsTokenCount = reasoningTokens;
+    }
+    geminiChunk.modelVersion = parsed.model || model;
+  }
+
+  return geminiChunk;
+}
+
 /**
  * Transform an OpenAI SSE stream into a Gemini SSE stream.
  *
@@ -438,6 +528,9 @@ const FINISH_REASON_MAP = {
  *   data: {"candidates":[{"content":{"role":"model","parts":[{"text":"Hi"}]},"index":0}]}
  *   data: {"candidates":[{"content":{"role":"model","parts":[{"text":""}]},"finishReason":"STOP","index":0}],"usageMetadata":{...}}
  *   (stream closes — no [DONE])
+ *
+ * Lines are buffered across chunks, so an event split by the network is
+ * converted once it is complete.
  */
 function transformOpenAISSEToGeminiSSE(upstreamResponse, model) {
   if (!upstreamResponse.ok || !upstreamResponse.body) {
@@ -446,76 +539,28 @@ function transformOpenAISSEToGeminiSSE(upstreamResponse, model) {
 
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
+  // Network chunks can end mid-line; carry the partial line to the next chunk.
+  let buffer = "";
+
+  const emitLine = (line, controller) => {
+    const geminiChunk = openAISSELineToGeminiChunk(line.replace(/\r$/, ""), model);
+    if (geminiChunk) {
+      controller.enqueue(encoder.encode("data: " + JSON.stringify(geminiChunk) + "\r\n\r\n"));
+    }
+  };
 
   const transformStream = new TransformStream({
     transform(chunk, controller) {
-      const text = decoder.decode(chunk, { stream: true });
-      const lines = text.split("\n");
-
-      for (const line of lines) {
-        if (!line.startsWith("data:")) continue;
-
-        const data = line.slice(5).trim();
-
-        // Drop empty lines and the OpenAI [DONE] sentinel.
-        // Gemini SSE ends by stream close, no sentinel needed.
-        if (!data || data === "[DONE]") continue;
-
-        let parsed;
-        try {
-          parsed = JSON.parse(data);
-        } catch {
-          continue;
-        }
-
-        const choice = parsed.choices?.[0];
-        if (!choice) continue;
-
-        const delta = choice.delta || {};
-
-        const parts = [];
-        if (delta.reasoning_content) {
-          parts.push({ text: delta.reasoning_content, thought: true });
-        }
-        if (delta.content) {
-          parts.push({ text: delta.content });
-        }
-
-        // Skip pure role-only deltas with no content and no finish signal
-        if (parts.length === 0 && !choice.finish_reason) continue;
-
-        const candidate = {
-          content: {
-            role: "model",
-            parts: parts.length > 0 ? parts : [{ text: "" }],
-          },
-          index: 0,
-        };
-
-        if (choice.finish_reason) {
-          candidate.finishReason = FINISH_REASON_MAP[choice.finish_reason] || "STOP";
-        }
-
-        const geminiChunk = { candidates: [candidate] };
-
-        // Attach usage + modelVersion on the final chunk (when finish_reason is set)
-        if (choice.finish_reason && parsed.usage) {
-          geminiChunk.usageMetadata = {
-            promptTokenCount: parsed.usage.prompt_tokens || 0,
-            candidatesTokenCount: parsed.usage.completion_tokens || 0,
-            totalTokenCount: parsed.usage.total_tokens || 0,
-          };
-          const reasoningTokens = parsed.usage.completion_tokens_details?.reasoning_tokens;
-          if (reasoningTokens) {
-            geminiChunk.usageMetadata.thoughtsTokenCount = reasoningTokens;
-          }
-          geminiChunk.modelVersion = parsed.model || model;
-        }
-
-        controller.enqueue(encoder.encode("data: " + JSON.stringify(geminiChunk) + "\r\n\r\n"));
-      }
+      buffer += decoder.decode(chunk, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop();
+      for (const line of lines) emitLine(line, controller);
     },
-    // No flush() needed: Gemini SSE ends by stream close, not a sentinel
+    // Gemini SSE ends by stream close (no sentinel); just drain the last line.
+    flush(controller) {
+      buffer += decoder.decode();
+      if (buffer) emitLine(buffer, controller);
+    },
   });
 
   return new Response(upstreamResponse.body.pipeThrough(transformStream), {

@@ -1,4 +1,8 @@
 import { PROVIDER_MODELS } from "@/shared/constants/models";
+import { buildModelsList } from "../../v1/models/route.js";
+
+const GEMINI_PREFIX = "gemini/";
+const CHAT_METHODS = ["generateContent", "streamGenerateContent", "countTokens"];
 
 /**
  * Handle CORS preflight
@@ -13,44 +17,58 @@ export async function OPTIONS() {
   });
 }
 
+function getGeminiTtsModelIds() {
+  return [
+    ...(PROVIDER_MODELS.gemini || []).filter((m) => (m.kind || m.type) === "tts"),
+    ...(PROVIDER_MODELS["gemini-tts-models"] || []),
+  ].map((m) => m.id);
+}
+
 /**
- * GET /v1beta/models - Gemini compatible models list
- * Returns models in Gemini API format
+ * GET /v1beta/models - Gemini compatible models list.
+ * Same routable LLM set as /v1/models (active connections, no disabled or
+ * non-chat models), in Gemini API format.
  */
 export async function GET() {
   try {
     const models = [];
     const seen = new Set();
 
-    function addModel({ name, displayName, description, methods = ["generateContent"] }) {
+    function addModel(name, description, methods, entry = {}) {
       if (seen.has(name)) return;
       seen.add(name);
       models.push({
         name,
-        displayName,
+        displayName: name.slice("models/".length),
         description,
         supportedGenerationMethods: methods,
-        inputTokenLimit: 128000,
-        outputTokenLimit: 8192,
+        inputTokenLimit: entry.context_length || 128000,
+        outputTokenLimit: entry.max_completion_tokens || 8192,
       });
     }
 
-    for (const [provider, providerModels] of Object.entries(PROVIDER_MODELS)) {
-      for (const model of providerModels) {
-        addModel({
-          name: `models/${provider}/${model.id}`,
-          displayName: model.name || model.id,
-          description: `${provider} model: ${model.name || model.id}`,
-        });
+    let hasGemini = false;
+    for (const entry of await buildModelsList(["llm"])) {
+      const description = `${entry.owned_by} model: ${entry.id}`;
+      addModel(`models/${entry.id}`, description, CHAT_METHODS, entry);
+      // ponytail: keyed on the default "gemini/" alias; a Gemini connection with
+      // a custom prefix still routes but gets no bare/TTS aliases listed.
+      if (entry.id.startsWith(GEMINI_PREFIX)) {
+        hasGemini = true;
+        // Gemini SDKs address models by their bare Google name.
+        addModel(
+          `models/${entry.id.slice(GEMINI_PREFIX.length)}`,
+          description,
+          CHAT_METHODS,
+          entry,
+        );
+      }
+    }
 
-        if (provider === "gemini") {
-          addModel({
-            name: `models/${model.id}`,
-            displayName: model.name || model.id,
-            description: `Gemini model: ${model.name || model.id}`,
-            methods: ["generateContent", "streamGenerateContent"],
-          });
-        }
+    // Native Gemini TTS passthrough (generateContent with AUDIO modality).
+    if (hasGemini) {
+      for (const id of getGeminiTtsModelIds()) {
+        addModel(`models/${id}`, `Gemini TTS model: ${id}`, ["generateContent"]);
       }
     }
 
