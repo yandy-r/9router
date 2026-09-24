@@ -95,7 +95,9 @@ export async function POST(request) {
     // Cline expects base WITHOUT /v1
     const normalizedBaseUrl = baseUrl.endsWith("/v1") ? baseUrl.slice(0, -3) : baseUrl;
 
+    // Read both before writing either, so a parse error can't leave a half-applied config.
     const globalState = (await readJsonConfig(getGlobalStatePath())) || {};
+    const secrets = (await readJsonConfig(getSecretsPath())) || {};
     globalState.actModeApiProvider = "openai";
     globalState.planModeApiProvider = "openai";
     globalState.openAiBaseUrl = normalizedBaseUrl;
@@ -103,7 +105,6 @@ export async function POST(request) {
     globalState.planModeOpenAiModelId = model;
     await fs.writeFile(getGlobalStatePath(), JSON.stringify(globalState, null, 2));
 
-    const secrets = (await readJsonConfig(getSecretsPath())) || {};
     secrets.openAiApiKey = apiKey;
     await fs.writeFile(getSecretsPath(), JSON.stringify(secrets, null, 2));
 
@@ -126,6 +127,7 @@ export async function DELETE() {
     if (!globalState) {
       return NextResponse.json({ success: true, message: "No settings file to reset" });
     }
+    const secrets = (await readJsonConfig(getSecretsPath())) || {};
 
     if (globalState.actModeApiProvider === "openai") {
       delete globalState.openAiBaseUrl;
@@ -136,7 +138,6 @@ export async function DELETE() {
     }
     await fs.writeFile(getGlobalStatePath(), JSON.stringify(globalState, null, 2));
 
-    const secrets = (await readJsonConfig(getSecretsPath())) || {};
     delete secrets.openAiApiKey;
     await fs.writeFile(getSecretsPath(), JSON.stringify(secrets, null, 2));
 

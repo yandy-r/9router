@@ -36,7 +36,9 @@ const readClaudeJson = async () => {
   }
 };
 
-const writeClaudeJsonMcp = async (mcpServers) => {
+// Reads and updates ~/.claude.json in memory; returns a writer. Split so callers
+// can fail on an unparseable file before writing anything else.
+const prepareClaudeJsonMcp = async (mcpServers) => {
   const filePath = getClaudeJsonPath();
   const data = (await readJsonConfig(filePath)) ?? {};
   if (mcpServers && Object.keys(mcpServers).length > 0) {
@@ -45,7 +47,7 @@ const writeClaudeJsonMcp = async (mcpServers) => {
     delete data.mcpServers.exa;
     if (Object.keys(data.mcpServers).length === 0) delete data.mcpServers;
   }
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+  return () => fs.writeFile(filePath, JSON.stringify(data, null, 2));
 };
 
 // Check if claude CLI is installed (via which/where or config file exists)
@@ -160,14 +162,17 @@ export async function POST(request) {
       }
     }
 
+    // Exa MCP toggle — ~/.claude.json (CLI reads mcpServers from here). Prepared
+    // before any write so an unparseable file aborts without a partial apply.
+    // Omitted field leaves the existing MCP entry untouched.
+    const writeMcp =
+      EXA_PLUGIN && "exaMcpEnabled" in body
+        ? await prepareClaudeJsonMcp(exaMcpEnabled ? { exa: buildExaMcpEntry() } : null)
+        : null;
+
     // Write new settings
     await fs.writeFile(settingsPath, JSON.stringify(newSettings, null, 2));
-
-    // Exa MCP toggle — write to ~/.claude.json (CLI reads mcpServers from here).
-    // Omitted field leaves the existing MCP entry untouched.
-    if (EXA_PLUGIN && "exaMcpEnabled" in body) {
-      await writeClaudeJsonMcp(exaMcpEnabled ? { exa: buildExaMcpEntry() } : null);
-    }
+    if (writeMcp) await writeMcp();
 
     return NextResponse.json({
       success: true,
@@ -219,7 +224,7 @@ export async function DELETE() {
     }
 
     // Remove injected MCP servers (Exa) from ~/.claude.json
-    await writeClaudeJsonMcp(null);
+    await (await prepareClaudeJsonMcp(null))();
 
     // Write updated settings
     await fs.writeFile(settingsPath, JSON.stringify(currentSettings, null, 2));
