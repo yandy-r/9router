@@ -13,6 +13,8 @@ import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import * as log from "../utils/logger.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
 import { handleComboChat, getComboModelsFromData } from "open-sse/services/combo.js";
+import { resolveComboStrategy } from "open-sse/services/comboStrategy.js";
+import { loadComboHeadroomFn } from "../services/comboHeadroom.js";
 import { assertPublicUrlResolved } from "@/shared/utils/ssrfGuard.js";
 
 /**
@@ -92,10 +94,12 @@ export async function handleFetch(request) {
   const combos = await getCombos();
   const comboModels = getComboModelsFromData(providerInput, combos);
   if (comboModels) {
-    const comboStrategies = settings.comboStrategies || {};
-    const comboStrategy =
-      comboStrategies[providerInput]?.fallbackStrategy || settings.comboStrategy || "fallback";
-    const comboStickyLimit = settings.comboStickyRoundRobinLimit;
+    const {
+      strategy: comboStrategy,
+      stickyLimit: comboStickyLimit,
+      weights: comboWeights,
+    } = resolveComboStrategy(settings, providerInput);
+    const headroomFn = comboStrategy === "weighted" ? await loadComboHeadroomFn() : undefined;
     log.info(
       "FETCH",
       `Combo "${providerInput}" with ${comboModels.length} providers (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`,
@@ -108,6 +112,8 @@ export async function handleFetch(request) {
       comboName: providerInput,
       comboStrategy,
       comboStickyLimit,
+      comboWeights,
+      headroomFn,
     });
   }
 

@@ -2,11 +2,12 @@ import { NextResponse } from "next/server";
 import { getCombos, getComboById, updateCombo, deleteCombo, getComboByName } from "@/lib/localDb";
 import { findComboCycle, isModelList, resetComboRotation } from "open-sse/services/combo.js";
 
-// Validate combo name: only a-z, A-Z, 0-9, -, _
+const BLOCKED_COMBO_NAMES = new Set(["__proto__", "constructor", "prototype"]);
+
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
 
 // GET /api/combos/[id] - Get combo by ID
-export async function GET(request, { params }) {
+export async function GET(_request, { params }) {
   try {
     const { id } = await params;
     const combo = await getComboById(id);
@@ -42,6 +43,10 @@ export async function PUT(request, { params }) {
         );
       }
 
+      if (BLOCKED_COMBO_NAMES.has(body.name)) {
+        return NextResponse.json({ error: `Invalid combo name "${body.name}"` }, { status: 400 });
+      }
+
       // Check if name already exists (exclude current combo)
       const existing = await getComboByName(body.name);
       if (existing && existing.id !== id) {
@@ -74,7 +79,8 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "Combo not found" }, { status: 404 });
     }
 
-    // Invalidate rotation state (models/strategy/name may have changed)
+    // Strategy migration now rides updateCombo's transaction; rotation
+    // state still resets after successful write.
     if (prev?.name) resetComboRotation(prev.name);
     if (combo.name && combo.name !== prev?.name) resetComboRotation(combo.name);
 
@@ -86,7 +92,7 @@ export async function PUT(request, { params }) {
 }
 
 // DELETE /api/combos/[id] - Delete combo
-export async function DELETE(request, { params }) {
+export async function DELETE(_request, { params }) {
   try {
     const { id } = await params;
     const prev = await getComboById(id);
@@ -96,6 +102,7 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: "Combo not found" }, { status: 404 });
     }
 
+    // deleteCombo drops combo row + own strategy key in one transaction.
     if (prev?.name) resetComboRotation(prev.name);
 
     return NextResponse.json({ success: true });

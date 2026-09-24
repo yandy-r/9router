@@ -110,6 +110,49 @@ export async function updateSettings(updates) {
   return mergeWithDefaults(next);
 }
 
+export const COMBO_NOT_FOUND = "COMBO_NOT_FOUND";
+
+// Transform the latest strategy map under one synchronous SQLite transaction.
+// requireComboName: combo must exist in the same transaction (guards stale names after
+// rename/delete); otherwise throws an Error with code COMBO_NOT_FOUND and writes nothing.
+export async function updateComboStrategies(transform, requireComboName) {
+  const db = await getAdapter();
+  let next;
+  db.transaction(() => {
+    if (
+      requireComboName !== undefined &&
+      !db.get(`SELECT id FROM combos WHERE name = ?`, [requireComboName])
+    ) {
+      throw Object.assign(new Error("Combo not found"), { code: COMBO_NOT_FOUND });
+    }
+    const row = db.get(`SELECT data FROM settings WHERE id = 1`);
+    const current = row ? parseJson(row.data, {}) : {};
+    const strategies = Object.hasOwn(current, "comboStrategies") ? current.comboStrategies : {};
+    if (!strategies || typeof strategies !== "object" || Array.isArray(strategies)) {
+      throw new Error("Invalid stored comboStrategies");
+    }
+    const nextStrategies = transform(strategies);
+    if (
+      !nextStrategies ||
+      typeof nextStrategies !== "object" ||
+      Array.isArray(nextStrategies) ||
+      typeof nextStrategies.then === "function"
+    ) {
+      throw new Error("Invalid comboStrategies transform result");
+    }
+    if (nextStrategies === strategies) {
+      next = current;
+      return;
+    }
+    next = { ...current, comboStrategies: nextStrategies };
+    db.run(
+      `INSERT INTO settings(id, data) VALUES(1, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data`,
+      [stringifyJson(next)],
+    );
+  });
+  return mergeWithDefaults(next);
+}
+
 export async function isCloudEnabled() {
   const settings = await getSettings();
   return settings.cloudEnabled === true;

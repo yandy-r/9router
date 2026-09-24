@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getSettings, updateSettings } from "@/lib/localDb";
+import { getSettings, updateComboStrategies, updateSettings } from "@/lib/localDb";
 import { applyOutboundProxyEnv } from "@/lib/network/outboundProxy";
 import { resetComboRotation } from "open-sse/services/combo.js";
+import { validateComboStrategySettings } from "open-sse/services/comboStrategy.js";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,77 @@ const SETTINGS_RESPONSE_HEADERS = {
 
 // Secrets must never be mass-assigned from request body (CWE-915)
 const PROTECTED_SETTING_KEYS = ["password", "mitmSudoEncrypted"];
+const VALID_COMBO_NAME = /^[a-zA-Z0-9_.-]+$/;
+const BLOCKED_COMBO_NAMES = new Set(["__proto__", "constructor", "prototype"]);
+
+function safeSettingsResponse(settings) {
+  const { password, oidcClientSecret, ...safeSettings } = settings;
+  safeSettings.oidcConfigured = !!(
+    safeSettings.oidcIssuerUrl &&
+    safeSettings.oidcClientId &&
+    oidcClientSecret
+  );
+  return NextResponse.json(safeSettings, { headers: SETTINGS_RESPONSE_HEADERS });
+}
+
+async function handleComboStrategyPatch(body) {
+  const { name, patch } = body.comboStrategyPatch || {};
+  if (typeof name !== "string" || !VALID_COMBO_NAME.test(name) || BLOCKED_COMBO_NAMES.has(name)) {
+    return NextResponse.json({ error: "Invalid combo name" }, { status: 400 });
+  }
+  if (!patch || typeof patch !== "object" || Array.isArray(patch)) {
+    return NextResponse.json({ error: "Invalid combo strategy patch" }, { status: 400 });
+  }
+  // Preserve fusion settings edits; reject unknown keys instead of silently storing them.
+  const allowed = new Set(["fallbackStrategy", "weights", "judgeModel", "fusionTuning"]);
+  if (Object.keys(patch).some((key) => !allowed.has(key))) {
+    return NextResponse.json({ error: "Invalid combo strategy patch" }, { status: 400 });
+  }
+  const error = validateComboStrategySettings({ comboStrategies: { [name]: patch } });
+  if (error) return NextResponse.json({ error }, { status: 400 });
+
+  // Validation against the merged entry happens inside the transaction too (weight-count cap).
+  let mergedError;
+  let missingWeightedEntry = false;
+  let settings;
+  try {
+    settings = await updateComboStrategies((strategies) => {
+      const base = Object.hasOwn(strategies, name) ? strategies[name] : {};
+      if (
+        Object.hasOwn(patch, "weights") &&
+        !Object.hasOwn(patch, "fallbackStrategy") &&
+        base?.fallbackStrategy !== "weighted"
+      ) {
+        missingWeightedEntry = true;
+        return strategies;
+      }
+      const next = { ...base, ...patch };
+      if (patch.weights) next.weights = { ...base?.weights, ...patch.weights };
+      mergedError = validateComboStrategySettings({ comboStrategies: { [name]: next } });
+      if (mergedError) return strategies;
+      const updated = { ...strategies };
+      if (!next.fallbackStrategy || next.fallbackStrategy === "fallback") {
+        delete updated[name];
+      } else {
+        updated[name] = next;
+      }
+      return updated;
+    }, name);
+  } catch (error) {
+    if (error.code === "COMBO_NOT_FOUND") {
+      return NextResponse.json({ error: "Combo not found" }, { status: 409 });
+    }
+    throw error;
+  }
+  if (missingWeightedEntry) return NextResponse.json({ error: "Combo not found" }, { status: 409 });
+  if (mergedError) return NextResponse.json({ error: mergedError }, { status: 400 });
+
+  resetComboRotation();
+  import("@/shared/services/quotaSnapshotPoller")
+    .then(({ configureQuotaSnapshotPoller }) => configureQuotaSnapshotPoller(settings))
+    .catch((error) => console.warn("[QuotaSnapshotPoller] settings update failed:", error.message));
+  return safeSettingsResponse(settings);
+}
 
 export async function GET() {
   try {
@@ -46,8 +118,24 @@ export async function PATCH(request) {
   try {
     const body = await request.json();
 
+    if (Object.hasOwn(body, "comboStrategyPatch") && Object.keys(body).length !== 1) {
+      return NextResponse.json(
+        { error: "comboStrategyPatch must be the only setting" },
+        { status: 400 },
+      );
+    }
+
     // Strip protected secrets before any internal handling sets them
     for (const key of PROTECTED_SETTING_KEYS) delete body[key];
+
+    if (Object.hasOwn(body, "comboStrategyPatch")) {
+      return await handleComboStrategyPatch(body);
+    }
+
+    const comboStrategyError = validateComboStrategySettings(body);
+    if (comboStrategyError) {
+      return NextResponse.json({ error: comboStrategyError }, { status: 400 });
+    }
 
     // If updating password, hash it
     if (body.newPassword) {
@@ -127,13 +215,7 @@ export async function PATCH(request) {
         );
     }
 
-    const { password, oidcClientSecret, ...safeSettings } = settings;
-    safeSettings.oidcConfigured = !!(
-      safeSettings.oidcIssuerUrl &&
-      safeSettings.oidcClientId &&
-      oidcClientSecret
-    );
-    return NextResponse.json(safeSettings, { headers: SETTINGS_RESPONSE_HEADERS });
+    return safeSettingsResponse(settings);
   } catch (error) {
     console.log("Error updating settings:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

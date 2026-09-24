@@ -12,6 +12,8 @@ import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
 import { handleComboChat } from "open-sse/services/combo.js";
+import { resolveComboStrategy } from "open-sse/services/comboStrategy.js";
+import { loadComboHeadroomFn } from "../services/comboHeadroom.js";
 import * as log from "../utils/logger.js";
 
 // Providers that don't require credentials (noAuth)
@@ -49,10 +51,12 @@ export async function handleImageGeneration(request) {
   // Combo expansion: model may be a combo name → run fallback/round-robin across models
   const comboModels = await getComboModels(modelStr);
   if (comboModels) {
-    const comboStrategies = settings.comboStrategies || {};
-    const comboStrategy =
-      comboStrategies[modelStr]?.fallbackStrategy || settings.comboStrategy || "fallback";
-    const comboStickyLimit = settings.comboStickyRoundRobinLimit;
+    const {
+      strategy: comboStrategy,
+      stickyLimit: comboStickyLimit,
+      weights: comboWeights,
+    } = resolveComboStrategy(settings, modelStr);
+    const headroomFn = comboStrategy === "weighted" ? await loadComboHeadroomFn() : undefined;
     log.info(
       "IMAGE",
       `Combo "${modelStr}" with ${comboModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`,
@@ -66,6 +70,8 @@ export async function handleImageGeneration(request) {
       comboName: modelStr,
       comboStrategy,
       comboStickyLimit,
+      comboWeights,
+      headroomFn,
     });
   }
 

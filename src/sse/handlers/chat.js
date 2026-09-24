@@ -23,6 +23,8 @@ import {
   handleFusionChat,
   detectRequiredCapabilities,
 } from "open-sse/services/combo.js";
+import { resolveComboStrategy } from "open-sse/services/comboStrategy.js";
+import { loadComboHeadroomFn } from "../services/comboHeadroom.js";
 import {
   augmentModelsWithCapacityAdapter,
   withCapacityAdapterStripping,
@@ -113,10 +115,13 @@ export async function handleChat(request, clientRawRequest = null) {
   // Check if model is a combo (has multiple models with fallback)
   const comboModels = await getComboModels(modelStr);
   if (comboModels) {
-    // Check for combo-specific strategy first, fallback to global
-    const comboStrategies = settings.comboStrategies || {};
-    const comboSpecificStrategy = comboStrategies[modelStr]?.fallbackStrategy;
-    const comboStrategy = comboSpecificStrategy || settings.comboStrategy || "fallback";
+    const {
+      strategy: comboStrategy,
+      stickyLimit: comboStickyLimit,
+      weights: comboWeights,
+      judgeModel,
+      fusionTuning,
+    } = resolveComboStrategy(settings, modelStr);
     const augmentedModels = augmentModelsWithCapacityAdapter(
       comboModels,
       requiredCapabilities,
@@ -139,12 +144,12 @@ export async function handleChat(request, clientRawRequest = null) {
         },
         log,
         comboName: modelStr,
-        judgeModel: comboStrategies[modelStr]?.judgeModel,
-        tuning: comboStrategies[modelStr]?.fusionTuning,
+        judgeModel,
+        tuning: fusionTuning,
       });
     }
 
-    const comboStickyLimit = settings.comboStickyRoundRobinLimit;
+    const headroomFn = comboStrategy === "weighted" ? await loadComboHeadroomFn() : undefined;
     log.info(
       "CHAT",
       `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`,
@@ -160,6 +165,8 @@ export async function handleChat(request, clientRawRequest = null) {
       comboName: modelStr,
       comboStrategy,
       comboStickyLimit,
+      comboWeights,
+      headroomFn,
     });
   }
 
@@ -222,10 +229,13 @@ async function handleSingleModelChat(
       }
       const nextPath = [...comboPath, modelStr];
       const chatSettings = await getSettings();
-      // Check for combo-specific strategy first, fallback to global
-      const comboStrategies = chatSettings.comboStrategies || {};
-      const comboSpecificStrategy = comboStrategies[modelStr]?.fallbackStrategy;
-      const comboStrategy = comboSpecificStrategy || chatSettings.comboStrategy || "fallback";
+      const {
+        strategy: comboStrategy,
+        stickyLimit: comboStickyLimit,
+        weights: comboWeights,
+        judgeModel,
+        fusionTuning,
+      } = resolveComboStrategy(chatSettings, modelStr);
       const requiredCapabilities = detectRequiredCapabilities(body);
       const augmentedModels = augmentModelsWithCapacityAdapter(
         comboModels,
@@ -252,12 +262,12 @@ async function handleSingleModelChat(
           },
           log,
           comboName: modelStr,
-          judgeModel: comboStrategies[modelStr]?.judgeModel,
-          tuning: comboStrategies[modelStr]?.fusionTuning,
+          judgeModel,
+          tuning: fusionTuning,
         });
       }
 
-      const comboStickyLimit = chatSettings.comboStickyRoundRobinLimit;
+      const headroomFn = comboStrategy === "weighted" ? await loadComboHeadroomFn() : undefined;
       log.info(
         "CHAT",
         `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`,
@@ -273,6 +283,8 @@ async function handleSingleModelChat(
         comboName: modelStr,
         comboStrategy,
         comboStickyLimit,
+        comboWeights,
+        headroomFn,
       });
     }
     log.warn("CHAT", "Invalid model format", { model: modelStr });

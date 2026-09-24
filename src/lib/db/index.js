@@ -6,6 +6,7 @@ import { stringifyJson, parseJson } from "./helpers/jsonCol.js";
 export {
   getSettings,
   updateSettings,
+  updateComboStrategies,
   isCloudEnabled,
   getCloudUrl,
   exportSettings,

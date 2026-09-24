@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   DndContext,
   closestCenter,
@@ -86,6 +86,12 @@ export default function CombosPage() {
   const { getCaps } = useModelCaps();
   const [confirmState, setConfirmState] = useState(null);
   const { copied, copy } = useCopyToClipboard();
+  const strategiesRef = useRef(comboStrategies);
+  const saveQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    strategiesRef.current = comboStrategies;
+  }, [comboStrategies]);
 
   useEffect(() => {
     fetchData();
@@ -154,7 +160,16 @@ export default function CombosPage() {
     }
   };
 
-  const handleUpdate = async (id, data) => {
+  // Runs inside the strategy save queue: a weight field may blur right before
+  // this save, and rename moves the strategy entry server-side. Queuing the PUT
+  // lets pending saves finish first and holds new saves until fetchData refreshes.
+  const handleUpdate = (id, data) => {
+    const run = saveQueueRef.current.then(() => updateCombo(id, data));
+    saveQueueRef.current = run;
+    return run;
+  };
+
+  const updateCombo = async (id, data) => {
     try {
       const res = await fetch(`/api/combos/${id}`, {
         method: "PUT",
@@ -191,29 +206,48 @@ export default function CombosPage() {
     });
   };
 
-  // Merge a per-combo strategy patch into settings.comboStrategies. Passing an empty
-  // patch (strategy back to default "fallback") drops the entry entirely.
-  const handleSetComboStrategy = async (comboName, patch) => {
-    try {
-      const updated = { ...comboStrategies };
-      const next = { ...(updated[comboName] || {}), ...patch };
-      // Prune to keep settings clean: default fallback with no extras = no entry.
-      if (!next.fallbackStrategy || next.fallbackStrategy === "fallback") {
-        delete updated[comboName];
-      } else {
-        updated[comboName] = next;
-      }
-
-      await fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comboStrategies: updated }),
-      });
-
-      setComboStrategies(updated);
-    } catch (error) {
-      console.log("Error updating combo strategy:", error);
+  // Atomic per-combo strategy patch: the server merges `patch` into
+  // settings.comboStrategies[comboName] (`weights` is a delta) and drops the entry
+  // when the strategy resolves to default "fallback". Only this combo is sent, so a
+  // save can never overwrite other combos. Saves are serialized and mirrored locally
+  // against strategiesRef (latest saved map) so rapid edits never use a stale snapshot.
+  // Throws on a failed response; handleSetComboStrategy turns that into
+  // { ok: false, error } so callers can show the error.
+  const saveComboStrategy = async (comboName, patch) => {
+    const res = await fetch("/api/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ comboStrategyPatch: { name: comboName, patch } }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Save failed (${res.status})`);
     }
+
+    // Mirror the server-side merge locally.
+    const base = strategiesRef.current[comboName] || {};
+    const next = { ...base, ...patch };
+    if (patch.weights) next.weights = { ...base.weights, ...patch.weights };
+    const updated = { ...strategiesRef.current };
+    if (!next.fallbackStrategy || next.fallbackStrategy === "fallback") {
+      delete updated[comboName];
+    } else {
+      updated[comboName] = next;
+    }
+    strategiesRef.current = updated;
+    setComboStrategies(updated);
+    return { ok: true };
+  };
+  // Serialized queue; a failed save is logged and never blocks later saves.
+  const handleSetComboStrategy = (comboName, patch) => {
+    const run = saveQueueRef.current
+      .then(() => saveComboStrategy(comboName, patch))
+      .catch((error) => {
+        console.log("Error updating combo strategy:", error);
+        return { ok: false, error: error?.message || "Save failed — network error" };
+      });
+    saveQueueRef.current = run;
+    return run;
   };
 
   if (loading) {
@@ -246,6 +280,10 @@ export default function CombosPage() {
               <span className="font-medium text-text-main">Fusion</span> — queries all models in
               parallel, then a judge synthesizes one answer. Best quality, but costs the most: every
               request bills all panel models + the judge (N+1 calls)
+            </li>
+            <li>
+              <span className="font-medium text-text-main">Weighted</span> — picks the first model
+              by weight × remaining quota, then falls back in order. Weight 0 means fallback only
             </li>
           </ul>
         </div>
@@ -344,7 +382,17 @@ const STRATEGY_OPTIONS = [
   { value: "fallback", label: "Fallback — try in order" },
   { value: "round-robin", label: "Round Robin — rotate" },
   { value: "fusion", label: "Fusion — panel + judge" },
+  { value: "weighted", label: "Weighted — by weight & remaining quota" },
 ];
+
+function parseWeight(raw) {
+  if (raw === undefined) return { ok: false, error: "Enter a number" };
+  const parsed = Number(raw);
+  if (raw.trim() === "" || !Number.isFinite(parsed))
+    return { ok: false, error: "Enter a finite number" };
+  if (parsed < 0 || parsed > 1000) return { ok: false, error: "Weight must be between 0 and 1000" };
+  return { ok: true, value: parsed };
+}
 
 function ComboCard({
   combo,
@@ -358,9 +406,83 @@ function ComboCard({
   onSetStrategy,
 }) {
   const [showJudgeSelect, setShowJudgeSelect] = useState(false);
+  const [headroom, setHeadroom] = useState({});
+  // Per-model input text while editing; absent key = show saved weight.
+  const [drafts, setDrafts] = useState({});
+  const [weightErrors, setWeightErrors] = useState({});
   const current = strategy.fallbackStrategy || "fallback";
   const judge = strategy.judgeModel || "";
   const isFusion = current === "fusion";
+  const isWeighted = current === "weighted";
+
+  // Headroom re-fetches when models change; an effect-local cancelled flag drops
+  // stale/slow responses (and the StrictMode double fetch) so an older request
+  // can never overwrite a newer one. Non-weighted cards keep an empty map.
+  useEffect(() => {
+    const models = combo.models || [];
+    if (!isWeighted || models.length === 0) {
+      setHeadroom({});
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/combos/${combo.id}/headroom`)
+      .then((res) => (res.ok ? res.json() : {}))
+      .then((data) => {
+        if (!cancelled) setHeadroom(data.headroom || {});
+      })
+      .catch((error) => console.log("Error fetching combo headroom:", error));
+    return () => {
+      cancelled = true;
+    };
+  }, [isWeighted, combo.id, combo.models]);
+
+  const savedWeights = strategy.weights || {};
+  // Preview uses valid drafts so the share updates while typing.
+  const weightOf = (m) => {
+    const parsed = parseWeight(drafts[m]);
+    return parsed.ok ? parsed.value : (savedWeights[m] ?? 1);
+  };
+  const models = combo.models || [];
+  const effective = models.map((m) => {
+    const h = headroom[m];
+    return weightOf(m) * (Number.isFinite(h) && h >= 0 ? h : 1);
+  });
+  const totalEffective = effective.reduce((s, w) => s + w, 0);
+
+  const setWeightError = (model, error) =>
+    setWeightErrors((prev) => {
+      const next = { ...prev };
+      if (error) next[model] = error;
+      else delete next[model];
+      return next;
+    });
+
+  const handleSaveWeight = async (model) => {
+    if (!(model in drafts)) return;
+    const parsed = parseWeight(drafts[model]);
+    if (!parsed.ok) {
+      setWeightError(model, parsed.error);
+      return;
+    }
+    if (parsed.value === (savedWeights[model] ?? 1)) {
+      setDrafts(({ [model]: _, ...rest }) => rest);
+      setWeightError(model, null);
+      return;
+    }
+    // Delta only: parent merges into the latest saved weights, so concurrent
+    // saves from other fields never overwrite each other with a stale snapshot.
+    const result = await onSetStrategy({ weights: { [model]: parsed.value } });
+    if (!result?.ok) {
+      setWeightError(model, result?.error || "Save failed");
+      return;
+    }
+    setWeightError(model, null);
+    setDrafts((prev) => {
+      if (prev[model] !== drafts[model]) return prev; // user kept typing
+      const { [model]: _, ...rest } = prev;
+      return rest;
+    });
+  };
 
   return (
     <Card padding="sm" className="group">
@@ -462,6 +584,61 @@ function ComboCard({
           </div>
         </div>
       </div>
+
+      {isWeighted && (
+        <div className="mt-3 border-t border-black/10 pt-3 dark:border-white/10">
+          <p className="mb-2 text-xs text-text-muted">
+            Set relative weights. Estimated shares use current remaining quota.
+          </p>
+          <div className="flex flex-col gap-2">
+            {models.map((model, index) => (
+              <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: combos may contain duplicate model IDs, and their order is stable until combo edit.
+                key={`${model}-${index}`}
+                className="flex min-w-0 flex-wrap items-center gap-2 text-xs"
+              >
+                <code className="min-w-0 flex-1 break-all font-mono text-text-main">{model}</code>
+                <input
+                  type="number"
+                  min="0"
+                  max="1000"
+                  step="1"
+                  aria-label={`Weight for ${model} in ${combo.name}`}
+                  aria-invalid={!!weightErrors[model]}
+                  value={drafts[model] ?? String(savedWeights[model] ?? 1)}
+                  onChange={(e) => {
+                    setDrafts((prev) => ({ ...prev, [model]: e.target.value }));
+                    setWeightError(model, null);
+                  }}
+                  onBlur={() => handleSaveWeight(model)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  className="w-20 rounded border border-black/15 bg-transparent px-2 py-1 text-text-main outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-white/20"
+                />
+                <span className="w-24 text-right text-text-muted">
+                  {weightOf(model) === 0
+                    ? "Fallback only"
+                    : `≈ ${totalEffective > 0 ? ((effective[index] / totalEffective) * 100).toFixed(1) : 0}%`}
+                </span>
+                {weightErrors[model] && (
+                  <span role="alert" className="w-full text-right text-red-500">
+                    {weightErrors[model]}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          {models.length > 0 && totalEffective === 0 && (
+            <p role="status" className="mt-2 text-xs text-text-muted">
+              All effective weights are zero. Requests use fallback order.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Judge model picker (single-select; combo members make natural judges too) */}
       {showJudgeSelect && (

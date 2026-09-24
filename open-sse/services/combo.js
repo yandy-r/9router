@@ -6,6 +6,7 @@ import { checkFallbackError, formatRetryAfter } from "./accountFallback.js";
 import { unavailableResponse } from "../utils/error.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
 import { extractTextContent } from "../translator/formats/gemini.js";
+import { pickSmoothWeighted } from "./weightedRoundRobin.js";
 
 // Hard capabilities = input modalities; missing one drops request data (e.g. image
 // stripped). Must be prioritized. Soft (e.g. search) only degrades a feature.
@@ -93,6 +94,12 @@ export function reorderByCapabilities(models, required) {
  * @type {Map<string, { index: number, consecutiveUseCount: number }>}
  */
 const comboRotationState = new Map();
+
+/**
+ * Track smooth-WRR state per combo (for weighted strategy)
+ * @type {Map<string, { currentWeights: Map<string, number>, stickyId: string|null, count: number }>}
+ */
+const comboWeightedState = new Map();
 
 // Trailing run of items after the last assistant/model turn = the current user
 // turn. It may span several messages (e.g. text + image split across blocks),
@@ -248,12 +255,90 @@ export function getRotatedModels(models, comboName, strategy, stickyLimit = 1) {
 }
 
 /**
+ * Get weighted model list via smooth WRR; head model picked, rest keep order
+ * @param {string[]} models - Array of model strings
+ * @param {string} comboName - Name of the combo
+ * @param {Object<string, number>} [weights] - Per-model static weights (default 1)
+ * @param {Function} [headroomFn] - Live headroom lookup: (model) => number
+ * @param {number|string} [stickyLimit=1] - Requests per combo model before switching
+ * @returns {string[]} Weighted models array
+ */
+export function getWeightedModels(models, comboName, weights, headroomFn, stickyLimit = 1) {
+  if (!models || models.length <= 1) {
+    return models;
+  }
+
+  const key = comboName || "__default__";
+  const seen = new Set();
+  const candidates = [];
+  for (const m of models) {
+    if (typeof m !== "string" || seen.has(m)) continue;
+    seen.add(m);
+    const base =
+      weights && Object.hasOwn(weights, m) && Number.isFinite(weights[m]) && weights[m] >= 0
+        ? weights[m]
+        : 1;
+    let headroom = 1;
+    try {
+      const h = headroomFn?.(m);
+      if (Number.isFinite(h) && h >= 0) headroom = h;
+    } catch {
+      headroom = 1;
+    }
+    const weight = base * headroom;
+    if (weight > 0) candidates.push({ id: m, weight });
+  }
+
+  if (candidates.length === 0) {
+    return models;
+  }
+
+  let state = comboWeightedState.get(key);
+  if (!state) {
+    state = { currentWeights: new Map(), stickyId: null, count: 0 };
+  }
+
+  const limit = normalizeStickyLimit(stickyLimit);
+  let pick;
+  const candidateIds = new Set(candidates.map((c) => c.id));
+  if (candidateIds.has(state.stickyId) && state.count < limit) {
+    pick = state.stickyId;
+    state.count += 1;
+  } else {
+    const { id, currentWeights } = pickSmoothWeighted(candidates, state.currentWeights);
+    if (id === null) {
+      return models;
+    }
+    state = { currentWeights, stickyId: id, count: 1 };
+    pick = id;
+  }
+
+  comboWeightedState.set(key, state);
+
+  const result = [pick];
+  let removed = false;
+  for (const m of models) {
+    if (!removed && m === pick) {
+      removed = true;
+      continue;
+    }
+    result.push(m);
+  }
+  return result;
+}
+
+/**
  * Reset in-memory rotation state when combo/settings change
  * @param {string} [comboName] - Combo name to reset; omit to clear all
  */
 export function resetComboRotation(comboName) {
-  if (comboName) comboRotationState.delete(comboName);
-  else comboRotationState.clear();
+  if (comboName) {
+    comboRotationState.delete(comboName);
+    comboWeightedState.delete(comboName);
+  } else {
+    comboRotationState.clear();
+    comboWeightedState.clear();
+  }
 }
 
 /**
@@ -321,8 +406,10 @@ function retryAfterToIso(value) {
  * @param {Function} options.handleSingleModel - Function to handle single model: (body, modelStr) => Promise<Response>
  * @param {Object} options.log - Logger object
  * @param {string} [options.comboName] - Name of the combo (for round-robin tracking)
- * @param {string} [options.comboStrategy] - Strategy: "fallback" or "round-robin"
+ * @param {string} [options.comboStrategy] - Strategy: "fallback", "round-robin", "fusion", or "weighted"
  * @param {number|string} [options.comboStickyLimit=1] - Requests per combo model before switching
+ * @param {Object<string, number>} [options.comboWeights] - Per-model static weights (weighted strategy)
+ * @param {Function} [options.headroomFn] - Live headroom lookup: (model) => number (weighted strategy)
  * @returns {Promise<Response>}
  */
 export async function handleComboChat({
@@ -333,10 +420,15 @@ export async function handleComboChat({
   comboName,
   comboStrategy,
   comboStickyLimit = 1,
+  comboWeights,
+  headroomFn,
   autoSwitch = true,
 }) {
   // Apply rotation strategy if enabled
-  let rotatedModels = getRotatedModels(models, comboName, comboStrategy, comboStickyLimit);
+  let rotatedModels =
+    comboStrategy === "weighted"
+      ? getWeightedModels(models, comboName, comboWeights, headroomFn, comboStickyLimit)
+      : getRotatedModels(models, comboName, comboStrategy, comboStickyLimit);
 
   // Auto-switch: float models that satisfy the request's required capabilities to the front.
   if (autoSwitch) {
