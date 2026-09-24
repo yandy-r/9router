@@ -117,11 +117,11 @@ function convertMessages(messages) {
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
 
-    if (msg.role === ROLE.SYSTEM) {
-      result.push({
-        role: ROLE.USER,
-        content: `[System Instructions]\n${extractContent(msg.content)}`,
-      });
+    // Keep system/developer text as system: the executor folds it into the
+    // preamble. Rewriting it as a user turn buried it in history (YAN-248).
+    if (msg.role === ROLE.SYSTEM || msg.role === ROLE.DEVELOPER) {
+      const content = extractContent(msg.content);
+      if (content) result.push({ role: ROLE.SYSTEM, content });
       continue;
     }
 
