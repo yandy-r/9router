@@ -1,4 +1,5 @@
 import { GITHUB_CONFIG } from "../constants/oauth.js";
+import { readTokenResponse } from "../providerHelpers.js";
 
 const github = {
   config: GITHUB_CONFIG,
@@ -38,14 +39,7 @@ const github = {
     });
 
     // Handle response properly - if not ok, try to get error as text first
-    let data;
-    try {
-      data = await response.json();
-    } catch (e) {
-      // If response is not JSON, get as text
-      const text = await response.text();
-      data = { error: "invalid_response", error_description: text };
-    }
+    const data = await readTokenResponse(response);
 
     return {
       ok: response.ok,
