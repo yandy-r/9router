@@ -131,6 +131,25 @@ describe("Schema migrations", () => {
     expect(db2.all(`SELECT id FROM combos`)).toEqual([{ id: "x1" }]);
   });
 
+  it("legacy import is skipped when the DB already holds user data (YAN-62)", async () => {
+    const { getAdapter } = await import("@/lib/db/driver.js");
+    const db = await getAdapter();
+    db.run(
+      `INSERT INTO combos(id, name, models, createdAt, updatedAt) VALUES('mine', 'mine', '[]', 'x', 'x')`,
+    );
+    db.close?.();
+
+    fs.writeFileSync(
+      path.join(tempDir, "db.json"),
+      JSON.stringify({ combos: [{ id: "legacy", name: "legacy", models: [] }] }),
+    );
+    delete global._dbAdapter;
+    vi.resetModules();
+    const { getAdapter: getAdapter2 } = await import("@/lib/db/driver.js");
+    const db2 = await getAdapter2();
+    expect(db2.all(`SELECT id FROM combos`)).toEqual([{ id: "mine" }]);
+  });
+
   it("auto-sync re-creates missing index when DB lacks it", async () => {
     const { getAdapter } = await import("@/lib/db/driver.js");
     const db = await getAdapter();

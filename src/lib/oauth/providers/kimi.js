@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { KIMI_CONFIG } from "../constants/oauth.js";
+import { readTokenResponse } from "../providerHelpers.js";
 
 // Kimi Code device flow (CLIProxyAPI internal/auth/kimi). Id is `kimi`;
 // `kimi-coding` remains an alias key so old UI/API routes still resolve.
@@ -54,12 +55,7 @@ const kimi = {
         device_code: deviceCode,
       }),
     });
-    let data;
-    try {
-      data = await response.json();
-    } catch {
-      data = { error: "invalid_response", error_description: "non-json token response" };
-    }
+    const data = await readTokenResponse(response);
     // CLIProxyAPI: Kimi returns 200 for pending states with error field
     if (data.error === "authorization_pending" || data.error === "slow_down") {
       return { ok: true, data };

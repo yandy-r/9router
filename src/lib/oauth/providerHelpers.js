@@ -97,7 +97,7 @@ async function readTokenResponse(response) {
     const data = JSON.parse(text);
     if (data && typeof data === "object") return data;
   } catch {}
-  return { error: "invalid_response", error_description: text };
+  return { error: "invalid_response", error_description: text.slice(0, 500) };
 }
 
 export {

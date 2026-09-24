@@ -436,6 +436,9 @@ export async function runMigrationOnce(adapter) {
     const t0 = Date.now();
     const backupDir = makeBackupDir("migrate-from-json");
     for (const f of Object.values(LEGACY_FILES)) backupFile(f, backupDir);
+    // Retry after an earlier abort: settings/kv the user edited since then get
+    // overwritten by the import, so keep a copy of the current DB too.
+    if (!fresh) backupDbLite(adapter, backupDir);
 
     try {
       adapter.transaction(() => {
