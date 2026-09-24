@@ -32,6 +32,7 @@ RUN --mount=type=secret,id=GEMINI_OAUTH_CLIENT_ID,env=GEMINI_OAUTH_CLIENT_ID \
     --mount=type=secret,id=GEMINI_OAUTH_CLIENT_SECRET,env=GEMINI_OAUTH_CLIENT_SECRET \
     --mount=type=secret,id=ANTIGRAVITY_OAUTH_CLIENT_ID,env=ANTIGRAVITY_OAUTH_CLIENT_ID \
     --mount=type=secret,id=ANTIGRAVITY_OAUTH_CLIENT_SECRET,env=ANTIGRAVITY_OAUTH_CLIENT_SECRET \
+    --mount=type=secret,id=META_CODE_OAUTH_CLIENT_ID,env=META_CODE_OAUTH_CLIENT_ID \
     mkdir -p /out && node write-oauth-clients.cjs /out && \
     if [ -n "$REQUIRE_OAUTH_DEFAULTS" ]; then node write-oauth-clients.cjs --check /out; fi
 

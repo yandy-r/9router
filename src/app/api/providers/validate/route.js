@@ -454,6 +454,9 @@ export async function POST(request) {
         case "chutes":
         case "xiaomi-mimo":
         case "xiaomi-tokenplan":
+        // baseUrl ends /responses, so the generic default probe below can't derive /models —
+        // registry validateUrl supplies it instead (format check there rejects non-openai).
+        case "meta-code":
         case "nvidia": {
           const endpoints = {
             ...Object.fromEntries(

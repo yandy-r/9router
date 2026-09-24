@@ -134,6 +134,14 @@ const OAUTH_TEST_CONFIG = {
       402: "Connected, but Grok Build credits are exhausted (spending limit). Add credits or upgrade SuperGrok.",
     },
   },
+  // Meta Code (Muse Spark) — probe /v1/models with the minted subscription key or API key.
+  "meta-code": {
+    url: PROVIDERS["meta-code"]?.validateUrl,
+    method: "GET",
+    authHeader: "Authorization",
+    authPrefix: "Bearer ",
+    refreshable: true,
+  },
 };
 
 /**
@@ -256,7 +264,12 @@ async function refreshOAuthToken(connection) {
       };
     }
 
-    if (provider === "codex" || provider === "grok-cli" || provider === "xai") {
+    if (
+      provider === "codex" ||
+      provider === "grok-cli" ||
+      provider === "meta-code" ||
+      provider === "xai"
+    ) {
       return await refreshProviderCredentials(provider, connection, console);
     }
 
@@ -369,7 +382,8 @@ async function testOAuthConnection(connection, effectiveProxy = null) {
   const tokenExpired = isTokenExpired(connection);
   if (config.refreshable && tokenExpired && connection.refreshToken) {
     const tokens = await refreshOAuthToken(connection);
-    if (tokens) {
+    // Refreshers may return { error: "invalid_grant" } — only an accessToken is success.
+    if (tokens?.accessToken) {
       accessToken = tokens.accessToken;
       refreshed = true;
       newTokens = tokens;
@@ -454,7 +468,7 @@ async function testOAuthConnection(connection, effectiveProxy = null) {
 
     if (res.status === 401 && config.refreshable && !refreshed && connection.refreshToken) {
       const tokens = await refreshOAuthToken(connection);
-      if (tokens) {
+      if (tokens?.accessToken) {
         const retryUrl = config.buildUrl ? config.buildUrl(tokens.accessToken) : testUrl;
         const retryHeaders = config.noAuth
           ? { ...config.extraHeaders }
@@ -1114,6 +1128,15 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
           effectiveProxy,
         );
         return { valid: res.ok, error: res.ok ? null : "Invalid API key or base URL" };
+      }
+      case "meta-code": {
+        // Dual-auth: API keys hit the same /v1/models probe as OAuth-minted keys.
+        const res = await fetchWithConnectionProxy(
+          PROVIDERS["meta-code"].validateUrl,
+          { headers: { Authorization: `Bearer ${connection.apiKey}` } },
+          effectiveProxy,
+        );
+        return { valid: res.ok, error: res.ok ? null : "Invalid API key" };
       }
       case "kimchi": {
         // Dual-auth: same validation endpoint as the OAuth flow — the token (API key

@@ -302,6 +302,7 @@ export async function GET(request, { params }) {
         "codebuddy-intl",
         "qoder",
         "grok-cli",
+        "meta-code",
       ];
       let deviceData;
       if (noPkceDeviceProviders.includes(provider)) {
@@ -549,6 +550,8 @@ export async function POST(request, { params }) {
       // Providers that don't use PKCE for device code
       const noPkceProviders = [
         "github",
+        "grok-cli",
+        "meta-code",
         "kimi",
         "kimi-coding",
         "kilocode",

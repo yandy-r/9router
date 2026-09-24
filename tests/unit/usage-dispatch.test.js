@@ -33,6 +33,7 @@ const SUPPORTED = [
   "opencode-go",
   "zed",
   "commandcode",
+  "meta-code",
 ];
 
 describe("usage dispatch", () => {

@@ -25,6 +25,7 @@ import { getXiaomiMimoUsage } from "./usage/xiaomi-mimo.js";
 import { resolveQoderCredentials } from "./qoderModels.js";
 import { getGlmUsage } from "./usage/glm.js";
 import { getCommandCodeUsage } from "./usage/commandcode.js";
+import { getMetaCodeUsage } from "./usage/meta-code.js";
 import {
   getIflowUsage,
   getOllamaUsage,
@@ -70,10 +71,13 @@ const USAGE_HANDLERS = {
   zed: (c) => getZedUsage(c.accessToken, c.providerSpecificData, c.proxyOptions),
   "xiaomi-mimo": (c) => getXiaomiMimoUsage(c.accessToken, c.providerSpecificData, c.proxyOptions),
   commandcode: (c) => getCommandCodeUsage(c.apiKey, c.proxyOptions),
+  // refreshToken = Meta `dca:` token; the mint call that returns quota rejects plain keys.
+  "meta-code": (c) => getMetaCodeUsage(c.refreshToken, c.proxyOptions, { force: c.force }),
 };
 
 export async function getUsageForProvider(connection, proxyOptions = null, options = {}) {
-  const { provider, accessToken, apiKey, providerSpecificData, projectId } = connection;
+  const { provider, accessToken, refreshToken, apiKey, providerSpecificData, projectId } =
+    connection;
   const providerDataWithProjectId = {
     ...(providerSpecificData || {}),
     ...(projectId ? { projectId } : {}),
@@ -84,6 +88,7 @@ export async function getUsageForProvider(connection, proxyOptions = null, optio
   return await handler({
     provider,
     accessToken,
+    refreshToken,
     apiKey,
     providerSpecificData,
     providerDataWithProjectId,
