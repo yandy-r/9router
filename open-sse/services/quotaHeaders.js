@@ -216,12 +216,31 @@ export function parseCodexHeaders(headers, nowMs = Date.now()) {
     const window = buildCodexWindow(headers, "x-codex", null, slot, now);
     if (window) windows.push(window);
   }
+  // Labeled families map both slots to one `model:<label>` kind (a length
+  // suffix would break getHeadroom's model token matching). Headroom is the
+  // min over windows, so only the binding slot matters: merge slots into one
+  // window with max usedFraction and the later resetsAt, instead of letting
+  // the store keep whichever slot merged last.
+  const labeled = new Map();
   for (const { id, slot } of collectCodexFamilies(headers)) {
     const limitName = getHeader(headers, `x-${id}-limit-name`);
     const label = limitName?.trim() ? limitName.trim() : id;
     const window = buildCodexWindow(headers, `x-${id}`, label, slot, now);
-    if (window) windows.push(window);
+    if (!window) continue;
+    const key = window.kind.toLowerCase();
+    const prev = labeled.get(key);
+    labeled.set(
+      key,
+      prev
+        ? {
+            ...prev,
+            usedFraction: Math.max(prev.usedFraction, window.usedFraction),
+            resetsAt: Math.max(prev.resetsAt, window.resetsAt),
+          }
+        : window,
+    );
   }
+  windows.push(...labeled.values());
   return windows;
 }
 

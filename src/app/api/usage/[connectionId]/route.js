@@ -11,6 +11,7 @@ import {
   fetchAndPersistClaudePlanTier,
   recordUsageSnapshot,
 } from "@/sse/services/quotaSnapshotSync";
+import { isWeightedProvider } from "@/shared/services/weightedTargets";
 
 // Detect auth-expired messages returned by usage providers instead of throwing
 const AUTH_EXPIRED_PATTERNS = ["expired", "authentication", "unauthorized", "401", "re-authorize"];
@@ -200,8 +201,8 @@ export async function GET(request, { params }) {
           connection.providerSpecificData?.planTier ??
           connection.providerSpecificData?.chatgptPlanType,
       });
-      // Throttled 24h via planTierCheckedAt and never throws; cheap when fresh.
-      if (connection.provider === "claude" && isOAuth) {
+      // Weighted Claude only (extra upstream call); throttled 24h, never throws.
+      if (connection.provider === "claude" && isOAuth && (await isWeightedProvider("claude"))) {
         await fetchAndPersistClaudePlanTier(connection, proxyOptions);
       }
     } catch {

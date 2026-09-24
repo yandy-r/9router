@@ -12,9 +12,9 @@ import {
 import { getUsageForProvider } from "open-sse/services/usage.js";
 import { getSnapshot } from "open-sse/services/quotaSnapshot.js";
 import { QUOTA_SNAPSHOT } from "open-sse/config/quotaSnapshot.js";
-import { parseModel } from "open-sse/services/model.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { refreshAndUpdateCredentials } from "@/app/api/usage/[connectionId]/route.js";
+import { weightedProviders } from "./weightedTargets.js";
 import { USAGE_APIKEY_PROVIDERS } from "@/shared/constants/providers";
 import {
   fetchAndPersistClaudePlanTier,
@@ -62,13 +62,6 @@ export function createDefaultDeps() {
   };
 }
 
-// Weighted combos name their providers by combo model prefix; combos without a
-// per-combo entry inherit settings.comboStrategy. Prefix before "/" is enough.
-function comboIsWeighted(combo, settings) {
-  const specific = settings?.comboStrategies?.[combo?.name]?.fallbackStrategy;
-  return (specific || settings?.comboStrategy || "fallback") === "weighted";
-}
-
 const FAILURE_CACHE_CAP = 1000;
 
 function pruneFailureCache(failureCache) {
@@ -84,28 +77,6 @@ function pruneFailureCache(failureCache) {
       delete failureCache[key];
     }
   }
-}
-
-function weightedProviders(settings, combos) {
-  const direct = new Set(
-    Object.entries(settings?.providerStrategies || {})
-      .filter(([, strategy]) => strategy?.fallbackStrategy === "weighted")
-      .map(([provider]) => provider),
-  );
-  for (const combo of combos || []) {
-    if (!comboIsWeighted(combo, settings)) continue;
-    for (const model of combo?.models || []) {
-      try {
-        const raw = typeof model === "string" ? model : (model?.model ?? model?.name);
-        if (typeof raw !== "string") continue;
-        const { provider, isAlias } = parseModel(raw);
-        if (!isAlias && provider) direct.add(provider);
-      } catch {
-        // One malformed combo model must not abort the tick.
-      }
-    }
-  }
-  return direct;
 }
 
 function fresh(connectionId) {

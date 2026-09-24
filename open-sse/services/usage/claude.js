@@ -5,6 +5,7 @@
 import { proxyAwareFetch } from "../../utils/proxyFetch.js";
 import { ANTHROPIC_API_VERSION } from "../../providers/shared.js";
 import { U, parseResetTime } from "./shared.js";
+import { sanitizePlanTier } from "../quotaSnapshot.js";
 
 // Claude API config (urls from registry, apiVersion is header logic kept here)
 const CLAUDE_CONFIG = {
@@ -154,16 +155,8 @@ async function fetchClaudeUsageRaw(accessToken, proxyOptions = null) {
   }
 }
 
-export function getClaudeProfileUrl() {
+function getClaudeProfileUrl() {
   return U("claude").profileUrl;
-}
-
-function sanitizePlanTier(value) {
-  if (typeof value !== "string") return null;
-  const tier = value.trim().toLowerCase();
-  if (!tier || tier.length > 64) return null;
-  if (["__proto__", "constructor", "prototype"].includes(tier)) return null;
-  return tier;
 }
 
 /**

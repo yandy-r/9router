@@ -399,6 +399,33 @@ describe("quota snapshot poller", () => {
     expect(deps.getProviderConnections).not.toHaveBeenCalled();
   });
 
+  it("isWeightedProvider reflects weighted strategy and fails closed", async () => {
+    const { isWeightedProvider } = await import("../../src/shared/services/weightedTargets.js");
+    const depsFor = (settings) => ({
+      getSettings: vi.fn().mockResolvedValue(settings),
+      getCombos: vi.fn().mockResolvedValue([]),
+    });
+
+    await expect(
+      isWeightedProvider(
+        "claude",
+        depsFor({ providerStrategies: { claude: { fallbackStrategy: "weighted" } } }),
+      ),
+    ).resolves.toBe(true);
+    await expect(
+      isWeightedProvider(
+        "claude",
+        depsFor({ providerStrategies: { claude: { fallbackStrategy: "priority" } } }),
+      ),
+    ).resolves.toBe(false);
+    await expect(
+      isWeightedProvider("claude", {
+        getSettings: vi.fn().mockRejectedValue(new Error("db down")),
+        getCombos: vi.fn(),
+      }),
+    ).resolves.toBe(false);
+  });
+
   it("starts scheduler when weighted provider exists and stops otherwise", () => {
     poller.configureQuotaSnapshotPoller({
       providerStrategies: { codex: { fallbackStrategy: "weighted" } },

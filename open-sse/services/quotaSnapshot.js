@@ -1,4 +1,5 @@
 import { PLAN_CAPACITY, QUOTA_SNAPSHOT } from "../config/quotaSnapshot.js";
+import { isDurationString } from "../utils/duration.js";
 
 const snapshots = new Map();
 const GLOBAL_WINDOW_KINDS = new Set([
@@ -14,7 +15,6 @@ const GLOBAL_WINDOW_KINDS = new Set([
 const BLOCKED_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 const RESET_PAST_TOLERANCE_MS = 86_400_000;
 const RESET_FUTURE_HORIZON_MS = 400 * 86_400_000;
-const DURATION_RE = /^(?:\d+(?:\.\d+)?(?:ns|us|µs|μs|ms|s|m|h))+$/i;
 
 function finiteNumber(value) {
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -199,7 +199,7 @@ export function parseResetMs(value, nowMs = Date.now()) {
     } else if (typeof value === "string") {
       const trimmed = value.trim();
       if (!trimmed) return 0;
-      if (DURATION_RE.test(trimmed)) return null;
+      if (isDurationString(trimmed)) return null;
       const numeric = finiteNumber(trimmed);
       if (numeric !== null) parsed = numeric < 1e12 ? numeric * 1000 : numeric;
       else parsed = Date.parse(trimmed);

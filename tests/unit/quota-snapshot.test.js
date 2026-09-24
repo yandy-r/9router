@@ -618,6 +618,28 @@ describe("parseQuotaHeaders (codex)", () => {
     }
   });
 
+  it("merges labeled family slots into one binding window", () => {
+    const raw = {
+      "x-codex-bengalfox-primary-used-percent": "20",
+      "x-codex-bengalfox-primary-window-minutes": "300",
+      "x-codex-bengalfox-primary-reset-at": String(NOW_SEC + 3600),
+      "x-codex-bengalfox-secondary-used-percent": "80",
+      "x-codex-bengalfox-secondary-window-minutes": "10080",
+      "x-codex-bengalfox-secondary-reset-at": String(NOW_SEC + 86400),
+      "x-codex-bengalfox-limit-name": "gpt-5.2-codex-sonic",
+    };
+    for (const headers of [raw, new Headers(raw)]) {
+      const windows = parseQuotaHeaders("codex", headers, NOW);
+      expect(windows).toEqual([
+        expect.objectContaining({
+          kind: "model:gpt-5.2-codex-sonic",
+          usedFraction: 0.8,
+          resetsAt: NOW + DAY,
+        }),
+      ]);
+    }
+  });
+
   it("skips a family without used-percent", () => {
     expect(
       parseQuotaHeaders(

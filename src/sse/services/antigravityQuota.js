@@ -61,12 +61,32 @@ function _toSnapshotWindow(model, entry) {
  * @param {object} quotas quotas map, merged into the existing view entry
  * @returns {object} view entry for the connection
  */
+// Keys that would hit the prototype setter (or shadow Object internals) if
+// merged via Object.assign from an upstream-controlled quotas object.
+const FORBIDDEN_QUOTA_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
+ * Copy own entries of a quotas map onto a fresh plain object, skipping
+ * prototype-pollution-shaped keys. Keeps the view entry a normal object so
+ * `cache.get(id)?.[model]` reads stay unchanged.
+ */
+function _safeQuotaCopy(quotas) {
+  const out = {};
+  for (const [k, v] of Object.entries(quotas || {})) {
+    if (FORBIDDEN_QUOTA_KEYS.has(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 function _writeQuotas(connectionId, quotas, { merge = false } = {}) {
   const windows = Object.entries(quotas || {})
     .map(([modelId, entry]) => _toSnapshotWindow(modelId, entry))
     .filter(Boolean);
   if (windows.length > 0) recordProbeWindows(connectionId, "antigravity", windows);
-  const entry = merge ? Object.assign(quotaCache.get(connectionId) || {}, quotas) : quotas;
+  const entry = merge
+    ? Object.assign(_safeQuotaCopy(quotaCache.get(connectionId)), _safeQuotaCopy(quotas))
+    : _safeQuotaCopy(quotas);
   quotaCache.set(connectionId, applyActiveStrikeBlocks(connectionId, entry));
   return quotaCache.get(connectionId);
 }
@@ -223,7 +243,7 @@ export async function handleAntigravityQuotaError(
       // Synthesize a 0% probe window, then re-assert the routing block in the
       // compat view (the chat handler does not persist modelLock_* here).
       strikeBlocks.set(key, blockedUntil);
-      if (model !== null) {
+      if (model !== null && !FORBIDDEN_QUOTA_KEYS.has(model)) {
         _writeQuotas(
           connectionId,
           { [model]: { remainingPercentage: 0, resetAt: new Date(blockedUntil).toISOString() } },

@@ -53,10 +53,3 @@ export const PLAN_CAPACITY = {
     power: 10, // _verify ids
   },
 };
-
-/** Quota header family → parser function name in services/quotaHeaders.js (T2). */
-export const QUOTA_HEADER_FAMILIES = {
-  claude: "parseClaudeHeaders",
-  codex: "parseCodexHeaders",
-  generic: "parseGenericRateLimitHeaders",
-};

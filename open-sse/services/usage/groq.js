@@ -48,7 +48,7 @@ function buildRateLimitQuota(headers, limitKey, remainingKey, resetKey) {
  * Requests + tokens quotas from Groq x-ratelimit-* headers (each null when absent).
  * @param {Headers} headers
  */
-export function buildGroqQuotaWindows(headers) {
+function buildGroqQuotaWindows(headers) {
   return {
     requests: buildRateLimitQuota(
       headers,
