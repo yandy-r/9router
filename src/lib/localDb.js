@@ -3,6 +3,7 @@
 export {
   getSettings,
   updateSettings,
+  updateComboStrategies,
   isCloudEnabled,
   getCloudUrl,
   getProviderConnections,

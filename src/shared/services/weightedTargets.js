@@ -3,11 +3,12 @@
 import { getSettings, getCombos } from "@/lib/localDb";
 import { parseModel } from "open-sse/services/model.js";
 
+import { resolveComboStrategy } from "open-sse/services/comboStrategy.js";
+
 // Weighted combos name their providers by combo model prefix; combos without a
 // per-combo entry inherit settings.comboStrategy. Prefix before "/" is enough.
 function comboIsWeighted(combo, settings) {
-  const specific = settings?.comboStrategies?.[combo?.name]?.fallbackStrategy;
-  return (specific || settings?.comboStrategy || "fallback") === "weighted";
+  return resolveComboStrategy(settings, combo?.name).strategy === "weighted";
 }
 
 export function weightedProviders(settings, combos) {

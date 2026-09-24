@@ -1,7 +1,7 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import { useParams, notFound, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, Button, Input, Toggle, ModelSelectModal } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
@@ -58,6 +58,8 @@ export default function ComboDetailPage() {
   const [nameError, setNameError] = useState("");
   const [providers, setProviders] = useState([]);
   const [roundRobin, setRoundRobin] = useState(false);
+  const [savingStrategy, setSavingStrategy] = useState(false);
+  const savingStrategyRef = useRef(false);
   const [showPicker, setShowPicker] = useState(false);
   const [logs, setLogs] = useState([]);
   const [testing, setTesting] = useState(false);
@@ -173,18 +175,44 @@ export default function ComboDetailPage() {
     await saveCombo({ models: next });
   };
 
+  // Atomic per-combo PATCH: the server merges only this combo's entry, so a failed
+  // request can never wipe other combos. Only runs on an explicit user toggle, so a
+  // stored "weighted"/"fusion" strategy is never rewritten on load. Switching on keeps
+  // existing weights (server merges); switching off sets "fallback", which drops the
+  // whole entry (weights included) per the existing prune semantics.
+  // Disable while saving; ref closes the gap before React applies disabled state.
   const handleToggleRoundRobin = async (enabled) => {
+    if (savingStrategyRef.current) return;
+    savingStrategyRef.current = true;
+    const previous = roundRobin;
     setRoundRobin(enabled);
-    const settingsRes = await fetch("/api/settings", { cache: "no-store" });
-    const s = settingsRes.ok ? await settingsRes.json() : {};
-    const updated = { ...(s.comboStrategies || {}) };
-    if (enabled) updated[combo.name] = { fallbackStrategy: "round-robin" };
-    else delete updated[combo.name];
-    await fetch("/api/settings", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ comboStrategies: updated }),
-    });
+    setSavingStrategy(true);
+    let error = "";
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          comboStrategyPatch: {
+            name: combo.name,
+            patch: { fallbackStrategy: enabled ? "round-robin" : "fallback" },
+          },
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        error = err.error || `Failed to save (${res.status})`;
+      }
+    } catch {
+      error = "Failed to save — network error";
+    } finally {
+      savingStrategyRef.current = false;
+      setSavingStrategy(false);
+    }
+    if (error) {
+      setRoundRobin(previous);
+      alert(error);
+    }
   };
 
   const handleDelete = async () => {
@@ -331,7 +359,11 @@ export default function ComboDetailPage() {
                 Rotate providers across requests instead of strict fallback order.
               </p>
             </div>
-            <Toggle checked={roundRobin} onChange={handleToggleRoundRobin} />
+            <Toggle
+              checked={roundRobin}
+              onChange={handleToggleRoundRobin}
+              disabled={savingStrategy}
+            />
           </div>
         </div>
       </Card>
