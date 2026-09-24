@@ -145,7 +145,16 @@ async function runHeavyStartup() {
 
   if (settings.tunnelEnabled) ensureCloudflared().catch(() => {});
 
-  if (settings.mitmEnabled) {
+  if (settings.mitmEnabled && process.env.NINE_ROUTER_DISABLE_MITM === "1") {
+    // The CLI launcher sets this after repeated crashes. It can't safely write
+    // SQLite while the server owns it, so the server persists the flag.
+    console.log("[InitApp] MITM disabled by launcher after repeated crashes");
+    try {
+      await updateSettings({ mitmEnabled: false });
+    } catch (e) {
+      console.log("[InitApp] Failed to persist mitmEnabled=false:", e.message);
+    }
+  } else if (settings.mitmEnabled) {
     // Sync mitmAlias DB → JSON cache so standalone MITM server can read it.
     syncMitmAliasCache().catch(() => {});
     autoStartMitm(settings);

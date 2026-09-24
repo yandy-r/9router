@@ -6,6 +6,31 @@ const { execSync } = require("child_process");
 const APP_NAME = "9router";
 const APP_LABEL = "com.9router.autostart";
 
+function launchArgs({ port, host } = {}) {
+  // Launcher pre-validates these; repeat checks so autostart entries stay safe.
+  return [
+    "--tray",
+    ...(Number.isInteger(port) && port >= 1 && port <= 65535 ? ["-p", String(port)] : []),
+    ...(typeof host === "string" && /^[A-Za-z0-9.:%_-]+$/.test(host) ? ["-H", host] : []),
+  ];
+}
+
+function xmlEscape(value) {
+  return value.replace(
+    /[&<>"']/g,
+    (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[char],
+  );
+}
+
+// Desktop Entry spec: quote args with reserved chars, backslash-escape `"`, `` ` ``,
+// `$`, `\` inside quotes, and double `%` (field-code prefix; IPv6 zone ids use it).
+// The string-level `\` escape is applied on top, so a literal `\` becomes `\\\\`.
+function desktopExecArg(value) {
+  const escaped = value.replace(/%/g, "%%");
+  if (!/[\s"'\\><~|&;$*?#()`]/.test(escaped)) return escaped;
+  return `"${escaped.replace(/["`$\\]/g, "\\$&")}"`.replace(/\\/g, "\\\\");
+}
+
 /**
  * Resolve the absolute path to this package's cli.js.
  *
@@ -42,18 +67,19 @@ function getCliJsPath(cliPath) {
 /**
  * Enable auto startup on OS boot
  * @param {string} cliPath - Optional path to cli.js (defaults to auto-detect)
+ * @param {Object} [opts] - Optional launcher options { port, host }
  * @returns {boolean} success
  */
-function enableAutoStart(cliPath) {
+function enableAutoStart(cliPath, { port, host } = {}) {
   const platform = process.platform;
 
   if (!["darwin", "win32", "linux"].includes(platform)) return false;
   if (platform === "linux" && !process.env.DISPLAY) return false;
 
   try {
-    if (platform === "darwin") return enableMacOS(cliPath);
-    if (platform === "win32") return enableWindows(cliPath);
-    if (platform === "linux") return enableLinux(cliPath);
+    if (platform === "darwin") return enableMacOS(cliPath, { port, host });
+    if (platform === "win32") return enableWindows(cliPath, { port, host });
+    if (platform === "linux") return enableLinux(cliPath, { port, host });
   } catch (err) {
     // Silent fail — autostart is optional
   }
@@ -146,7 +172,7 @@ function isAgentSelfMacOS() {
   }
 }
 
-function enableMacOS(cliPath) {
+function enableMacOS(cliPath, { port, host } = {}) {
   const launchAgentsDir = path.join(os.homedir(), "Library", "LaunchAgents");
   const plistPath = path.join(launchAgentsDir, `${APP_LABEL}.plist`);
 
@@ -167,6 +193,9 @@ function enableMacOS(cliPath) {
   // processes spawned by cli.js (npm install at runtime, etc.) resolve.
   const launchPath = `${path.dirname(nodePath)}:/usr/local/bin:/usr/bin:/bin`;
 
+  const args = [nodePath, routerScript, ...launchArgs({ port, host })];
+  const plistArgs = args.map((arg) => `        <string>${xmlEscape(arg)}</string>`).join("\n");
+
   const plistContent = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -175,9 +204,7 @@ function enableMacOS(cliPath) {
     <string>${APP_LABEL}</string>
     <key>ProgramArguments</key>
     <array>
-        <string>${nodePath}</string>
-        <string>${routerScript}</string>
-        <string>--tray</string>
+${plistArgs}
     </array>
     <key>EnvironmentVariables</key>
     <dict>
@@ -243,7 +270,7 @@ function disableMacOS() {
 
 // ============ Windows ============
 
-function enableWindows(cliPath) {
+function enableWindows(cliPath, { port, host } = {}) {
   const startupDir = path.join(
     process.env.APPDATA || "",
     "Microsoft",
@@ -263,7 +290,7 @@ function enableWindows(cliPath) {
   // Run node + cli.js directly, hidden window. Avoids the fragile
   // `9router.cmd` lookup that depended on the npm prefix path.
   const vbsContent = `Set WshShell = CreateObject("WScript.Shell")
-WshShell.Run """${nodePath}"" ""${routerScript}"" --tray", 0, False
+WshShell.Run """${nodePath}"" ""${routerScript}"" ${launchArgs({ port, host }).join(" ")}", 0, False
 `;
   fs.writeFileSync(vbsPath, vbsContent);
   return true;
@@ -287,7 +314,7 @@ function disableWindows() {
 
 // ============ Linux ============
 
-function enableLinux(cliPath) {
+function enableLinux(cliPath, { port, host } = {}) {
   const autostartDir = path.join(os.homedir(), ".config", "autostart");
   const desktopPath = path.join(autostartDir, `${APP_NAME}.desktop`);
 
@@ -307,7 +334,7 @@ function enableLinux(cliPath) {
 Type=Application
 Name=9Router
 Comment=9Router API Proxy
-Exec=${nodePath} ${routerScript} --tray
+Exec=${[nodePath, routerScript, ...launchArgs({ port, host })].map(desktopExecArg).join(" ")}
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true

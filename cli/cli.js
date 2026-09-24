@@ -9,9 +9,11 @@ const os = require("os");
 // Poll until the server accepts TCP connections on port, or timeout — avoids blind fixed waits.
 function waitServerReady(port, { timeoutMs = 15000, intervalMs = 150 } = {}) {
   const deadline = Date.now() + timeoutMs;
+  // Wildcard binds accept loopback; a specific bind only answers on its own address.
+  const probeHost = isWildcardHost(host) ? "127.0.0.1" : host;
   return new Promise((resolve) => {
     const tryConnect = () => {
-      const socket = net.connect({ host: "127.0.0.1", port }, () => {
+      const socket = net.connect({ host: probeHost, port }, () => {
         socket.destroy();
         resolve(true);
       });
@@ -65,8 +67,7 @@ try { ensureTrayRuntime({ silent: true }); } catch {}
 // Configuration constants
 const APP_NAME = pkg.name; // Use from package.json
 
-const DEFAULT_PORT = 20128;
-const DEFAULT_HOST = "0.0.0.0";
+const { parseLauncherArgs, DEFAULT_PORT, DEFAULT_HOST } = require("./src/cli/utils/args");
 
 // First non-internal IPv4 — the address remote peers actually reach when bound to 0.0.0.0.
 function getLanIp() {
@@ -78,35 +79,32 @@ function getLanIp() {
   return null;
 }
 
+function isWildcardHost(h) {
+  return h === "0.0.0.0" || h === "::";
+}
+
 // Local URL stays "localhost"; warn separately when bound to all interfaces (network-exposed).
+// IPv6 literals need brackets in URLs.
 function getDisplayHost() {
-  return host === DEFAULT_HOST ? "localhost" : host;
+  if (isWildcardHost(host)) return "localhost";
+  return host.includes(":") ? `[${host}]` : host;
 }
 const MAX_PORT_ATTEMPTS = 10;
 
-// Parse arguments
-let port = DEFAULT_PORT;
-let host = DEFAULT_HOST;
-let noBrowser = false;
-let showLog = false;
-let trayMode = false;
+// Parse arguments. Invalid or unknown options abort: silently falling back to the
+// defaults would bind 0.0.0.0 when the user asked for a local-only host.
+let parsed;
+try {
+  parsed = parseLauncherArgs(args);
+} catch (err) {
+  console.error(`❌ ${err.message}\nRun "${APP_NAME} --help" for usage.`);
+  process.exit(2);
+}
+const { port, host, showLog, trayMode } = parsed;
+if (trayMode) process.env.TRAY_MODE = "1";
 
-for (let i = 0; i < args.length; i++) {
-  if (args[i] === "--port" || args[i] === "-p") {
-    port = parseInt(args[i + 1], 10) || DEFAULT_PORT;
-    i++;
-  } else if (args[i] === "--host" || args[i] === "-H") {
-    host = args[i + 1] || DEFAULT_HOST;
-    i++;
-  } else if (args[i] === "--no-browser" || args[i] === "-n") {
-    noBrowser = true;
-  } else if (args[i] === "--log" || args[i] === "-l") {
-    showLog = true;
-  } else if (args[i] === "--tray" || args[i] === "-t") {
-    trayMode = true;
-    process.env.TRAY_MODE = "1";
-  } else if (args[i] === "--help" || args[i] === "-h") {
-    console.log(`
+if (parsed.help) {
+  console.log(`
 Usage: ${APP_NAME} [options]
 
 Options:
@@ -123,11 +121,11 @@ Commands:
                       Generate a Grok Imagine video via the running gateway
                       (see: ${APP_NAME} xai video --help)
 `);
-    process.exit(0);
-  } else if (args[i] === "--version" || args[i] === "-v") {
-    console.log(pkg.version);
-    process.exit(0);
-  }
+  process.exit(0);
+}
+if (parsed.version) {
+  console.log(pkg.version);
+  process.exit(0);
 }
 
 // Always use Node.js runtime with absolute path
@@ -385,13 +383,15 @@ function startServer() {
   const displayHost = getDisplayHost();
   const url = `http://${displayHost}:${port}/dashboard`;
   // Surface real network exposure when bound to all interfaces (default 0.0.0.0).
-  if (host === DEFAULT_HOST) {
+  if (isWildcardHost(host)) {
     const lanIp = getLanIp();
-    if (lanIp) console.log(`\x1b[33m⚠ Network-exposed: reachable at http://${lanIp}:${port} (bound 0.0.0.0). Use --host 127.0.0.1 for local-only.\x1b[0m`);
+    if (lanIp) console.log(`\x1b[33m⚠ Network-exposed: reachable at http://${lanIp}:${port} (bound ${host}). Use --host 127.0.0.1 for local-only.\x1b[0m`);
   }
 
   let restartCount = 0;
   let serverStartTime = Date.now();
+  // Set after repeated crashes; sticky so later respawns keep MITM off.
+  let mitmDisabled = false;
 
   const CRASH_LOG_LINES = 50;
   let crashLog = [];
@@ -407,7 +407,9 @@ function startServer() {
       env: {
         ...buildEnvWithRuntime(process.env),
         PORT: port.toString(),
-        HOSTNAME: host
+        HOSTNAME: host,
+        // The server persists mitmEnabled=false itself (it owns the SQLite DB).
+        ...(mitmDisabled ? { NINE_ROUTER_DISABLE_MITM: "1" } : {})
       }
     });
     // Lets the next launch / dashboard shutdown target exactly these processes.
@@ -485,6 +487,7 @@ function startServer() {
       const { initTray } = require("./src/cli/tray/tray");
       initTray({
         port,
+        host,
         onQuit: () => {
           isShuttingDown = true;
           console.log("\n👋 Shutting down from tray...");
@@ -516,6 +519,17 @@ function startServer() {
     return;
   }
 
+  // Headless (pm2, systemd, docker without -t): no TTY for the menu, so keep
+  // serving until a signal arrives instead of treating the missing menu as "Exit".
+  if (!process.stdin.isTTY) {
+    console.log(`\n🚀 ${pkg.name} v${pkg.version}`);
+    console.log("No TTY detected: running headless. Stop with SIGINT/SIGTERM.");
+    waitServerReady(port).then((ready) => {
+      if (ready) console.log(`Server: http://${displayHost}:${port}`);
+    });
+    return;
+  }
+
   // Wait for server to be ready, then show interface menu loop + tray
   waitServerReady(port).then(async () => {
     // Start tray icon alongside TUI
@@ -539,12 +553,7 @@ function startServer() {
           const { clearScreen } = require("./src/cli/utils/display");
           clearScreen();
 
-          // Enable auto startup on OS boot
-          try {
-            const { enableAutoStart } = require("./src/cli/tray/autostart");
-            enableAutoStart(__filename);
-          } catch (e) { }
-
+          // Autostart stays opt-in via the tray menu ("Enable Auto-start").
           if (process.platform === "darwin") {
             // macOS: keep current process alive — spawning a detached child puts
             // it outside the login session so NSStatusItem silently fails.
@@ -563,7 +572,7 @@ function startServer() {
           // Windows/Linux: spawn detached bgProcess (systray works fine in child)
           console.log(`\n⏳ Starting background process... (tray icon will appear in ~3s)`);
 
-          const bgProcess = spawn(process.execPath, ["--dns-result-order=ipv4first", __filename, "--tray", "-p", port.toString()], {
+          const bgProcess = spawn(process.execPath, ["--dns-result-order=ipv4first", __filename, "--tray", "-p", port.toString(), "-H", host], {
             detached: true,
             stdio: "ignore",
             windowsHide: true,
@@ -583,6 +592,7 @@ function startServer() {
           console.log("\nExiting...");
           cleanup();
           setTimeout(() => process.exit(0), 100);
+          return;
         }
       }
     } catch (err) {
@@ -614,16 +624,23 @@ function startServer() {
     // Reset counter if last run was stable
     if (aliveMs >= RESTART_RESET_MS) restartCount = 0;
 
+    const printCrashLog = () => {
+      if (!crashLog.length) return;
+      console.error("\n--- Server crash log ---");
+      crashLog.forEach(l => console.error(l));
+      console.error("--- End crash log ---\n");
+    };
+
     if (restartCount >= MAX_RESTARTS) {
-      console.error(`\n⚠️  Server crashed ${MAX_RESTARTS} times. Disabling MIT and restarting...`);
-      try {
-        const dbPath = path.join(os.homedir(), process.platform === "win32" ? path.join("AppData", "Roaming", "9router", "db.json") : path.join(".9router", "db.json"));
-        if (fs.existsSync(dbPath)) {
-          const db = JSON.parse(fs.readFileSync(dbPath, "utf-8"));
-          if (db.settings) db.settings.mitmEnabled = false;
-          fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
-        }
-      } catch { /* best effort */ }
+      printCrashLog();
+      if (mitmDisabled) {
+        console.error(`\n❌ Server keeps crashing with MITM disabled. Giving up.`);
+        isShuttingDown = true;
+        cleanup();
+        process.exit(1);
+      }
+      console.error(`\n⚠️  Server crashed ${MAX_RESTARTS} times. Disabling MITM and restarting...`);
+      mitmDisabled = true;
       restartCount = 0;
       server = spawnServer();
       attachServerEvents();
@@ -633,11 +650,7 @@ function startServer() {
     restartCount++;
     const delay = Math.min(1000 * restartCount, 10000);
     console.error(`\n⚠️  Server exited (code=${code ?? "unknown"}). Restarting in ${delay / 1000}s... (${restartCount}/${MAX_RESTARTS})`);
-    if (crashLog.length) {
-      console.error("\n--- Server crash log ---");
-      crashLog.forEach(l => console.error(l));
-      console.error("--- End crash log ---\n");
-    }
+    printCrashLog();
 
     setTimeout(() => {
       server = spawnServer();

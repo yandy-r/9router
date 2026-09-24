@@ -50,11 +50,24 @@ function suspendRawFor(fn) {
   });
 }
 
+function requestInterrupt() {
+  // Raw mode/readline swallow Ctrl+C, bypassing launcher SIGINT cleanup for server/MITM/tunnel.
+  if (process.listenerCount("SIGINT") > 0) return process.emit("SIGINT");
+  try {
+    if (process.stdin.isTTY) process.stdin.setRawMode(false);
+  } catch {}
+  process.exit(130);
+}
+
 async function prompt(question) {
   return suspendRawFor(
     () =>
       new Promise((resolve) => {
         const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        rl.on("SIGINT", () => {
+          rl.close();
+          requestInterrupt();
+        });
         rl.question(question, (answer) => {
           rl.close();
           resolve((answer || "").trim());
@@ -91,6 +104,10 @@ async function pause(message = "Press Enter to continue...") {
     () =>
       new Promise((resolve) => {
         const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+        rl.on("SIGINT", () => {
+          rl.close();
+          requestInterrupt();
+        });
         rl.question(message, () => {
           rl.close();
           resolve();
@@ -177,7 +194,8 @@ async function selectMenu(
       }
       if (key.ctrl && key.name === "c") {
         cleanup();
-        process.exit(0);
+        requestInterrupt();
+        return;
       }
     };
 
@@ -192,5 +210,6 @@ module.exports = {
   confirm,
   pause,
   selectMenu,
+  requestInterrupt,
   COLORS,
 };
