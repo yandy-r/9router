@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Card, Button, Toggle, Input } from "@/shared/components";
+import { Card, Button, Toggle, Input, Select } from "@/shared/components";
 import Modal, { ConfirmModal } from "@/shared/components/Modal";
 import LanguageSwitcher from "@/shared/components/LanguageSwitcher";
 import { useTheme } from "@/shared/hooks/useTheme";
 import { cn } from "@/shared/utils/cn";
+import { ACCOUNT_STRATEGY_OPTIONS, OAUTH_STICKY_HINT } from "@/shared/constants/accountStrategies";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { LOCALE_COOKIE, normalizeLocale } from "@/i18n/config";
 import { LOCALE_FLAGS } from "@/shared/constants/locales";
@@ -1610,32 +1611,36 @@ export default function ProfilePage() {
             <h3 className="text-base sm:text-lg font-semibold">Routing Strategy</h3>
           </div>
           <div className="flex flex-col gap-4">
-            <div className="flex items-start sm:items-center justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm sm:text-base">Round Robin</p>
-                <p className="text-xs sm:text-sm text-text-muted">
-                  Cycle through accounts to distribute load
-                </p>
-              </div>
-              <Toggle
-                checked={settings.fallbackStrategy === "round-robin"}
-                onChange={() =>
-                  updateFallbackStrategy(
-                    settings.fallbackStrategy === "round-robin" ? "fill-first" : "round-robin",
-                  )
-                }
-                disabled={loading}
-              />
-            </div>
+            <Select
+              label="Account Strategy"
+              aria-label="Account strategy"
+              value={settings.fallbackStrategy || "fill-first"}
+              onChange={(e) => updateFallbackStrategy(e.target.value)}
+              disabled={loading}
+              options={ACCOUNT_STRATEGY_OPTIONS}
+              hint={
+                settings.fallbackStrategy === "weighted"
+                  ? OAUTH_STICKY_HINT
+                  : "Cycle through accounts (Round Robin) or use priority order (Fill First)."
+              }
+            />
 
-            {/* Sticky Round Robin Limit */}
-            {settings.fallbackStrategy === "round-robin" && (
+            {/* Sticky Limit */}
+            {(settings.fallbackStrategy === "round-robin" ||
+              settings.fallbackStrategy === "weighted") && (
               <div className="flex items-start sm:items-center justify-between gap-4 pt-2 border-t border-border/50">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm sm:text-base">Sticky Limit</p>
                   <p className="text-xs sm:text-sm text-text-muted">
                     Calls per account before switching
                   </p>
+                  {settings.fallbackStrategy === "weighted" &&
+                    Number(settings.stickyRoundRobinLimit || 3) === 1 && (
+                      <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-400">
+                        Sticky 1 switches subscription accounts every request — may trip anti-abuse
+                        flags. Prefer 3 or higher.
+                      </p>
+                    )}
                 </div>
                 <Input
                   type="number"
@@ -1690,7 +1695,9 @@ export default function ProfilePage() {
             <p className="text-xs text-text-muted italic pt-2 border-t border-border/50">
               {settings.fallbackStrategy === "round-robin"
                 ? `Currently distributing requests across all available accounts with ${settings.stickyRoundRobinLimit || 3} calls per account.`
-                : "Currently using accounts in priority order (Fill First)."}
+                : settings.fallbackStrategy === "weighted"
+                  ? `Currently routing by plan capacity × remaining quota with ${settings.stickyRoundRobinLimit || 3} calls per account.`
+                  : "Currently using accounts in priority order (Fill First)."}
               {settings.comboStrategy === "round-robin"
                 ? ` Combos rotate after ${settings.comboStickyRoundRobinLimit || 1} call${(settings.comboStickyRoundRobinLimit || 1) === 1 ? "" : "s"} per model.`
                 : " Combos always start with their first model."}

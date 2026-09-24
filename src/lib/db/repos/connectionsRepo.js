@@ -159,6 +159,19 @@ function reorderInTx(db, providerId) {
   });
 }
 
+// OAuth re-login: fresh token metadata wins, but omitted fields (proxy etc.) and
+// user-set weighted overrides (weight, manual planTier) survive.
+function mergeReloginProviderData(previous, fresh) {
+  if (!previous && !fresh) return undefined;
+  const merged = { ...(previous || {}), ...(fresh || {}) };
+  if (previous && Object.hasOwn(previous, "weight")) merged.weight = previous.weight;
+  if (previous?.planTierManual === true) {
+    merged.planTier = previous.planTier;
+    merged.planTierManual = true;
+  }
+  return merged;
+}
+
 export async function createProviderConnection(data) {
   const db = await getAdapter();
   const now = new Date().toISOString();
@@ -211,6 +224,13 @@ export async function createProviderConnection(data) {
     if (existing) {
       const normalized = resetHealthStateOnActivation(existing, data);
       const merged = { ...existing, ...normalized, updatedAt: now };
+      if (data.authType === "oauth") {
+        const providerSpecificData = mergeReloginProviderData(
+          existing.providerSpecificData,
+          data.providerSpecificData,
+        );
+        if (providerSpecificData) merged.providerSpecificData = providerSpecificData;
+      }
       upsert(db, merged);
       result = merged;
       return;

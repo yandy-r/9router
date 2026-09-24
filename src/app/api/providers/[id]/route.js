@@ -5,6 +5,64 @@ import {
   updateProviderConnection,
   deleteProviderConnection,
 } from "@/models";
+import { PLAN_CAPACITY } from "open-sse/config/quotaSnapshot.js";
+import { sanitizePlanTier } from "open-sse/services/quotaSnapshot.js";
+
+const DANGEROUS_MAP_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function validateWeightedOverrides(psd, provider) {
+  for (const key of ["weight", "planTier", "planTierManual"]) {
+    if (!Object.hasOwn(psd, key)) continue;
+    const value = psd[key];
+    switch (key) {
+      case "weight":
+        if (value === null) break;
+        if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1000) {
+          return {
+            error: "providerSpecificData.weight must be a finite number between 0 and 1000",
+          };
+        }
+        break;
+      case "planTier": {
+        if (value === null) break;
+        const tier = sanitizePlanTier(value);
+        const capacity = PLAN_CAPACITY[provider];
+        if (!tier || !capacity || !Object.hasOwn(capacity, tier)) {
+          return {
+            error: `providerSpecificData.planTier must be a known plan tier for ${provider}`,
+          };
+        }
+        break;
+      }
+      case "planTierManual":
+        if (value === null) break;
+        if (typeof value !== "boolean") {
+          return { error: "providerSpecificData.planTierManual must be a boolean" };
+        }
+        break;
+    }
+  }
+  return {};
+}
+
+// Apply validated weighted overrides: null clears, planTier stored sanitized.
+function applyWeightedOverrides(target, psd) {
+  for (const key of ["weight", "planTier", "planTierManual"]) {
+    if (!Object.hasOwn(psd, key)) continue;
+    const value = psd[key];
+    if (value === null) delete target[key];
+    else target[key] = key === "planTier" ? sanitizePlanTier(value) : value;
+  }
+}
+
+function hasDangerousKeys(value) {
+  if (!value || typeof value !== "object") return false;
+  for (const [key, inner] of Object.entries(value)) {
+    if (DANGEROUS_MAP_KEYS.has(key)) return true;
+    if (typeof inner === "object" && inner !== null && hasDangerousKeys(inner)) return true;
+  }
+  return false;
+}
 
 function normalizeProxyConfig(body = {}) {
   const hasAnyProxyField =
@@ -106,6 +164,26 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: "Connection not found" }, { status: 404 });
     }
 
+    if (
+      providerSpecificData != null &&
+      (typeof providerSpecificData !== "object" || Array.isArray(providerSpecificData))
+    ) {
+      return NextResponse.json(
+        { error: "providerSpecificData must be an object" },
+        { status: 400 },
+      );
+    }
+    if (hasDangerousKeys(providerSpecificData)) {
+      return NextResponse.json({ error: "Unsafe providerSpecificData key" }, { status: 400 });
+    }
+    const weightedValidation = validateWeightedOverrides(
+      providerSpecificData || {},
+      existing.provider,
+    );
+    if (weightedValidation.error) {
+      return NextResponse.json({ error: weightedValidation.error }, { status: 400 });
+    }
+
     const proxyConfig = normalizeProxyConfig(body);
     if (proxyConfig.error) {
       return NextResponse.json({ error: proxyConfig.error }, { status: 400 });
@@ -139,6 +217,7 @@ export async function PUT(request, { params }) {
         ...(existing.providerSpecificData || {}),
         ...(providerSpecificData || {}),
       };
+      applyWeightedOverrides(updateData.providerSpecificData, providerSpecificData || {});
 
       if (proxyConfig.hasAnyProxyField) {
         updateData.providerSpecificData.connectionProxyEnabled = proxyConfig.connectionProxyEnabled;

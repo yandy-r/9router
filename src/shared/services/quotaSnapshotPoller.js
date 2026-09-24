@@ -128,7 +128,19 @@ export async function runQuotaSnapshotTick(deps = createDefaultDeps(), state = g
     pruneFailureCache(state.failureCache);
     const settings = await deps.getSettings();
     const combos = deps.getCombos ? await deps.getCombos().catch(() => []) : [];
-    const providers = weightedProviders(settings, combos);
+    let providers = weightedProviders(settings, combos);
+    if (settings?.fallbackStrategy === "weighted" && deps.getProviderConnections) {
+      try {
+        const all = await deps.getProviderConnections({ isActive: true });
+        providers = weightedProviders(
+          settings,
+          combos,
+          all.map((connection) => connection.provider),
+        );
+      } catch {
+        // Keep the original provider set when the connection read fails.
+      }
+    }
     if (providers.size === 0) return;
 
     for (const provider of providers) {
@@ -167,10 +179,11 @@ export function stopQuotaSnapshotPoller() {
   console.log("[QuotaSnapshotPoller] scheduler stopped");
 }
 
-// Weighted targets only: start when some provider strategy, combo strategy, or the
-// global comboStrategy is weighted; member resolution happens on each tick.
+// Weighted targets only: start when some provider strategy, combo strategy, the
+// global comboStrategy, or the global fallbackStrategy is weighted.
 export function configureQuotaSnapshotPoller(settings) {
   const hasWeighted =
+    settings?.fallbackStrategy === "weighted" ||
     Object.values(settings?.providerStrategies || {}).some(
       (strategy) => strategy?.fallbackStrategy === "weighted",
     ) ||

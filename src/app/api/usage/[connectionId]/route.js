@@ -9,8 +9,10 @@ import { USAGE_APIKEY_PROVIDERS } from "@/shared/constants/providers";
 import {
   buildQuotaSnapshotView,
   fetchAndPersistClaudePlanTier,
+  getSnapshot,
   recordUsageSnapshot,
 } from "@/sse/services/quotaSnapshotSync";
+import { effectiveWeightFor } from "@/sse/services/accountSelection";
 import { isWeightedProvider } from "@/shared/services/weightedTargets";
 
 // Detect auth-expired messages returned by usage providers instead of throwing
@@ -209,10 +211,16 @@ export async function GET(request, { params }) {
       /* recordUsageSnapshot already swallows; belt for the response path */
     }
 
-    return Response.json({
-      ...usage,
-      quotaSnapshot: buildQuotaSnapshotView(connection.id, {}),
+    const quotaSnapshot = buildQuotaSnapshotView(connection.id, {
+      manualWeight: connection.providerSpecificData?.weight,
     });
+    // Same tier rule as routing (manual psd.planTier wins over detected snapshot tier).
+    if (quotaSnapshot) {
+      quotaSnapshot.effectiveWeight = effectiveWeightFor(connection, {
+        snapshot: getSnapshot(connection.id),
+      });
+    }
+    return Response.json({ ...usage, quotaSnapshot });
   } catch (error) {
     const provider = connection?.provider ?? "unknown";
     console.warn(`[Usage] ${provider}: ${error.message}`);

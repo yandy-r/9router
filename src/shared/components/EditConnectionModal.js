@@ -12,8 +12,11 @@ import {
   AI_PROVIDERS,
 } from "@/shared/constants/providers";
 import Select from "@/shared/components/Select";
+import WeightedConnectionFields from "@/shared/components/WeightedConnectionFields";
+import { formatPlanTier } from "@/shared/constants/accountStrategies";
+import { PLAN_CAPACITY } from "open-sse/config/quotaSnapshot.js";
 
-export default function EditConnectionModal({ isOpen, connection, proxyPools, onSave, onClose }) {
+export default function EditConnectionModal({ isOpen, connection, onSave, onClose }) {
   const [formData, setFormData] = useState({
     name: "",
     priority: 1,
@@ -27,6 +30,9 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
   });
   const [cloudflareData, setCloudflareData] = useState({ accountId: "" });
   const [region, setRegion] = useState("");
+  const [planTier, setPlanTier] = useState("");
+  const [weightOverride, setWeightOverride] = useState("");
+  const [weightError, setWeightError] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [validating, setValidating] = useState(false);
@@ -40,6 +46,17 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
         priority: connection.priority || 1,
         apiKey: "",
       });
+      setPlanTier(
+        connection.providerSpecificData?.planTierManual
+          ? connection.providerSpecificData.planTier || ""
+          : "",
+      );
+      setWeightOverride(
+        connection.providerSpecificData?.weight == null
+          ? ""
+          : String(connection.providerSpecificData.weight),
+      );
+      setWeightError("");
       // Load Azure-specific data if present
       if (connection.provider === "azure" && connection.providerSpecificData) {
         setAzureData({
@@ -75,6 +92,12 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
       isAnthropicCompatibleProvider(connection.provider)
     : false;
   const providerRegions = connection ? AI_PROVIDERS?.[connection.provider]?.regions || null : null;
+  const psd = connection?.providerSpecificData || {};
+  const planOptions = connection ? PLAN_CAPACITY[connection.provider] : undefined;
+  const autoPlanLabel =
+    psd.planTier && !psd.planTierManual
+      ? `Auto-detected: ${formatPlanTier(psd.planTier)}`
+      : "Auto (not detected yet)";
 
   // Build providerSpecificData for region-aware providers
   const buildRegionSpecificData = () => {
@@ -122,8 +145,39 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
     }
   };
 
+  // Only changed weighted fields are sent; null clears a previously stored value.
+  const buildWeightedData = () => {
+    const data = {};
+    if (planOptions) {
+      if (planTier) {
+        if (!(psd.planTierManual && psd.planTier === planTier)) {
+          data.planTier = planTier;
+          data.planTierManual = true;
+        }
+      } else if (psd.planTierManual) {
+        data.planTier = null;
+        data.planTierManual = null;
+      }
+    }
+    const trimmedWeight = weightOverride.trim();
+    if (trimmedWeight) {
+      const weight = Number(trimmedWeight);
+      if (weight !== psd.weight) data.weight = weight;
+    } else if (psd.weight != null) {
+      data.weight = null;
+    }
+    return data;
+  };
+
   const handleSubmit = async () => {
     if (!connection) return;
+    const trimmedWeight = weightOverride.trim();
+    const weight = Number(trimmedWeight);
+    if (trimmedWeight && !(Number.isFinite(weight) && weight >= 0 && weight <= 1000)) {
+      setWeightError("Weight must be a number from 0 to 1000");
+      return;
+    }
+    setWeightError("");
     setSaving(true);
     try {
       const updates = {
@@ -179,6 +233,11 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
       // Persist updated region for region-aware providers
       if (providerRegions && region) {
         updates.providerSpecificData = buildRegionSpecificData();
+      }
+      // Merge weighted overrides last so provider-specific branches above are kept.
+      const weighted = buildWeightedData();
+      if (Object.keys(weighted).length > 0) {
+        updates.providerSpecificData = { ...updates.providerSpecificData, ...weighted };
       }
 
       await onSave(updates);
@@ -288,6 +347,19 @@ export default function EditConnectionModal({ isOpen, connection, proxyPools, on
           />
         )}
 
+        <WeightedConnectionFields
+          planOptions={planOptions}
+          planTier={planTier}
+          onPlanTierChange={setPlanTier}
+          autoPlanLabel={autoPlanLabel}
+          weight={weightOverride}
+          onWeightChange={(value) => {
+            setWeightOverride(value);
+            setWeightError("");
+          }}
+          weightError={weightError}
+        />
+
         {!isCompatible && !isAzure && !isCloudflareAi && (
           <div className="flex items-center gap-3">
             <Button onClick={handleTest} variant="secondary" disabled={testing}>
@@ -325,12 +397,6 @@ EditConnectionModal.propTypes = {
     provider: PropTypes.string,
     providerSpecificData: PropTypes.object,
   }),
-  proxyPools: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.string,
-      name: PropTypes.string,
-    }),
-  ),
   onSave: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
 };

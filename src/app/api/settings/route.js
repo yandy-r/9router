@@ -86,6 +86,61 @@ async function handleComboStrategyPatch(body) {
   return safeSettingsResponse(settings);
 }
 
+const ACCOUNT_STRATEGIES = new Set(["fill-first", "round-robin", "weighted"]);
+const UNSAFE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function validStickyLimit(value) {
+  return Number.isInteger(value) && value >= 1 && value <= 100;
+}
+
+function isPlainObject(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
+
+function validAccountSettings(body) {
+  if (Object.hasOwn(body, "fallbackStrategy") && !ACCOUNT_STRATEGIES.has(body.fallbackStrategy)) {
+    return false;
+  }
+  if (
+    Object.hasOwn(body, "stickyRoundRobinLimit") &&
+    !validStickyLimit(body.stickyRoundRobinLimit)
+  ) {
+    return false;
+  }
+  if (Object.hasOwn(body, "providerStrategies")) {
+    if (!isPlainObject(body.providerStrategies)) return false;
+    for (const [provider, strategy] of Object.entries(body.providerStrategies)) {
+      if (
+        provider !== provider.trim() ||
+        !provider ||
+        UNSAFE_KEYS.has(provider) ||
+        !isPlainObject(strategy) ||
+        Object.keys(strategy).some((key) => UNSAFE_KEYS.has(key))
+      ) {
+        return false;
+      }
+      if (
+        Object.hasOwn(strategy, "fallbackStrategy") &&
+        !ACCOUNT_STRATEGIES.has(strategy.fallbackStrategy)
+      ) {
+        return false;
+      }
+      if (
+        Object.hasOwn(strategy, "stickyRoundRobinLimit") &&
+        !validStickyLimit(strategy.stickyRoundRobinLimit)
+      ) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 export async function GET() {
   try {
     const settings = await getSettings();
@@ -117,6 +172,9 @@ export async function GET() {
 export async function PATCH(request) {
   try {
     const body = await request.json();
+    if (!isPlainObject(body)) {
+      return NextResponse.json({ error: "Settings body must be an object" }, { status: 400 });
+    }
 
     if (Object.hasOwn(body, "comboStrategyPatch") && Object.keys(body).length !== 1) {
       return NextResponse.json(
@@ -135,6 +193,9 @@ export async function PATCH(request) {
     const comboStrategyError = validateComboStrategySettings(body);
     if (comboStrategyError) {
       return NextResponse.json({ error: comboStrategyError }, { status: 400 });
+    }
+    if (!validAccountSettings(body)) {
+      return NextResponse.json({ error: "Invalid account strategy settings" }, { status: 400 });
     }
 
     // If updating password, hash it
@@ -191,6 +252,18 @@ export async function PATCH(request) {
       resetComboRotation();
     }
 
+    if (
+      Object.hasOwn(body, "fallbackStrategy") ||
+      Object.hasOwn(body, "stickyRoundRobinLimit") ||
+      Object.hasOwn(body, "providerStrategies")
+    ) {
+      // Reset in-memory SWRR state when account strategy changes. Lazy import keeps
+      // auth.js's DB imports out of the route's static graph.
+      import("@/sse/services/auth")
+        .then(({ resetAccountSelection }) => resetAccountSelection?.())
+        .catch((error) => console.warn("[AccountSelection] reset failed:", error.message));
+    }
+
     if (Object.hasOwn(body, "claudeAutoPing") || Object.hasOwn(body, "codexAutoPing")) {
       // Keep the scheduler absent when no account opted in; load its provider graph only on demand.
       import("@/shared/services/quotaAutoPing")
@@ -201,6 +274,7 @@ export async function PATCH(request) {
     }
 
     if (
+      Object.hasOwn(body, "fallbackStrategy") ||
       Object.hasOwn(body, "providerStrategies") ||
       Object.hasOwn(body, "comboStrategies") ||
       Object.hasOwn(body, "comboStrategy")

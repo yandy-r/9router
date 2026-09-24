@@ -17,10 +17,22 @@ import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import { extractClientApiKey } from "@/lib/auth/clientApiKey.js";
 import { getAntigravityQuotaCache } from "./antigravityQuota.js";
+import { resolveWeightedStickyLimit, selectWeightedConnection } from "./accountSelection.js";
 import * as log from "../utils/logger.js";
 
 // Mutex to prevent race conditions during account selection
 let selectionMutex = Promise.resolve();
+
+// SWRR cursor, keyed by provider. Threshold/sticky counts live in the DB.
+const weightedStates = new Map();
+
+export function resetAccountSelection(providerId) {
+  if (providerId) {
+    weightedStates.delete(resolveProviderId(providerId) ?? providerId);
+  } else {
+    weightedStates.clear();
+  }
+}
 
 const GITHUB_MONTHLY_USAGE_LIMIT = "you've reached your additional usage limit for your plan";
 
@@ -199,6 +211,22 @@ export async function getProviderCredentials(
     }
     if (connection) {
       // skip strategy
+    } else if (strategy === "weighted") {
+      const stickyLimit = resolveWeightedStickyLimit(providerId, providerOverride, settings);
+      const result = selectWeightedConnection({
+        connections: availableConnections,
+        provider: providerId,
+        model,
+        stickyLimit,
+        state: weightedStates.get(providerId),
+      });
+      connection = result.connection ?? availableConnections[0];
+      weightedStates.set(providerId, result.nextState);
+      // Persist sticky window exactly as round-robin does.
+      await updateProviderConnection(connection.id, {
+        lastUsedAt: new Date().toISOString(),
+        consecutiveUseCount: result.continued ? (connection.consecutiveUseCount || 0) + 1 : 1,
+      });
     } else if (strategy === "round-robin") {
       const stickyLimit =
         providerOverride.stickyRoundRobinLimit || settings.stickyRoundRobinLimit || 3;
