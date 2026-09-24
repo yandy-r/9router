@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Auth is covered by require-client-api-key.test.js.
+vi.mock("@/lib/auth/requireClientApiKey", () => ({ requireClientApiKey: async () => null }));
+
 const buildModelsList = vi.hoisted(() => vi.fn());
 
 vi.mock("../../src/app/api/v1/models/route.js", () => ({ buildModelsList }));

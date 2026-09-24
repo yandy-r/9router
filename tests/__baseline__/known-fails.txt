@@ -75,10 +75,6 @@ tests/unit/request-details-tab.test.js :: getDistinctProviders — providers rou
 tests/unit/request-details-tab.test.js :: request details — tab crash-risk cases oversized field → stored truncated + reparseable (no circular)
 tests/unit/security-audit.test.js :: AUDIT-001: Synchronous restart guard mitmIsRestarting should be reset on max-restarts early return
 tests/unit/security-audit.test.js :: AUDIT-001: Synchronous restart guard mitmIsRestarting should be set before first await expression
-tests/unit/security-audit.test.js :: AUDIT-002: API key masking byApiKey object keys should use masked key, not raw key
-tests/unit/security-audit.test.js :: AUDIT-002: API key masking getUsageHistory should use apiKeyMasked instead of apiKey
-tests/unit/security-audit.test.js :: AUDIT-002: API key masking getUsageStats should use apiKeyMasked in byApiKey entries
-tests/unit/security-audit.test.js :: AUDIT-002: API key masking source should contain maskApiKey function
 tests/unit/security-audit.test.js :: AUDIT-003: Proxy URL validation source should contain validateProxyUrl function
 tests/unit/security-audit.test.js :: AUDIT-004: Atomic lock file for MITM startup manager.js should define LOCK_FILE constant
 tests/unit/security-audit.test.js :: AUDIT-004: Atomic lock file for MITM startup should clean up lock file on all exit paths

@@ -1,4 +1,5 @@
 import { PROVIDER_MODELS } from "@/shared/constants/models";
+import { requireClientApiKey } from "@/lib/auth/requireClientApiKey";
 import { buildModelsList } from "../../v1/models/route.js";
 
 const GEMINI_PREFIX = "gemini/";
@@ -29,7 +30,9 @@ function getGeminiTtsModelIds() {
  * Same routable LLM set as /v1/models (active connections, no disabled or
  * non-chat models), in Gemini API format.
  */
-export async function GET() {
+export async function GET(request) {
+  const denied = await requireClientApiKey(request);
+  if (denied) return denied;
   try {
     const models = [];
     const seen = new Set();
