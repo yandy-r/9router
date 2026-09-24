@@ -4,6 +4,8 @@
  * Used when client requests non-streaming but provider forces streaming (e.g., Codex)
  */
 
+const EMPTY_RESPONSE = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
+
 /**
  * Process a single SSE message and update state accordingly.
  */
@@ -33,16 +35,12 @@ function processSSEMessage(msg, state) {
   } else if (eventType === "response.completed" || eventType === "response.done") {
     state.status = "completed";
     if (parsed.response?.usage) {
-      state.usage.input_tokens = parsed.response.usage.input_tokens || 0;
-      state.usage.output_tokens = parsed.response.usage.output_tokens || 0;
-      state.usage.total_tokens = parsed.response.usage.total_tokens || 0;
+      state.usage = { ...EMPTY_RESPONSE, ...parsed.response.usage };
     }
   } else if (eventType === "response.failed") {
     state.status = "failed";
   }
 }
-
-const EMPTY_RESPONSE = { input_tokens: 0, output_tokens: 0, total_tokens: 0 };
 
 /**
  * Convert Responses API SSE stream to single JSON response

@@ -3,6 +3,7 @@
  */
 
 import { FORMATS } from "../translator/formats.js";
+import { geminiUsageCounts, reasoningInclusiveCompletion } from "../translator/concerns/usage.js";
 
 // Legacy per-chunk usage console line; off by default (superseded by "📊 done")
 const DEBUG_USAGE = process.env.LOG_USAGE_VERBOSE === "1";
@@ -155,6 +156,12 @@ export function normalizeUsage(usage) {
   if (usage?.completion_tokens_details && typeof usage.completion_tokens_details === "object") {
     normalized.completion_tokens_details = usage.completion_tokens_details;
   }
+  if (usage?.input_tokens_details && typeof usage.input_tokens_details === "object") {
+    normalized.input_tokens_details = usage.input_tokens_details;
+  }
+  if (usage?.output_tokens_details && typeof usage.output_tokens_details === "object") {
+    normalized.output_tokens_details = usage.output_tokens_details;
+  }
 
   if (Object.keys(normalized).length === 0) return null;
   return normalized;
@@ -182,7 +189,11 @@ export function canonicalizeUsage(usage) {
 
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
   const completion = num(usage.completion_tokens ?? usage.output_tokens);
-  const reasoning = num(usage.reasoning_tokens);
+  const reasoning = num(
+    usage.reasoning_tokens ??
+      usage.completion_tokens_details?.reasoning_tokens ??
+      usage.output_tokens_details?.reasoning_tokens,
+  );
   // Fall back to the nested prompt_tokens_details.cache_creation_tokens shape
   // (buildUsage()'s OpenAI-forwarding format) when the top-level field is
   // absent, so callers that pass a buildUsage() object through don't silently
@@ -213,7 +224,12 @@ export function canonicalizeUsage(usage) {
     // Mirror the cacheCreation fallback above: buildUsage() only ever emits the
     // nested prompt_tokens_details.cached_tokens shape, so without this the
     // cache-read count is silently dropped on every buildUsage()-derived usage.
-    cached = num(usage.cached_tokens ?? usage.prompt_tokens_details?.cached_tokens);
+    // OpenAI Responses input_tokens_details.cached_tokens is likewise included in input_tokens.
+    cached = num(
+      usage.cached_tokens ??
+        usage.prompt_tokens_details?.cached_tokens ??
+        usage.input_tokens_details?.cached_tokens,
+    );
   }
 
   const result = {
@@ -309,14 +325,14 @@ export function extractUsage(chunk) {
 
   // OpenAI format (also covers DeepSeek which uses prompt_cache_hit_tokens)
   if (chunk.usage && typeof chunk.usage === "object" && chunk.usage.prompt_tokens !== undefined) {
+    const usage = chunk.usage;
     return normalizeUsage({
-      prompt_tokens: chunk.usage.prompt_tokens,
-      completion_tokens: chunk.usage.completion_tokens || 0,
-      cached_tokens:
-        chunk.usage.prompt_tokens_details?.cached_tokens || chunk.usage.prompt_cache_hit_tokens,
-      reasoning_tokens: chunk.usage.completion_tokens_details?.reasoning_tokens,
-      prompt_tokens_details: chunk.usage.prompt_tokens_details,
-      completion_tokens_details: chunk.usage.completion_tokens_details,
+      prompt_tokens: usage.prompt_tokens,
+      completion_tokens: reasoningInclusiveCompletion(usage),
+      cached_tokens: usage.prompt_tokens_details?.cached_tokens || usage.prompt_cache_hit_tokens,
+      reasoning_tokens: usage.completion_tokens_details?.reasoning_tokens,
+      prompt_tokens_details: usage.prompt_tokens_details,
+      completion_tokens_details: usage.completion_tokens_details,
     });
   }
 
@@ -324,12 +340,15 @@ export function extractUsage(chunk) {
   // Antigravity wraps usageMetadata inside response: { response: { usageMetadata: {...} } }
   const usageMeta = chunk.usageMetadata || chunk.response?.usageMetadata;
   if (usageMeta && typeof usageMeta === "object") {
+    // Gemini excludes thoughts from candidatesTokenCount; store completion reasoning-inclusive
+    // (matches toOpenAIUsage in translator/concerns/usage.js).
+    const counts = geminiUsageCounts(usageMeta);
     return normalizeUsage({
-      prompt_tokens: usageMeta.promptTokenCount || 0,
-      completion_tokens: usageMeta.candidatesTokenCount || 0,
-      total_tokens: usageMeta.totalTokenCount,
-      cached_tokens: usageMeta.cachedContentTokenCount,
-      reasoning_tokens: usageMeta.thoughtsTokenCount,
+      prompt_tokens: counts.prompt,
+      completion_tokens: counts.completion,
+      total_tokens: counts.total,
+      cached_tokens: counts.cached,
+      reasoning_tokens: counts.reasoning,
     });
   }
 

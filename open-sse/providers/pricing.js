@@ -1172,7 +1172,9 @@ export function formatCost(cost) {
 }
 
 /**
- * Calculate cost from tokens and pricing
+ * Calculate cost from tokens and pricing.
+ * Convention: completion_tokens INCLUDES reasoning_tokens, and prompt_tokens INCLUDES
+ * cached_tokens + cache_creation_input_tokens. Missing input/output rates count as 0.
  * @param {object} tokens
  * @param {object} pricing
  * @returns {number} cost in dollars
@@ -1189,22 +1191,26 @@ export function calculateCostFromTokens(tokens, pricing) {
   // are subsets, so subtract both to avoid charging them at the full input rate.
   const nonCachedInput = Math.max(0, inputTokens - cachedTokens - cacheCreationTokens);
 
-  cost += nonCachedInput * (pricing.input / 1000000);
+  const inputRate = pricing.input || 0;
+  const outputRate = pricing.output || 0;
+
+  cost += nonCachedInput * (inputRate / 1000000);
 
   if (cachedTokens > 0) {
-    cost += cachedTokens * ((pricing.cached || pricing.input) / 1000000);
+    cost += cachedTokens * ((pricing.cached ?? inputRate) / 1000000);
   }
 
+  // completion_tokens is reasoning-inclusive: bill the non-reasoning part at the output rate.
   const outputTokens = tokens.completion_tokens || tokens.output_tokens || 0;
-  cost += outputTokens * (pricing.output / 1000000);
-
   const reasoningTokens = tokens.reasoning_tokens || 0;
+  cost += Math.max(0, outputTokens - reasoningTokens) * (outputRate / 1000000);
+
   if (reasoningTokens > 0) {
-    cost += reasoningTokens * ((pricing.reasoning || pricing.output) / 1000000);
+    cost += reasoningTokens * ((pricing.reasoning ?? outputRate) / 1000000);
   }
 
   if (cacheCreationTokens > 0) {
-    cost += cacheCreationTokens * ((pricing.cache_creation || pricing.input) / 1000000);
+    cost += cacheCreationTokens * ((pricing.cache_creation ?? inputRate) / 1000000);
   }
 
   return cost;

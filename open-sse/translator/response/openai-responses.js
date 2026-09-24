@@ -584,6 +584,7 @@ export function openaiResponsesToOpenAIResponse(chunk, state) {
         completionTokens: outputTokens,
         totalTokens: inputTokens + outputTokens,
         cachedTokens: cacheReadTokens,
+        reasoningTokens: responseUsage.output_tokens_details?.reasoning_tokens || 0,
       });
     }
 

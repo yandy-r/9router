@@ -17,6 +17,7 @@ import { saveRequestDetail } from "@/lib/usageDb.js";
 import { decloakToolNames } from "../../utils/claudeCloaking.js";
 import { openAICompletionToClientFormat } from "./completionToClient.js";
 import { toOpenAIFinish } from "../../translator/concerns/finishReason.js";
+import { geminiUsageCounts } from "../../translator/concerns/usage.js";
 import { CLAUDE_BLOCK, RESPONSES_ITEM } from "../../translator/schema/index.js";
 import { GEMINI_FINISH, OPENAI_FINISH } from "../../translator/schema/finishReasons.js";
 
@@ -95,17 +96,19 @@ export function translateNonStreamingResponse(
     };
 
     if (usage) {
+      // Gemini excludes thoughts from candidatesTokenCount: thoughts go on the completion side.
+      const counts = geminiUsageCounts(usage);
       result.usage = {
-        prompt_tokens: (usage.promptTokenCount || 0) + (usage.thoughtsTokenCount || 0),
-        completion_tokens: usage.candidatesTokenCount || 0,
-        total_tokens: usage.totalTokenCount || 0,
+        prompt_tokens: counts.prompt,
+        completion_tokens: counts.completion,
+        total_tokens: counts.total || counts.prompt + counts.completion,
       };
       // promptTokenCount already includes cachedContentTokenCount.
-      if (usage.cachedContentTokenCount > 0) {
-        result.usage.prompt_tokens_details = { cached_tokens: usage.cachedContentTokenCount };
+      if (counts.cached > 0) {
+        result.usage.prompt_tokens_details = { cached_tokens: counts.cached };
       }
-      if (usage.thoughtsTokenCount > 0) {
-        result.usage.completion_tokens_details = { reasoning_tokens: usage.thoughtsTokenCount };
+      if (counts.reasoning > 0) {
+        result.usage.completion_tokens_details = { reasoning_tokens: counts.reasoning };
       }
     }
     return openAICompletionToClientFormat(result, sourceFormat, customToolNames);
