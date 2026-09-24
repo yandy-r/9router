@@ -130,25 +130,29 @@ export async function POST(request, { params }) {
   }
 }
 
-function collectTextParts(node, texts) {
-  if (!node || typeof node !== "object") return;
-  if (Array.isArray(node)) {
-    for (const item of node) collectTextParts(item, texts);
-    return;
-  }
-  if (typeof node.text === "string") texts.push(node.text);
-  for (const value of Object.values(node)) {
-    if (value && typeof value === "object") collectTextParts(value, texts);
-  }
+function contentTextLength(content) {
+  const parts = Array.isArray(content?.parts) ? content.parts : [];
+  return parts.reduce(
+    (sum, part) => sum + (typeof part?.text === "string" ? part.text.length : 0),
+    0,
+  );
 }
 
+/**
+ * Local token estimate for :countTokens (chars/4, same heuristic as
+ * /v1/messages/count_tokens). Accepts both the top-level and the
+ * `generateContentRequest` request shapes.
+ * ponytail: text-only; inlineData/fileData media parts count as 0. Forward to
+ * upstream :countTokens when a client needs exact counts.
+ */
 function countGeminiTextTokens(body) {
-  const texts = [];
-  collectTextParts(body?.contents, texts);
-  collectTextParts(body?.systemInstruction, texts);
-  collectTextParts(body?.generateContentRequest?.contents, texts);
-  collectTextParts(body?.generateContentRequest?.systemInstruction, texts);
-  return Math.ceil(texts.join("").length / 4);
+  let chars = 0;
+  for (const req of [body, body?.generateContentRequest]) {
+    const contents = Array.isArray(req?.contents) ? req.contents : [];
+    for (const content of contents) chars += contentTextLength(content);
+    chars += contentTextLength(req?.systemInstruction);
+  }
+  return Math.ceil(chars / 4);
 }
 
 function normalizeGeminiNativeModel(model) {

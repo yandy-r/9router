@@ -51,6 +51,8 @@ export async function GET() {
     for (const entry of await buildModelsList(["llm"])) {
       const description = `${entry.owned_by} model: ${entry.id}`;
       addModel(`models/${entry.id}`, description, CHAT_METHODS, entry);
+      // ponytail: keyed on the default "gemini/" alias; a Gemini connection with
+      // a custom prefix still routes but gets no bare/TTS aliases listed.
       if (entry.id.startsWith(GEMINI_PREFIX)) {
         hasGemini = true;
         // Gemini SDKs address models by their bare Google name.
