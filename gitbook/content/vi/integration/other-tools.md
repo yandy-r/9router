@@ -364,7 +364,7 @@ Error: Model 'cc/claude-opus' not found
 **Giải pháp:**
 
 - Dùng tên model chính xác (case-sensitive)
-- Kiểm tra model có sẵn: `curl http://localhost:20128/v1/models`
+- Kiểm tra model có sẵn: `curl http://localhost:20128/v1/models -H "Authorization: Bearer your-api-key"`
 - Xác minh model được bật trong plan của bạn
 
 ### Vấn đề Timeout

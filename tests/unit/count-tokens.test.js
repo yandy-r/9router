@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { POST } from "../../src/app/api/v1/messages/count_tokens/route.js";
+
+// Auth is covered by require-client-api-key.test.js.
+vi.mock("@/lib/auth/requireClientApiKey", () => ({ requireClientApiKey: async () => null }));
 
 async function countTokens(body) {
   const response = await POST(

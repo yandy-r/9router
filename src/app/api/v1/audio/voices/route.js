@@ -1,12 +1,20 @@
 import { AI_PROVIDERS } from "@/shared/constants/providers";
+import { requireClientApiKey } from "@/lib/auth/requireClientApiKey";
+import { GET as getGenericVoices } from "@/app/api/media-providers/tts/voices/route.js";
+import { GET as getElevenLabsVoices } from "@/app/api/media-providers/tts/elevenlabs/voices/route.js";
+import { GET as getDeepgramVoices } from "@/app/api/media-providers/tts/deepgram/voices/route.js";
+import { GET as getInworldVoices } from "@/app/api/media-providers/tts/inworld/voices/route.js";
 
-// Provider → internal voices API. Edge/local-device share the generic endpoint.
+// Provider → internal voices handler, called in-process: an HTTP self-fetch
+// would hit the login-gated /api/media-providers path without credentials.
+// Edge/local-device share the generic handler.
+// ponytail: reuses route handlers directly; extract a voices lib if more callers appear.
 const PROVIDER_API = {
-  elevenlabs: (origin) => `${origin}/api/media-providers/tts/elevenlabs/voices`,
-  deepgram: (origin) => `${origin}/api/media-providers/tts/deepgram/voices`,
-  inworld: (origin) => `${origin}/api/media-providers/tts/inworld/voices`,
-  "edge-tts": (origin) => `${origin}/api/media-providers/tts/voices?provider=edge-tts`,
-  "local-device": (origin) => `${origin}/api/media-providers/tts/voices?provider=local-device`,
+  elevenlabs: { handler: getElevenLabsVoices, path: "elevenlabs/voices" },
+  deepgram: { handler: getDeepgramVoices, path: "deepgram/voices" },
+  inworld: { handler: getInworldVoices, path: "inworld/voices" },
+  "edge-tts": { handler: getGenericVoices, path: "voices?provider=edge-tts" },
+  "local-device": { handler: getGenericVoices, path: "voices?provider=local-device" },
 };
 
 export async function OPTIONS() {
@@ -18,6 +26,8 @@ export async function OPTIONS() {
 // GET /v1/audio/voices?provider={p}[&lang=xx]
 // Returns OpenAI-style list with each voice's full model id ready for /v1/audio/speech
 export async function GET(request) {
+  const denied = await requireClientApiKey(request);
+  if (denied) return denied;
   try {
     const { searchParams, origin } = new URL(request.url);
     const provider = searchParams.get("provider");
@@ -35,11 +45,12 @@ export async function GET(request) {
       );
     }
 
-    const baseUrl = PROVIDER_API[provider](origin);
+    const { handler, path } = PROVIDER_API[provider];
+    const baseUrl = `${origin}/api/media-providers/tts/${path}`;
     const url = lang
       ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}lang=${encodeURIComponent(lang)}`
       : baseUrl;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await handler(new Request(url));
     const data = await res.json();
     if (!res.ok || data.error) {
       return Response.json(

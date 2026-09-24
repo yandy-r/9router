@@ -7,6 +7,7 @@ import {
 } from "@/shared/constants/providers";
 import { getProviderConnections, getCombos, getCustomModels, getModelAliases } from "@/lib/localDb";
 import { getDisabledModels } from "@/lib/disabledModelsDb";
+import { requireClientApiKey } from "@/lib/auth/requireClientApiKey";
 import { hasLiveModelResolver, resolveLiveModels } from "@/lib/providerModels/liveResolvers.js";
 import {
   capabilitiesFromServiceKind,
@@ -443,6 +444,8 @@ export async function OPTIONS() {
  * For other capabilities use /v1/models/{kind} (image, tts, stt, embedding, image-to-text, web).
  */
 export async function GET(request) {
+  const denied = await requireClientApiKey(request);
+  if (denied) return denied;
   try {
     // Detect cross-instance recursive /models fetch (another 9router fetching our /models)
     const skipDynamicFetch = request?.headers?.get(INTERNAL_MODELS_FETCH_HEADER) === "1";

@@ -364,7 +364,7 @@ Error: Model 'cc/claude-opus' not found
 **Solution:**
 
 - Use exact model name (case-sensitive)
-- Check available models: `curl http://localhost:20128/v1/models`
+- Check available models: `curl http://localhost:20128/v1/models -H "Authorization: Bearer your-api-key"`
 - Verify model is enabled in your plan
 
 ### Timeout Issues

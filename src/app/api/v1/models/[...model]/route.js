@@ -1,3 +1,4 @@
+import { requireClientApiKey } from "@/lib/auth/requireClientApiKey";
 import { buildModelsList } from "../route.js";
 
 // URL slug → service kind(s). `web` covers both webSearch and webFetch.
@@ -37,7 +38,9 @@ function json(data, options = {}) {
  * GET /v1/models/{provider}/{model} - OpenAI-compatible single model lookup.
  * Supported kinds: image, tts, stt, embedding, image-to-text, web.
  */
-export async function GET(_request, { params }) {
+export async function GET(request, { params }) {
+  const denied = await requireClientApiKey(request);
+  if (denied) return denied;
   try {
     const { model } = await params;
     const path = Array.isArray(model) ? model : [model];
