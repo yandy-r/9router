@@ -97,6 +97,8 @@ jobs:
             APK_MIRROR=dl-cdn.alpinelinux.org
             NPM_REGISTRY=https://registry.npmjs.org
             REQUIRE_OAUTH_DEFAULTS=1
+          # Cache keys ignore secret values; never reuse the OAuth-defaults layer.
+          no-cache-filters: oauth-defaults
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=${{ env.PUSH }}
           cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}

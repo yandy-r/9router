@@ -121,7 +121,7 @@ docker run --rm -p 20128:20128 \
 To bake the Google OAuth clients into a local image (otherwise supply via `-e`), pass them via BuildKit secrets:
 
 ```bash
-docker build \
+docker build --no-cache-filter oauth-defaults \
   --secret id=GEMINI_OAUTH_CLIENT_ID,env=GEMINI_OAUTH_CLIENT_ID \
   --secret id=GEMINI_OAUTH_CLIENT_SECRET,env=GEMINI_OAUTH_CLIENT_SECRET \
   --secret id=ANTIGRAVITY_OAUTH_CLIENT_ID,env=ANTIGRAVITY_OAUTH_CLIENT_ID \

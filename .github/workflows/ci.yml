@@ -90,6 +90,8 @@ jobs:
           build-args: |
             APK_MIRROR=dl-cdn.alpinelinux.org
             NPM_REGISTRY=https://registry.npmjs.org
+          # Shares the publish cache scope; never reuse its secret-bearing OAuth layer.
+          no-cache-filters: oauth-defaults
           cache-from: type=gha,scope=linux-amd64
           cache-to: type=gha,mode=max,scope=linux-amd64
           provenance: false

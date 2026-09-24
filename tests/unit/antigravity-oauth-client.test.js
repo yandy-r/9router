@@ -144,7 +144,20 @@ describe("google oauth clients (env-sourced)", () => {
     try {
       hits = execFileSync(
         "git",
-        ["grep", "-lE", pattern, "--", "open-sse", "src", "cli", "tests"],
+        [
+          "grep",
+          "-lE",
+          pattern,
+          "--",
+          "open-sse",
+          "src",
+          "cli",
+          "tests",
+          "scripts",
+          ".github",
+          "Dockerfile",
+          "custom-server.js",
+        ],
         { cwd: root, encoding: "utf8" },
       );
     } catch (e) {
@@ -200,5 +213,42 @@ describe("loadOAuthClientDefaults", () => {
       clientId: FILE_VALUES.GEMINI_OAUTH_CLIENT_ID,
       clientSecret: FILE_VALUES.GEMINI_OAUTH_CLIENT_SECRET,
     });
+  });
+
+  it("writer round trip: complete pairs only, trimmed, values never logged", () => {
+    const { writeOAuthClients, checkOAuthClients } = createRequire(import.meta.url)(
+      "../../scripts/write-oauth-clients.cjs",
+    );
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "oauth-writer-"));
+    const logs = [];
+    const log = vi.spyOn(console, "log").mockImplementation((...a) => logs.push(a.join(" ")));
+    const warn = vi.spyOn(console, "warn").mockImplementation((...a) => logs.push(a.join(" ")));
+    try {
+      const partial = {
+        GEMINI_OAUTH_CLIENT_ID: ` ${FILE_VALUES.GEMINI_OAUTH_CLIENT_ID} `,
+        GEMINI_OAUTH_CLIENT_SECRET: FILE_VALUES.GEMINI_OAUTH_CLIENT_SECRET,
+        ANTIGRAVITY_OAUTH_CLIENT_ID: FILE_VALUES.ANTIGRAVITY_OAUTH_CLIENT_ID,
+      };
+      expect(writeOAuthClients(dir, partial)).toEqual([
+        "GEMINI_OAUTH_CLIENT_ID",
+        "GEMINI_OAUTH_CLIENT_SECRET",
+      ]);
+      expect(checkOAuthClients(dir)).toBe(false); // publish needs both providers
+      const env = {};
+      loadOAuthClientDefaults(path.join(dir, "oauth-clients.json"), env);
+      expect(env).toEqual({
+        GEMINI_OAUTH_CLIENT_ID: FILE_VALUES.GEMINI_OAUTH_CLIENT_ID,
+        GEMINI_OAUTH_CLIENT_SECRET: FILE_VALUES.GEMINI_OAUTH_CLIENT_SECRET,
+      });
+
+      writeOAuthClients(dir, FILE_VALUES);
+      expect(checkOAuthClients(dir)).toBe(true);
+      for (const value of Object.values(FILE_VALUES)) {
+        expect(logs.join("\n")).not.toContain(value);
+      }
+    } finally {
+      log.mockRestore();
+      warn.mockRestore();
+    }
   });
 });

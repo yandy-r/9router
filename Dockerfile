@@ -18,20 +18,22 @@ RUN npm install --registry=${NPM_REGISTRY}
 COPY . ./
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
-# Public Google "installed app" OAuth clients, embedded for published images only
-# (docker-publish.yml passes them as BuildKit secrets; not in ARG/ENV or image history).
-# Without the secrets this is a no-op and the image behaves as before.
-# REQUIRE_OAUTH_DEFAULTS=1 (publish only) fails the build if they're missing, and keeps
-# publish off PR-build cache layers, whose keys don't include secret values.
+
+# Public Google "installed app" OAuth clients, embedded for published images only.
+# docker-publish.yml passes them as BuildKit secrets (never ARG/ENV, so nothing lands in
+# image history). Without the secrets /out stays empty and the image behaves as before.
+# BuildKit cache keys ignore secret values, so builds skip this stage's cache with
+# --no-cache-filter oauth-defaults. REQUIRE_OAUTH_DEFAULTS=1 (publish) fails the build
+# when the secrets are missing.
+FROM base AS oauth-defaults
+COPY scripts/write-oauth-clients.cjs ./
 ARG REQUIRE_OAUTH_DEFAULTS=
 RUN --mount=type=secret,id=GEMINI_OAUTH_CLIENT_ID,env=GEMINI_OAUTH_CLIENT_ID \
     --mount=type=secret,id=GEMINI_OAUTH_CLIENT_SECRET,env=GEMINI_OAUTH_CLIENT_SECRET \
     --mount=type=secret,id=ANTIGRAVITY_OAUTH_CLIENT_ID,env=ANTIGRAVITY_OAUTH_CLIENT_ID \
     --mount=type=secret,id=ANTIGRAVITY_OAUTH_CLIENT_SECRET,env=ANTIGRAVITY_OAUTH_CLIENT_SECRET \
-    node scripts/write-oauth-clients.cjs .next/standalone && \
-    if [ -n "$REQUIRE_OAUTH_DEFAULTS" ]; then \
-      node scripts/write-oauth-clients.cjs --check .next/standalone; \
-    fi
+    mkdir -p /out && node write-oauth-clients.cjs /out && \
+    if [ -n "$REQUIRE_OAUTH_DEFAULTS" ]; then node write-oauth-clients.cjs --check /out; fi
 
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
@@ -48,6 +50,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/custom-server.js ./custom-server.js
+# oauth-clients.json (if embedded) must sit next to custom-server.js, which loads it.
+COPY --from=oauth-defaults /out/ ./
 COPY --from=builder /app/open-sse ./open-sse
 # Next file tracing can omit sibling files; MITM runs server.js as a separate process.
 COPY --from=builder /app/src/mitm ./src/mitm

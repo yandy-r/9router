@@ -15,7 +15,7 @@ function loadOAuthClientDefaults(file, env = process.env) {
       cause: error,
     });
   }
-  if (!defaults || typeof defaults !== "object") {
+  if (!defaults || typeof defaults !== "object" || Array.isArray(defaults)) {
     throw new Error(`OAuth client defaults at ${file} must be a JSON object`);
   }
 
