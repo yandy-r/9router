@@ -16,6 +16,9 @@ import {
 import { saveRequestDetail } from "@/lib/usageDb.js";
 import { decloakToolNames } from "../../utils/claudeCloaking.js";
 import { openAICompletionToClientFormat } from "./completionToClient.js";
+import { toOpenAIFinish } from "../../translator/concerns/finishReason.js";
+import { CLAUDE_BLOCK, RESPONSES_ITEM } from "../../translator/schema/index.js";
+import { GEMINI_FINISH, OPENAI_FINISH } from "../../translator/schema/finishReasons.js";
 
 /**
  * Translate a non-streaming provider body into the client's format (pivoting
@@ -79,8 +82,9 @@ export function translateNonStreamingResponse(
     if (toolCalls.length > 0) message.tool_calls = toolCalls;
     if (!message.content && !message.tool_calls) message.content = "";
 
-    let finishReason = (candidate.finishReason || "stop").toLowerCase();
-    if (finishReason === "stop" && toolCalls.length > 0) finishReason = "tool_calls";
+    let finishReason = toOpenAIFinish(candidate.finishReason || GEMINI_FINISH.STOP, "gemini");
+    if (finishReason === OPENAI_FINISH.STOP && toolCalls.length > 0)
+      finishReason = OPENAI_FINISH.TOOL_CALLS;
 
     const result = {
       id: `chatcmpl-${response.responseId || Date.now()}`,
@@ -96,6 +100,10 @@ export function translateNonStreamingResponse(
         completion_tokens: usage.candidatesTokenCount || 0,
         total_tokens: usage.totalTokenCount || 0,
       };
+      // promptTokenCount already includes cachedContentTokenCount.
+      if (usage.cachedContentTokenCount > 0) {
+        result.usage.prompt_tokens_details = { cached_tokens: usage.cachedContentTokenCount };
+      }
       if (usage.thoughtsTokenCount > 0) {
         result.usage.completion_tokens_details = { reasoning_tokens: usage.thoughtsTokenCount };
       }
@@ -143,9 +151,7 @@ export function translateNonStreamingResponse(
     if (toolCalls.length > 0) message.tool_calls = toolCalls;
     if (!message.content && !message.tool_calls) message.content = "";
 
-    let finishReason = responseBody.stop_reason || "stop";
-    if (finishReason === "end_turn") finishReason = "stop";
-    if (finishReason === "tool_use") finishReason = "tool_calls";
+    const finishReason = toOpenAIFinish(responseBody.stop_reason, "claude");
 
     const result = {
       id: `chatcmpl-${responseBody.id || Date.now()}`,
@@ -156,12 +162,23 @@ export function translateNonStreamingResponse(
     };
 
     if (responseBody.usage) {
+      // Anthropic input_tokens EXCLUDES cache; OpenAI prompt_tokens includes it.
+      const usage = responseBody.usage;
+      const cacheRead = usage.cache_read_input_tokens || 0;
+      const cacheCreate = usage.cache_creation_input_tokens || 0;
+      const promptTokens = (usage.input_tokens || 0) + cacheRead + cacheCreate;
+      const completionTokens = usage.output_tokens || 0;
       result.usage = {
-        prompt_tokens: responseBody.usage.input_tokens || 0,
-        completion_tokens: responseBody.usage.output_tokens || 0,
-        total_tokens:
-          (responseBody.usage.input_tokens || 0) + (responseBody.usage.output_tokens || 0),
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: promptTokens + completionTokens,
       };
+      if (cacheRead > 0 || cacheCreate > 0) {
+        result.usage.prompt_tokens_details = {
+          ...(cacheRead > 0 ? { cached_tokens: cacheRead } : {}),
+          ...(cacheCreate > 0 ? { cache_creation_tokens: cacheCreate } : {}),
+        };
+      }
     }
     return openAICompletionToClientFormat(result, sourceFormat, customToolNames);
   }
@@ -176,6 +193,63 @@ export function translateNonStreamingResponse(
   }
 
   return responseBody;
+}
+
+/**
+ * Summarize a client-format body for the request-detail log. The pivot is an
+ * OpenAI chat.completion, but the logged `translatedResponse` is already the
+ * client format (Claude message / Responses body / chat.completion).
+ */
+function summarizeClientResponse(body) {
+  if (body?.choices?.[0]) {
+    const message = body.choices[0].message || {};
+    return {
+      content: message.content || null,
+      thinking: message.reasoning_content || null,
+      finish_reason: body.choices[0].finish_reason || "unknown",
+    };
+  }
+  // Claude message: content blocks (+ top-level stop_reason).
+  if (body?.type === "message" && Array.isArray(body.content)) {
+    const text = body.content
+      .filter((block) => block?.type === CLAUDE_BLOCK.TEXT && block.text)
+      .map((block) => block.text)
+      .join("");
+    const thinking = body.content
+      .filter((block) => block?.type === CLAUDE_BLOCK.THINKING && block.thinking)
+      .map((block) => block.thinking)
+      .join("");
+    return {
+      content: text || null,
+      thinking: thinking || null,
+      finish_reason: body.stop_reason || "unknown",
+    };
+  }
+  // Responses body: message items hold output_text, reasoning items hold summary.
+  if (body?.object === "response" && Array.isArray(body.output)) {
+    const text = body.output
+      .filter((item) => item?.type === RESPONSES_ITEM.MESSAGE && Array.isArray(item.content))
+      .flatMap((item) => item.content)
+      .filter((part) => part?.type === RESPONSES_ITEM.OUTPUT_TEXT && part.text)
+      .map((part) => part.text)
+      .join("");
+    const thinking = body.output
+      .filter((item) => item?.type === RESPONSES_ITEM.REASONING && Array.isArray(item.summary))
+      .flatMap((item) => item.summary)
+      .filter((part) => part?.type === RESPONSES_ITEM.SUMMARY_TEXT && part.text)
+      .map((part) => part.text)
+      .join("");
+    return {
+      content: text || null,
+      thinking: thinking || null,
+      finish_reason: body.status || "unknown",
+    };
+  }
+  return {
+    content: body?.content || null,
+    thinking: body?.reasoning_content || null,
+    finish_reason: body?.finish_reason || "unknown",
+  };
 }
 
 /**
@@ -336,17 +410,7 @@ export async function handleNonStreamingResponse({
         request: extractRequestConfig(body, stream),
         providerRequest: finalBody || translatedBody || null,
         providerResponse: responseBody || null,
-        response: {
-          content:
-            translatedResponse?.choices?.[0]?.message?.content ||
-            translatedResponse?.content ||
-            null,
-          thinking:
-            translatedResponse?.choices?.[0]?.message?.reasoning_content ||
-            translatedResponse?.reasoning_content ||
-            null,
-          finish_reason: translatedResponse?.choices?.[0]?.finish_reason || "unknown",
-        },
+        response: summarizeClientResponse(translatedResponse),
         pxpipe,
         status: "success",
       },

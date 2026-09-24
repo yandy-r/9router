@@ -394,18 +394,6 @@ export async function handleForcedSSEToJson({
     // a 90%-cached request from a cheap one without this.
     if (usage && Object.keys(usage).length > 0) parsed.usage = usage;
 
-    // Strip reasoning_content only when content is non-empty.
-    // When content is empty (e.g. thinking models that used all tokens for reasoning),
-    // reasoning_content is the only useful output and must be preserved.
-    // Previously this was unconditional, which broke Qwen3.5, Claude extended thinking, etc.
-    if (parsed?.choices) {
-      for (const choice of parsed.choices) {
-        if (choice?.message?.reasoning_content && choice.message.content) {
-          delete choice.message.reasoning_content;
-        }
-      }
-    }
-
     // parseSSEToOpenAIResponse yields a Chat Completions body regardless of
     // what the client speaks. Convert it to the client's format (Responses /
     // Claude) so a Responses client does not lose tool_calls and a Claude
@@ -413,6 +401,19 @@ export async function handleForcedSSEToJson({
     // completionToClient.js, shared with nonStreamingHandler.js without a
     // circular import.
     const finalBody = openAICompletionToClientFormat(parsed, sourceFormat, customToolNames);
+
+    // Strip reasoning_content only for Chat Completions clients when content is non-empty.
+    // Claude and Responses clients carry reasoning as a thinking block / reasoning item.
+    // When content is empty (e.g. thinking models that used all tokens for reasoning),
+    // reasoning_content is the only useful output and must be preserved.
+    // Previously this was unconditional, which broke Qwen3.5, Claude extended thinking, etc.
+    if (finalBody === parsed && parsed?.choices) {
+      for (const choice of parsed.choices) {
+        if (choice?.message?.reasoning_content && choice.message.content) {
+          delete choice.message.reasoning_content;
+        }
+      }
+    }
 
     return {
       success: true,

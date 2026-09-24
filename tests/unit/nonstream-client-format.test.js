@@ -89,10 +89,36 @@ describe("non-stream responses in the client's format (YAN-73 / YAN-74)", () => 
     expect(out.usage).toEqual({ input_tokens: 7, output_tokens: 3 });
   });
 
+  it("YAN-74: truncation and cache survive the pivot; other clients keep chat.completion", () => {
+    const geminiMax = {
+      candidates: [{ content: { parts: [{ text: "cut" }] }, finishReason: "MAX_TOKENS" }],
+    };
+    expect(translateNonStreamingResponse(geminiMax, FORMATS.GEMINI, FORMATS.CLAUDE)).toMatchObject({
+      stop_reason: "max_tokens",
+    });
+    const claudeMax = {
+      id: "msg_2",
+      type: "message",
+      content: [{ type: "text", text: "cut" }],
+      stop_reason: "max_tokens",
+      usage: { input_tokens: 3, output_tokens: 9, cache_read_input_tokens: 40 },
+    };
+    const resp = translateNonStreamingResponse(claudeMax, FORMATS.CLAUDE, FORMATS.OPENAI_RESPONSES);
+    expect(resp).toMatchObject({
+      status: "incomplete",
+      incomplete_details: { reason: "max_output_tokens" },
+    });
+    expect(resp.usage.input_tokens).toBe(43);
+    const chat = translateNonStreamingResponse(claudeMax, FORMATS.CLAUDE, FORMATS.OPENAI);
+    expect(chat.object).toBe("chat.completion");
+    expect(chat.choices[0].finish_reason).toBe("length");
+  });
+
   it("YAN-73: forced Chat SSE upstream → Claude message with cache usage", async () => {
     const chunk = (extra) =>
       `data: ${JSON.stringify({ id: "chatcmpl-sse", object: "chat.completion.chunk", created: 1700000000, model: "gpt-x", ...extra })}`;
     const raw = [
+      chunk({ choices: [{ delta: { reasoning_content: "Think" }, finish_reason: null }] }),
       chunk({ choices: [{ delta: { content: "Hello" }, finish_reason: null }] }),
       chunk({
         choices: [
@@ -135,6 +161,7 @@ describe("non-stream responses in the client's format (YAN-73 / YAN-74)", () => 
     const json = await result.response.json();
     expect(json.type).toBe("message");
     expect(json.content).toContainEqual({ type: "text", text: "Hello" });
+    expect(json.content).toContainEqual({ type: "thinking", thinking: "Think" });
     expect(json.content.find((b) => b.type === "tool_use")).toMatchObject({
       id: "call_1",
       name: "shell",
