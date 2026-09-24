@@ -9,9 +9,11 @@ const os = require("os");
 // Poll until the server accepts TCP connections on port, or timeout — avoids blind fixed waits.
 function waitServerReady(port, { timeoutMs = 15000, intervalMs = 150 } = {}) {
   const deadline = Date.now() + timeoutMs;
+  // Wildcard binds accept loopback; a specific bind only answers on its own address.
+  const probeHost = isWildcardHost(host) ? "127.0.0.1" : host;
   return new Promise((resolve) => {
     const tryConnect = () => {
-      const socket = net.connect({ host: "127.0.0.1", port }, () => {
+      const socket = net.connect({ host: probeHost, port }, () => {
         socket.destroy();
         resolve(true);
       });
@@ -77,9 +79,15 @@ function getLanIp() {
   return null;
 }
 
+function isWildcardHost(h) {
+  return h === "0.0.0.0" || h === "::";
+}
+
 // Local URL stays "localhost"; warn separately when bound to all interfaces (network-exposed).
+// IPv6 literals need brackets in URLs.
 function getDisplayHost() {
-  return host === DEFAULT_HOST ? "localhost" : host;
+  if (isWildcardHost(host)) return "localhost";
+  return host.includes(":") ? `[${host}]` : host;
 }
 const MAX_PORT_ATTEMPTS = 10;
 
@@ -375,9 +383,9 @@ function startServer() {
   const displayHost = getDisplayHost();
   const url = `http://${displayHost}:${port}/dashboard`;
   // Surface real network exposure when bound to all interfaces (default 0.0.0.0).
-  if (host === DEFAULT_HOST) {
+  if (isWildcardHost(host)) {
     const lanIp = getLanIp();
-    if (lanIp) console.log(`\x1b[33m⚠ Network-exposed: reachable at http://${lanIp}:${port} (bound 0.0.0.0). Use --host 127.0.0.1 for local-only.\x1b[0m`);
+    if (lanIp) console.log(`\x1b[33m⚠ Network-exposed: reachable at http://${lanIp}:${port} (bound ${host}). Use --host 127.0.0.1 for local-only.\x1b[0m`);
   }
 
   let restartCount = 0;
@@ -515,8 +523,10 @@ function startServer() {
   // serving until a signal arrives instead of treating the missing menu as "Exit".
   if (!process.stdin.isTTY) {
     console.log(`\n🚀 ${pkg.name} v${pkg.version}`);
-    console.log(`Server: http://${displayHost}:${port}`);
     console.log("No TTY detected: running headless. Stop with SIGINT/SIGTERM.");
+    waitServerReady(port).then((ready) => {
+      if (ready) console.log(`Server: http://${displayHost}:${port}`);
+    });
     return;
   }
 

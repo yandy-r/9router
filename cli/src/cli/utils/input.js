@@ -52,8 +52,11 @@ function suspendRawFor(fn) {
 
 function requestInterrupt() {
   // Raw mode/readline swallow Ctrl+C, bypassing launcher SIGINT cleanup for server/MITM/tunnel.
-  if (process.listenerCount("SIGINT") > 0) process.emit("SIGINT");
-  else process.exit(130);
+  if (process.listenerCount("SIGINT") > 0) return process.emit("SIGINT");
+  try {
+    if (process.stdin.isTTY) process.stdin.setRawMode(false);
+  } catch {}
+  process.exit(130);
 }
 
 async function prompt(question) {
