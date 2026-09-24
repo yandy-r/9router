@@ -90,6 +90,7 @@ graphify-out/*
 .codegraph/
 .PR/
 .next-analyze/*
+opencode.json
 
 # Kiro local workspace state
 .kiro/
