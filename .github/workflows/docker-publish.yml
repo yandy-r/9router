@@ -77,7 +77,18 @@ jobs:
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v7
+        # Built-in Google OAuth defaults, passed as BuildKit secrets (see Dockerfile).
+        env:
+          GEMINI_OAUTH_CLIENT_ID: ${{ secrets.GEMINI_OAUTH_CLIENT_ID }}
+          GEMINI_OAUTH_CLIENT_SECRET: ${{ secrets.GEMINI_OAUTH_CLIENT_SECRET }}
+          ANTIGRAVITY_OAUTH_CLIENT_ID: ${{ secrets.ANTIGRAVITY_OAUTH_CLIENT_ID }}
+          ANTIGRAVITY_OAUTH_CLIENT_SECRET: ${{ secrets.ANTIGRAVITY_OAUTH_CLIENT_SECRET }}
         with:
+          secret-envs: |
+            GEMINI_OAUTH_CLIENT_ID=GEMINI_OAUTH_CLIENT_ID
+            GEMINI_OAUTH_CLIENT_SECRET=GEMINI_OAUTH_CLIENT_SECRET
+            ANTIGRAVITY_OAUTH_CLIENT_ID=ANTIGRAVITY_OAUTH_CLIENT_ID
+            ANTIGRAVITY_OAUTH_CLIENT_SECRET=ANTIGRAVITY_OAUTH_CLIENT_SECRET
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -85,6 +96,9 @@ jobs:
           build-args: |
             APK_MIRROR=dl-cdn.alpinelinux.org
             NPM_REGISTRY=https://registry.npmjs.org
+            REQUIRE_OAUTH_DEFAULTS=1
+          # Cache keys ignore secret values; never reuse the OAuth-defaults layer.
+          no-cache-filters: oauth-defaults
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=${{ env.PUSH }}
           cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}

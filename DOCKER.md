@@ -52,6 +52,9 @@ Container path: `/app/data/db/data.sqlite`
 
 ## Optional env vars
 
+`GEMINI_OAUTH_CLIENT_ID`/`_SECRET` and `ANTIGRAVITY_OAUTH_CLIENT_ID`/`_SECRET` are
+built into the official image, so they're only needed to override the built-in pair.
+
 ```bash
 docker run -d \
   -p 20128:20128 \
@@ -107,12 +110,23 @@ docker rm -f 9router
 ## Build image locally (test)
 
 ```bash
-cd app && docker build -t 9router .
+docker build -t 9router .
 
 docker run --rm -p 20128:20128 \
   -v "$HOME/.9router:/app/data" \
   -e DATA_DIR=/app/data \
   9router
+```
+
+To bake the Google OAuth clients into a local image (otherwise supply via `-e`), pass them via BuildKit secrets:
+
+```bash
+docker build --no-cache-filter oauth-defaults \
+  --secret id=GEMINI_OAUTH_CLIENT_ID,env=GEMINI_OAUTH_CLIENT_ID \
+  --secret id=GEMINI_OAUTH_CLIENT_SECRET,env=GEMINI_OAUTH_CLIENT_SECRET \
+  --secret id=ANTIGRAVITY_OAUTH_CLIENT_ID,env=ANTIGRAVITY_OAUTH_CLIENT_ID \
+  --secret id=ANTIGRAVITY_OAUTH_CLIENT_SECRET,env=ANTIGRAVITY_OAUTH_CLIENT_SECRET \
+  -t 9router .
 ```
 
 ## Publish (automatic via CI)

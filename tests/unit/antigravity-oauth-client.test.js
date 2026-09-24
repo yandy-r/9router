@@ -1,6 +1,21 @@
 // Guards the Google OAuth clients (Antigravity, Gemini): read from env in one place
 // (shared.js), spread into registry + src/lib/oauth, never hard-coded in source.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+const { loadOAuthClientDefaults } = createRequire(import.meta.url)("../../custom-server.js");
+
+const writeDefaultsFile = (data) => {
+  const file = path.join(
+    fs.mkdtempSync(path.join(os.tmpdir(), "oauth-clients-")),
+    "oauth-clients.json",
+  );
+  fs.writeFileSync(file, JSON.stringify(data));
+  return file;
+};
 
 const ENV = {
   ANTIGRAVITY_OAUTH_CLIENT_ID: "ag-test-client.apps.example",
@@ -129,12 +144,111 @@ describe("google oauth clients (env-sourced)", () => {
     try {
       hits = execFileSync(
         "git",
-        ["grep", "-lE", pattern, "--", "open-sse", "src", "cli", "tests"],
+        [
+          "grep",
+          "-lE",
+          pattern,
+          "--",
+          "open-sse",
+          "src",
+          "cli",
+          "tests",
+          "scripts",
+          ".github",
+          "Dockerfile",
+          "custom-server.js",
+        ],
         { cwd: root, encoding: "utf8" },
       );
     } catch (e) {
       if (e.status !== 1) throw e; // exit 1 = no matches
     }
     expect(hits).toBe("");
+  });
+});
+
+describe("loadOAuthClientDefaults", () => {
+  const FILE_VALUES = {
+    GEMINI_OAUTH_CLIENT_ID: "built-in-gemini.apps.example",
+    GEMINI_OAUTH_CLIENT_SECRET: "built-in-gemini-secret",
+    ANTIGRAVITY_OAUTH_CLIENT_ID: "built-in-ag.apps.example",
+    ANTIGRAVITY_OAUTH_CLIENT_SECRET: "built-in-ag-secret",
+  };
+
+  it("applies built-ins when env is unset", () => {
+    const file = writeDefaultsFile(FILE_VALUES);
+    const env = {};
+    const applied = loadOAuthClientDefaults(file, env);
+    expect(env).toMatchObject(FILE_VALUES);
+    expect(applied).toEqual([
+      "GEMINI_OAUTH_CLIENT_ID",
+      "GEMINI_OAUTH_CLIENT_SECRET",
+      "ANTIGRAVITY_OAUTH_CLIENT_ID",
+      "ANTIGRAVITY_OAUTH_CLIENT_SECRET",
+    ]);
+  });
+
+  it("env wins pair-wise: gemini untouched, antigravity applied", () => {
+    const file = writeDefaultsFile(FILE_VALUES);
+    const env = { GEMINI_OAUTH_CLIENT_ID: "mine" };
+    loadOAuthClientDefaults(file, env);
+    expect(env.GEMINI_OAUTH_CLIENT_SECRET).toBeUndefined();
+    expect(env.ANTIGRAVITY_OAUTH_CLIENT_ID).toBe(FILE_VALUES.ANTIGRAVITY_OAUTH_CLIENT_ID);
+    expect(env.ANTIGRAVITY_OAUTH_CLIENT_SECRET).toBe(FILE_VALUES.ANTIGRAVITY_OAUTH_CLIENT_SECRET);
+  });
+
+  it("missing file is a no-op returning []", () => {
+    expect(
+      loadOAuthClientDefaults(path.join(os.tmpdir(), "oauth-clients-missing.json"), {}),
+    ).toEqual([]);
+  });
+
+  it("shared client falls back to built-ins: env empty + loader + fresh import", async () => {
+    const file = writeDefaultsFile(FILE_VALUES);
+    for (const k of Object.keys(ENV)) delete process.env[k];
+    loadOAuthClientDefaults(file, process.env);
+    vi.resetModules();
+    const { GOOGLE_OAUTH_CLIENT } = await import("../../open-sse/providers/shared.js");
+    expect(GOOGLE_OAUTH_CLIENT).toEqual({
+      clientId: FILE_VALUES.GEMINI_OAUTH_CLIENT_ID,
+      clientSecret: FILE_VALUES.GEMINI_OAUTH_CLIENT_SECRET,
+    });
+  });
+
+  it("writer round trip: complete pairs only, trimmed, values never logged", () => {
+    const { writeOAuthClients, checkOAuthClients } = createRequire(import.meta.url)(
+      "../../scripts/write-oauth-clients.cjs",
+    );
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "oauth-writer-"));
+    const logs = [];
+    const log = vi.spyOn(console, "log").mockImplementation((...a) => logs.push(a.join(" ")));
+    const warn = vi.spyOn(console, "warn").mockImplementation((...a) => logs.push(a.join(" ")));
+    try {
+      const partial = {
+        GEMINI_OAUTH_CLIENT_ID: ` ${FILE_VALUES.GEMINI_OAUTH_CLIENT_ID} `,
+        GEMINI_OAUTH_CLIENT_SECRET: FILE_VALUES.GEMINI_OAUTH_CLIENT_SECRET,
+        ANTIGRAVITY_OAUTH_CLIENT_ID: FILE_VALUES.ANTIGRAVITY_OAUTH_CLIENT_ID,
+      };
+      expect(writeOAuthClients(dir, partial)).toEqual([
+        "GEMINI_OAUTH_CLIENT_ID",
+        "GEMINI_OAUTH_CLIENT_SECRET",
+      ]);
+      expect(checkOAuthClients(dir)).toBe(false); // publish needs both providers
+      const env = {};
+      loadOAuthClientDefaults(path.join(dir, "oauth-clients.json"), env);
+      expect(env).toEqual({
+        GEMINI_OAUTH_CLIENT_ID: FILE_VALUES.GEMINI_OAUTH_CLIENT_ID,
+        GEMINI_OAUTH_CLIENT_SECRET: FILE_VALUES.GEMINI_OAUTH_CLIENT_SECRET,
+      });
+
+      writeOAuthClients(dir, FILE_VALUES);
+      expect(checkOAuthClients(dir)).toBe(true);
+      for (const value of Object.values(FILE_VALUES)) {
+        expect(logs.join("\n")).not.toContain(value);
+      }
+    } finally {
+      log.mockRestore();
+      warn.mockRestore();
+    }
   });
 });

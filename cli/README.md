@@ -54,6 +54,9 @@ docker run -d --name 9router -p 20128:20128 \
 
 Published images: [GHCR](https://github.com/yandy-r/9router/pkgs/container/9router) (multi-platform amd64/arm64).
 
+Both the npm package and the Docker image ship with Google OAuth clients built in, so
+Gemini/Gemini CLI/Antigravity login works with no setup.
+
 🎉 Dashboard opens at `http://localhost:20128`
 
 **2. Connect a FREE provider (no signup needed):**

@@ -4,6 +4,45 @@ const fs = require("fs");
 const crypto = require("crypto");
 const { pathToFileURL } = require("url");
 
+function loadOAuthClientDefaults(file, env = process.env) {
+  if (!fs.existsSync(file)) return [];
+
+  let defaults;
+  try {
+    defaults = JSON.parse(fs.readFileSync(file, "utf8"));
+  } catch (error) {
+    throw new Error(`Failed to parse OAuth client defaults at ${file}: ${error.message}`, {
+      cause: error,
+    });
+  }
+  if (!defaults || typeof defaults !== "object" || Array.isArray(defaults)) {
+    throw new Error(`OAuth client defaults at ${file} must be a JSON object`);
+  }
+
+  const applied = [];
+  for (const [clientId, clientSecret] of [
+    ["GEMINI_OAUTH_CLIENT_ID", "GEMINI_OAUTH_CLIENT_SECRET"],
+    ["ANTIGRAVITY_OAUTH_CLIENT_ID", "ANTIGRAVITY_OAUTH_CLIENT_SECRET"],
+  ]) {
+    const hasEnvValue = [clientId, clientSecret].some((key) => String(env[key] ?? "").trim());
+    const hasDefaults = [clientId, clientSecret].every(
+      (key) => typeof defaults[key] === "string" && defaults[key].trim(),
+    );
+    if (!hasEnvValue && hasDefaults) {
+      env[clientId] = defaults[clientId];
+      env[clientSecret] = defaults[clientSecret];
+      applied.push(clientId, clientSecret);
+    }
+  }
+  return applied;
+}
+
+module.exports = { loadOAuthClientDefaults };
+
+// Generated only in published Docker images / npm package (see scripts/write-oauth-clients.cjs).
+// Precedence: env > built-in > unset.
+loadOAuthClientDefaults(path.join(__dirname, "oauth-clients.json"));
+
 const origCreate = http.createServer.bind(http);
 
 // Per-process secret proving x-9r-real-ip was stamped below rather than sent by the client.

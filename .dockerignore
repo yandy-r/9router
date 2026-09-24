@@ -14,6 +14,10 @@ build
 dist
 coverage
 
+# Generated CLI bundle and built-in OAuth defaults (the image gets them via a secret mount)
+cli/app
+**/oauth-clients.json
+
 # Runtime data and logs
 data
 logs

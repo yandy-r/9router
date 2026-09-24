@@ -226,6 +226,12 @@ function buildCliPackage() {
     process.exit(1);
   }
 
+  // Step 3a2: Embed built-in Google OAuth defaults when present in the environment.
+  // Local builds without the env vars succeed with a warning; prepublishOnly enforces
+  // them via scripts/write-oauth-clients.cjs --check.
+  require(path.join(appDir, "scripts", "write-oauth-clients.cjs")).writeOAuthClients(cliAppDir);
+  console.log("");
+
   // Step 3b: Ensure sql.js (pure JS fallback) bundled in app/cli/app/node_modules.
   // Strip better-sqlite3 (native) — it lives in ~/.9router/runtime to avoid
   // Windows EBUSY during global CLI updates. node:sqlite (Node ≥22.5) is also
