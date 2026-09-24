@@ -6,9 +6,15 @@
 
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { getAntigravityUsage } from "open-sse/services/usage/google.js";
+import { recordProbeWindows } from "open-sse/services/quotaSnapshot.js";
 import * as log from "../utils/logger.js";
 
-// In-memory cache: connectionId → { [modelId]: { remainingPercentage, resetAt } }
+// Compat Map (auth pre-filter + tests read/write this directly). Every
+// internal write dual-writes normalized probe windows to the snapshot store
+// (canonical for phase-2 weight) and mirrors the upstream-exact entries here,
+// so routing behavior is byte-identical to before the fold.
+// ponytail: clearAntigravityStrikes drops only this Map; the store window
+// expires or is overwritten on the next refresh (no per-window delete API).
 const quotaCache = new Map();
 // Track last refresh per connection to avoid hammering
 const lastRefreshAt = new Map();
@@ -27,6 +33,43 @@ const STRIKE_THRESHOLD = 3;
 const STRIKE_BLOCK_MS = 15 * 60_000;
 const strikeCounts = new Map(); // "connectionId|model" → { count, windowStart (anchored at first strike) }
 const strikeBlocks = new Map(); // "connectionId|model" → blockedUntil ms
+
+/**
+ * Adapter: upstream quota entry → snapshot probe window.
+ * @param {string} model model id
+ * @param {{ remainingPercentage?: number, resetAt?: string }} entry upstream quota entry
+ * @returns {object|null} probe window, or null when reading is unknown
+ */
+function _toSnapshotWindow(model, entry) {
+  if (model === null || model === undefined) return null;
+  const remaining = Number(entry?.remainingPercentage);
+  // Unknown reading (>= 100% means "unlimited/unknown" per YAN-259): skip, keep prior.
+  if (!Number.isFinite(remaining) || remaining >= 100) return null;
+  return {
+    kind: `model:${model}`,
+    usedFraction: Math.min(1, Math.max(0, 1 - remaining / 100)),
+    resetsAt: entry?.resetAt,
+  };
+}
+
+/**
+ * Dual-write: record normalized probe windows in the store (canonical), then
+ * mirror the upstream-exact entries (+ active strike blocks) into the view.
+ * Mirror, not projection: the store drops unknown (>=100%) readings and
+ * out-of-horizon resets, which would change routing if read back.
+ * @param {string} connectionId connection id
+ * @param {object} quotas quotas map, merged into the existing view entry
+ * @returns {object} view entry for the connection
+ */
+function _writeQuotas(connectionId, quotas, { merge = false } = {}) {
+  const windows = Object.entries(quotas || {})
+    .map(([modelId, entry]) => _toSnapshotWindow(modelId, entry))
+    .filter(Boolean);
+  if (windows.length > 0) recordProbeWindows(connectionId, "antigravity", windows);
+  const entry = merge ? Object.assign(quotaCache.get(connectionId) || {}, quotas) : quotas;
+  quotaCache.set(connectionId, applyActiveStrikeBlocks(connectionId, entry));
+  return quotaCache.get(connectionId);
+}
 
 /**
  * Re-apply active strike blocks onto a fresh quotas snapshot so the auth
@@ -96,7 +139,7 @@ export async function refreshAntigravityQuota(connectionId, accessToken, provide
 
   // Record every attempt so failed quota calls cannot amplify an upstream 429 burst.
   lastRefreshAt.set(connectionId, now);
-  const promise = _doRefresh(connectionId, accessToken, providerSpecificData, now);
+  const promise = _doRefresh(connectionId, accessToken, providerSpecificData);
   inflightRefresh.set(connectionId, promise);
   try {
     return await promise;
@@ -105,7 +148,7 @@ export async function refreshAntigravityQuota(connectionId, accessToken, provide
   }
 }
 
-async function _doRefresh(connectionId, accessToken, providerSpecificData, now) {
+async function _doRefresh(connectionId, accessToken, providerSpecificData) {
   try {
     const proxyCfg = await resolveConnectionProxyConfig(providerSpecificData || {});
     const proxyOptions = {
@@ -124,9 +167,7 @@ async function _doRefresh(connectionId, accessToken, providerSpecificData, now) 
     // Update in-memory cache. Caller logs CACHE_BLOCK only if requested model is exhausted.
     // Strike blocks are re-asserted after every refresh so an optimistic
     // upstream reading cannot resurrect a pair we just circuit-broke.
-    quotaCache.set(connectionId, applyActiveStrikeBlocks(connectionId, usage.quotas));
-
-    return usage.quotas;
+    return _writeQuotas(connectionId, usage.quotas);
   } catch (e) {
     log.warn("AG_QUOTA", `${connectionId.slice(0, 8)} | refresh failed: ${e.message}`);
     return null;
@@ -145,6 +186,7 @@ export async function handleAntigravityQuotaError(
   accessToken,
   providerSpecificData,
 ) {
+  model = model ?? null;
   log.info("AG_QUOTA", `${connectionId.slice(0, 8)} | ${status} on ${model} — refreshing quota`);
 
   // Throttle applies to error paths too: one quota request per account/30s.
@@ -178,13 +220,16 @@ export async function handleAntigravityQuotaError(
         "AG_QUOTA",
         `${connectionId.slice(0, 8)} | STRIKE_${status} ${model} — ${count}x 429 (quota ${reading}); CACHE_BLOCK 15m`,
       );
-      // Synthesize a 0% entry in the shared cache so the auth pre-filter skips
-      // this pair on subsequent requests too, not just the current retry loop
-      // (the chat handler does not persist modelLock_* for this path).
-      const cached = quotaCache.get(connectionId) || {};
-      cached[model] = { remainingPercentage: 0, resetAt: new Date(blockedUntil).toISOString() };
-      quotaCache.set(connectionId, cached);
+      // Synthesize a 0% probe window, then re-assert the routing block in the
+      // compat view (the chat handler does not persist modelLock_* here).
       strikeBlocks.set(key, blockedUntil);
+      if (model !== null) {
+        _writeQuotas(
+          connectionId,
+          { [model]: { remainingPercentage: 0, resetAt: new Date(blockedUntil).toISOString() } },
+          { merge: true },
+        );
+      }
       return blockedUntil;
     }
     return null;

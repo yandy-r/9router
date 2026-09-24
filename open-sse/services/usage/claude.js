@@ -154,6 +154,46 @@ async function fetchClaudeUsageRaw(accessToken, proxyOptions = null) {
   }
 }
 
+export function getClaudeProfileUrl() {
+  return U("claude").profileUrl;
+}
+
+function sanitizePlanTier(value) {
+  if (typeof value !== "string") return null;
+  const tier = value.trim().toLowerCase();
+  if (!tier || tier.length > 64) return null;
+  if (["__proto__", "constructor", "prototype"].includes(tier)) return null;
+  return tier;
+}
+
+/**
+ * Fetch the Claude plan tier from the OAuth profile endpoint.
+ * Never throws; returns the sanitized tier string or null.
+ */
+export async function fetchClaudePlanTier(accessToken, proxyOptions = null) {
+  try {
+    if (!accessToken) return null;
+    const response = await proxyAwareFetch(
+      getClaudeProfileUrl(),
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "anthropic-beta": "oauth-2025-04-20",
+          "anthropic-version": CLAUDE_CONFIG.apiVersion,
+        },
+      },
+      proxyOptions,
+    );
+    if (response.status === 403) return null;
+    if (!response.ok) return null;
+    const data = await response.json();
+    return sanitizePlanTier(data?.organization?.rate_limit_tier);
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Legacy Claude usage for API key / org admin users
  */

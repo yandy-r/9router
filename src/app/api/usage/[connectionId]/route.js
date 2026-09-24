@@ -6,6 +6,11 @@ import { getUsageForProvider } from "open-sse/services/usage.js";
 import { getExecutor } from "open-sse/executors/index.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { USAGE_APIKEY_PROVIDERS } from "@/shared/constants/providers";
+import {
+  buildQuotaSnapshotView,
+  fetchAndPersistClaudePlanTier,
+  recordUsageSnapshot,
+} from "@/sse/services/quotaSnapshotSync";
 
 // Detect auth-expired messages returned by usage providers instead of throwing
 const AUTH_EXPIRED_PATTERNS = ["expired", "authentication", "unauthorized", "401", "re-authorize"];
@@ -185,7 +190,28 @@ export async function GET(request, { params }) {
       }
     }
 
-    return Response.json(usage);
+    // Additive snapshot: record this probe, then attach the view. Never fail the usage response.
+    try {
+      await recordUsageSnapshot({
+        connectionId: connection.id,
+        provider: connection.provider,
+        usage,
+        fallbackTier:
+          connection.providerSpecificData?.planTier ??
+          connection.providerSpecificData?.chatgptPlanType,
+      });
+      // Throttled 24h via planTierCheckedAt and never throws; cheap when fresh.
+      if (connection.provider === "claude" && isOAuth) {
+        await fetchAndPersistClaudePlanTier(connection, proxyOptions);
+      }
+    } catch {
+      /* recordUsageSnapshot already swallows; belt for the response path */
+    }
+
+    return Response.json({
+      ...usage,
+      quotaSnapshot: buildQuotaSnapshotView(connection.id, {}),
+    });
   } catch (error) {
     const provider = connection?.provider ?? "unknown";
     console.warn(`[Usage] ${provider}: ${error.message}`);

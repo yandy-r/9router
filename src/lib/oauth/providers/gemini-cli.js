@@ -53,6 +53,7 @@ const geminiCli = {
 
     // Fetch project ID
     let projectId = "";
+    let tierId = null;
     try {
       const projectRes = await fetch(
         "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist",
@@ -71,21 +72,27 @@ const geminiCli = {
       if (projectRes.ok) {
         const data = await projectRes.json();
         projectId = data.cloudaicompanionProject?.id || data.cloudaicompanionProject || "";
+        tierId = data.currentTier?.id || data.currentTier?.name || null;
       }
     } catch (e) {
       console.log("Failed to fetch project ID:", e);
     }
 
-    return { userInfo, projectId };
+    return { userInfo, projectId, tierId };
   },
-  mapTokens: (tokens, extra) => ({
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token,
-    expiresIn: tokens.expires_in,
-    scope: tokens.scope,
-    email: extra?.userInfo?.email,
-    projectId: extra?.projectId,
-  }),
+  mapTokens: (tokens, extra) => {
+    const planTier =
+      typeof extra?.tierId === "string" ? extra.tierId.trim().toLowerCase().slice(0, 64) : "";
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresIn: tokens.expires_in,
+      scope: tokens.scope,
+      email: extra?.userInfo?.email,
+      projectId: extra?.projectId,
+      ...(planTier ? { providerSpecificData: { planTier } } : {}),
+    };
+  },
 };
 
 export default geminiCli;

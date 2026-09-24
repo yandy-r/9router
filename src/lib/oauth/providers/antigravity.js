@@ -64,7 +64,10 @@ const antigravity = {
 
     // Load Code Assist to get project ID and tier
     let projectId = "";
-    let tierId = "legacy-tier";
+    // Tier reported to callers. Only set when the provider returned an
+    // explicit default tier; callers persist planTier only when non-null.
+    // Onboarding below keeps its own "legacy-tier" fallback.
+    let detectedTierId = null;
     try {
       const loadRes = await fetch(ANTIGRAVITY_CONFIG.loadCodeAssistEndpoint, {
         method: "POST",
@@ -74,10 +77,11 @@ const antigravity = {
       if (loadRes.ok) {
         const data = await loadRes.json();
         projectId = data.cloudaicompanionProject?.id || data.cloudaicompanionProject || "";
-        if (Array.isArray(data.allowedTiers)) {
-          for (const tier of data.allowedTiers) {
-            if (tier.isDefault && tier.id) {
-              tierId = tier.id.trim();
+        detectedTierId = data.paidTier?.id?.trim?.() || data.currentTier?.id?.trim?.() || null;
+        if (!detectedTierId && Array.isArray(data.allowedTiers)) {
+          for (const t of data.allowedTiers) {
+            if (t.isDefault && t.id) {
+              detectedTierId = t.id.trim();
               break;
             }
           }
@@ -95,13 +99,13 @@ const antigravity = {
             const onboardRes = await fetch(ANTIGRAVITY_CONFIG.onboardUserEndpoint, {
               method: "POST",
               headers: loadHeaders,
-              body: JSON.stringify({ tierId, metadata }),
+              body: JSON.stringify({ tierId: detectedTierId || "legacy-tier", metadata }),
             });
             if (onboardRes.ok) {
               const result = await onboardRes.json();
               if (result.done === true) break;
             }
-          } catch (e) {
+          } catch {
             break;
           }
           await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -110,16 +114,21 @@ const antigravity = {
       doOnboard().catch(() => {});
     }
 
-    return { userInfo, projectId };
+    return { userInfo, projectId, tierId: detectedTierId };
   },
-  mapTokens: (tokens, extra) => ({
-    accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token,
-    expiresIn: tokens.expires_in,
-    scope: tokens.scope,
-    email: extra?.userInfo?.email,
-    projectId: extra?.projectId,
-  }),
+  mapTokens: (tokens, extra) => {
+    const planTier =
+      typeof extra?.tierId === "string" ? extra.tierId.trim().toLowerCase().slice(0, 64) : "";
+    return {
+      accessToken: tokens.access_token,
+      refreshToken: tokens.refresh_token,
+      expiresIn: tokens.expires_in,
+      scope: tokens.scope,
+      email: extra?.userInfo?.email,
+      projectId: extra?.projectId,
+      ...(planTier ? { providerSpecificData: { planTier } } : {}),
+    };
+  },
 };
 
 export default antigravity;

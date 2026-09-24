@@ -42,6 +42,23 @@ export function parseResetTime(resetValue) {
   }
 }
 
+/**
+ * Parse a Go-style duration string ("6m0s", "2m59.56s", "7.66s", "1h2m3s500ms")
+ * to milliseconds. The whole string must be consumed; null otherwise.
+ */
+export function parseDurationToMs(value) {
+  if (typeof value !== "string") return null;
+  const str = value.trim();
+  if (!str || !/^(?:\d+(?:\.\d+)?(?:ms|h|m|s))+$/.test(str)) return null;
+
+  const unitMs = { h: 3600000, m: 60000, s: 1000, ms: 1 };
+  let totalMs = 0;
+  for (const [, amount, unit] of str.matchAll(/(\d+(?:\.\d+)?)(ms|h|m|s)/g)) {
+    totalMs += Number(amount) * unitMs[unit];
+  }
+  return Number.isFinite(totalMs) ? totalMs : null;
+}
+
 export function toFiniteNumber(value, fallback = 0) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {
