@@ -68,4 +68,13 @@ describe("transformToOllama", () => {
     expect(lines.map((l) => l.message.content).join("")).toBe("é🙂");
     expect(lines.filter((l) => l.done)).toHaveLength(1);
   });
+
+  it("surfaces a mid-stream error frame instead of a clean done", async () => {
+    const bytes = new TextEncoder().encode(
+      sse({ choices: [{ delta: { content: "a" } }] }) + sse({ error: { message: "boom" } }),
+    );
+    const lines = await ndjson(await transformToOllama(sseResponse([bytes]), "m"));
+    expect(lines.at(-1)).toEqual({ error: "boom" });
+    expect(lines.some((l) => l.done)).toBe(false);
+  });
 });
