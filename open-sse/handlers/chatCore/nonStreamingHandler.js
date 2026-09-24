@@ -1,6 +1,5 @@
 import { FORMATS } from "../../translator/formats.js";
 import { needsTranslation } from "../../translator/index.js";
-import { fromOpenAIFinish } from "../../translator/concerns/finishReason.js";
 import { ollamaBodyToOpenAI } from "../../translator/response/ollama-to-openai.js";
 import { addBufferToUsage, filterUsageForFormat } from "../../utils/usageTracking.js";
 import { createErrorResult } from "../../utils/error.js";
@@ -14,153 +13,16 @@ import {
   saveUsageStats,
   formatDoneLine,
 } from "./requestDetail.js";
-import { appendRequestLog, saveRequestDetail } from "@/lib/usageDb.js";
+import { saveRequestDetail } from "@/lib/usageDb.js";
 import { decloakToolNames } from "../../utils/claudeCloaking.js";
-import { ROLE, RESPONSES_ITEM } from "../../translator/schema/index.js";
-
-function parseToolArguments(value) {
-  if (!value) return {};
-  if (typeof value === "object") return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return {};
-  }
-}
-
-function openAICompletionToClaudeMessage(responseBody) {
-  if (!responseBody?.choices?.[0]) return responseBody;
-  const choice = responseBody.choices[0];
-  const message = choice.message || {};
-  const content = [];
-
-  const reasoning =
-    message.reasoning_content || message.provider_specific_fields?.reasoning_content || "";
-  if (reasoning) {
-    content.push({ type: "thinking", thinking: reasoning });
-  }
-  if (typeof message.content === "string" && message.content.length > 0) {
-    content.push({ type: "text", text: message.content });
-  }
-  for (const toolCall of message.tool_calls || []) {
-    const fn = toolCall.function || {};
-    content.push({
-      type: "tool_use",
-      id: toolCall.id || `toolu_${Date.now()}_${content.length}`,
-      name: fn.name || toolCall.name || "",
-      input: parseToolArguments(fn.arguments || toolCall.arguments),
-    });
-  }
-  if (content.length === 0) content.push({ type: "text", text: "" });
-
-  const usage = responseBody.usage || {};
-  return {
-    id: String(responseBody.id || `msg_${Date.now()}`).replace(/^chatcmpl-/, ""),
-    type: "message",
-    role: "assistant",
-    model: responseBody.model || "unknown",
-    content,
-    stop_reason: fromOpenAIFinish(choice.finish_reason, FORMATS.CLAUDE),
-    stop_sequence: null,
-    usage: {
-      input_tokens: usage.prompt_tokens || usage.input_tokens || 0,
-      output_tokens: usage.completion_tokens || usage.output_tokens || 0,
-    },
-  };
-}
+import { openAICompletionToClientFormat } from "./completionToClient.js";
+import { toOpenAIFinish } from "../../translator/concerns/finishReason.js";
+import { CLAUDE_BLOCK, RESPONSES_ITEM } from "../../translator/schema/index.js";
+import { GEMINI_FINISH, OPENAI_FINISH } from "../../translator/schema/finishReasons.js";
 
 /**
- * Convert an OpenAI Chat Completions non-streaming response body into the
- * OpenAI Responses API shape. Used when a Responses-format client (e.g. Codex)
- * is routed to a Chat Completions upstream and `stream:false` — the streaming
- * path already emits Responses events, but the JSON path returned a raw
- * `chat.completion` body, so tool_calls were invisible to Responses clients.
- */
-function extractCustomToolInput(argumentsValue) {
-  const argumentsText =
-    typeof argumentsValue === "string" ? argumentsValue : JSON.stringify(argumentsValue || {});
-  try {
-    const parsed = JSON.parse(argumentsText);
-    if (parsed && typeof parsed === "object" && typeof parsed.input === "string")
-      return parsed.input;
-  } catch {
-    /* raw freeform input */
-  }
-  return argumentsText;
-}
-
-function openAICompletionToResponses(responseBody, customToolNames = null) {
-  const choice = responseBody?.choices?.[0];
-  if (!choice) return responseBody;
-
-  const message = choice.message || {};
-  const output = [];
-
-  // Reasoning → a reasoning item (summary text), mirroring the streaming path.
-  const reasoning = message.reasoning_content || message.reasoning;
-  if (typeof reasoning === "string" && reasoning.length > 0) {
-    output.push({
-      type: RESPONSES_ITEM.REASONING,
-      summary: [{ type: RESPONSES_ITEM.SUMMARY_TEXT, text: reasoning }],
-    });
-  }
-
-  // Assistant text → a message item with output_text content.
-  const text = typeof message.content === "string" ? message.content : "";
-  if (text.length > 0) {
-    output.push({
-      type: RESPONSES_ITEM.MESSAGE,
-      role: ROLE.ASSISTANT,
-      content: [{ type: RESPONSES_ITEM.OUTPUT_TEXT, text, annotations: [] }],
-    });
-  }
-
-  // tool_calls → function_call/custom_tool_call items (Responses-native tool shape).
-  for (const tc of message.tool_calls || []) {
-    const fn = tc.function || {};
-    const custom = customToolNames?.has(fn.name);
-    output.push({
-      type: custom ? RESPONSES_ITEM.CUSTOM_TOOL_CALL : RESPONSES_ITEM.FUNCTION_CALL,
-      id: `${custom ? "ctc" : "fc"}_${tc.id || ""}`,
-      call_id: tc.id || "",
-      name: fn.name || "",
-      ...(custom
-        ? { input: extractCustomToolInput(fn.arguments) }
-        : {
-            arguments:
-              typeof fn.arguments === "string" ? fn.arguments : JSON.stringify(fn.arguments || {}),
-          }),
-    });
-  }
-
-  const usage = responseBody.usage || {};
-  const status =
-    choice.finish_reason === "tool_calls"
-      ? "completed"
-      : choice.finish_reason === "stop"
-        ? "completed"
-        : choice.finish_reason || "completed";
-
-  return {
-    id: `resp_${responseBody.id || ""}`.replace(/^resp_chatcmpl-/, "resp_"),
-    object: "response",
-    created_at: responseBody.created || Math.floor(Date.now() / 1000),
-    model: responseBody.model || "unknown",
-    status,
-    background: false,
-    error: null,
-    output,
-    usage: {
-      input_tokens: usage.prompt_tokens || usage.input_tokens || 0,
-      output_tokens: usage.completion_tokens || usage.output_tokens || 0,
-      total_tokens:
-        usage.total_tokens || (usage.prompt_tokens || 0) + (usage.completion_tokens || 0),
-    },
-  };
-}
-
-/**
- * Translate non-streaming response body from provider format → OpenAI format.
+ * Translate a non-streaming provider body into the client's format (pivoting
+ * through OpenAI chat.completion).
  */
 export function translateNonStreamingResponse(
   responseBody,
@@ -169,15 +31,10 @@ export function translateNonStreamingResponse(
   customToolNames = null,
 ) {
   if (targetFormat === sourceFormat) return responseBody;
-  // Provider responded in OpenAI Chat Completions shape but the client speaks
-  // Responses API — convert so tool_calls/text surface as Responses `output`.
-  if (targetFormat === FORMATS.OPENAI && sourceFormat === FORMATS.OPENAI_RESPONSES) {
-    return openAICompletionToResponses(responseBody, customToolNames);
-  }
-  if (targetFormat === FORMATS.OPENAI && sourceFormat === FORMATS.CLAUDE) {
-    return openAICompletionToClaudeMessage(responseBody);
-  }
-  if (targetFormat === FORMATS.OPENAI) return responseBody;
+  // Provider responded in OpenAI Chat Completions shape — convert to the
+  // client's format so tool_calls/text surface natively.
+  if (targetFormat === FORMATS.OPENAI)
+    return openAICompletionToClientFormat(responseBody, sourceFormat, customToolNames);
 
   // Gemini / Antigravity
   if (
@@ -225,8 +82,9 @@ export function translateNonStreamingResponse(
     if (toolCalls.length > 0) message.tool_calls = toolCalls;
     if (!message.content && !message.tool_calls) message.content = "";
 
-    let finishReason = (candidate.finishReason || "stop").toLowerCase();
-    if (finishReason === "stop" && toolCalls.length > 0) finishReason = "tool_calls";
+    let finishReason = toOpenAIFinish(candidate.finishReason || GEMINI_FINISH.STOP, "gemini");
+    if (finishReason === OPENAI_FINISH.STOP && toolCalls.length > 0)
+      finishReason = OPENAI_FINISH.TOOL_CALLS;
 
     const result = {
       id: `chatcmpl-${response.responseId || Date.now()}`,
@@ -242,11 +100,15 @@ export function translateNonStreamingResponse(
         completion_tokens: usage.candidatesTokenCount || 0,
         total_tokens: usage.totalTokenCount || 0,
       };
+      // promptTokenCount already includes cachedContentTokenCount.
+      if (usage.cachedContentTokenCount > 0) {
+        result.usage.prompt_tokens_details = { cached_tokens: usage.cachedContentTokenCount };
+      }
       if (usage.thoughtsTokenCount > 0) {
         result.usage.completion_tokens_details = { reasoning_tokens: usage.thoughtsTokenCount };
       }
     }
-    return result;
+    return openAICompletionToClientFormat(result, sourceFormat, customToolNames);
   }
 
   // Claude
@@ -255,13 +117,13 @@ export function translateNonStreamingResponse(
     // missing/null (e.g. M3 with max_tokens:1 spends the budget on thinking
     // and returns `content: null`). Returning the raw body would leave the
     // OpenAI client without a `choices` array and surface as a UI test error.
-    // Early return if the response is already in OpenAI format (has choices array)
-    // or if it has content as a non-array value (likely a different non-Claude format).
     // Some providers (e.g. xiaomi-tokenplan) return OpenAI-format responses even when
-    // the request was translated to Claude format — the targetFormat is Claude but the
-    // actual response is OpenAI-native and needs no further translation.
-    if (responseBody.choices || (responseBody.content && !Array.isArray(responseBody.content)))
-      return responseBody;
+    // the request was translated to Claude format. Convert that actual OpenAI response
+    // into the client's format. A non-array content value likely belongs to a different
+    // non-Claude format and stays unchanged.
+    if (responseBody.choices)
+      return openAICompletionToClientFormat(responseBody, sourceFormat, customToolNames);
+    if (responseBody.content && !Array.isArray(responseBody.content)) return responseBody;
 
     let textContent = "",
       thinkingContent = "";
@@ -289,9 +151,7 @@ export function translateNonStreamingResponse(
     if (toolCalls.length > 0) message.tool_calls = toolCalls;
     if (!message.content && !message.tool_calls) message.content = "";
 
-    let finishReason = responseBody.stop_reason || "stop";
-    if (finishReason === "end_turn") finishReason = "stop";
-    if (finishReason === "tool_use") finishReason = "tool_calls";
+    const finishReason = toOpenAIFinish(responseBody.stop_reason, "claude");
 
     const result = {
       id: `chatcmpl-${responseBody.id || Date.now()}`,
@@ -302,22 +162,94 @@ export function translateNonStreamingResponse(
     };
 
     if (responseBody.usage) {
+      // Anthropic input_tokens EXCLUDES cache; OpenAI prompt_tokens includes it.
+      const usage = responseBody.usage;
+      const cacheRead = usage.cache_read_input_tokens || 0;
+      const cacheCreate = usage.cache_creation_input_tokens || 0;
+      const promptTokens = (usage.input_tokens || 0) + cacheRead + cacheCreate;
+      const completionTokens = usage.output_tokens || 0;
       result.usage = {
-        prompt_tokens: responseBody.usage.input_tokens || 0,
-        completion_tokens: responseBody.usage.output_tokens || 0,
-        total_tokens:
-          (responseBody.usage.input_tokens || 0) + (responseBody.usage.output_tokens || 0),
+        prompt_tokens: promptTokens,
+        completion_tokens: completionTokens,
+        total_tokens: promptTokens + completionTokens,
       };
+      if (cacheRead > 0 || cacheCreate > 0) {
+        result.usage.prompt_tokens_details = {
+          ...(cacheRead > 0 ? { cached_tokens: cacheRead } : {}),
+          ...(cacheCreate > 0 ? { cache_creation_tokens: cacheCreate } : {}),
+        };
+      }
     }
-    return result;
+    return openAICompletionToClientFormat(result, sourceFormat, customToolNames);
   }
 
   // Ollama
   if (targetFormat === FORMATS.OLLAMA) {
-    return ollamaBodyToOpenAI(responseBody);
+    return openAICompletionToClientFormat(
+      ollamaBodyToOpenAI(responseBody),
+      sourceFormat,
+      customToolNames,
+    );
   }
 
   return responseBody;
+}
+
+/**
+ * Summarize a client-format body for the request-detail log. The pivot is an
+ * OpenAI chat.completion, but the logged `translatedResponse` is already the
+ * client format (Claude message / Responses body / chat.completion).
+ */
+function summarizeClientResponse(body) {
+  if (body?.choices?.[0]) {
+    const message = body.choices[0].message || {};
+    return {
+      content: message.content || null,
+      thinking: message.reasoning_content || null,
+      finish_reason: body.choices[0].finish_reason || "unknown",
+    };
+  }
+  // Claude message: content blocks (+ top-level stop_reason).
+  if (body?.type === "message" && Array.isArray(body.content)) {
+    const text = body.content
+      .filter((block) => block?.type === CLAUDE_BLOCK.TEXT && block.text)
+      .map((block) => block.text)
+      .join("");
+    const thinking = body.content
+      .filter((block) => block?.type === CLAUDE_BLOCK.THINKING && block.thinking)
+      .map((block) => block.thinking)
+      .join("");
+    return {
+      content: text || null,
+      thinking: thinking || null,
+      finish_reason: body.stop_reason || "unknown",
+    };
+  }
+  // Responses body: message items hold output_text, reasoning items hold summary.
+  if (body?.object === "response" && Array.isArray(body.output)) {
+    const text = body.output
+      .filter((item) => item?.type === RESPONSES_ITEM.MESSAGE && Array.isArray(item.content))
+      .flatMap((item) => item.content)
+      .filter((part) => part?.type === RESPONSES_ITEM.OUTPUT_TEXT && part.text)
+      .map((part) => part.text)
+      .join("");
+    const thinking = body.output
+      .filter((item) => item?.type === RESPONSES_ITEM.REASONING && Array.isArray(item.summary))
+      .flatMap((item) => item.summary)
+      .filter((part) => part?.type === RESPONSES_ITEM.SUMMARY_TEXT && part.text)
+      .map((part) => part.text)
+      .join("");
+    return {
+      content: text || null,
+      thinking: thinking || null,
+      finish_reason: body.status || "unknown",
+    };
+  }
+  return {
+    content: body?.content || null,
+    thinking: body?.reasoning_content || null,
+    finish_reason: body?.finish_reason || "unknown",
+  };
 }
 
 /**
@@ -478,17 +410,7 @@ export async function handleNonStreamingResponse({
         request: extractRequestConfig(body, stream),
         providerRequest: finalBody || translatedBody || null,
         providerResponse: responseBody || null,
-        response: {
-          content:
-            translatedResponse?.choices?.[0]?.message?.content ||
-            translatedResponse?.content ||
-            null,
-          thinking:
-            translatedResponse?.choices?.[0]?.message?.reasoning_content ||
-            translatedResponse?.reasoning_content ||
-            null,
-          finish_reason: translatedResponse?.choices?.[0]?.finish_reason || "unknown",
-        },
+        response: summarizeClientResponse(translatedResponse),
         pxpipe,
         status: "success",
       },
