@@ -12,6 +12,7 @@ import {
 } from "@/shared/constants/coworkPlugins";
 import { UPDATER_CONFIG } from "@/shared/constants/config";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
+import { configErrorResponse, readJsonConfig } from "@/lib/cliToolConfig";
 
 const APP_PORT = UPDATER_CONFIG.appPort;
 const CLI_TOKEN_HEADER = "x-9r-cli-token";
@@ -122,17 +123,9 @@ const get1pRoot = () => {
 
 const get1pConfigPath = () => path.join(get1pRoot(), "claude_desktop_config.json");
 
-const read1pConfig = async () => {
-  try {
-    const content = await fs.readFile(get1pConfigPath(), "utf-8");
-    // Tolerate JSONC (trailing commas) and treat unparseable files as empty config
-    // rather than throwing a 500 that the UI misreads as "tool not installed".
-    const stripped = content.replace(/,(\s*[}\]])/g, "$1");
-    return JSON.parse(stripped) || {};
-  } catch (error) {
-    return {};
-  }
-};
+// Missing file: {} so writes can proceed. Unparseable: throws so write paths
+// surface it instead of silently overwriting the user's config.
+const read1pConfig = async () => (await readJsonConfig(get1pConfigPath())) || {};
 
 const write1pConfig = async (cfg) => {
   await fs.mkdir(get1pRoot(), { recursive: true });
@@ -208,23 +201,20 @@ const checkInstalled = async () => {
   return false;
 };
 
+// Tolerant status reader (GET): unparseable = null. Write paths use readJsonConfig.
 const readJson = async (filePath) => {
   try {
-    const content = await fs.readFile(filePath, "utf-8");
-    // Tolerate JSONC (trailing commas) and treat unparseable files as "no config"
-    // rather than throwing a 500 that the UI misreads as "tool not installed".
-    const stripped = content.replace(/,(\s*[}\]])/g, "$1");
-    return JSON.parse(stripped);
-  } catch (error) {
+    return await readJsonConfig(filePath);
+  } catch {
     return null;
   }
 };
 
 const ensureMeta = async () => {
   const writeMetaPath = getWriteMetaPath();
-  let meta = await readJson(writeMetaPath);
+  let meta = await readJsonConfig(writeMetaPath);
   if (!meta || !meta.appliedId) {
-    const existingRead = await readJson(await getMetaPath());
+    const existingRead = await readJsonConfig(await getMetaPath());
     if (existingRead?.appliedId) {
       meta = existingRead;
     } else {
@@ -240,11 +230,11 @@ const ensureMeta = async () => {
 // Auto-skip approvals for every managed server (no per-tool prompts).
 async function writeSkipApprovals(managedServers) {
   const cfgPath = path.join(getWriteRoot(), "config.json");
-  let cfg = {};
+  let cfg;
   try {
-    cfg = JSON.parse(await fs.readFile(cfgPath, "utf-8")) || {};
+    cfg = (await readJsonConfig(cfgPath)) || {};
   } catch (e) {
-    if (e.code !== "ENOENT") return { error: e.code };
+    return { error: e.code || e.message };
   }
   const skip = {};
   for (const srv of managedServers) {
@@ -417,6 +407,8 @@ export async function POST(request) {
       localMcp: localMcpResult,
     });
   } catch (error) {
+    const res = configErrorResponse(error);
+    if (res) return res;
     console.log("Error applying cowork settings:", error);
     return NextResponse.json({ error: "Failed to apply cowork settings" }, { status: 500 });
   }
@@ -424,7 +416,7 @@ export async function POST(request) {
 
 export async function DELETE() {
   try {
-    const meta = await readJson(await getMetaPath());
+    const meta = await readJsonConfig(await getMetaPath());
     if (!meta?.appliedId) {
       return NextResponse.json({ success: true, message: "No active config to reset" });
     }
@@ -446,6 +438,8 @@ export async function DELETE() {
     }
     return NextResponse.json({ success: true, message: "Cowork config reset" });
   } catch (error) {
+    const res = configErrorResponse(error);
+    if (res) return res;
     console.log("Error resetting cowork settings:", error);
     return NextResponse.json({ error: "Failed to reset cowork settings" }, { status: 500 });
   }

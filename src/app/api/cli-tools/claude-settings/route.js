@@ -7,6 +7,7 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 import { DEFAULT_PLUGINS } from "@/shared/constants/coworkPlugins";
+import { configErrorResponse, readJsonConfig } from "@/lib/cliToolConfig";
 
 const execAsync = promisify(exec);
 
@@ -35,21 +36,18 @@ const readClaudeJson = async () => {
   }
 };
 
-const writeClaudeJsonMcp = async (mcpServers) => {
+// Reads and updates ~/.claude.json in memory; returns a writer. Split so callers
+// can fail on an unparseable file before writing anything else.
+const prepareClaudeJsonMcp = async (mcpServers) => {
   const filePath = getClaudeJsonPath();
-  let data = {};
-  try {
-    data = JSON.parse(await fs.readFile(filePath, "utf-8"));
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-  }
+  const data = (await readJsonConfig(filePath)) ?? {};
   if (mcpServers && Object.keys(mcpServers).length > 0) {
     data.mcpServers = { ...(data.mcpServers || {}), ...mcpServers };
   } else if (data.mcpServers) {
     delete data.mcpServers.exa;
     if (Object.keys(data.mcpServers).length === 0) delete data.mcpServers;
   }
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+  return () => fs.writeFile(filePath, JSON.stringify(data, null, 2));
 };
 
 // Check if claude CLI is installed (via which/where or config file exists)
@@ -119,7 +117,8 @@ export async function GET() {
 // POST - Backup old fields and write new settings
 export async function POST(request) {
   try {
-    const { env, exaMcpEnabled, autoCompactWindow } = await request.json();
+    const body = await request.json();
+    const { env, exaMcpEnabled, autoCompactWindow } = body;
 
     if (!env || typeof env !== "object") {
       return NextResponse.json({ error: "Invalid env object" }, { status: 400 });
@@ -131,16 +130,8 @@ export async function POST(request) {
     // Ensure .claude directory exists
     await fs.mkdir(claudeDir, { recursive: true });
 
-    // Read current settings
-    let currentSettings = {};
-    try {
-      const content = await fs.readFile(settingsPath, "utf-8");
-      currentSettings = JSON.parse(content);
-    } catch (error) {
-      if (error.code !== "ENOENT") {
-        throw error;
-      }
-    }
+    // Read current settings (unparseable file → 422, left untouched)
+    const currentSettings = (await readJsonConfig(settingsPath)) ?? {};
 
     // Normalize ANTHROPIC_BASE_URL to ensure /v1 suffix
     if (env.ANTHROPIC_BASE_URL) {
@@ -161,20 +152,27 @@ export async function POST(request) {
 
     // CLAUDE_CODE_AUTO_COMPACT_WINDOW — the token threshold that triggers
     // auto-compact. Only set when a concrete value is chosen; "Default" removes
-    // the key so Claude Code derives the window from the model.
-    if (autoCompactWindow) {
-      newSettings.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW = String(autoCompactWindow);
-    } else {
-      delete newSettings.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
+    // the key so Claude Code derives the window from the model. Omitted field
+    // (e.g. terminal UI posts only env) leaves the key as-is.
+    if ("autoCompactWindow" in body) {
+      if (autoCompactWindow) {
+        newSettings.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW = String(autoCompactWindow);
+      } else {
+        delete newSettings.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW;
+      }
     }
+
+    // Exa MCP toggle — ~/.claude.json (CLI reads mcpServers from here). Prepared
+    // before any write so an unparseable file aborts without a partial apply.
+    // Omitted field leaves the existing MCP entry untouched.
+    const writeMcp =
+      EXA_PLUGIN && "exaMcpEnabled" in body
+        ? await prepareClaudeJsonMcp(exaMcpEnabled ? { exa: buildExaMcpEntry() } : null)
+        : null;
 
     // Write new settings
     await fs.writeFile(settingsPath, JSON.stringify(newSettings, null, 2));
-
-    // Exa MCP toggle — write to ~/.claude.json (CLI reads mcpServers from here).
-    if (EXA_PLUGIN) {
-      await writeClaudeJsonMcp(exaMcpEnabled ? { exa: buildExaMcpEntry() } : null);
-    }
+    if (writeMcp) await writeMcp();
 
     return NextResponse.json({
       success: true,
@@ -182,6 +180,8 @@ export async function POST(request) {
     });
   } catch (error) {
     console.log("Error updating claude settings:", error);
+    const parseError = configErrorResponse(error);
+    if (parseError) return parseError;
     return NextResponse.json({ error: "Failed to update claude settings" }, { status: 500 });
   }
 }
@@ -203,18 +203,12 @@ export async function DELETE() {
     const settingsPath = getClaudeSettingsPath();
 
     // Read current settings
-    let currentSettings = {};
-    try {
-      const content = await fs.readFile(settingsPath, "utf-8");
-      currentSettings = JSON.parse(content);
-    } catch (error) {
-      if (error.code === "ENOENT") {
-        return NextResponse.json({
-          success: true,
-          message: "No settings file to reset",
-        });
-      }
-      throw error;
+    const currentSettings = await readJsonConfig(settingsPath);
+    if (!currentSettings) {
+      return NextResponse.json({
+        success: true,
+        message: "No settings file to reset",
+      });
     }
 
     // Remove specified env fields
@@ -230,7 +224,7 @@ export async function DELETE() {
     }
 
     // Remove injected MCP servers (Exa) from ~/.claude.json
-    await writeClaudeJsonMcp(null);
+    await (await prepareClaudeJsonMcp(null))();
 
     // Write updated settings
     await fs.writeFile(settingsPath, JSON.stringify(currentSettings, null, 2));
@@ -241,6 +235,8 @@ export async function DELETE() {
     });
   } catch (error) {
     console.log("Error resetting claude settings:", error);
+    const parseError = configErrorResponse(error);
+    if (parseError) return parseError;
     return NextResponse.json({ error: "Failed to reset claude settings" }, { status: 500 });
   }
 }
