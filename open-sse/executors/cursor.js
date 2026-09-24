@@ -71,7 +71,9 @@ export function isAgentCapableRequest(body) {
   return Array.isArray(body?.messages) && body.messages.length > 0;
 }
 
-function encodeHistoryMessage(message) {
+// One prior turn as transcript text, with tool calls/results kept inline so
+// the model can see what it already ran and what came back.
+function renderHistoryMessage(message) {
   const content = textFromContent(message?.content);
   const extras = [];
   if (message?.role === ROLE.ASSISTANT && message.tool_calls?.length) {
@@ -86,13 +88,18 @@ function encodeHistoryMessage(message) {
   }
   const textBody = [content, ...extras].filter(Boolean).join("\n");
   if (!textBody) return null;
+  const speaker = message.role === ROLE.ASSISTANT ? "Assistant" : "User";
+  return `${speaker}:\n${textBody}`;
+}
 
-  // ConversationHistoryMessage.user / .assistant -> repeated content -> text.
-  const text = agentString(1, textBody);
-  if (message.role === ROLE.ASSISTANT) {
-    return agentMessage(2, agentMessage(1, agentMessage(1, text)));
-  }
-  return agentMessage(1, agentMessage(1, agentMessage(1, text)));
+// AgentService has no inline history channel for a stateless request:
+// UserMessageAction defines no history field (unknown fields are dropped) and
+// ConversationStateStructure.turns holds server-side blob references, not
+// inline turns. Fold the transcript into the current message so the model
+// still sees the task, earlier tool calls and their results (YAN-248).
+function renderConversationHistory(history) {
+  if (!history.length) return "";
+  return `<conversation_history>\n${history.join("\n\n")}\n</conversation_history>\n\nLatest message:\n`;
 }
 
 export function buildAgentRunFrame(messages, model, tools = [], { images = [] } = {}) {
@@ -112,7 +119,7 @@ export function buildAgentRunFrame(messages, model, tools = [], { images = [] } 
   // replayed into the current turn and marked [image N=M ref] here.
   const history = chatMessages
     .slice(0, currentIndex >= 0 ? currentIndex : -1)
-    .map(encodeHistoryMessage)
+    .map(renderHistoryMessage)
     .filter(Boolean);
   const rawUser = textFromContent(current?.content) || "Continue.";
   const allImages = images;
@@ -129,10 +136,10 @@ export function buildAgentRunFrame(messages, model, tools = [], { images = [] } 
         .join("\n")}`
     : "";
   const preamble = [system, AGENT_ENVIRONMENT_NOTE].filter(Boolean).join("\n\n");
-  const userText = `${preamble}\n\n${rawUser}${imageRefs}`;
+  const userText = `${preamble}\n\n${renderConversationHistory(history)}${rawUser}${imageRefs}`;
   const selectedContext = encodeSelectedContextImages(allImages);
 
-  // agent.v1.UserMessageAction.user_message and its optional history.
+  // agent.v1.UserMessageAction.user_message.
   // selected_context (3) + mode=1 (4) match cursor-agent's wire format; without
   // them the server may accept the RPC and stream an empty turn.
   const userMessage = concatArrays(
@@ -141,13 +148,7 @@ export function buildAgentRunFrame(messages, model, tools = [], { images = [] } 
     agentMessage(3, selectedContext),
     encodeField(4, PROTOBUF_VARINT, 1),
   );
-  const conversationHistory = history.length
-    ? concatArrays(...history.map((entry) => agentMessage(1, entry)))
-    : null;
-  const userAction = concatArrays(
-    agentMessage(1, userMessage),
-    ...(conversationHistory ? [agentMessage(7, conversationHistory)] : []),
-  );
+  const userAction = agentMessage(1, userMessage);
   const conversationAction = agentMessage(1, userAction);
   const requestedModel = concatArrays(agentString(1, model), agentBool(7, true));
   // ModelDetails (field 3): thinking variants (Composer, Grok, *-thinking)

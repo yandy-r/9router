@@ -12,6 +12,7 @@ import {
   encodeMcpResultToolNotFound,
 } from "../../open-sse/utils/cursorProtobuf.js";
 import { isAgentCapableRequest, buildAgentRunFrame } from "../../open-sse/executors/cursor.js";
+import { convertMessages } from "../../open-sse/translator/request/openai-to-cursor.js";
 
 // AgentService (agent.v1) codec tests — validate the production implementation
 // in cursorProtobuf.js + the executor's frame builders. Pure round-trip, no network.
@@ -326,7 +327,18 @@ describe("Cursor AgentService executor helpers (cursor.js)", () => {
       expect(run.has(4)).toBe(false);
     });
 
-    it("encodes conversation_history from prior turns including tool calls/results", () => {
+    // YAN-248: UserMessageAction defines only fields 1-3, so history sent in
+    // an extra field was silently dropped and the model saw one message.
+    const userActionOf = (messages) => {
+      const run = decodeMessage(
+        decodeMessage(unwrap(buildAgentRunFrame(messages, "gpt-5.2", []))).get(1)[0].value,
+      );
+      return decodeMessage(decodeMessage(run.get(2)[0].value).get(1)[0].value);
+    };
+    const userTextOf = (userAction) =>
+      Buffer.from(decodeMessage(userAction.get(1)[0].value).get(1)[0].value).toString("utf8");
+
+    it("folds prior turns, tool calls and tool results into the current user text", () => {
       const messages = [
         { role: "user", content: "weather in Tokyo?" },
         {
@@ -343,13 +355,47 @@ describe("Cursor AgentService executor helpers (cursor.js)", () => {
         { role: "tool", tool_call_id: "c1", content: "18C cloudy" },
         { role: "user", content: "thanks" },
       ];
-      const frame = unwrap(buildAgentRunFrame(messages, "gpt-5.2", []));
-      const run = decodeMessage(decodeMessage(frame).get(1)[0].value);
-      const action = decodeMessage(run.get(2)[0].value);
-      const userAction = decodeMessage(action.get(1)[0].value);
-      expect(userAction.has(7)).toBe(true); // conversation_history (field 7)
-      const history = decodeMessage(userAction.get(7)[0].value);
-      expect(history.get(1).length).toBeGreaterThanOrEqual(2); // prior turns
+      const userAction = userActionOf(messages);
+      expect([...userAction.keys()]).toEqual([1]); // only fields the proto defines
+      const text = userTextOf(userAction);
+      expect(text).toContain("<conversation_history>");
+      expect(text).toContain("User:\nweather in Tokyo?");
+      expect(text).toContain('[tool_call id=c1 name=get_weather args={"city":"Tokyo"}]');
+      expect(text).toContain("18C cloudy\n[tool_result id=c1]");
+      expect(text.indexOf("</conversation_history>")).toBeLessThan(text.indexOf("thanks"));
+      expect(text.trimEnd().endsWith("thanks")).toBe(true);
+    });
+
+    it("keeps the task and system prompt visible on a translated tool-loop turn", () => {
+      // Real path: openai→cursor turns tool results into user turns, so the
+      // latest tool result is the current message and the task is history.
+      const translated = convertMessages([
+        { role: "system", content: "Start every report with 'Pelican report'." },
+        { role: "developer", content: "Stay read-only." },
+        { role: "user", content: "Count the JS files in src/." },
+        {
+          role: "assistant",
+          content: null,
+          tool_calls: [
+            { id: "c1", type: "function", function: { name: "shell", arguments: '{"cmd":"ls"}' } },
+          ],
+        },
+        { role: "tool", tool_call_id: "c1", content: "index.js\nrouter.js" },
+      ]);
+      const text = userTextOf(userActionOf(translated));
+      const history = text.slice(text.indexOf("<conversation_history>"));
+      expect(text.indexOf("Pelican report")).toBeLessThan(text.indexOf("<conversation_history>"));
+      expect(text.indexOf("Stay read-only.")).toBeLessThan(text.indexOf("<conversation_history>"));
+      expect(history).toContain("User:\nCount the JS files in src/.");
+      expect(history).toContain("name=shell");
+      expect(text.slice(text.indexOf("Latest message:"))).toContain("index.js\nrouter.js");
+    });
+
+    it("sends no history block for a single-turn request", () => {
+      const text = userTextOf(userActionOf([{ role: "user", content: "hi" }]));
+      expect(text).not.toContain("<conversation_history>");
+      expect(text).not.toContain("Latest message:");
+      expect(text.trimEnd().endsWith("hi")).toBe(true);
     });
   });
 });
