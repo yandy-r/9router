@@ -101,6 +101,7 @@ function execWithPassword(command, password) {
       stderr += d;
     });
 
+    child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) resolve(stdout);
       else reject(new Error(stderr || `Exit code ${code}`));
@@ -111,6 +112,23 @@ function execWithPassword(command, password) {
       child.stdin.end();
     }
   });
+}
+
+/**
+ * Overwrite the hosts file (macOS/Linux) via a private temp file, so the
+ * command line stays small regardless of hosts size (inlining it hits E2BIG).
+ * `cat >` keeps the inode, owner and mode, and follows the macOS symlink.
+ */
+async function writeHostsFile(content, sudoPassword) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "9router-hosts-"));
+  try {
+    const tmp = path.join(dir, "hosts");
+    fs.writeFileSync(tmp, content, { mode: 0o600 });
+    const quoted = tmp.replace(/'/g, "'\\''");
+    await execWithPassword(`cat '${quoted}' > ${HOSTS_FILE}`, sudoPassword);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 /**
@@ -190,12 +208,7 @@ async function addDNSEntry(tool, sudoPassword) {
       const trimmed = current.replace(/[\r\n\s]+$/g, "");
       const toAppend = entriesToAdd.map((h) => `127.0.0.1 ${h}`).join("\n");
       const next = `${trimmed}\n${toAppend}\n`;
-      // Use tee via sudo to overwrite atomically — escape single quotes in content
-      const escaped = next.replace(/'/g, "'\\''");
-      await execWithPassword(
-        `printf '%s' '${escaped}' | tee ${HOSTS_FILE} > /dev/null`,
-        sudoPassword,
-      );
+      await writeHostsFile(next, sudoPassword);
       await flushDNS(sudoPassword);
     }
     log(`🌐 DNS ${tool}: ✅ added ${entriesToAdd.join(", ")}`);
@@ -237,11 +250,7 @@ async function removeDNSEntry(tool, sudoPassword) {
         .filter((l) => !entriesToRemove.some((h) => l.includes(h)))
         .join("\n");
       const next = filtered.replace(/[\r\n\s]+$/g, "") + "\n";
-      const escaped = next.replace(/'/g, "'\\''");
-      await execWithPassword(
-        `printf '%s' '${escaped}' | tee ${HOSTS_FILE} > /dev/null`,
-        sudoPassword,
-      );
+      await writeHostsFile(next, sudoPassword);
       await flushDNS(sudoPassword);
     }
     log(`🌐 DNS ${tool}: ✅ removed ${entriesToRemove.join(", ")}`);

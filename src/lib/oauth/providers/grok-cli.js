@@ -1,5 +1,9 @@
 import { GROK_CLI_CONFIG } from "../constants/oauth.js";
-import { decodeXaiIdTokenEmail, extractEmailFromAccessToken } from "../providerHelpers.js";
+import {
+  decodeXaiIdTokenEmail,
+  extractEmailFromAccessToken,
+  readTokenResponse,
+} from "../providerHelpers.js";
 
 // Grok CLI / Grok Build — device code flow to auth.x.ai, inference on cli-chat-proxy.grok.com
 const grokCli = {
@@ -45,13 +49,7 @@ const grokCli = {
       }),
     });
 
-    let data;
-    try {
-      data = await response.json();
-    } catch {
-      const text = await response.text();
-      data = { error: "invalid_response", error_description: text };
-    }
+    const data = await readTokenResponse(response);
 
     // Device flow: 400 + authorization_pending is expected while user authorizes
     const pending = data?.error === "authorization_pending" || data?.error === "slow_down";

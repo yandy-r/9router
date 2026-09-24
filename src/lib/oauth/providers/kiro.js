@@ -1,5 +1,5 @@
 import { KIRO_CONFIG, assertValidAwsRegion } from "../constants/oauth.js";
-import { extractEmailFromAccessToken } from "../providerHelpers.js";
+import { extractEmailFromAccessToken, readTokenResponse } from "../providerHelpers.js";
 
 const kiro = {
   config: KIRO_CONFIG,
@@ -93,13 +93,7 @@ const kiro = {
       }),
     });
 
-    let data;
-    try {
-      data = await response.json();
-    } catch (e) {
-      const text = await response.text();
-      data = { error: "invalid_response", error_description: text };
-    }
+    const data = await readTokenResponse(response);
 
     // AWS SSO OIDC returns camelCase
     if (data.accessToken) {

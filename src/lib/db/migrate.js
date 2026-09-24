@@ -24,8 +24,29 @@ export class MigrationAborted extends Error {
   }
 }
 
-// Insert rows one-by-one, collect failures, then assert COUNT(*) matches input length.
-function importWithAssertion(adapter, tableName, rows, insertFn, rowMeta) {
+// Keep the first row per id and per UNIQUE column. INSERT OR REPLACE would
+// otherwise silently delete the earlier row and trip the row-count assertion.
+function dedupeRows(rows, uniqueCols, rowMeta, skipped) {
+  const seen = Object.fromEntries(uniqueCols.map((c) => [c, new Set()]));
+  return rows.filter((row) => {
+    const dup = uniqueCols.find((c) => row?.[c] != null && seen[c].has(row[c]));
+    if (dup) {
+      skipped.push({ ...rowMeta(row), reason: `duplicate ${dup}` });
+      return false;
+    }
+    for (const c of uniqueCols) if (row?.[c] != null) seen[c].add(row[c]);
+    return true;
+  });
+}
+
+// Insert rows one-by-one, collect failures, then assert COUNT(*) matches the
+// deduped input length.
+function importWithAssertion(adapter, tableName, allRows, insertFn, rowMeta, uniqueCols = ["id"]) {
+  const skipped = [];
+  const rows = dedupeRows(allRows, uniqueCols, rowMeta, skipped);
+  if (skipped.length) {
+    console.warn(`[DB][migrate] ${tableName}: skipped duplicate rows:`, skipped);
+  }
   const dropped = [];
   for (const row of rows) {
     try {
@@ -64,6 +85,22 @@ function isFreshDb(adapter) {
   } catch {
     return true;
   }
+}
+
+// Tables the legacy import fills. If the user already created data here (e.g.
+// after an aborted import), importing would merge/overwrite it, so skip.
+const LEGACY_ENTITY_TABLES = [
+  "providerConnections",
+  "providerNodes",
+  "proxyPools",
+  "apiKeys",
+  "combos",
+];
+
+function legacyTablesEmpty(adapter) {
+  return LEGACY_ENTITY_TABLES.every(
+    (t) => (adapter.get(`SELECT COUNT(*) as c FROM ${t}`)?.c ?? 0) === 0,
+  );
 }
 
 // ─── Versioned migrations runner (skip-version safe) ─────────────────────
@@ -230,6 +267,7 @@ function importLegacyMain(adapter, data) {
       );
     },
     (k) => ({ id: k.id ?? null, name: k.name ?? null }),
+    ["id", "key"],
   );
 
   importWithAssertion(
@@ -250,6 +288,7 @@ function importLegacyMain(adapter, data) {
       );
     },
     (c) => ({ id: c.id ?? null, name: c.name ?? null }),
+    ["id", "name"],
   );
 
   for (const [alias, model] of Object.entries(data.modelAliases || {})) {
@@ -382,18 +421,24 @@ export async function runMigrationOnce(adapter) {
   // Stamp the schema version we just reached so future boots skip re-backup.
   setMetaSync(adapter, "backupSchemaVersion", SCHEMA_VERSION);
 
-  // 3. One-time legacy JSON import (only if DB was fresh on entry)
-  const alreadyImported = fs.existsSync(MIGRATED_MARKER);
+  // 3. One-time legacy JSON import. Gated on "never imported + entity tables
+  // empty" rather than "fresh on entry": schemaVersion is stamped above, outside
+  // the import transaction, so an aborted import must still retry next boot.
+  const alreadyImported =
+    fs.existsSync(MIGRATED_MARKER) || !!getMetaSync(adapter, "migratedAt", null);
   const legacyMain = readJsonSafe(LEGACY_FILES.main);
   const legacyUsage = readJsonSafe(LEGACY_FILES.usage);
   const legacyDisabled = readJsonSafe(LEGACY_FILES.disabled);
   const legacyDetails = readJsonSafe(LEGACY_FILES.details);
   const hasLegacy = !!(legacyMain || legacyUsage || legacyDisabled || legacyDetails);
 
-  if (fresh && hasLegacy && !alreadyImported) {
+  if (hasLegacy && !alreadyImported && legacyTablesEmpty(adapter)) {
     const t0 = Date.now();
     const backupDir = makeBackupDir("migrate-from-json");
     for (const f of Object.values(LEGACY_FILES)) backupFile(f, backupDir);
+    // Retry after an earlier abort: settings/kv the user edited since then get
+    // overwritten by the import, so keep a copy of the current DB too.
+    if (!fresh) backupDbLite(adapter, backupDir);
 
     try {
       adapter.transaction(() => {

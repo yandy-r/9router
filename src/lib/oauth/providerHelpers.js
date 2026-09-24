@@ -88,7 +88,20 @@ export function extractCodexAccountInfo(idToken) {
   };
 }
 
+// Parse a device-code token response. The body is read once as text: calling
+// json() then text() on a non-JSON body (e.g. a 502 HTML page) throws
+// "Body has already been read".
+async function readTokenResponse(response) {
+  const text = await response.text();
+  try {
+    const data = JSON.parse(text);
+    if (data && typeof data === "object") return data;
+  } catch {}
+  return { error: "invalid_response", error_description: text.slice(0, 500) };
+}
+
 export {
+  readTokenResponse,
   BASE64_BLOCK_SIZE,
   validateXaiOAuthEndpoint,
   decodeXaiIdTokenEmail,

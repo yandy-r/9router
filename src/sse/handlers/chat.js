@@ -49,6 +49,12 @@ export async function handleChat(request, clientRawRequest = null) {
     log.warn("CHAT", "Invalid JSON body");
     return errorResponse(HTTP_STATUS.BAD_REQUEST, "Invalid JSON body");
   }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return errorResponse(HTTP_STATUS.BAD_REQUEST, "Request body must be a JSON object");
+  }
+  if (body.model !== undefined && typeof body.model !== "string") {
+    return errorResponse(HTTP_STATUS.BAD_REQUEST, "model must be a string");
+  }
 
   // Build clientRawRequest for logging (if not provided)
   if (!clientRawRequest) {

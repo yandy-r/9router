@@ -99,6 +99,57 @@ describe("Schema migrations", () => {
     expect(aliases).toHaveLength(1);
   });
 
+  it("legacy import: duplicate combo names don't abort, and an aborted import retries (YAN-62)", async () => {
+    const dbJson = path.join(tempDir, "db.json");
+    const conn = { id: "c1", provider: "openai", authType: "apikey" };
+    // Missing combo name → NOT NULL failure → MigrationAborted
+    fs.writeFileSync(
+      dbJson,
+      JSON.stringify({ providerConnections: [conn], combos: [{ id: "x0", models: [] }] }),
+    );
+    const { getAdapter } = await import("@/lib/db/driver.js");
+    const db = await getAdapter();
+    expect(db.all(`SELECT * FROM providerConnections`)).toHaveLength(0);
+    db.close?.();
+
+    // User fixes db.json (duplicate names are now tolerated) and restarts
+    fs.writeFileSync(
+      dbJson,
+      JSON.stringify({
+        providerConnections: [conn],
+        combos: [
+          { id: "x1", name: "fast", models: [] },
+          { id: "x2", name: "fast", models: [] },
+        ],
+      }),
+    );
+    delete global._dbAdapter;
+    vi.resetModules();
+    const { getAdapter: getAdapter2 } = await import("@/lib/db/driver.js");
+    const db2 = await getAdapter2();
+    expect(db2.all(`SELECT id FROM providerConnections`)).toEqual([{ id: "c1" }]);
+    expect(db2.all(`SELECT id FROM combos`)).toEqual([{ id: "x1" }]);
+  });
+
+  it("legacy import is skipped when the DB already holds user data (YAN-62)", async () => {
+    const { getAdapter } = await import("@/lib/db/driver.js");
+    const db = await getAdapter();
+    db.run(
+      `INSERT INTO combos(id, name, models, createdAt, updatedAt) VALUES('mine', 'mine', '[]', 'x', 'x')`,
+    );
+    db.close?.();
+
+    fs.writeFileSync(
+      path.join(tempDir, "db.json"),
+      JSON.stringify({ combos: [{ id: "legacy", name: "legacy", models: [] }] }),
+    );
+    delete global._dbAdapter;
+    vi.resetModules();
+    const { getAdapter: getAdapter2 } = await import("@/lib/db/driver.js");
+    const db2 = await getAdapter2();
+    expect(db2.all(`SELECT id FROM combos`)).toEqual([{ id: "mine" }]);
+  });
+
   it("auto-sync re-creates missing index when DB lacks it", async () => {
     const { getAdapter } = await import("@/lib/db/driver.js");
     const db = await getAdapter();
