@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCombos, createCombo, getComboByName } from "@/lib/localDb";
+import { findComboCycle, isModelList } from "open-sse/services/combo.js";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export async function POST(request) {
     }
 
     // Validate name format
-    if (!VALID_NAME_REGEX.test(name)) {
+    if (typeof name !== "string" || !VALID_NAME_REGEX.test(name)) {
       return NextResponse.json(
         { error: "Name can only contain letters, numbers, -, _ and ." },
         { status: 400 },
@@ -39,6 +40,18 @@ export async function POST(request) {
     const existing = await getComboByName(name);
     if (existing) {
       return NextResponse.json({ error: "Combo name already exists" }, { status: 400 });
+    }
+
+    if (models !== undefined && !isModelList(models)) {
+      return NextResponse.json({ error: "Models must be an array of strings" }, { status: 400 });
+    }
+
+    const cycle = findComboCycle(name, models || [], await getCombos());
+    if (cycle) {
+      return NextResponse.json(
+        { error: `Combo cycle detected: ${cycle.join(" → ")}` },
+        { status: 400 },
+      );
     }
 
     const combo = await createCombo({ name, models: models || [], kind: kind || null });

@@ -129,7 +129,7 @@ export async function handleChat(request, clientRawRequest = null) {
             const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
             cleanRawReq = { ...clientRawRequest, body: cleanBody };
           }
-          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey);
+          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, [modelStr]);
         },
         log,
         comboName: modelStr,
@@ -147,7 +147,7 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: augmentedModels,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey),
+        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, [modelStr]),
         adapterAdded,
       ),
       log,
@@ -188,6 +188,12 @@ export async function handleChat(request, clientRawRequest = null) {
 
 /**
  * Handle single model chat request
+ * @param {object} body - Request body
+ * @param {string} modelStr - Model string
+ * @param {object} clientRawRequest - Raw client request for logging
+ * @param {object} request - Request object
+ * @param {string} apiKey - API key
+ * @param {string[]} comboPath - Combo names already on the resolution stack (cycle guard)
  */
 async function handleSingleModelChat(
   body,
@@ -195,6 +201,7 @@ async function handleSingleModelChat(
   clientRawRequest = null,
   request = null,
   apiKey = null,
+  comboPath = [],
 ) {
   const modelInfo = await getModelInfo(modelStr);
 
@@ -202,6 +209,12 @@ async function handleSingleModelChat(
   if (!modelInfo.provider) {
     const comboModels = await getComboModels(modelStr);
     if (comboModels) {
+      if (comboPath.includes(modelStr)) {
+        const cycleMsg = `Combo cycle detected: ${[...comboPath, modelStr].join(" → ")}`;
+        log.warn("CHAT", cycleMsg);
+        return errorResponse(HTTP_STATUS.BAD_REQUEST, cycleMsg);
+      }
+      const nextPath = [...comboPath, modelStr];
       const chatSettings = await getSettings();
       // Check for combo-specific strategy first, fallback to global
       const comboStrategies = chatSettings.comboStrategies || {};
@@ -229,7 +242,7 @@ async function handleSingleModelChat(
               const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
               cleanRawReq = { ...clientRawRequest, body: cleanBody };
             }
-            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey);
+            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, nextPath);
           },
           log,
           comboName: modelStr,
@@ -247,7 +260,7 @@ async function handleSingleModelChat(
         body,
         models: augmentedModels,
         handleSingleModel: withCapacityAdapterStripping(
-          (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey),
+          (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, nextPath),
           adapterAdded,
         ),
         log,

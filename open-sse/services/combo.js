@@ -276,6 +276,43 @@ export function getComboModelsFromData(modelStr, combosData) {
   return null;
 }
 
+/** True when `models` is a valid combo member list (array of strings). */
+export function isModelList(models) {
+  return Array.isArray(models) && models.every((m) => typeof m === "string");
+}
+
+/**
+ * Find a combo reference cycle that passes through `name` once `name` resolves to `models`.
+ * Members without "/" that name another combo are edges (same rule as getComboModels).
+ * @param {string} name - Combo being saved
+ * @param {string[]} models - Its member models
+ * @param {Array<{name:string, models?:string[]}>} combos - Other saved combos (exclude the one being saved)
+ * @returns {string[]|null} Cycle path, e.g. ["a","b","a"], or null
+ */
+export function findComboCycle(name, models, combos) {
+  const graph = new Map(combos.map((c) => [c.name, c.models || []]));
+  graph.set(name, models || []);
+  const seen = new Set();
+  const walk = (node, path) => {
+    for (const m of graph.get(node)) {
+      if (m === name) return [...path, m];
+      if (typeof m !== "string" || !graph.has(m) || seen.has(m)) continue;
+      seen.add(m);
+      const found = walk(m, [...path, m]);
+      if (found) return found;
+    }
+    return null;
+  };
+  return walk(name, [name]);
+}
+
+/** Convert a Retry-After header value to an ISO timestamp. */
+function retryAfterToIso(value) {
+  if (!value) return null;
+  const date = /^\d+$/.test(value) ? new Date(Date.now() + Number(value) * 1000) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 /**
  * Handle combo chat with fallback
  * @param {Object} options
@@ -332,17 +369,16 @@ export async function handleComboChat({
 
       // Extract error info from response
       let errorText = result.statusText || "";
-      let retryAfter = null;
       try {
         const errorBody = await result.clone().json();
         errorText =
           errorBody?.error?.message || errorBody?.error || errorBody?.message || errorText;
-        retryAfter = errorBody?.retryAfter || null;
       } catch {
         // Ignore JSON parse errors
       }
 
-      // Track earliest retryAfter across all combo models
+      // Track earliest Retry-After header across all combo models
+      const retryAfter = retryAfterToIso(result.headers?.get?.("retry-after"));
       if (
         retryAfter &&
         (!earliestRetryAfter || new Date(retryAfter) < new Date(earliestRetryAfter))
@@ -385,12 +421,12 @@ export async function handleComboChat({
 
       // Fallback to next model
       lastError = errorText || String(result.status);
-      if (!lastStatus) lastStatus = result.status;
+      lastStatus = result.status;
       log.warn("COMBO", `Model ${modelStr} failed, trying next`, { status: result.status });
     } catch (error) {
       // Catch unexpected exceptions to ensure fallback continues
       lastError = error.message || String(error);
-      if (!lastStatus) lastStatus = 500;
+      lastStatus = 500;
       log.warn("COMBO", `Model ${modelStr} threw error, trying next`, { error: lastError });
     }
   }

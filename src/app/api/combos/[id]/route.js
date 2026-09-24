@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getComboById, updateCombo, deleteCombo, getComboByName } from "@/lib/localDb";
-import { resetComboRotation } from "open-sse/services/combo.js";
+import { getCombos, getComboById, updateCombo, deleteCombo, getComboByName } from "@/lib/localDb";
+import { findComboCycle, isModelList, resetComboRotation } from "open-sse/services/combo.js";
 
 // Validate combo name: only a-z, A-Z, 0-9, -, _
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_.-]+$/;
@@ -27,10 +27,15 @@ export async function PUT(request, { params }) {
   try {
     const { id } = await params;
     const body = await request.json();
+    // Capture previous name to invalidate rotation state on rename
+    const prev = await getComboById(id);
+    if (!prev) {
+      return NextResponse.json({ error: "Combo not found" }, { status: 404 });
+    }
 
     // Validate name format if provided
-    if (body.name) {
-      if (!VALID_NAME_REGEX.test(body.name)) {
+    if (body.name !== undefined) {
+      if (typeof body.name !== "string" || !VALID_NAME_REGEX.test(body.name)) {
         return NextResponse.json(
           { error: "Name can only contain letters, numbers, -, _ and ." },
           { status: 400 },
@@ -44,8 +49,25 @@ export async function PUT(request, { params }) {
       }
     }
 
-    // Capture previous name to invalidate rotation state on rename
-    const prev = await getComboById(id);
+    if (body.models !== undefined && !isModelList(body.models)) {
+      return NextResponse.json({ error: "Models must be an array of strings" }, { status: 400 });
+    }
+
+    if (body.name !== undefined || body.models !== undefined) {
+      const others = (await getCombos()).filter((c) => c.id !== id);
+      const cycle = findComboCycle(
+        body.name ?? prev.name,
+        body.models ?? prev.models ?? [],
+        others,
+      );
+      if (cycle) {
+        return NextResponse.json(
+          { error: `Combo cycle detected: ${cycle.join(" → ")}` },
+          { status: 400 },
+        );
+      }
+    }
+
     const combo = await updateCombo(id, body);
 
     if (!combo) {
