@@ -168,6 +168,10 @@ async function runHeavyStartup() {
       .catch((e) => console.log("[AutoPing] scheduler start failed:", e.message));
   }
 
+  import("@/shared/services/quotaSnapshotPoller")
+    .then(({ configureQuotaSnapshotPoller }) => configureQuotaSnapshotPoller(settings))
+    .catch((e) => console.log("[QuotaSnapshotPoller] scheduler start failed:", e.message));
+
   // Proactive OAuth token refresh (e.g. grok-cli ~6h TTL). Module is idempotent
   // and also started from custom-server.js when that entry is used.
   import("@/sse/services/backgroundTokenRefresh.js")

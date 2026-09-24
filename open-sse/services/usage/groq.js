@@ -13,31 +13,14 @@
  */
 
 import { proxyAwareFetch } from "../../utils/proxyFetch.js";
-import { U } from "./shared.js";
+import { U, parseDurationToMs } from "./shared.js";
 
 const MODELS_URL = U("groq").url;
 
 // Groq reset headers are Go-style duration strings ("2m59.56s", "7.66s"), not
-// timestamps — parse the h/m/s/ms components and add them to now().
-function parseGroqDurationMs(value) {
-  if (typeof value !== "string" || !value.trim()) return null;
-
-  const re = /(\d+(?:\.\d+)?)(ms|s|m|h)/g;
-  let match;
-  let totalMs = 0;
-  let matched = false;
-  while ((match = re.exec(value))) {
-    matched = true;
-    const amount = Number(match[1]);
-    const unit = match[2];
-    const unitMs = unit === "h" ? 3600000 : unit === "m" ? 60000 : unit === "ms" ? 1 : 1000;
-    totalMs += amount * unitMs;
-  }
-  return matched ? totalMs : null;
-}
-
+// timestamps — parse the duration and add it to now().
 function resetAtFromDuration(value) {
-  const ms = parseGroqDurationMs(value);
+  const ms = parseDurationToMs(value);
   return ms === null ? null : new Date(Date.now() + ms).toISOString();
 }
 
@@ -58,6 +41,27 @@ function buildRateLimitQuota(headers, limitKey, remainingKey, resetKey) {
     total: limit,
     resetAt: resetAtFromDuration(headers.get(resetKey)),
     unlimited: false,
+  };
+}
+
+/**
+ * Requests + tokens quotas from Groq x-ratelimit-* headers (each null when absent).
+ * @param {Headers} headers
+ */
+function buildGroqQuotaWindows(headers) {
+  return {
+    requests: buildRateLimitQuota(
+      headers,
+      "x-ratelimit-limit-requests",
+      "x-ratelimit-remaining-requests",
+      "x-ratelimit-reset-requests",
+    ),
+    tokens: buildRateLimitQuota(
+      headers,
+      "x-ratelimit-limit-tokens",
+      "x-ratelimit-remaining-tokens",
+      "x-ratelimit-reset-tokens",
+    ),
   };
 }
 
@@ -99,18 +103,7 @@ export async function getGroqUsage(apiKey, proxyOptions = null) {
     // connection can be released without needing the payload.
     await response.text().catch(() => {});
 
-    const requests = buildRateLimitQuota(
-      response.headers,
-      "x-ratelimit-limit-requests",
-      "x-ratelimit-remaining-requests",
-      "x-ratelimit-reset-requests",
-    );
-    const tokens = buildRateLimitQuota(
-      response.headers,
-      "x-ratelimit-limit-tokens",
-      "x-ratelimit-remaining-tokens",
-      "x-ratelimit-reset-tokens",
-    );
+    const { requests, tokens } = buildGroqQuotaWindows(response.headers);
 
     if (!requests && !tokens) {
       // Key is valid (request succeeded) but no rate-limit bucket reported —
@@ -123,8 +116,8 @@ export async function getGroqUsage(apiKey, proxyOptions = null) {
     }
 
     const quotas = {};
-    if (requests) quotas["Requests"] = requests;
-    if (tokens) quotas["Tokens"] = tokens;
+    if (requests) quotas.Requests = requests;
+    if (tokens) quotas.Tokens = tokens;
 
     return { plan: "Groq", quotas };
   } catch (error) {

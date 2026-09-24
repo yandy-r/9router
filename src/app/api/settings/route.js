@@ -112,6 +112,21 @@ export async function PATCH(request) {
         .catch((error) => console.warn("[AutoPing] settings update failed:", error.message));
     }
 
+    if (
+      Object.hasOwn(body, "providerStrategies") ||
+      Object.hasOwn(body, "comboStrategies") ||
+      Object.hasOwn(body, "comboStrategy")
+    ) {
+      // Weighted gating changed: start/stop the snapshot backfill poller (YAN-259).
+      import("@/shared/services/quotaSnapshotPoller")
+        .then(({ configureQuotaSnapshotPoller }) => {
+          configureQuotaSnapshotPoller(settings);
+        })
+        .catch((error) =>
+          console.warn("[QuotaSnapshotPoller] settings update failed:", error.message),
+        );
+    }
+
     const { password, oidcClientSecret, ...safeSettings } = settings;
     safeSettings.oidcConfigured = !!(
       safeSettings.oidcIssuerUrl &&

@@ -42,6 +42,13 @@ export function parseResetTime(resetValue) {
   }
 }
 
+/**
+ * Parse a Go-style duration string ("6m0s", "2m59.56s", "7.66s", "1h2m3s500ms")
+ * to milliseconds. The whole string must be consumed; null otherwise.
+ * Canonical implementation (plus ns/us/µs/μs units) lives in ../../utils/duration.js.
+ */
+export { isDurationString, parseDurationToMs } from "../../utils/duration.js";
+
 export function toFiniteNumber(value, fallback = 0) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim()) {

@@ -49,6 +49,7 @@ import {
   shouldDefaultClaudeToolType,
 } from "../translator/concerns/toolCall.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
+import { ingestResponseHeaders } from "../services/quotaHeaders.js";
 
 /**
  * Core chat handler - shared between SSE and Worker
@@ -636,6 +637,12 @@ export async function handleChatCore({
     } catch (e) {
       log?.warn?.("TOKEN", `${provider.toUpperCase()} | refresh threw: ${e.message}`);
     }
+  }
+
+  try {
+    ingestResponseHeaders(provider, connectionId, providerResponse?.headers);
+  } catch {
+    // Quota telemetry must never break request handling.
   }
 
   // Provider returned error

@@ -50,10 +50,16 @@ function formatCodexWindow(window) {
     0,
     Math.min(100, toFiniteNumber(window?.used_percent ?? window?.percent_used, 0)),
   );
+  const limitWindowSeconds = toFiniteNumber(window?.limit_window_seconds, null);
+  const windowMinutes =
+    limitWindowSeconds !== null
+      ? limitWindowSeconds / 60
+      : toFiniteNumber(window?.window_minutes, null);
   return {
     used,
     total: 100,
     remaining: Math.max(0, 100 - used),
+    windowMinutes,
     resetAt: parseResetTime(window?.reset_at ?? window?.resets_at ?? window?.resetAt ?? null),
     unlimited: false,
   };

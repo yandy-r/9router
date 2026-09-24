@@ -5,6 +5,7 @@
 import { proxyAwareFetch } from "../../utils/proxyFetch.js";
 import { ANTHROPIC_API_VERSION } from "../../providers/shared.js";
 import { U, parseResetTime } from "./shared.js";
+import { sanitizePlanTier } from "../quotaSnapshot.js";
 
 // Claude API config (urls from registry, apiVersion is header logic kept here)
 const CLAUDE_CONFIG = {
@@ -151,6 +152,38 @@ async function fetchClaudeUsageRaw(accessToken, proxyOptions = null) {
     return await getClaudeUsageLegacy(accessToken, proxyOptions);
   } catch (error) {
     return { message: `Claude connected. Unable to fetch usage: ${error.message}` };
+  }
+}
+
+function getClaudeProfileUrl() {
+  return U("claude").profileUrl;
+}
+
+/**
+ * Fetch the Claude plan tier from the OAuth profile endpoint.
+ * Never throws; returns the sanitized tier string or null.
+ */
+export async function fetchClaudePlanTier(accessToken, proxyOptions = null) {
+  try {
+    if (!accessToken) return null;
+    const response = await proxyAwareFetch(
+      getClaudeProfileUrl(),
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "anthropic-beta": "oauth-2025-04-20",
+          "anthropic-version": CLAUDE_CONFIG.apiVersion,
+        },
+      },
+      proxyOptions,
+    );
+    if (response.status === 403) return null;
+    if (!response.ok) return null;
+    const data = await response.json();
+    return sanitizePlanTier(data?.organization?.rate_limit_tier);
+  } catch {
+    return null;
   }
 }
 
