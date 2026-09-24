@@ -273,9 +273,12 @@ export async function handleForcedSSEToJson({
               },
             ],
             usageMetadata: {
+              // Gemini candidates exclude thoughts; prompt includes cached content.
               promptTokenCount: inTokens,
-              candidatesTokenCount: outTokens,
+              candidatesTokenCount: Math.max(0, outTokens - reasoningTokens),
               totalTokenCount: inTokens + outTokens,
+              ...(cacheRead > 0 ? { cachedContentTokenCount: cacheRead } : {}),
+              ...(reasoningTokens > 0 ? { thoughtsTokenCount: reasoningTokens } : {}),
             },
             modelVersion: model,
             responseId: jsonResponse.id || `resp_${Date.now()}`,

@@ -25,7 +25,42 @@ export function buildUsage({
   return usage;
 }
 
-const n = (v) => (typeof v === "number" ? v : 0);
+const n = (v) => {
+  const num = Number(v);
+  return Number.isFinite(num) ? num : 0;
+};
+
+// Shared Gemini usageMetadata counts (numeric-coerced). completion = candidates +
+// thoughts because Gemini excludes thoughts from candidatesTokenCount, and the
+// storage convention keeps completion_tokens reasoning-inclusive.
+// @returns {{prompt:number, completion:number, total:number, cached:number, reasoning:number}}
+export function geminiUsageCounts(raw) {
+  const cached = n(raw.cachedContentTokenCount);
+  const prompt = n(raw.promptTokenCount);
+  const thoughts = n(raw.thoughtsTokenCount);
+  const total = n(raw.totalTokenCount);
+  let candidates = n(raw.candidatesTokenCount);
+  // Fallback: derive candidates from total when upstream omits it
+  if (candidates === 0 && total > 0) {
+    candidates = total - prompt - thoughts;
+    if (candidates < 0) candidates = 0;
+  }
+  return { prompt, completion: candidates + thoughts, total, cached, reasoning: thoughts };
+}
+
+// OpenAI-shaped completion_tokens, made reasoning-inclusive. xAI/Grok reports
+// reasoning outside completion_tokens (total = prompt + completion + reasoning);
+// fold it in so the storage convention holds. Skipped when total is missing.
+export function reasoningInclusiveCompletion(usage) {
+  const prompt = n(usage.prompt_tokens);
+  const completion = n(usage.completion_tokens);
+  const reasoning = n(usage.completion_tokens_details?.reasoning_tokens);
+  const excludesReasoning =
+    reasoning > 0 &&
+    usage.total_tokens != null &&
+    n(usage.total_tokens) === prompt + completion + reasoning;
+  return excludesReasoning ? completion + reasoning : completion;
+}
 
 // Per-provider raw token field-map + math. Returns buildUsage() args (NOT the usage object).
 // Keeps each provider's exact semantics: claude/gemini fold cache+reasoning, others don't.
@@ -45,22 +80,13 @@ const USAGE_EXTRACTORS = {
     };
   },
   gemini(raw) {
-    const cached = n(raw.cachedContentTokenCount);
-    const prompt = n(raw.promptTokenCount);
-    const thoughts = n(raw.thoughtsTokenCount);
-    const total = n(raw.totalTokenCount);
-    let candidates = n(raw.candidatesTokenCount);
-    // Fallback: derive candidates from total when upstream omits it
-    if (candidates === 0 && total > 0) {
-      candidates = total - prompt - thoughts;
-      if (candidates < 0) candidates = 0;
-    }
+    const { prompt, completion, total, cached, reasoning } = geminiUsageCounts(raw);
     return {
       promptTokens: prompt,
-      completionTokens: candidates + thoughts,
+      completionTokens: completion,
       totalTokens: total,
       cachedTokens: cached,
-      reasoningTokens: thoughts,
+      reasoningTokens: reasoning,
     };
   },
   kiro(raw) {

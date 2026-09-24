@@ -286,4 +286,22 @@ describe("non-stream responses in the client's format (YAN-73 / YAN-74)", () => 
     const json = await result.response.json();
     expect(json.usage.input_tokens_details.cached_tokens).toBe(5332);
   });
+
+  it("chat.completion → Responses client keeps cached/reasoning details", () => {
+    const chat = {
+      id: "chatcmpl-1",
+      object: "chat.completion",
+      choices: [{ index: 0, message: { role: "assistant", content: "ok" }, finish_reason: "stop" }],
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 10,
+        total_tokens: 110,
+        prompt_tokens_details: { cached_tokens: 60 },
+        completion_tokens_details: { reasoning_tokens: 4 },
+      },
+    };
+    const out = translateNonStreamingResponse(chat, FORMATS.OPENAI, FORMATS.OPENAI_RESPONSES);
+    expect(out.usage.input_tokens_details.cached_tokens).toBe(60);
+    expect(out.usage.output_tokens_details.reasoning_tokens).toBe(4);
+  });
 });

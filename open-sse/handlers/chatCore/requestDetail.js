@@ -1,6 +1,10 @@
 import { saveRequestUsage, appendRequestLog, saveRequestDetail } from "@/lib/usageDb.js";
 import { COLORS } from "../../utils/stream.js";
 import { canonicalizeUsage } from "../../utils/usageTracking.js";
+import {
+  geminiUsageCounts,
+  reasoningInclusiveCompletion,
+} from "../../translator/concerns/usage.js";
 
 const OPTIONAL_PARAMS = [
   "temperature",
@@ -60,26 +64,26 @@ export function extractUsageFromResponse(responseBody) {
 
   // OpenAI format
   if (responseBody.usage?.prompt_tokens !== undefined) {
+    const usage = responseBody.usage;
     return {
-      prompt_tokens: responseBody.usage.prompt_tokens || 0,
-      completion_tokens: responseBody.usage.completion_tokens || 0,
-      cached_tokens:
-        responseBody.usage.cached_tokens ?? responseBody.usage.prompt_tokens_details?.cached_tokens,
-      reasoning_tokens: responseBody.usage.completion_tokens_details?.reasoning_tokens,
+      prompt_tokens: usage.prompt_tokens || 0,
+      completion_tokens: reasoningInclusiveCompletion(usage),
+      cached_tokens: usage.cached_tokens ?? usage.prompt_tokens_details?.cached_tokens,
+      reasoning_tokens: usage.completion_tokens_details?.reasoning_tokens,
     };
   }
 
   // Gemini format. Antigravity / gemini-cli wrap the payload in { response: {...} }.
   const usageMetadata = responseBody.usageMetadata || responseBody.response?.usageMetadata;
   if (usageMetadata) {
+    // Gemini excludes thoughts from candidatesTokenCount; store completion reasoning-inclusive
+    // (matches toOpenAIUsage in translator/concerns/usage.js).
+    const counts = geminiUsageCounts(usageMetadata);
     return {
-      // Gemini excludes thoughts from candidatesTokenCount; store completion reasoning-inclusive
-      // (matches toOpenAIUsage in translator/concerns/usage.js).
-      prompt_tokens: usageMetadata.promptTokenCount || 0,
-      completion_tokens:
-        (usageMetadata.candidatesTokenCount || 0) + (usageMetadata.thoughtsTokenCount || 0),
-      cached_tokens: usageMetadata.cachedContentTokenCount || 0,
-      reasoning_tokens: usageMetadata.thoughtsTokenCount || 0,
+      prompt_tokens: counts.prompt,
+      completion_tokens: counts.completion,
+      cached_tokens: counts.cached || 0,
+      reasoning_tokens: counts.reasoning || 0,
     };
   }
 

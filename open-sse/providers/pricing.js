@@ -1197,7 +1197,7 @@ export function calculateCostFromTokens(tokens, pricing) {
   cost += nonCachedInput * (inputRate / 1000000);
 
   if (cachedTokens > 0) {
-    cost += cachedTokens * ((pricing.cached || inputRate) / 1000000);
+    cost += cachedTokens * ((pricing.cached ?? inputRate) / 1000000);
   }
 
   // completion_tokens is reasoning-inclusive: bill the non-reasoning part at the output rate.
@@ -1206,11 +1206,11 @@ export function calculateCostFromTokens(tokens, pricing) {
   cost += Math.max(0, outputTokens - reasoningTokens) * (outputRate / 1000000);
 
   if (reasoningTokens > 0) {
-    cost += reasoningTokens * ((pricing.reasoning || outputRate) / 1000000);
+    cost += reasoningTokens * ((pricing.reasoning ?? outputRate) / 1000000);
   }
 
   if (cacheCreationTokens > 0) {
-    cost += cacheCreationTokens * ((pricing.cache_creation || inputRate) / 1000000);
+    cost += cacheCreationTokens * ((pricing.cache_creation ?? inputRate) / 1000000);
   }
 
   return cost;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { FORMATS } from "../../open-sse/translator/formats.js";
+import { claudeToOpenAIResponse } from "../../open-sse/translator/response/claude-to-openai.js";
 import {
   createPassthroughStreamWithLogger,
   createSSETransformStreamWithLogger,
@@ -101,5 +102,37 @@ describe("Claude → OpenAI stream usage", () => {
     expect(canonical.completion_tokens).toBe(5);
     expect(canonical.cached_tokens).toBe(200);
     expect(canonical.cache_creation_input_tokens).toBe(30);
+  });
+
+  it("message_stop-only fallback keeps the folded cache usage", () => {
+    const state = {};
+    const chunks = [
+      {
+        type: "message_start",
+        message: {
+          id: "msg_1",
+          model: "m",
+          usage: {
+            input_tokens: 100,
+            output_tokens: 1,
+            cache_read_input_tokens: 200,
+            cache_creation_input_tokens: 30,
+          },
+        },
+      },
+      { type: "message_delta", delta: {}, usage: { output_tokens: 5 } },
+      { type: "message_stop" },
+    ];
+    let out;
+    for (const chunk of chunks) {
+      const res = claudeToOpenAIResponse(chunk, state);
+      if (res) out = res;
+    }
+    expect(out.at(-1).usage).toEqual({
+      prompt_tokens: 330,
+      completion_tokens: 5,
+      total_tokens: 335,
+      prompt_tokens_details: { cached_tokens: 200, cache_creation_tokens: 30 },
+    });
   });
 });

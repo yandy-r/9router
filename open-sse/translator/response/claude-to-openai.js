@@ -19,6 +19,20 @@ function createChunk(state, delta, finishReason = null) {
   );
 }
 
+// Client usage from the merged state (cache from message_start + output from
+// message_delta), not a single event alone.
+function clientUsage(usage) {
+  return toOpenAIUsage(
+    {
+      input_tokens: usage.input_tokens || 0,
+      output_tokens: usage.output_tokens || 0,
+      cache_read_input_tokens: usage.cache_read_input_tokens,
+      cache_creation_input_tokens: usage.cache_creation_input_tokens,
+    },
+    "claude",
+  );
+}
+
 // Convert Claude stream chunk to OpenAI format
 export function claudeToOpenAIResponse(chunk, state) {
   if (!chunk) return null;
@@ -178,19 +192,7 @@ export function claudeToOpenAIResponse(chunk, state) {
         state.finishReason = convertStopReason(chunk.delta.stop_reason);
         const finalChunk = createChunk(state, {}, state.finishReason);
 
-        if (state.usage) {
-          // Build OpenAI usage from the merged state (cache from message_start +
-          // output from message_delta), not the delta chunk alone.
-          finalChunk.usage = toOpenAIUsage(
-            {
-              input_tokens: state.usage.input_tokens || 0,
-              output_tokens: state.usage.output_tokens || 0,
-              cache_read_input_tokens: state.usage.cache_read_input_tokens,
-              cache_creation_input_tokens: state.usage.cache_creation_input_tokens,
-            },
-            "claude",
-          );
-        }
+        if (state.usage) finalChunk.usage = clientUsage(state.usage);
 
         results.push(finalChunk);
         state.finishReasonSent = true;
@@ -204,15 +206,7 @@ export function claudeToOpenAIResponse(chunk, state) {
           state.finishReason ||
           (state.toolCalls?.size > 0 ? OPENAI_FINISH.TOOL_CALLS : OPENAI_FINISH.STOP);
         const usageObj =
-          state.usage && typeof state.usage === "object"
-            ? {
-                usage: {
-                  prompt_tokens: state.usage.input_tokens || 0,
-                  completion_tokens: state.usage.output_tokens || 0,
-                  total_tokens: (state.usage.input_tokens || 0) + (state.usage.output_tokens || 0),
-                },
-              }
-            : {};
+          state.usage && typeof state.usage === "object" ? { usage: clientUsage(state.usage) } : {};
         results.push({ ...createChunk(state, {}, finishReason), ...usageObj });
         state.finishReasonSent = true;
       }

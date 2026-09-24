@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { calculateCostFromTokens } from "../../open-sse/providers/pricing.js";
-import { canonicalizeUsage } from "../../open-sse/utils/usageTracking.js";
+import { canonicalizeUsage, extractUsage } from "../../open-sse/utils/usageTracking.js";
 
 describe("calculateCostFromTokens reasoning-inclusive completion", () => {
   it("bills non-reasoning completion at output rate when no reasoning rate (YAN-66)", () => {
@@ -32,6 +32,29 @@ describe("calculateCostFromTokens reasoning-inclusive completion", () => {
     );
     expect(Number.isFinite(cost)).toBe(true);
     expect(cost).toBeCloseTo(5, 12);
+  });
+
+  it("honours an explicit zero reasoning rate", () => {
+    const cost = calculateCostFromTokens(
+      { completion_tokens: 1e6, reasoning_tokens: 1e6 },
+      { input: 1, output: 10, reasoning: 0 },
+    );
+    expect(cost).toBe(0);
+  });
+});
+
+describe("extractUsage xAI shape (reasoning outside completion_tokens)", () => {
+  it("folds reasoning into completion when total = prompt + completion + reasoning", () => {
+    const u = extractUsage({
+      usage: {
+        prompt_tokens: 279,
+        completion_tokens: 6,
+        total_tokens: 374,
+        completion_tokens_details: { reasoning_tokens: 89 },
+      },
+    });
+    expect(u.completion_tokens).toBe(95);
+    expect(u.reasoning_tokens).toBe(89);
   });
 });
 
