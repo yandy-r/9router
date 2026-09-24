@@ -1,3 +1,14 @@
+# v0.2.1 (2026-09-24)
+
+## Security
+- **API key enforcement**: `/v1/models`, `/v1/models/{id|kind}`, `/v1/models/info`, `/v1/audio/voices`, `/v1/messages/count_tokens` and `/v1beta/models` now enforce `requireApiKey` (local callers and the local CLI token still pass). Usage stats group per-key rows by key id instead of the raw or masked key, so full API keys are never returned and distinct keys no longer merge into one row (#77–#81).
+
+## Fixes
+- **Combos**: a self-referencing or cyclic combo returns 400 instead of recursing forever, and combo create/update rejects cycles, empty names and non-string model lists. A failed combo returns the last model's status with its matching message, plus the earliest upstream `Retry-After` (#72–#76).
+- **Cursor**: AgentService requests now carry the conversation history and system prompt. Before, Cursor only saw the last user message, so in tool loops the latest tool result became the prompt (#88, #89).
+- **CLI**: `--port=N`, `-pN` and `--host=H` work; unknown flags or an invalid port/host exit 2 instead of silently binding `0.0.0.0:20128`. Hide-to-Tray, autostart entries and the tray autostart toggle keep the chosen port and host, and Hide-to-Tray no longer turns on autostart without asking. Ctrl+C in menus stops the server, MITM and tunnel. Without a TTY (pm2, systemd, Docker) the launcher runs headless instead of shutting down. After repeated crashes it retries with MITM off, then exits 1 instead of restarting forever (#82–#86, #90).
+- **Audio**: `/v1/audio/voices` lists voices again instead of always returning 401 (#81).
+
 # v0.2.0 (2026-09-24)
 
 ## Security
