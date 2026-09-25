@@ -21,6 +21,7 @@ import {
   KIMCHI_CONFIG,
 } from "@/lib/oauth/constants/oauth";
 import { buildClineHeaders } from "@/shared/utils/clineAuth";
+import { fetchZedAuthenticatedUser } from "open-sse/shared/zedAuth.js";
 
 // OAuth provider test endpoints
 const OAUTH_TEST_CONFIG = {
@@ -99,6 +100,28 @@ const OAUTH_TEST_CONFIG = {
     authPrefix: "Bearer ",
   },
   "codebuddy-cn": { tokenExists: true },
+  // No cheap authenticated read endpoint; runtime refresher renews near-expiry tokens.
+  "codebuddy-intl": { checkExpiry: true, refreshable: true },
+  // ClinePass rejects Cline OAuth tokens (401, see registry/clinepass.js); report why.
+  clinepass: { unusableMessage: "ClinePass needs an API key; OAuth tokens are rejected" },
+  xai: {
+    url: PROVIDERS.xai?.validateUrl || "https://api.x.ai/v1/models",
+    method: "GET",
+    authHeader: "Authorization",
+    authPrefix: "Bearer ",
+    refreshable: true,
+  },
+  "xiaomi-mimo": {
+    url: PROVIDERS["xiaomi-mimo"]?.validateUrl || "https://api.xiaomimimo.com/v1/models",
+    method: "GET",
+    authHeader: "Authorization",
+    authPrefix: "Bearer ",
+  },
+  // Zed auth is "<userId> <token>"; probed via fetchZedAuthenticatedUser (branch below).
+  zed: {},
+  trae: { checkExpiry: true, refreshable: true },
+  // ponytail: gRPC-only API, token presence only (like cursor); add a probe if one is exposed.
+  windsurf: { tokenExists: true },
   kimchi: {
     url: KIMCHI_CONFIG.validationUrl || "https://api.cast.ai/v1/llm/openai/supported-providers",
     method: "GET",
@@ -173,15 +196,15 @@ export function classifyOAuthProbeResult(res, config, bodyText = "") {
   return { valid: true, error: null, soft: false };
 }
 
-async function probeClineAccessToken(accessToken) {
-  const res = await fetch("https://api.cline.bot/api/v1/users/me", {
-    method: "GET",
-    headers: buildClineHeaders(accessToken, {
-      Accept: "application/json",
-    }),
-  });
-
-  return res;
+async function probeClineAccessToken(accessToken, effectiveProxy = null) {
+  return fetchWithConnectionProxy(
+    "https://api.cline.bot/api/v1/users/me",
+    {
+      method: "GET",
+      headers: buildClineHeaders(accessToken, { Accept: "application/json" }),
+    },
+    effectiveProxy,
+  );
 }
 
 const CLOUD_CODE_ASSIST_TEST_URL = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist";
@@ -272,7 +295,9 @@ async function refreshOAuthToken(connection) {
       provider === "xai" ||
       provider === "kiro" ||
       provider === "kimi" ||
-      provider === "kimi-coding"
+      provider === "kimi-coding" ||
+      provider === "codebuddy-intl" ||
+      provider === "trae"
     ) {
       return await refreshProviderCredentials(provider, connection, console);
     }
@@ -335,6 +360,9 @@ async function testOAuthConnection(connection, effectiveProxy = null) {
   if (!config) return { valid: false, error: "Provider test not supported", refreshed: false };
   if (!connection.accessToken) return { valid: false, error: "No access token", refreshed: false };
 
+  if (config.unusableMessage)
+    return { valid: false, error: config.unusableMessage, refreshed: false };
+
   // Cursor uses protobuf API - can only verify token exists, not test endpoint
   if (config.tokenExists) {
     return { valid: true, error: null, refreshed: false, newTokens: null };
@@ -384,9 +412,23 @@ async function testOAuthConnection(connection, effectiveProxy = null) {
     return { valid: false, error: initial.error, refreshed };
   }
 
+  if (connection.provider === "zed") {
+    try {
+      await fetchZedAuthenticatedUser(connection, {
+        proxyOptions: effectiveProxy,
+        signal: AbortSignal.timeout(15000),
+      });
+      return { valid: true, error: null, refreshed: false, newTokens: null };
+    } catch (err) {
+      if (err.status === 401) return { valid: false, error: "Token invalid or revoked" };
+      if (err.status === 403) return { valid: false, error: "Access denied" };
+      return { valid: false, error: err.message };
+    }
+  }
+
   if (connection.provider === "cline") {
     const tryProbe = async (token) => {
-      const res = await probeClineAccessToken(token);
+      const res = await probeClineAccessToken(token, effectiveProxy);
       if (res.ok) return { valid: true, error: null, refreshed, newTokens };
       if (res.status === 401) return { valid: false, error: "Token invalid or revoked", refreshed };
       if (res.status === 403) return { valid: false, error: "Access denied", refreshed };

@@ -7,6 +7,7 @@ import {
 } from "@/shared/constants/providers";
 import { UPDATER_CONFIG } from "@/shared/constants/config";
 import { pingModelByKind } from "@/app/api/models/test/ping";
+import { GET as listProviderModels } from "../models/route.js";
 
 /**
  * POST /api/providers/[id]/test-models
@@ -30,10 +31,14 @@ export async function POST(request, { params }) {
 
     const baseUrl = `http://127.0.0.1:${process.env.PORT || UPDATER_CONFIG.appPort}`;
 
-    // Compatible providers: fetch live model list
+    // Compatible providers: list live models in-process. An HTTP self-fetch of the
+    // login-gated /api/providers route carries no dashboard credentials (401).
     if (isCompatible && models.length === 0) {
       try {
-        const modelsRes = await fetch(`${baseUrl}/api/providers/${id}/models`);
+        const modelsRes = await listProviderModels(
+          new Request(`${baseUrl}/api/providers/${id}/models`),
+          { params: Promise.resolve({ id }) },
+        );
         if (modelsRes.ok) {
           const data = await modelsRes.json();
           models = (data.models || []).map((m) => ({ id: m.id || m.name, name: m.name || m.id }));

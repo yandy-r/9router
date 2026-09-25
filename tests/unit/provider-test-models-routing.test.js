@@ -27,6 +27,9 @@ vi.mock("next/server", () => ({
 }));
 
 const originalFetch = global.fetch;
+// Importing the route loads proxyFetch, which patches global fetch; import first so
+// per-test fetch mocks stay in place.
+const { POST } = await import("../../src/app/api/providers/[id]/test-models/route.js");
 
 describe("provider test-models route kind routing", () => {
   beforeEach(() => {
@@ -71,8 +74,6 @@ describe("provider test-models route kind routing", () => {
   });
 
   it("routes huggingface image models to /api/v1/images/generations", async () => {
-    const { POST } = await import("../../src/app/api/providers/[id]/test-models/route.js");
-
     const req = new Request("http://localhost/api/providers/conn-hf/test-models", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -89,6 +90,38 @@ describe("provider test-models route kind routing", () => {
       expect.stringContaining("/api/v1/images/generations"),
       expect.objectContaining({
         method: "POST",
+      }),
+    );
+  });
+
+  // YAN-107: the login-gated /api/providers/:id/models route must not be self-fetched.
+  it("lists compatible node models in-process instead of an unauthenticated self-fetch", async () => {
+    mocks.getProviderConnectionById.mockResolvedValue({
+      id: "conn-oc",
+      provider: "openai-compatible-node1",
+      apiKey: "sk-node",
+      providerSpecificData: { baseUrl: "https://node.example/v1" },
+    });
+    const fetchMock = global.fetch;
+    global.fetch = vi.fn((url, init) =>
+      String(url) === "https://node.example/v1/models"
+        ? Promise.resolve(Response.json({ data: [{ id: "m1" }] }))
+        : fetchMock(url, init),
+    );
+
+    const res = await POST(new Request("http://localhost/x", { method: "POST" }), {
+      params: Promise.resolve({ id: "conn-oc" }),
+    });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.results.map((r) => r.modelId)).toEqual(["m1"]);
+    const urls = global.fetch.mock.calls.map(([url]) => String(url));
+    expect(urls).not.toContainEqual(expect.stringContaining("/api/providers/"));
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://node.example/v1/models",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer sk-node" }),
       }),
     );
   });
