@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Badge,
   Button,
   Card,
   CardSkeleton,
   Input,
+  Menu,
+  MenuItem,
   Modal,
   Toggle,
   ConfirmModal,
@@ -44,7 +46,6 @@ export default function ProxyPoolsPage() {
   const [showVercelModal, setShowVercelModal] = useState(false);
   const [showCloudflareModal, setShowCloudflareModal] = useState(false);
   const [showDenoModal, setShowDenoModal] = useState(false);
-  const [showRelayMenu, setShowRelayMenu] = useState(false);
   const [editingProxyPool, setEditingProxyPool] = useState(null);
   const [formData, setFormData] = useState(normalizeFormData());
   const [batchImportText, setBatchImportText] = useState("");
@@ -64,20 +65,7 @@ export default function ProxyPoolsPage() {
   const [healthProgress, setHealthProgress] = useState({ current: 0, total: 0 });
   const [bulkBusy, setBulkBusy] = useState(false);
   const [confirmState, setConfirmState] = useState(null);
-  const relayMenuRef = useRef(null);
   const notify = useNotificationStore();
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (relayMenuRef.current && !relayMenuRef.current.contains(e.target)) {
-        setShowRelayMenu(false);
-      }
-    };
-    if (showRelayMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showRelayMenu]);
 
   const fetchProxyPools = useCallback(async () => {
     try {
@@ -620,60 +608,25 @@ export default function ProxyPoolsPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center">
-          <div className="relative" ref={relayMenuRef}>
-            <Button
-              size="sm"
-              variant="secondary"
-              icon="rocket_launch"
-              onClick={() => setShowRelayMenu(!showRelayMenu)}
-            >
-              Deploy Relay
-              <span className="material-symbols-outlined ml-1 text-[18px]">
-                {showRelayMenu ? "expand_less" : "expand_more"}
-              </span>
-            </Button>
-
-            {showRelayMenu && (
-              <div className="absolute left-0 top-full z-50 mt-1 w-48 rounded-xl border border-black/10 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-zinc-900 sm:left-auto sm:right-0">
-                <button
-                  onClick={() => {
-                    openCloudflareModal();
-                    setShowRelayMenu(false);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  <span className="material-symbols-outlined text-[20px] text-orange-500">
-                    cloud
-                  </span>
-                  Cloudflare Relay
-                </button>
-                <button
-                  onClick={() => {
-                    openVercelModal();
-                    setShowRelayMenu(false);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  <span className="material-symbols-outlined text-[20px] text-blue-500">
-                    cloud_upload
-                  </span>
-                  Vercel Relay
-                </button>
-                <button
-                  onClick={() => {
-                    openDenoModal();
-                    setShowRelayMenu(false);
-                  }}
-                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-text-main transition-colors hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  <span className="material-symbols-outlined text-[20px] text-green-500">
-                    terminal
-                  </span>
-                  Deno Relay
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Menu refocuses its trigger on select, so each deploy modal returns focus there on close. */}
+          <Menu
+            align="end"
+            trigger={
+              <Button size="sm" variant="secondary" icon="rocket_launch" iconRight="expand_more">
+                Deploy Relay
+              </Button>
+            }
+          >
+            <MenuItem icon="cloud" onSelect={openCloudflareModal}>
+              Cloudflare Relay
+            </MenuItem>
+            <MenuItem icon="cloud_upload" onSelect={openVercelModal}>
+              Vercel Relay
+            </MenuItem>
+            <MenuItem icon="terminal" onSelect={openDenoModal}>
+              Deno Relay
+            </MenuItem>
+          </Menu>
 
           <Button size="sm" variant="secondary" icon="upload" onClick={openBatchImportModal}>
             Batch Import
@@ -703,7 +656,9 @@ export default function ProxyPoolsPage() {
 
         {(selectedIds.length > 0 || healthChecking) && (
           <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
-            <span className="material-symbols-outlined text-[18px] text-primary">checklist</span>
+            <span className="material-symbols-outlined text-[18px] text-primary" aria-hidden="true">
+              checklist
+            </span>
             <span className="text-xs font-medium text-primary">
               {selectedIds.length > 0 ? `${selectedIds.length} selected` : "All pools"}
             </span>
@@ -839,6 +794,7 @@ export default function ProxyPoolsPage() {
                       style={
                         testingId === pool.id ? { animation: "spin 1s linear infinite" } : undefined
                       }
+                      aria-hidden="true"
                     >
                       {testingId === pool.id ? "progress_activity" : "science"}
                     </span>
@@ -848,14 +804,18 @@ export default function ProxyPoolsPage() {
                     className="p-2 rounded hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-primary"
                     title="Edit"
                   >
-                    <span className="material-symbols-outlined text-[18px]">edit</span>
+                    <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                      edit
+                    </span>
                   </button>
                   <button
                     onClick={() => handleDelete(pool)}
                     className="p-2 rounded hover:bg-red-500/10 text-red-500"
                     title="Delete"
                   >
-                    <span className="material-symbols-outlined text-[18px]">delete</span>
+                    <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+                      delete
+                    </span>
                   </button>
                 </div>
               </div>

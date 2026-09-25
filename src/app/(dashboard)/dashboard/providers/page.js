@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
-import { Card, CardSkeleton, Badge, Button, Toggle } from "@/shared/components";
+import { Card, CardSkeleton, Badge, Button, Toggle, Modal } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { getProviderBrand } from "@/shared/constants/providerBrands";
 import { getProviderIconSrc } from "@/shared/utils/providerIcon";
@@ -373,7 +373,10 @@ export default function ProvidersPage() {
 
       {!hasAnyResult && (
         <div className="text-center py-8 border border-dashed border-border rounded-xl">
-          <span className="material-symbols-outlined text-[32px] text-text-muted mb-2">
+          <span
+            className="material-symbols-outlined text-[32px] text-text-muted mb-2"
+            aria-hidden="true"
+          >
             search_off
           </span>
           <p className="text-text-muted text-sm">No providers match your search or filters</p>
@@ -408,7 +411,9 @@ export default function ProvidersPage() {
         </div>
         {compatibleProviders.length === 0 && anthropicCompatibleProviders.length === 0 ? (
           <div className="flex items-center justify-center gap-2 py-2 border border-dashed border-border rounded-xl text-text-muted text-sm">
-            <span className="material-symbols-outlined text-[18px]">extension</span>
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+              extension
+            </span>
             <span>
               No custom providers — use buttons above to add OpenAI/Anthropic compatible endpoints
             </span>
@@ -451,6 +456,7 @@ export default function ProvidersPage() {
               >
                 <span
                   className={`material-symbols-outlined text-[14px]${testingMode === "oauth" ? " animate-spin" : ""}`}
+                  aria-hidden="true"
                 >
                   play_arrow
                 </span>
@@ -496,6 +502,7 @@ export default function ProvidersPage() {
             >
               <span
                 className={`material-symbols-outlined text-[14px]${testingMode === "free" ? " animate-spin" : ""}`}
+                aria-hidden="true"
               >
                 play_arrow
               </span>
@@ -557,6 +564,7 @@ export default function ProvidersPage() {
             >
               <span
                 className={`material-symbols-outlined text-[14px]${testingMode === "apikey" ? " animate-spin" : ""}`}
+                aria-hidden="true"
               >
                 play_arrow
               </span>
@@ -580,7 +588,9 @@ export default function ProvidersPage() {
               onClick={() => setShowAllApikey(true)}
               className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-primary/40 px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary/5"
             >
-              <span className="material-symbols-outlined text-[16px]">expand_more</span>
+              <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
+                expand_more
+              </span>
               Show all {apikeyEntries.length} providers
             </button>
           )}
@@ -628,32 +638,14 @@ export default function ProvidersPage() {
       />
 
       {/* Test Results Modal */}
-      {testResults && (
-        <div
-          className="fixed inset-0 z-50 flex items-start justify-center px-3 pt-[6vh] sm:pt-[10vh]"
-          onClick={() => setTestResults(null)}
-        >
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div
-            className="relative bg-surface border border-border rounded-xl w-full max-w-[600px] max-h-[86vh] sm:max-h-[80vh] overflow-y-auto shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-3 border-b border-border bg-surface/95 backdrop-blur-sm rounded-t-xl">
-              <h3 className="font-semibold">Test Results</h3>
-              <button
-                onClick={() => setTestResults(null)}
-                className="p-1 rounded-lg hover:bg-bg text-text-muted hover:text-text-main transition-colors"
-                aria-label="Close test results"
-              >
-                <span className="material-symbols-outlined text-lg">close</span>
-              </button>
-            </div>
-            <div className="p-5">
-              <ProviderTestResultsView results={testResults} />
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        isOpen={Boolean(testResults)}
+        onClose={() => setTestResults(null)}
+        title="Test Results"
+        size="xl"
+      >
+        {testResults && <ProviderTestResultsView results={testResults} />}
+      </Modal>
     </div>
   );
 }
@@ -704,7 +696,9 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
                 {allDisabled ? (
                   <Badge variant="default" size="sm">
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[12px]">pause_circle</span>
+                      <span className="material-symbols-outlined text-[12px]" aria-hidden="true">
+                        pause_circle
+                      </span>
                       Disabled
                     </span>
                   </Badge>
@@ -818,7 +812,9 @@ function ApiKeyProviderCard({ providerId, provider, stats, authType, onToggle })
                 {allDisabled ? (
                   <Badge variant="default" size="sm">
                     <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[12px]">pause_circle</span>
+                      <span className="material-symbols-outlined text-[12px]" aria-hidden="true">
+                        pause_circle
+                      </span>
                       Disabled
                     </span>
                   </Badge>
@@ -889,7 +885,12 @@ function ProviderTestResultsView({ results }) {
   if (results.error && !results.results) {
     return (
       <div className="text-center py-6">
-        <span className="material-symbols-outlined text-red-500 text-[32px] mb-2 block">error</span>
+        <span
+          className="material-symbols-outlined text-red-500 text-[32px] mb-2 block"
+          aria-hidden="true"
+        >
+          error
+        </span>
         <p className="text-sm text-red-400">{results.error}</p>
       </div>
     );
@@ -929,6 +930,7 @@ function ProviderTestResultsView({ results }) {
         >
           <span
             className={`material-symbols-outlined text-[16px] ${r.valid ? "text-emerald-500" : "text-red-500"}`}
+            aria-hidden="true"
           >
             {r.valid ? "check_circle" : "error"}
           </span>

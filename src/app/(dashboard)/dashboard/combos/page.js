@@ -872,6 +872,7 @@ function ModelItem({ id, index, model, isFirst, isLast, onEdit, onMoveUp, onMove
   const handleKeyDown = (e) => {
     if (e.key === "Enter") commit();
     if (e.key === "Escape") {
+      e.preventDefault(); // keep the dialog open; Esc cancels the inline edit
       setDraft(model);
       setEditing(false);
     }

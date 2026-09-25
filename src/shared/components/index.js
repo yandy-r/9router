@@ -22,7 +22,7 @@ export { default as Callout } from "./Callout";
 export { default as Terminal } from "./Terminal";
 export { default as ProviderTile } from "./ProviderTile";
 export { default as StatusPill } from "./StatusPill";
-export { default as Modal, ConfirmModal } from "./Modal";
+export { default as Modal, ConfirmDialog, ConfirmModal } from "./Modal";
 export {
   default as Loading,
   Spinner,
@@ -62,6 +62,9 @@ export { default as AddCustomEmbeddingModal } from "./AddCustomEmbeddingModal";
 export { default as NoAuthProxyCard } from "./NoAuthProxyCard";
 export { default as SegmentedControl } from "./SegmentedControl";
 export { default as Tooltip } from "./Tooltip";
+export { default as Drawer } from "./Drawer";
+export { default as Menu, MenuItem } from "./Menu";
+export { default as Popover } from "./Popover";
 export { default as ProviderInfoCard } from "./ProviderInfoCard";
 export { default as CapacityBadges } from "./CapacityBadges";
 

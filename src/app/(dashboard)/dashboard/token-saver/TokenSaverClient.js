@@ -299,7 +299,7 @@ export default function TokenSaverClient() {
         title: "Install [ml]",
         message: "[ml] downloads ~1 GB (torch + huggingface-hub). Continue?",
         confirmText: "Install",
-        variant: "primary",
+        variant: "default",
         onConfirm: installExtrasConfirmed,
       });
       return;
@@ -490,7 +490,9 @@ export default function TokenSaverClient() {
       <Card id="rtk">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary">bolt</span>
+            <span className="material-symbols-outlined text-primary" aria-hidden="true">
+              bolt
+            </span>
             Token Saver
           </h2>
         </div>

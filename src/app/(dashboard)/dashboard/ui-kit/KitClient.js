@@ -22,6 +22,7 @@ import KitTiles from "./_sections/KitTiles";
 import KitMeters from "./_sections/KitMeters";
 import KitCards from "./_sections/KitCards";
 import KitFeedback from "./_sections/KitFeedback";
+import KitOverlays from "./_sections/KitOverlays";
 
 /**
  * Dev-only Signal kit page (YAN-277). Renders YAN-276 + YAN-277 primitives in
@@ -146,6 +147,7 @@ export default function KitClient() {
       <KitMeters />
       <KitCards />
       <KitFeedback />
+      <KitOverlays />
     </div>
   );
 }

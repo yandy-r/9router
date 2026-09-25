@@ -862,7 +862,10 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
                   onBlur={(e) => commitStickyLimit(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") e.currentTarget.blur();
-                    else if (e.key === "Escape") setProviderStickyLimit(savedStickyLimit.current);
+                    else if (e.key === "Escape") {
+                      e.preventDefault(); // keep the dialog open; Esc resets the field
+                      setProviderStickyLimit(savedStickyLimit.current);
+                    }
                   }}
                   className="w-16 px-2 py-1 text-xs border border-border rounded-md bg-background focus:outline-none focus:border-primary"
                 />
