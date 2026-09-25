@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CodexExecutor } from "../../open-sse/executors/codex.js";
+import { translateRequest } from "../../open-sse/translator/index.js";
 import * as proxyFetchModule from "../../open-sse/utils/proxyFetch.js";
 
 const BASE = "https://chatgpt.com/backend-api/codex/responses";
@@ -41,5 +42,33 @@ describe("CodexExecutor compact routing (YAN-19)", () => {
     await run(executor, { input: "hi", _compact: true });
 
     expect(fetchSpy.mock.calls.map(([url]) => url)).toEqual([`${BASE}/compact`, `${BASE}/compact`]);
+  });
+
+  // YAN-272: /v1/responses/compact forces openai-responses; chat/claude bodies
+  // must still be translated to `input` and keep the compact flag.
+  it.each([
+    ["chat body on the responses endpoint", "openai-responses"],
+    ["claude body", "claude"],
+  ])("routes a translated %s to /compact with input", async (_, sourceFormat) => {
+    const fetchSpy = vi
+      .spyOn(proxyFetchModule, "proxyAwareFetch")
+      .mockImplementation(async () => ok());
+    const body = translateRequest(
+      sourceFormat,
+      "openai-responses",
+      "gpt-5",
+      { model: "gpt-5", messages: [{ role: "user", content: "hello there" }], _compact: true },
+      true,
+      null,
+      "codex",
+    );
+
+    const { url } = await run(new CodexExecutor(), body);
+
+    expect(url).toBe(`${BASE}/compact`);
+    const sent = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(JSON.stringify(sent.input)).toContain("hello there");
+    expect(sent).not.toHaveProperty("_compact");
+    expect(sent).not.toHaveProperty("messages");
   });
 });
