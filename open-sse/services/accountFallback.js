@@ -148,9 +148,22 @@ export function getModelLockKey(model) {
  */
 export function isModelLockActive(connection, model) {
   const key = getModelLockKey(model);
-  const expiry = connection[key] || connection[MODEL_LOCK_ALL];
-  if (!expiry) return false;
-  return new Date(expiry).getTime() > Date.now();
+  const now = Date.now();
+  return [connection[key], connection[MODEL_LOCK_ALL]].some(
+    (expiry) => expiry && new Date(expiry).getTime() > now,
+  );
+}
+
+/**
+ * Expiry of the lock that actually blocks `model` (later of its own lock and the
+ * account-wide lock, active ones only). Null when not locked.
+ */
+export function getModelLockUntil(connection, model) {
+  const now = Date.now();
+  const active = [connection?.[getModelLockKey(model)], connection?.[MODEL_LOCK_ALL]]
+    .filter((v) => v && new Date(v).getTime() > now)
+    .map((v) => new Date(v).getTime());
+  return active.length ? new Date(Math.max(...active)).toISOString() : null;
 }
 
 /**
