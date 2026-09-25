@@ -414,6 +414,23 @@ function ComboCard({
   const judge = strategy.judgeModel || "";
   const isFusion = current === "fusion";
   const isWeighted = current === "weighted";
+  const weightsOpenKey = `9router:combo-weights-open:${combo.id}`;
+  const [weightsOpen, setWeightsOpen] = useState(false);
+
+  // ponytail: browser-local preference; move to settings if it must sync across devices.
+  useEffect(() => {
+    try {
+      setWeightsOpen(localStorage.getItem(weightsOpenKey) === "1");
+    } catch {}
+  }, [weightsOpenKey]);
+
+  const handleWeightsToggle = (e) => {
+    const open = e.currentTarget.open;
+    setWeightsOpen(open);
+    try {
+      localStorage.setItem(weightsOpenKey, open ? "1" : "0");
+    } catch {}
+  };
 
   // Headroom re-fetches when models change; an effect-local cancelled flag drops
   // stale/slow responses (and the StrictMode double fetch) so an older request
@@ -586,63 +603,75 @@ function ComboCard({
       </div>
 
       {isWeighted && (
-        <div className="mt-3 border-t border-black/10 pt-3 dark:border-white/10">
-          <p className="text-xs text-text-muted">
-            Set relative weights: higher = more traffic, only the ratio matters. Shares also scale
-            by remaining quota.
-          </p>
-          <ol className="mt-1 mb-2 list-inside list-decimal text-[11px] text-text-muted">
-            <li>Favor A roughly 2:1 when quotas are equal: set A=2, B=1.</li>
-            <li>Use B only as fallback: set A=1, B=0.</li>
-          </ol>
-          <div className="flex flex-col gap-2">
-            {models.map((model, index) => (
-              <div
-                // biome-ignore lint/suspicious/noArrayIndexKey: combos may contain duplicate model IDs, and their order is stable until combo edit.
-                key={`${model}-${index}`}
-                className="flex min-w-0 flex-wrap items-center gap-2 text-xs"
-              >
-                <code className="min-w-0 flex-1 break-all font-mono text-text-main">{model}</code>
-                <input
-                  type="number"
-                  min="0"
-                  max="1000"
-                  step="1"
-                  aria-label={`Weight for ${model} in ${combo.name}`}
-                  aria-invalid={!!weightErrors[model]}
-                  value={drafts[model] ?? String(savedWeights[model] ?? 1)}
-                  onChange={(e) => {
-                    setDrafts((prev) => ({ ...prev, [model]: e.target.value }));
-                    setWeightError(model, null);
-                  }}
-                  onBlur={() => handleSaveWeight(model)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      e.currentTarget.blur();
-                    }
-                  }}
-                  className="w-20 rounded border border-black/15 bg-transparent px-2 py-1 text-text-main outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-white/20"
-                />
-                <span className="w-24 text-right text-text-muted">
-                  {weightOf(model) === 0
-                    ? "Fallback only"
-                    : `≈ ${totalEffective > 0 ? ((effective[index] / totalEffective) * 100).toFixed(1) : 0}%`}
-                </span>
-                {weightErrors[model] && (
-                  <span role="alert" className="w-full text-right text-red-500">
-                    {weightErrors[model]}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-          {models.length > 0 && totalEffective === 0 && (
-            <p role="status" className="mt-2 text-xs text-text-muted">
-              All effective weights are zero. Requests use fallback order.
+        <details
+          open={weightsOpen}
+          onToggle={handleWeightsToggle}
+          className="group mt-3 overflow-hidden rounded-[10px] border border-border bg-bg"
+        >
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-2.5 text-xs font-medium text-text-main outline-none transition-colors hover:bg-black/[0.04] focus-visible:shadow-[var(--shadow-focus)] dark:hover:bg-white/[0.05] [&::-webkit-details-marker]:hidden">
+            <span className="material-symbols-outlined text-[16px] text-text-muted transition-transform duration-200 group-open:rotate-180">
+              expand_more
+            </span>
+            Weights
+          </summary>
+          <div className="border-t border-border px-3 pb-3 pt-2">
+            <p className="text-xs text-text-muted">
+              Set relative weights: higher = more traffic, only the ratio matters. Shares also scale
+              by remaining quota.
             </p>
-          )}
-        </div>
+            <ol className="mt-1 mb-2 list-inside list-decimal text-[11px] text-text-muted">
+              <li>Favor A roughly 2:1 when quotas are equal: set A=2, B=1.</li>
+              <li>Use B only as fallback: set A=1, B=0.</li>
+            </ol>
+            <div className="flex flex-col gap-2">
+              {models.map((model, index) => (
+                <div
+                  // biome-ignore lint/suspicious/noArrayIndexKey: combos may contain duplicate model IDs, and their order is stable until combo edit.
+                  key={`${model}-${index}`}
+                  className="flex min-w-0 flex-wrap items-center gap-2 text-xs"
+                >
+                  <code className="min-w-0 flex-1 break-all font-mono text-text-main">{model}</code>
+                  <input
+                    type="number"
+                    min="0"
+                    max="1000"
+                    step="1"
+                    aria-label={`Weight for ${model} in ${combo.name}`}
+                    aria-invalid={!!weightErrors[model]}
+                    value={drafts[model] ?? String(savedWeights[model] ?? 1)}
+                    onChange={(e) => {
+                      setDrafts((prev) => ({ ...prev, [model]: e.target.value }));
+                      setWeightError(model, null);
+                    }}
+                    onBlur={() => handleSaveWeight(model)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    className="w-20 rounded border border-black/15 bg-transparent px-2 py-1 text-text-main outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:border-white/20"
+                  />
+                  <span className="w-24 text-right text-text-muted">
+                    {weightOf(model) === 0
+                      ? "Fallback only"
+                      : `≈ ${totalEffective > 0 ? ((effective[index] / totalEffective) * 100).toFixed(1) : 0}%`}
+                  </span>
+                  {weightErrors[model] && (
+                    <span role="alert" className="w-full text-right text-red-500">
+                      {weightErrors[model]}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            {models.length > 0 && totalEffective === 0 && (
+              <p role="status" className="mt-2 text-xs text-text-muted">
+                All effective weights are zero. Requests use fallback order.
+              </p>
+            )}
+          </div>
+        </details>
       )}
 
       {/* Judge model picker (single-select; combo members make natural judges too) */}
