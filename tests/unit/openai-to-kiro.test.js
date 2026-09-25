@@ -267,6 +267,53 @@ describe("openaiToKiroRequest", () => {
       expect(allJson).not.toContain("[Tool call:");
     });
 
+    it("should keep array text parts of a role:tool message in structured toolResults", () => {
+      const body = {
+        messages: [
+          { role: "user", content: "Read the file" },
+          {
+            role: "assistant",
+            content: null,
+            tool_calls: [
+              {
+                id: "call_1",
+                type: "function",
+                function: { name: "read_file", arguments: '{"path":"a.txt"}' },
+              },
+            ],
+          },
+          {
+            role: "tool",
+            tool_call_id: "call_1",
+            content: [
+              { type: "text", text: "line one" },
+              { type: "text", text: "line two" },
+            ],
+          },
+          { role: "user", content: "Summarize it" },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "read_file",
+              description: "Read a file",
+              parameters: { type: "object", properties: { path: { type: "string" } } },
+            },
+          },
+        ],
+      };
+
+      const result = openaiToKiroRequest("claude-sonnet-4.6", body, true, {});
+      const toolResults =
+        result.conversationState.currentMessage.userInputMessage.userInputMessageContext
+          ?.toolResults;
+
+      expect(toolResults).toEqual([
+        { toolUseId: "call_1", status: "success", content: [{ text: "line one\nline two" }] },
+      ]);
+    });
+
     it("should salvage orphaned tool_result content as text instead of discarding it", () => {
       // Client provides tools, but compaction removed the assistant tool_use
       // message, leaving a tool_result whose tool_use_id matches nothing.

@@ -16,6 +16,80 @@ export function generateToolCallId(msgIndex = 0, tcIndex = 0, toolName = "") {
   return `call_msg${msgIndex}_tc${tcIndex}${name}`;
 }
 
+// Request-scoped FIFO pairing for Gemini/Antigravity functionCall/functionResponse ids.
+// Explicit ids pass through. Missing call ids get unique deterministic Claude-safe ids
+// (`call_<name>_<n>`, monotonic counter, skips already-used ids so generated ids can
+// never collide with an explicit id in the same request). Ids are queued by function
+// name; a missing response id consumes FIFO, an explicit response id removes its match.
+export function createToolIdPairer() {
+  const queuesByName = new Map();
+  const usedIds = new Set();
+  let counter = 0;
+
+  function queueKey(name) {
+    const clean = typeof name === "string" ? name.replace(/[^a-zA-Z0-9_-]/g, "") : "";
+    return clean || "unknown";
+  }
+
+  function nextGeneratedId(nameKey) {
+    let id;
+    do {
+      id = `call_${nameKey}_${counter++}`;
+    } while (usedIds.has(id));
+    usedIds.add(id);
+    return id;
+  }
+
+  function enqueue(nameKey, id) {
+    if (!queuesByName.has(nameKey)) queuesByName.set(nameKey, []);
+    queuesByName.get(nameKey).push(id);
+  }
+
+  return {
+    callId(functionCall) {
+      const nameKey = queueKey(functionCall?.name);
+      const explicitId =
+        typeof functionCall?.id === "string" && functionCall.id ? functionCall.id : null;
+      if (explicitId) {
+        usedIds.add(explicitId);
+        enqueue(nameKey, explicitId);
+        return explicitId;
+      }
+      const id = nextGeneratedId(nameKey);
+      enqueue(nameKey, id);
+      return id;
+    },
+
+    responseId(functionResponse) {
+      const nameKey = queueKey(functionResponse?.name);
+      const explicitId =
+        typeof functionResponse?.id === "string" && functionResponse.id
+          ? functionResponse.id
+          : null;
+      if (explicitId) {
+        usedIds.add(explicitId);
+        const queue = queuesByName.get(nameKey);
+        if (queue) {
+          const at = queue.indexOf(explicitId);
+          if (at !== -1) queue.splice(at, 1);
+        }
+        return explicitId;
+      }
+      const queue = queuesByName.get(nameKey);
+      if (queue && queue.length > 0) return queue.shift();
+      // Orphan response with no preceding call: deterministic `call_<name>` fallback,
+      // suffixed only if that id is already taken so parallel orphans stay unique.
+      const orphan = `call_${nameKey}`;
+      if (!usedIds.has(orphan)) {
+        usedIds.add(orphan);
+        return orphan;
+      }
+      const id = nextGeneratedId(nameKey);
+      return id;
+    },
+  };
+}
+
 // Sanitize ID to match Anthropic pattern: keep only alphanumeric, underscore, hyphen
 function sanitizeToolId(id) {
   if (!id || typeof id !== "string") return null;

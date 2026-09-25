@@ -35,9 +35,8 @@ describe("OpenAI → Claude context mapping", () => {
     );
   });
 
-  // openai-to-claude.js:298 — tool_choice "none" mapped to {type:"auto"} (loses "do not call" intent)
-  // KNOWN BUG
-  it.fails("tool_choice=none is not turned into auto", () => {
+  // openai-to-claude.js convertOpenAIToolChoice — "none" must keep its "do not call" intent
+  it("tool_choice=none is not turned into auto", () => {
     const out = T({
       messages: [{ role: "user", content: "hi" }],
       tools: [
@@ -48,7 +47,7 @@ describe("OpenAI → Claude context mapping", () => {
       ],
       tool_choice: "none",
     });
-    expect(out.tool_choice?.type, "none became auto → model may call tools").not.toBe("auto");
+    expect(out.tool_choice, "none became auto → model may call tools").toEqual({ type: "none" });
   });
 
   // getContentBlocksFromMessage — no input_audio branch → audio dropped

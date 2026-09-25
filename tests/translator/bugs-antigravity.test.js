@@ -11,6 +11,38 @@ const AG2O = (req) =>
   translateRequest(FORMATS.ANTIGRAVITY, FORMATS.OPENAI, "m", { request: req }, true, null, null);
 
 describe("Antigravity → OpenAI", () => {
+  // antigravity-to-openai.js — parallel same-name functionCalls without ids must get
+  // distinct ids, FIFO-paired to their functionResponses in order (YAN-31/#165)
+  it("parallel same-name calls get distinct ids paired to results in order", () => {
+    const out = AG2O({
+      contents: [
+        {
+          role: "model",
+          parts: [
+            { functionCall: { name: "read_file", args: { path: "a" } } },
+            { functionCall: { name: "read_file", args: { path: "b" } } },
+          ],
+        },
+        {
+          role: "user",
+          parts: [
+            { functionResponse: { name: "read_file", response: { result: "AAA" } } },
+            { functionResponse: { name: "read_file", response: { result: "BBB" } } },
+          ],
+        },
+      ],
+    });
+    const asst = out.messages.find((m) => m.tool_calls);
+    const callIds = asst?.tool_calls?.map((tc) => tc.id) ?? [];
+    const tools = out.messages.filter((m) => m.role === "tool");
+    expect(new Set(callIds).size, "parallel call ids collided").toBe(2);
+    expect(tools).toHaveLength(2);
+    expect(tools[0]?.tool_call_id, "first result not paired to first call").toBe(callIds[0]);
+    expect(tools[1]?.tool_call_id, "second result not paired to second call").toBe(callIds[1]);
+    expect(tools[0]?.content).toBe('"AAA"');
+    expect(tools[1]?.content).toBe('"BBB"');
+  });
+
   // antigravity-to-openai.js — content with BOTH functionResponse and functionCall/text
   // previously returned toolResults early → dropped tool calls / text (fixed in #2225)
   it("functionResponse + functionCall in same content keeps both", () => {
