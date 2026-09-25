@@ -11,8 +11,41 @@ const AG2O = (req) =>
   translateRequest(FORMATS.ANTIGRAVITY, FORMATS.OPENAI, "m", { request: req }, true, null, null);
 
 describe("Antigravity → OpenAI", () => {
+  // antigravity-to-openai.js — parallel same-name functionCalls without ids must get
+  // distinct ids, FIFO-paired to their functionResponses in order (YAN-31/#165)
+  it("parallel same-name calls get distinct ids paired to results in order", () => {
+    const out = AG2O({
+      contents: [
+        {
+          role: "model",
+          parts: [
+            { functionCall: { name: "read_file", args: { path: "a" } } },
+            { functionCall: { name: "read_file", args: { path: "b" } } },
+          ],
+        },
+        {
+          role: "user",
+          parts: [
+            { functionResponse: { name: "read_file", response: { result: "AAA" } } },
+            { functionResponse: { name: "read_file", response: { result: "BBB" } } },
+          ],
+        },
+      ],
+    });
+    const asst = out.messages.find((m) => m.tool_calls);
+    const callIds = asst?.tool_calls?.map((tc) => tc.id) ?? [];
+    const tools = out.messages.filter((m) => m.role === "tool");
+    expect(new Set(callIds).size, "parallel call ids collided").toBe(2);
+    expect(tools).toHaveLength(2);
+    expect(tools[0]?.tool_call_id, "first result not paired to first call").toBe(callIds[0]);
+    expect(tools[1]?.tool_call_id, "second result not paired to second call").toBe(callIds[1]);
+    expect(tools[0]?.content).toBe('"AAA"');
+    expect(tools[1]?.content).toBe('"BBB"');
+  });
+
   // antigravity-to-openai.js — content with BOTH functionResponse and functionCall/text
-  // previously returned toolResults early → dropped tool calls / text (fixed in #2225)
+  // previously returned toolResults early → dropped tool calls / text (fixed in #2225).
+  // Ordering: the assistant call must precede its corresponding tool result.
   it("functionResponse + functionCall in same content keeps both", () => {
     const out = AG2O({
       contents: [
@@ -29,6 +62,29 @@ describe("Antigravity → OpenAI", () => {
     expect(json, "functionCall lost when sharing content with functionResponse").toContain(
       '"next"',
     );
+    expect(out.messages).toHaveLength(2);
+    expect(out.messages[0]?.role, "assistant call must precede tool result").toBe("assistant");
+    expect(out.messages[0]?.tool_calls?.[0]?.id).toBe("c2");
+    expect(out.messages[1]?.role).toBe("tool");
+    expect(out.messages[1]?.tool_call_id).toBe("c1");
+  });
+
+  it("keeps user text role when sharing a function response", () => {
+    const out = AG2O({
+      contents: [
+        { role: "model", parts: [{ functionCall: { id: "c1", name: "foo" } }] },
+        {
+          role: "user",
+          parts: [
+            { text: "next prompt" },
+            { functionResponse: { id: "c1", name: "foo", response: { result: "ok" } } },
+          ],
+        },
+      ],
+    });
+    expect(out.messages.map((message) => message.role)).toEqual(["assistant", "tool", "user"]);
+    expect(out.messages[1]?.tool_call_id).toBe("c1");
+    expect(out.messages[2]?.content).toBe("next prompt");
   });
 
   // antigravity-to-openai.js:167 — functionCall without id gets a random Date.now() id
