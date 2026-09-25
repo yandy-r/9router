@@ -8,6 +8,7 @@ import {
   ComboFormModal,
   McpMarketplaceModal,
   ModelSelectModal,
+  Modal,
 } from "@/shared/components";
 import Image from "next/image";
 import BaseUrlSelect from "./BaseUrlSelect";
@@ -311,6 +312,7 @@ export default function CoworkToolCard({
         </div>
         <span
           className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}
+          aria-hidden="true"
         >
           expand_more
         </span>
@@ -320,7 +322,9 @@ export default function CoworkToolCard({
         <div className="mt-4 pt-4 border-t border-border flex flex-col gap-4">
           {checking && (
             <div className="flex items-center gap-2 text-text-muted">
-              <span className="material-symbols-outlined animate-spin">progress_activity</span>
+              <span className="material-symbols-outlined animate-spin" aria-hidden="true">
+                progress_activity
+              </span>
               <span>Checking Claude Cowork...</span>
             </div>
           )}
@@ -328,7 +332,9 @@ export default function CoworkToolCard({
           {!checking && status && !status.installed && (
             <div className="flex flex-col gap-3 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
               <div className="flex items-start gap-3">
-                <span className="material-symbols-outlined text-yellow-500">warning</span>
+                <span className="material-symbols-outlined text-yellow-500" aria-hidden="true">
+                  warning
+                </span>
                 <div className="flex-1">
                   <p className="font-medium text-yellow-600 dark:text-yellow-400">
                     Claude Desktop (Cowork mode) not detected
@@ -346,7 +352,9 @@ export default function CoworkToolCard({
                   onClick={() => setShowManualConfigModal(true)}
                   className="!bg-yellow-500/20 !border-yellow-500/40 !text-yellow-700 dark:!text-yellow-300 hover:!bg-yellow-500/30"
                 >
-                  <span className="material-symbols-outlined text-[18px] mr-1">content_copy</span>
+                  <span className="material-symbols-outlined text-[18px] mr-1" aria-hidden="true">
+                    content_copy
+                  </span>
                   Manual Config
                 </Button>
               </div>
@@ -360,7 +368,10 @@ export default function CoworkToolCard({
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">
                     Select Endpoint
                   </span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">
+                  <span
+                    className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline"
+                    aria-hidden="true"
+                  >
                     arrow_forward
                   </span>
                   <BaseUrlSelect
@@ -381,7 +392,10 @@ export default function CoworkToolCard({
                     <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">
                       Current
                     </span>
-                    <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">
+                    <span
+                      className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline"
+                      aria-hidden="true"
+                    >
                       arrow_forward
                     </span>
                     <span className="min-w-0 truncate rounded bg-surface/40 px-2 py-2 text-xs text-text-muted sm:py-1.5">
@@ -394,7 +408,10 @@ export default function CoworkToolCard({
                   <span className="text-xs font-semibold text-text-main sm:text-right sm:text-sm">
                     API Key
                   </span>
-                  <span className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline">
+                  <span
+                    className="material-symbols-outlined hidden text-text-muted text-[14px] sm:inline"
+                    aria-hidden="true"
+                  >
                     arrow_forward
                   </span>
                   <ApiKeySelect
@@ -409,7 +426,10 @@ export default function CoworkToolCard({
                   <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
                     Models
                   </span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px]">
+                  <span
+                    className="material-symbols-outlined text-text-muted text-[14px]"
+                    aria-hidden="true"
+                  >
                     arrow_forward
                   </span>
                   <div className="flex-1 flex items-center gap-2">
@@ -425,9 +445,15 @@ export default function CoworkToolCard({
                             {m}
                             <button
                               onClick={() => handleRemoveModel(m)}
+                              aria-label={`Remove ${m}`}
                               className="ml-0.5 hover:text-red-500"
                             >
-                              <span className="material-symbols-outlined text-[12px]">close</span>
+                              <span
+                                className="material-symbols-outlined text-[12px]"
+                                aria-hidden="true"
+                              >
+                                close
+                              </span>
                             </button>
                           </span>
                         ))
@@ -447,7 +473,10 @@ export default function CoworkToolCard({
                   <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-2">
                     MCP
                   </span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px] mt-2">
+                  <span
+                    className="material-symbols-outlined text-text-muted text-[14px] mt-2"
+                    aria-hidden="true"
+                  >
                     arrow_forward
                   </span>
                   <div className="flex-1 flex flex-col gap-1">
@@ -486,9 +515,15 @@ export default function CoworkToolCard({
                           </div>
                           <button
                             onClick={() => removePlugin(p.name)}
+                            aria-label={`Remove ${p.name}`}
                             className="shrink-0 hover:text-red-500 ml-auto"
                           >
-                            <span className="material-symbols-outlined text-[12px]">close</span>
+                            <span
+                              className="material-symbols-outlined text-[12px]"
+                              aria-hidden="true"
+                            >
+                              close
+                            </span>
                           </button>
                         </div>
                       ))}
@@ -509,9 +544,15 @@ export default function CoworkToolCard({
                           onClick={() =>
                             setCustomPlugins(customPlugins.filter((x) => x.name !== p.name))
                           }
+                          aria-label={`Remove ${p.name}`}
                           className="shrink-0 hover:text-red-500 ml-auto"
                         >
-                          <span className="material-symbols-outlined text-[12px]">close</span>
+                          <span
+                            className="material-symbols-outlined text-[12px]"
+                            aria-hidden="true"
+                          >
+                            close
+                          </span>
                         </button>
                       </div>
                     ))}
@@ -554,7 +595,10 @@ export default function CoworkToolCard({
                   <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-1">
                     Tools
                   </span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px] mt-1.5">
+                  <span
+                    className="material-symbols-outlined text-text-muted text-[14px] mt-1.5"
+                    aria-hidden="true"
+                  >
                     arrow_forward
                   </span>
                   <div className="flex-1 flex flex-col gap-1.5">
@@ -630,7 +674,10 @@ export default function CoworkToolCard({
                       <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-1">
                         Local Plugins
                       </span>
-                      <span className="material-symbols-outlined text-text-muted text-[14px] mt-1.5">
+                      <span
+                        className="material-symbols-outlined text-text-muted text-[14px] mt-1.5"
+                        aria-hidden="true"
+                      >
                         arrow_forward
                       </span>
                       <div className="flex-1 flex flex-col gap-2">
@@ -695,7 +742,7 @@ export default function CoworkToolCard({
                 <div
                   className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs ${message.type === "success" ? "bg-green-500/10 text-green-600" : "bg-red-500/10 text-red-600"}`}
                 >
-                  <span className="material-symbols-outlined text-[14px]">
+                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
                     {message.type === "success" ? "check_circle" : "error"}
                   </span>
                   <span>{message.text}</span>
@@ -711,7 +758,10 @@ export default function CoworkToolCard({
                   loading={applying}
                   className="w-full sm:w-auto"
                 >
-                  <span className="material-symbols-outlined text-[14px] mr-1">save</span>Apply
+                  <span className="material-symbols-outlined text-[14px] mr-1" aria-hidden="true">
+                    save
+                  </span>
+                  Apply
                 </Button>
                 <Button
                   variant="outline"
@@ -721,7 +771,10 @@ export default function CoworkToolCard({
                   loading={restoring}
                   className="w-full sm:w-auto"
                 >
-                  <span className="material-symbols-outlined text-[14px] mr-1">restore</span>Reset
+                  <span className="material-symbols-outlined text-[14px] mr-1" aria-hidden="true">
+                    restore
+                  </span>
+                  Reset
                 </Button>
                 <Button
                   variant="ghost"
@@ -729,7 +782,9 @@ export default function CoworkToolCard({
                   onClick={() => setShowManualConfigModal(true)}
                   className="w-full sm:w-auto"
                 >
-                  <span className="material-symbols-outlined text-[14px] mr-1">content_copy</span>
+                  <span className="material-symbols-outlined text-[14px] mr-1" aria-hidden="true">
+                    content_copy
+                  </span>
                   Manual Config
                 </Button>
               </div>
@@ -779,78 +834,69 @@ export default function CoworkToolCard({
       />
 
       {/* Add Custom MCP modal */}
-      {addMcpOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setAddMcpOpen(false)}
-        >
-          <div
-            className="bg-surface border border-border rounded-xl shadow-xl w-full max-w-sm mx-4 p-5 flex flex-col gap-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-sm">Add Custom MCP</h3>
-              <button
-                onClick={() => setAddMcpOpen(false)}
-                className="text-text-muted hover:text-text-main"
-              >
-                <span className="material-symbols-outlined text-[18px]">close</span>
-              </button>
+      <Modal
+        isOpen={addMcpOpen}
+        onClose={() => setAddMcpOpen(false)}
+        title="Add Custom MCP"
+        size="sm"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="cowork-mcp-name" className="text-xs text-muted font-medium">
+                Name
+              </label>
+              <input
+                id="cowork-mcp-name"
+                type="text"
+                placeholder="my-mcp"
+                value={addMcpForm.name}
+                onChange={(e) =>
+                  setAddMcpForm((f) => ({
+                    ...f,
+                    name: e.target.value.replace(/\s+/g, "-").toLowerCase(),
+                  }))
+                }
+                className="rounded-lg border border-line bg-raised px-3 py-2 text-sm text-text focus-visible:outline-none focus-visible:shadow-focus"
+              />
             </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-text-muted font-medium">Name</label>
-                <input
-                  type="text"
-                  placeholder="my-mcp"
-                  value={addMcpForm.name}
-                  onChange={(e) =>
-                    setAddMcpForm((f) => ({
-                      ...f,
-                      name: e.target.value.replace(/\s+/g, "-").toLowerCase(),
-                    }))
-                  }
-                  className="px-2 py-1.5 rounded border border-border bg-surface text-xs outline-none focus:border-primary"
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[11px] text-text-muted font-medium">SSE URL</label>
-                <input
-                  type="text"
-                  placeholder="https://your-mcp-server.com/sse"
-                  value={addMcpForm.url}
-                  onChange={(e) => setAddMcpForm((f) => ({ ...f, url: e.target.value }))}
-                  className="px-2 py-1.5 rounded border border-border bg-surface text-xs outline-none focus:border-primary"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setAddMcpOpen(false)}
-                className="px-3 py-1.5 rounded border border-border text-xs text-text-muted hover:bg-surface cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  const name = addMcpForm.name.trim();
-                  if (!name || !addMcpForm.url.trim()) return;
-                  setCustomPlugins((prev) => [
-                    ...prev.filter((x) => x.name !== name),
-                    { name, url: addMcpForm.url.trim(), transport: "sse", custom: true },
-                  ]);
-                  setAddMcpOpen(false);
-                }}
-                className="px-3 py-1.5 rounded bg-primary text-white text-xs font-medium hover:opacity-90 cursor-pointer"
-              >
-                Add
-              </button>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="cowork-mcp-url" className="text-xs text-muted font-medium">
+                SSE URL
+              </label>
+              <input
+                id="cowork-mcp-url"
+                type="text"
+                placeholder="https://your-mcp-server.com/sse"
+                value={addMcpForm.url}
+                onChange={(e) => setAddMcpForm((f) => ({ ...f, url: e.target.value }))}
+                className="rounded-lg border border-line bg-raised px-3 py-2 text-sm text-text focus-visible:outline-none focus-visible:shadow-focus"
+              />
             </div>
           </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setAddMcpOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                const name = addMcpForm.name.trim();
+                if (!name || !addMcpForm.url.trim()) return;
+                setCustomPlugins((prev) => [
+                  ...prev.filter((x) => x.name !== name),
+                  { name, url: addMcpForm.url.trim(), transport: "sse", custom: true },
+                ]);
+                setAddMcpOpen(false);
+              }}
+            >
+              Add
+            </Button>
+          </div>
         </div>
-      )}
+      </Modal>
     </Card>
   );
 }

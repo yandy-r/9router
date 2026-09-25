@@ -55,6 +55,9 @@
   --signal-err: #c4284a;
   --signal-err-bg: rgba(196, 40, 74, 0.09);
 
+  /* Overlay backdrop (design-system §4) */
+  --signal-scrim: rgba(22, 23, 28, 0.35);
+
   /* Toggle "on": ink track with lime knob (>= 3:1) */
   --signal-toggle-on: #16171c;
   --signal-toggle-knob-on: #cff24a;
@@ -100,6 +103,9 @@
   /* Toggle "on": lime track with dark knob (>= 3:1) */
   --signal-toggle-on: #d5f84b;
   --signal-toggle-knob-on: #12140a;
+
+  /* Overlay backdrop (design-system §4) */
+  --signal-scrim: rgba(0, 0, 0, 0.5);
 
   color-scheme: dark;
 }
@@ -278,6 +284,7 @@ select {
   --color-warn-bg: var(--signal-warn-bg);
   --color-err: var(--signal-err);
   --color-err-bg: var(--signal-err-bg);
+  --color-scrim: var(--signal-scrim);
   --color-toggle-on: var(--signal-toggle-on);
   --color-toggle-knob-on: var(--signal-toggle-knob-on);
   --color-terminal-bg: var(--signal-terminal-bg);
@@ -376,10 +383,63 @@ select {
   }
 }
 
+/* Signal overlays (design-system §4/§8): themed backdrop + 280ms ease-out
+   entry on transform/opacity only. Placement is logical (inset-inline). */
+.signal-backdrop {
+  background-color: var(--signal-scrim);
+  animation: signalFade 0.28s ease-out;
+}
+
+.signal-overlay,
+.signal-overlay-drawer,
+.signal-overlay-menu,
+.signal-overlay-pop,
+.signal-overlay-tip {
+  animation: signalFade 0.28s ease-out;
+}
+
+.signal-overlay-modal {
+  transform-origin: center;
+  animation:
+    signalFade 0.28s ease-out,
+    signalZoom 0.28s ease-out;
+}
+
+@keyframes signalFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes signalZoom {
+  from {
+    transform: scale(0.97);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* Must follow every overlay/motion rule above: same specificity, so the
+   later declaration wins. */
 @media (prefers-reduced-motion: reduce) {
   .animate-flow,
   .animate-pulse {
     animation: none;
+  }
+  /* Signal overlays: no backdrop fade or panel entry under reduced motion. */
+  .signal-backdrop,
+  .signal-overlay,
+  .signal-overlay-drawer,
+  .signal-overlay-modal,
+  .signal-overlay-menu,
+  .signal-overlay-pop,
+  .signal-overlay-tip {
+    animation: none;
+    transition: none;
   }
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card } from "@/shared/components";
+import { Card, Modal } from "@/shared/components";
 import { AI_PROVIDERS, getProviderAlias } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
@@ -288,7 +288,9 @@ export function TtsExampleCard({ providerId }) {
                       : "border-border text-text-muted hover:text-primary"
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[14px]">wifi_tethering</span>
+                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                    wifi_tethering
+                  </span>
                   Tunnel
                 </button>
               )}
@@ -316,7 +318,8 @@ export function TtsExampleCard({ providerId }) {
                 <select
                   value={selectedModel}
                   onChange={(e) => setSelectedModel(e.target.value)}
-                  className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
+                  aria-label="Search languages"
+                  className="w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm text-text focus-visible:outline-none focus-visible:shadow-focus"
                 >
                   {(() => {
                     const ttsModels = getModelsByProviderId(providerId).filter(
@@ -340,7 +343,7 @@ export function TtsExampleCard({ providerId }) {
               <select
                 value={languageHint}
                 onChange={(e) => setLanguageHint(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
+                className="w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm text-text focus-visible:outline-none focus-visible:shadow-focus"
               >
                 <option value="">Auto-detect</option>
                 {(config.languageOptions || GOOGLE_TTS_LANGUAGES).map((l) =>
@@ -378,7 +381,9 @@ export function TtsExampleCard({ providerId }) {
                   onClick={openModal}
                   className="flex w-full items-center justify-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-border text-text-muted hover:text-primary hover:border-primary/40 transition-colors sm:w-auto sm:shrink-0"
                 >
-                  <span className="material-symbols-outlined text-[14px]">language</span>
+                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                    language
+                  </span>
                   Select language
                 </button>
               </div>
@@ -443,9 +448,12 @@ export function TtsExampleCard({ providerId }) {
                         setVoiceId("");
                         setSelectedVoice("");
                       }}
+                      aria-label="Clear voice"
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary transition-colors"
                     >
-                      <span className="material-symbols-outlined text-[14px]">close</span>
+                      <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                        close
+                      </span>
                     </button>
                   )}
                 </div>
@@ -490,9 +498,12 @@ export function TtsExampleCard({ providerId }) {
                 <button
                   type="button"
                   onClick={() => setInput("")}
+                  aria-label="Clear text"
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[14px]">close</span>
+                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                    close
+                  </span>
                 </button>
               )}
             </div>
@@ -515,9 +526,12 @@ export function TtsExampleCard({ providerId }) {
                   <button
                     type="button"
                     onClick={() => setStyle("")}
+                    aria-label="Clear style"
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-primary transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[14px]">close</span>
+                    <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                      close
+                    </span>
                   </button>
                 )}
               </div>
@@ -547,7 +561,7 @@ export function TtsExampleCard({ providerId }) {
                   onClick={() => copyCurl(curlSnippet)}
                   className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[14px]">
+                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
                     {copiedCurl ? "check" : "content_copy"}
                   </span>
                   {copiedCurl ? "Copied" : "Copy"}
@@ -560,6 +574,7 @@ export function TtsExampleCard({ providerId }) {
                   <span
                     className="material-symbols-outlined text-[14px]"
                     style={running ? { animation: "spin 1s linear infinite" } : undefined}
+                    aria-hidden="true"
                   >
                     play_arrow
                   </span>
@@ -587,7 +602,9 @@ export function TtsExampleCard({ providerId }) {
                   download="speech.mp3"
                   className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-primary transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[14px]">download</span>
+                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">
+                    download
+                  </span>
                   Download
                 </a>
               </div>
@@ -630,74 +647,61 @@ export function TtsExampleCard({ providerId }) {
       </Card>
 
       {/* Country Picker Modal */}
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
-          style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(2px)" }}
-          onClick={() => setModalOpen(false)}
-        >
-          <div
-            className="border border-border rounded-xl shadow-2xl w-full max-w-md mx-4 flex flex-col max-h-[80vh]"
-            style={{ backgroundColor: "var(--color-bg)", isolation: "isolate" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 rounded-t-xl">
-              <h3 className="text-sm font-semibold">Select Language</h3>
-              <button
-                onClick={() => setModalOpen(false)}
-                className="text-text-muted hover:text-primary transition-colors"
-              >
-                <span className="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Select Language">
+        <div className="flex flex-col">
+          {/* Search */}
+          <div className="border-b border-line px-4 py-2.5">
+            <input
+              aria-label="Search languages"
+              value={modalSearch}
+              onChange={(e) => setModalSearch(e.target.value)}
+              placeholder="Search language..."
+              className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
+            />
+          </div>
 
-            {/* Search */}
-            <div className="px-4 py-2.5 border-b border-border shrink-0">
-              <input
-                autoFocus
-                value={modalSearch}
-                onChange={(e) => setModalSearch(e.target.value)}
-                placeholder="Search language..."
-                className="w-full px-3 py-1.5 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
-              />
-            </div>
-
-            {/* Language list */}
-            <div className="overflow-y-auto flex-1 p-2">
-              {modalError && <p className="text-xs text-red-500 px-2 py-1">{modalError}</p>}
-              {modalLoading ? (
-                <p className="text-xs text-text-muted px-2 py-3">Loading...</p>
-              ) : (
-                <div className="flex flex-col gap-0.5">
-                  {filteredLanguages.map((c) => (
-                    <button
-                      key={c.code}
-                      onClick={() => handlePickLanguage(c)}
-                      className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-left hover:bg-sidebar transition-colors ${
-                        selectedLang === c.code ? "bg-primary/10 text-primary" : ""
-                      }`}
-                    >
-                      <span className="text-sm">{c.name}</span>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-xs text-text-muted">{c.voices.length} voices</span>
-                        {selectedLang === c.code && (
-                          <span className="material-symbols-outlined text-[16px] text-primary">
-                            check
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                  {filteredLanguages.length === 0 && (
-                    <p className="text-xs text-text-muted px-2 py-3">No languages found.</p>
-                  )}
-                </div>
-              )}
-            </div>
+          {/* Language list */}
+          <div className="overflow-y-auto flex-1 p-2">
+            {modalError && (
+              <p className="px-2 py-1 text-xs text-err" role="alert">
+                {modalError}
+              </p>
+            )}
+            {modalLoading ? (
+              <p className="text-xs text-text-muted px-2 py-3">Loading...</p>
+            ) : (
+              <div className="flex flex-col gap-0.5">
+                {filteredLanguages.map((c) => (
+                  <button
+                    type="button"
+                    key={c.code}
+                    onClick={() => handlePickLanguage(c)}
+                    className={`flex min-h-11 w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors hover:bg-raised focus-visible:shadow-focus ${
+                      selectedLang === c.code ? "bg-coral-bg text-coral-ink" : "text-text"
+                    }`}
+                  >
+                    <span className="text-sm">{c.name}</span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs text-text-muted">{c.voices.length} voices</span>
+                      {selectedLang === c.code && (
+                        <span
+                          className="material-symbols-outlined text-[16px] text-primary"
+                          aria-hidden="true"
+                        >
+                          check
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+                {filteredLanguages.length === 0 && (
+                  <p className="text-xs text-text-muted px-2 py-3">No languages found.</p>
+                )}
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </Modal>
     </>
   );
 }
