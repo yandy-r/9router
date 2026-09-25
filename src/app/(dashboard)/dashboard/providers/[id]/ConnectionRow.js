@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { getStatusVariant as getConnectionStatusVariant } from "@/shared/utils/connectionStatus";
 import PropTypes from "prop-types";
 import { Badge, Toggle, Tooltip } from "@/shared/components";
+import { getEarliestModelLockUntil, MODEL_LOCK_PREFIX } from "open-sse/services/accountFallback.js";
 import CooldownTimer from "./CooldownTimer";
 
 function formatWeight(value) {
@@ -115,33 +116,20 @@ export default function ConnectionRow({
         : null;
 
   // Use useState + useEffect for impure Date.now() to avoid calling during render
-  const [isCooldown, setIsCooldown] = useState(false);
-
-  // Get earliest model lock timestamp (useEffect handles the Date.now() comparison)
-  const modelLockUntil =
-    Object.entries(connection)
-      .filter(([k]) => k.startsWith("modelLock_"))
-      .map(([, v]) => v)
-      .filter((v) => !!v)
-      .sort()[0] || null;
+  // Earliest *active* model lock; expired locks are skipped so they can't hide a live one.
+  const [modelLockUntil, setModelLockUntil] = useState(null);
+  const isCooldown = !!modelLockUntil;
 
   useEffect(() => {
-    const checkCooldown = () => {
-      const until =
-        Object.entries(connection)
-          .filter(([k]) => k.startsWith("modelLock_"))
-          .map(([, v]) => v)
-          .filter((v) => v && new Date(v).getTime() > Date.now())
-          .sort()[0] || null;
-      setIsCooldown(!!until);
-    };
-
+    const checkCooldown = () => setModelLockUntil(getEarliestModelLockUntil(connection));
     checkCooldown();
-    const interval = modelLockUntil ? setInterval(checkCooldown, 1000) : null;
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [modelLockUntil]);
+    const hasLock = Object.entries(connection).some(
+      ([k, v]) => k.startsWith(MODEL_LOCK_PREFIX) && v,
+    );
+    if (!hasLock) return;
+    const interval = setInterval(checkCooldown, 1000);
+    return () => clearInterval(interval);
+  }, [connection]);
 
   // Determine effective status (override unavailable if cooldown expired)
   const effectiveStatus =
