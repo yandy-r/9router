@@ -65,7 +65,9 @@ export function translateRequest(
   ensureInitialized();
   let result = body;
   // Translators build fresh bodies; keep the /v1/responses/compact routing flag.
-  const compact = body?._compact === true;
+  // Only Codex consumes (and strips) it — other executors would send it upstream.
+  const compact = body?._compact === true && provider === "codex";
+  const originalSourceFormat = sourceFormat;
 
   // /v1/responses* forces openai-responses, but a chat-shaped body (messages,
   // no input) is still Chat Completions on the request side. The response side
@@ -139,7 +141,7 @@ export function translateRequest(
   // systemPrompt/additionalModelRequestFields instead.
   const kiroThinkingMappedByTranslator =
     targetFormat === FORMATS.KIRO &&
-    (sourceFormat === FORMATS.OPENAI || sourceFormat === FORMATS.CLAUDE);
+    (originalSourceFormat === FORMATS.OPENAI || originalSourceFormat === FORMATS.CLAUDE);
   if (!kiroThinkingMappedByTranslator) {
     applyThinking(targetFormat, model, result, provider, thinkingIntent);
   }

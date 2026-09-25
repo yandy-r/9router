@@ -53,11 +53,15 @@ describe("CodexExecutor compact routing (YAN-19)", () => {
     const fetchSpy = vi
       .spyOn(proxyFetchModule, "proxyAwareFetch")
       .mockImplementation(async () => ok());
-    const body = translateRequest(sourceFormat, "openai-responses", "gpt-5", {
-      model: "gpt-5",
-      messages: [{ role: "user", content: "hello there" }],
-      _compact: true,
-    });
+    const body = translateRequest(
+      sourceFormat,
+      "openai-responses",
+      "gpt-5",
+      { model: "gpt-5", messages: [{ role: "user", content: "hello there" }], _compact: true },
+      true,
+      null,
+      "codex",
+    );
 
     const { url } = await run(new CodexExecutor(), body);
 
