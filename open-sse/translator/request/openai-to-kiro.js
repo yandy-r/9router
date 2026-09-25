@@ -163,11 +163,10 @@ function convertMessages(messages, model) {
 
       // Handle tool role (from normalized)
       if (msg.role === ROLE.TOOL) {
-        const toolContent = typeof msg.content === "string" ? msg.content : "";
         pendingToolResults.push({
           toolUseId: msg.tool_call_id,
           status: msg.is_error || msg.status === "error" ? "error" : "success",
-          content: [{ text: toolContent }],
+          content: [{ text: content }],
         });
       } else if (content) {
         // <instructions> tags: Claude models treat these as authoritative directives.

@@ -5,6 +5,7 @@ import { encodeDataUri } from "../concerns/image.js";
 import { ROLE, GEMINI_ROLE, OPENAI_BLOCK } from "../schema/index.js";
 import { budgetToEffort } from "../concerns/thinking.js";
 import { collapseTextParts } from "../concerns/message.js";
+import { createToolIdPairer } from "../concerns/toolCall.js";
 
 // Convert Antigravity request to OpenAI format
 // Antigravity body: { project, model, userAgent, requestType, requestId, request: { contents, systemInstruction, tools, toolConfig, generationConfig, sessionId } }
@@ -50,8 +51,9 @@ export function antigravityToOpenAIRequest(model, body, stream) {
 
   // Convert contents to messages
   if (req.contents && Array.isArray(req.contents)) {
+    const pairer = createToolIdPairer();
     for (const content of req.contents) {
-      const converted = convertContent(content);
+      const converted = convertContent(content, pairer);
       if (converted) {
         if (Array.isArray(converted)) {
           result.messages.push(...converted);
@@ -118,7 +120,7 @@ function normalizeSchemaTypes(schema) {
 
 // Convert Antigravity content to OpenAI message
 // Handles: text, thought, thoughtSignature, functionCall, functionResponse, inlineData
-function convertContent(content) {
+function convertContent(content, pairer) {
   const role =
     content.role === GEMINI_ROLE.MODEL
       ? ROLE.ASSISTANT
@@ -168,8 +170,7 @@ function convertContent(content) {
     // Function call
     if (part.functionCall) {
       toolCalls.push({
-        // Deterministic id from name so the matching functionResponse pairs correctly.
-        id: part.functionCall.id || `call_${part.functionCall.name}`,
+        id: pairer.callId(part.functionCall),
         type: OPENAI_BLOCK.FUNCTION,
         function: {
           name: part.functionCall.name,
@@ -182,7 +183,7 @@ function convertContent(content) {
     if (part.functionResponse) {
       toolResults.push({
         role: ROLE.TOOL,
-        tool_call_id: part.functionResponse.id || `call_${part.functionResponse.name}`,
+        tool_call_id: pairer.responseId(part.functionResponse),
         content: JSON.stringify(
           part.functionResponse.response?.result || part.functionResponse.response || {},
         ),
@@ -190,23 +191,25 @@ function convertContent(content) {
     }
   }
 
-  // Content with functionResponses — return array of tool result messages,
-  // plus an assistant message for any co-located tool calls / text.
+  // Content with functionResponses — tool result messages plus a message for any
+  // co-located tool calls / text. Calls precede their results. Without calls, text keeps
+  // its source role and follows the results so tool messages stay adjacent to the prior call.
   if (toolResults.length > 0) {
-    if (toolCalls.length > 0 || textParts.length > 0 || reasoningContent) {
-      const assistantMsg = { role: ROLE.ASSISTANT };
-      if (textParts.length > 0) {
-        assistantMsg.content = collapseTextParts(textParts);
-      }
-      if (reasoningContent) {
-        assistantMsg.reasoning_content = reasoningContent;
-      }
-      if (toolCalls.length > 0) {
-        assistantMsg.tool_calls = toolCalls;
-      }
-      return [...toolResults, assistantMsg];
+    if (toolCalls.length === 0 && textParts.length === 0 && !reasoningContent) {
+      return toolResults;
     }
-    return toolResults;
+    const msg = { role: toolCalls.length > 0 ? ROLE.ASSISTANT : role };
+    if (textParts.length > 0) {
+      msg.content = collapseTextParts(textParts);
+    }
+    if (reasoningContent) {
+      msg.reasoning_content = reasoningContent;
+    }
+    if (toolCalls.length > 0) {
+      msg.tool_calls = toolCalls;
+      return [msg, ...toolResults];
+    }
+    return [...toolResults, msg];
   }
 
   // Assistant with tool calls
