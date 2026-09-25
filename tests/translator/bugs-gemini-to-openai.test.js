@@ -38,4 +38,74 @@ describe("Gemini → OpenAI", () => {
     expect(tools[0]?.content).toBe('"AAA"');
     expect(tools[1]?.content).toBe('"BBB"');
   });
+
+  it("keeps user text role when sharing a function response", () => {
+    const out = G2O({
+      contents: [
+        { role: "model", parts: [{ functionCall: { id: "A", name: "foo" } }] },
+        {
+          role: "user",
+          parts: [
+            { text: "next prompt" },
+            { functionResponse: { id: "A", name: "foo", response: { result: "ok" } } },
+          ],
+        },
+      ],
+    });
+    expect(out.messages.map((message) => message.role)).toEqual(["assistant", "tool", "user"]);
+    expect(out.messages[1]?.tool_call_id).toBe("A");
+    expect(out.messages[2]?.content).toBe("next prompt");
+  });
+
+  it("places a co-located assistant call before its explicit-id result", () => {
+    const out = G2O({
+      contents: [
+        {
+          role: "model",
+          parts: [
+            { functionCall: { id: "A", name: "foo" } },
+            { functionResponse: { id: "A", name: "foo", response: { result: "ok" } } },
+          ],
+        },
+      ],
+    });
+    expect(out.messages.map((message) => message.role)).toEqual(["assistant", "tool"]);
+    expect(out.messages[0]?.tool_calls?.[0]?.id).toBe(out.messages[1]?.tool_call_id);
+  });
+
+  it("keeps a lone image when sharing a function response", () => {
+    const out = G2O({
+      contents: [
+        { role: "model", parts: [{ functionCall: { id: "A", name: "foo" } }] },
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType: "image/png", data: "aGVsbG8=" } },
+            { functionResponse: { id: "A", name: "foo", response: { result: "ok" } } },
+          ],
+        },
+      ],
+    });
+    expect(out.messages[2]?.content).toEqual([
+      { type: "image_url", image_url: { url: "data:image/png;base64,aGVsbG8=" } },
+    ]);
+  });
+
+  it("removes an explicitly answered id from every function queue", () => {
+    const out = G2O({
+      contents: [
+        {
+          role: "model",
+          parts: [
+            { functionCall: { id: "A", name: "foo" } },
+            { functionCall: { id: "B", name: "bar" } },
+          ],
+        },
+        { role: "user", parts: [{ functionResponse: { id: "B", name: "foo" } }] },
+        { role: "user", parts: [{ functionResponse: { name: "bar" } }] },
+      ],
+    });
+    expect(out.messages[1]?.tool_call_id).toBe("B");
+    expect(out.messages[2]?.tool_call_id).not.toBe("B");
+  });
 });

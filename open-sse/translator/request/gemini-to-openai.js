@@ -127,17 +127,18 @@ function convertGeminiContent(content, pairer) {
   }
 
   if (toolResults.length > 0) {
-    if (toolCalls.length > 0 || parts.length > 0) {
-      const assistantMsg = { role: ROLE.ASSISTANT };
-      if (parts.length > 0) {
-        assistantMsg.content = parts.length === 1 ? parts[0].text : parts;
-      }
-      if (toolCalls.length > 0) {
-        assistantMsg.tool_calls = toolCalls;
-      }
-      return [...toolResults, assistantMsg];
+    if (toolCalls.length === 0 && parts.length === 0) return toolResults;
+    // Calls precede their results. Without calls, text keeps its source role and follows
+    // the results so tool messages stay adjacent to the prior assistant call.
+    const msg = { role: toolCalls.length > 0 ? ROLE.ASSISTANT : role };
+    if (parts.length > 0) {
+      msg.content = collapseTextParts(parts);
     }
-    return toolResults;
+    if (toolCalls.length > 0) {
+      msg.tool_calls = toolCalls;
+      return [msg, ...toolResults];
+    }
+    return [...toolResults, msg];
   }
 
   if (toolCalls.length > 0) {

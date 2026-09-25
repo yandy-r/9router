@@ -191,23 +191,25 @@ function convertContent(content, pairer) {
     }
   }
 
-  // Content with functionResponses — return array of tool result messages,
-  // plus an assistant message for any co-located tool calls / text.
+  // Content with functionResponses — tool result messages plus a message for any
+  // co-located tool calls / text. Calls precede their results. Without calls, text keeps
+  // its source role and follows the results so tool messages stay adjacent to the prior call.
   if (toolResults.length > 0) {
-    if (toolCalls.length > 0 || textParts.length > 0 || reasoningContent) {
-      const assistantMsg = { role: ROLE.ASSISTANT };
-      if (textParts.length > 0) {
-        assistantMsg.content = collapseTextParts(textParts);
-      }
-      if (reasoningContent) {
-        assistantMsg.reasoning_content = reasoningContent;
-      }
-      if (toolCalls.length > 0) {
-        assistantMsg.tool_calls = toolCalls;
-      }
-      return [...toolResults, assistantMsg];
+    if (toolCalls.length === 0 && textParts.length === 0 && !reasoningContent) {
+      return toolResults;
     }
-    return toolResults;
+    const msg = { role: toolCalls.length > 0 ? ROLE.ASSISTANT : role };
+    if (textParts.length > 0) {
+      msg.content = collapseTextParts(textParts);
+    }
+    if (reasoningContent) {
+      msg.reasoning_content = reasoningContent;
+    }
+    if (toolCalls.length > 0) {
+      msg.tool_calls = toolCalls;
+      return [msg, ...toolResults];
+    }
+    return [...toolResults, msg];
   }
 
   // Assistant with tool calls

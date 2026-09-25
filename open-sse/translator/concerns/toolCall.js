@@ -68,8 +68,9 @@ export function createToolIdPairer() {
           : null;
       if (explicitId) {
         usedIds.add(explicitId);
-        const queue = queuesByName.get(nameKey);
-        if (queue) {
+        // Remove from every queue: a response may name a different function than its call,
+        // and a later idless response must not reuse an id already answered.
+        for (const queue of queuesByName.values()) {
           const at = queue.indexOf(explicitId);
           if (at !== -1) queue.splice(at, 1);
         }

@@ -44,7 +44,8 @@ describe("Antigravity → OpenAI", () => {
   });
 
   // antigravity-to-openai.js — content with BOTH functionResponse and functionCall/text
-  // previously returned toolResults early → dropped tool calls / text (fixed in #2225)
+  // previously returned toolResults early → dropped tool calls / text (fixed in #2225).
+  // Ordering: the assistant call must precede its corresponding tool result.
   it("functionResponse + functionCall in same content keeps both", () => {
     const out = AG2O({
       contents: [
@@ -61,6 +62,29 @@ describe("Antigravity → OpenAI", () => {
     expect(json, "functionCall lost when sharing content with functionResponse").toContain(
       '"next"',
     );
+    expect(out.messages).toHaveLength(2);
+    expect(out.messages[0]?.role, "assistant call must precede tool result").toBe("assistant");
+    expect(out.messages[0]?.tool_calls?.[0]?.id).toBe("c2");
+    expect(out.messages[1]?.role).toBe("tool");
+    expect(out.messages[1]?.tool_call_id).toBe("c1");
+  });
+
+  it("keeps user text role when sharing a function response", () => {
+    const out = AG2O({
+      contents: [
+        { role: "model", parts: [{ functionCall: { id: "c1", name: "foo" } }] },
+        {
+          role: "user",
+          parts: [
+            { text: "next prompt" },
+            { functionResponse: { id: "c1", name: "foo", response: { result: "ok" } } },
+          ],
+        },
+      ],
+    });
+    expect(out.messages.map((message) => message.role)).toEqual(["assistant", "tool", "user"]);
+    expect(out.messages[1]?.tool_call_id).toBe("c1");
+    expect(out.messages[2]?.content).toBe("next prompt");
   });
 
   // antigravity-to-openai.js:167 — functionCall without id gets a random Date.now() id
