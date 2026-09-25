@@ -152,7 +152,7 @@ describe("openaiToClaudeRequest", () => {
 
     it("maps string tool_choice values", () => {
       expect(choiceOf("auto")).toEqual({ type: "auto" });
-      expect(choiceOf("none")).toEqual({ type: "auto" });
+      expect(choiceOf("none")).toEqual({ type: "none" });
       expect(choiceOf("required")).toEqual({ type: "any" });
     });
 
@@ -176,6 +176,31 @@ describe("openaiToClaudeRequest", () => {
     it("omits tool_choice entirely when the request has none", () => {
       const result = openaiToClaudeRequest("claude-sonnet-4.5", baseBody, false);
       expect(result.tool_choice).toBeUndefined();
+    });
+  });
+
+  describe("image_url handling", () => {
+    it("accepts a plain-string image_url without crashing", () => {
+      const result = openaiToClaudeRequest(
+        "claude-sonnet-4.5",
+        {
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "see" },
+                { type: "image_url", image_url: "https://x.com/pic.png" },
+              ],
+            },
+          ],
+        },
+        false,
+      );
+      const image = result.messages[0].content.find((block) => block.type === "image");
+      expect(image).toEqual({
+        type: "image",
+        source: { type: "url", url: "https://x.com/pic.png" },
+      });
     });
   });
 });

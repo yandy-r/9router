@@ -244,14 +244,17 @@ function getContentBlocksFromMessage(msg, toolNameMap = new Map()) {
             ...(part.is_error && { is_error: part.is_error }),
           });
         } else if (part.type === OPENAI_BLOCK.IMAGE_URL) {
-          const url = part.image_url.url;
+          const url = typeof part.image_url === "string" ? part.image_url : part.image_url?.url;
           const parsed = parseDataUri(url);
           if (parsed) {
             blocks.push({
               type: CLAUDE_BLOCK.IMAGE,
               source: { type: "base64", media_type: parsed.mimeType, data: parsed.base64 },
             });
-          } else if (url.startsWith("http://") || url.startsWith("https://")) {
+          } else if (
+            typeof url === "string" &&
+            (url.startsWith("http://") || url.startsWith("https://"))
+          ) {
             blocks.push({
               type: CLAUDE_BLOCK.IMAGE,
               source: { type: "url", url },
@@ -330,7 +333,8 @@ function convertOpenAIToolChoice(choice) {
   // OpenAI string forms: "auto" | "none" | "required"
   if (typeof choice === "string") {
     if (choice === "required") return { type: "any" };
-    return { type: "auto" }; // "auto", "none", or anything unexpected
+    if (choice === "none") return { type: "none" };
+    return { type: "auto" }; // "auto" or anything unexpected
   }
 
   if (typeof choice === "object") {

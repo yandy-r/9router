@@ -3,6 +3,7 @@ import { FORMATS } from "../formats.js";
 import { adjustMaxTokens } from "../formats/maxTokens.js";
 import { encodeDataUri } from "../concerns/image.js";
 import { collapseTextParts } from "../concerns/message.js";
+import { createToolIdPairer } from "../concerns/toolCall.js";
 import { ROLE, GEMINI_ROLE, OPENAI_BLOCK } from "../schema/index.js";
 
 // Convert Gemini request to OpenAI format
@@ -41,10 +42,15 @@ export function geminiToOpenAIRequest(model, body, stream) {
 
   // Convert contents to messages
   if (body.contents && Array.isArray(body.contents)) {
+    const pairer = createToolIdPairer();
     for (const content of body.contents) {
-      const converted = convertGeminiContent(content);
+      const converted = convertGeminiContent(content, pairer);
       if (converted) {
-        result.messages.push(converted);
+        if (Array.isArray(converted)) {
+          result.messages.push(...converted);
+        } else {
+          result.messages.push(converted);
+        }
       }
     }
   }
@@ -71,8 +77,9 @@ export function geminiToOpenAIRequest(model, body, stream) {
   return result;
 }
 
-// Convert Gemini content to OpenAI message
-function convertGeminiContent(content) {
+// Convert Gemini content to OpenAI message.
+// functionResponse parts become tool messages; co-located text/calls stay on an assistant message.
+function convertGeminiContent(content, pairer) {
   const role = content.role === GEMINI_ROLE.USER ? ROLE.USER : ROLE.ASSISTANT;
 
   if (!content.parts || !Array.isArray(content.parts)) {
@@ -81,6 +88,7 @@ function convertGeminiContent(content) {
 
   const parts = [];
   const toolCalls = [];
+  const toolResults = [];
 
   for (const part of content.parts) {
     if (part.text !== undefined) {
@@ -97,10 +105,8 @@ function convertGeminiContent(content) {
     }
 
     if (part.functionCall) {
-      // Gemini lacks a native call id; derive a deterministic one from the name so the
-      // matching functionResponse maps to the same tool_call_id (providers require pairing).
       toolCalls.push({
-        id: part.functionCall.id || `call_${part.functionCall.name}`,
+        id: pairer.callId(part.functionCall),
         type: OPENAI_BLOCK.FUNCTION,
         function: {
           name: part.functionCall.name,
@@ -110,14 +116,29 @@ function convertGeminiContent(content) {
     }
 
     if (part.functionResponse) {
-      return {
+      toolResults.push({
         role: ROLE.TOOL,
-        tool_call_id: part.functionResponse.id || `call_${part.functionResponse.name}`,
+        tool_call_id: pairer.responseId(part.functionResponse),
         content: JSON.stringify(
           part.functionResponse.response?.result || part.functionResponse.response || {},
         ),
-      };
+      });
     }
+  }
+
+  if (toolResults.length > 0) {
+    if (toolCalls.length === 0 && parts.length === 0) return toolResults;
+    // Calls precede their results. Without calls, text keeps its source role and follows
+    // the results so tool messages stay adjacent to the prior assistant call.
+    const msg = { role: toolCalls.length > 0 ? ROLE.ASSISTANT : role };
+    if (parts.length > 0) {
+      msg.content = collapseTextParts(parts);
+    }
+    if (toolCalls.length > 0) {
+      msg.tool_calls = toolCalls;
+      return [msg, ...toolResults];
+    }
+    return [...toolResults, msg];
   }
 
   if (toolCalls.length > 0) {
