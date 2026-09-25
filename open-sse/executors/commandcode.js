@@ -188,14 +188,19 @@ export async function inspectAndWrapCommandCodeResponse(originalResponse, model)
       buffer = lines.pop() || "";
 
       let stopLoop = false;
-      for (const line of lines) {
-        const trimmed = line.trim();
+      for (let i = 0; i < lines.length; i++) {
+        if (stopLoop) {
+          const trimmed = lines[i].trim();
+          if (trimmed) bufferedLines.push(trimmed);
+          continue;
+        }
+        const trimmed = lines[i].trim();
         if (!trimmed) continue;
         const jsonStr = trimmed.startsWith("data:") ? trimmed.slice(5).trim() : trimmed;
         if (!jsonStr || jsonStr === "[DONE]") {
           bufferedLines.push(trimmed);
           stopLoop = true;
-          break;
+          continue;
         }
 
         let event;
@@ -222,8 +227,8 @@ export async function inspectAndWrapCommandCodeResponse(originalResponse, model)
           event?.type === "finish" ||
           event?.type === "finish-step"
         ) {
+          // Keep scanning so the rest of this chunk is buffered for replay.
           stopLoop = true;
-          break;
         }
       }
 

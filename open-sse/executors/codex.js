@@ -238,6 +238,9 @@ function codexSseErrorResponse(status, message) {
   );
 }
 
+// Request bodies already stripped of `_compact`; keeps URL retries on /compact.
+const compactBodies = new WeakSet();
+
 /**
  * Codex Executor - handles OpenAI Codex API (Responses API format)
  * Automatically injects default instructions if missing
@@ -272,9 +275,9 @@ export class CodexExecutor extends BaseExecutor {
     return headers;
   }
 
-  buildUrl(model, stream, urlIndex = 0, credentials = null) {
+  buildUrl(model, stream, urlIndex = 0, credentials = null, body = null) {
     const base = super.buildUrl(model, stream, urlIndex, credentials);
-    return this._isCompact ? `${base}/compact` : base;
+    return body?._compact || compactBodies.has(body) ? `${base}/compact` : base;
   }
 
   async refreshCredentials(credentials, log) {
@@ -507,7 +510,7 @@ export class CodexExecutor extends BaseExecutor {
    * Image fetching is handled separately in prefetchImages() so this stays sync.
    */
   transformRequest(model, body, stream, credentials) {
-    this._isCompact = !!body._compact;
+    if (body._compact) compactBodies.add(body);
     delete body._compact;
     // Resolve conversation-stable session_id (priority: body → assistant-text → workspace → machine)
     this._currentSessionId = resolveCacheSessionId(body, credentials);
