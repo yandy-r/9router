@@ -587,9 +587,14 @@ function ComboCard({
 
       {isWeighted && (
         <div className="mt-3 border-t border-black/10 pt-3 dark:border-white/10">
-          <p className="mb-2 text-xs text-text-muted">
-            Set relative weights. Estimated shares use current remaining quota.
+          <p className="text-xs text-text-muted">
+            Set relative weights: higher = more traffic, only the ratio matters. Shares also scale
+            by remaining quota.
           </p>
+          <ol className="mt-1 mb-2 list-inside list-decimal text-[11px] text-text-muted">
+            <li>Favor A roughly 2:1 when quotas are equal: set A=2, B=1.</li>
+            <li>Use B only as fallback: set A=1, B=0.</li>
+          </ol>
           <div className="flex flex-col gap-2">
             {models.map((model, index) => (
               <div
