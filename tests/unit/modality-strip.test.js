@@ -166,6 +166,55 @@ describe("stripUnsupportedModalities", () => {
     ).toBe(true);
   });
 
+  it.each([
+    [
+      FORMATS.OPENAI,
+      { messages: [{ content: [{ type: "image_url", image_url: { url: "x" } }] }] },
+      (b) => b.messages[0].content,
+    ],
+    [
+      FORMATS.CLAUDE,
+      { messages: [{ content: [{ type: "image", source: { data: "x" } }] }] },
+      (b) => b.messages[0].content,
+    ],
+    [
+      FORMATS.OPENAI_RESPONSES,
+      { input: [{ content: [{ type: "input_image", image_url: "x" }] }] },
+      (b) => b.input[0].content,
+    ],
+    [
+      FORMATS.GEMINI,
+      { contents: [{ parts: [{ inlineData: { mimeType: "image/png", data: "x" } }] }] },
+      (b) => b.contents[0].parts,
+    ],
+    [
+      FORMATS.ANTIGRAVITY,
+      {
+        request: { contents: [{ parts: [{ inlineData: { mimeType: "image/png", data: "x" } }] }] },
+      },
+      (b) => b.request.contents[0].parts,
+    ],
+  ])("%s: preserves caller-owned media for fallback", (format, original, blocks) => {
+    const before = structuredClone(original);
+    const attempt = { ...original };
+    stripUnsupportedModalities(attempt, format, NO_VISION);
+    expect(original).toEqual(before);
+    expect(blocks(original)).toHaveLength(1);
+    expect(blocks(attempt)).not.toEqual(blocks(original));
+  });
+
+  it("openai: preserves caller-owned attachments for fallback", () => {
+    const original = { messages: [{ images: ["x"], attachments: [{ contentType: "image/png" }] }] };
+    const attempt = { ...original };
+    stripUnsupportedModalities(attempt, FORMATS.OPENAI, NO_VISION);
+    expect(original.messages[0]).toEqual({
+      images: ["x"],
+      attachments: [{ contentType: "image/png" }],
+    });
+    expect(attempt.messages[0].images).toBeUndefined();
+    expect(attempt.messages[0].attachments).toEqual([]);
+  });
+
   it("handles missing/empty body safely", () => {
     expect(stripUnsupportedModalities(null, FORMATS.OPENAI, NO_VISION)).toBe(false);
     expect(stripUnsupportedModalities({}, FORMATS.OPENAI, null)).toBe(false);
