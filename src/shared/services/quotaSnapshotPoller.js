@@ -14,7 +14,7 @@ import { getSnapshot } from "open-sse/services/quotaSnapshot.js";
 import { QUOTA_SNAPSHOT } from "open-sse/config/quotaSnapshot.js";
 import { resolveConnectionProxyConfig } from "@/lib/network/connectionProxy";
 import { refreshAndUpdateCredentials } from "@/app/api/usage/[connectionId]/route.js";
-import { weightedProviders } from "./weightedTargets.js";
+import { comboMemberProviders, weightedProviders } from "./weightedTargets.js";
 import { USAGE_APIKEY_PROVIDERS } from "@/shared/constants/providers";
 import {
   fetchAndPersistClaudePlanTier,
@@ -130,15 +130,21 @@ export async function runQuotaSnapshotTick(deps = createDefaultDeps(), state = g
     pruneFailureCache(state.failureCache);
     const settings = await deps.getSettings();
     const combos = deps.getCombos ? await deps.getCombos().catch(() => []) : [];
-    let providers = weightedProviders(settings, combos);
+    let providers = new Set([
+      ...weightedProviders(settings, combos),
+      ...comboMemberProviders(combos),
+    ]);
     if (settings?.fallbackStrategy === "weighted" && deps.getProviderConnections) {
       try {
         const all = await deps.getProviderConnections({ isActive: true });
-        providers = weightedProviders(
-          settings,
-          combos,
-          all.map((connection) => connection.provider),
-        );
+        providers = new Set([
+          ...weightedProviders(
+            settings,
+            combos,
+            all.map((connection) => connection.provider),
+          ),
+          ...comboMemberProviders(combos),
+        ]);
       } catch {
         // Keep the original provider set when the connection read fails.
       }
@@ -181,9 +187,11 @@ export function stopQuotaSnapshotPoller() {
   console.log("[QuotaSnapshotPoller] scheduler stopped");
 }
 
-// Weighted targets only: start when some provider strategy, combo strategy, the
-// global comboStrategy, or the global fallbackStrategy is weighted.
-export function configureQuotaSnapshotPoller(settings) {
+// Weighted targets plus any combo member (YAN-384): start when some provider
+// strategy, combo strategy, the global comboStrategy, or the global
+// fallbackStrategy is weighted, or when any combo names a provider member so
+// routing has quota data to skip 0%-quota providers.
+export function configureQuotaSnapshotPoller(settings, combos = []) {
   const hasWeighted =
     settings?.fallbackStrategy === "weighted" ||
     Object.values(settings?.providerStrategies || {}).some(
@@ -193,6 +201,29 @@ export function configureQuotaSnapshotPoller(settings) {
     Object.values(settings?.comboStrategies || {}).some(
       (strategy) => strategy?.fallbackStrategy === "weighted",
     );
-  if (hasWeighted) startQuotaSnapshotPoller();
+  if (hasWeighted || comboMemberProviders(combos).size > 0) startQuotaSnapshotPoller();
   else stopQuotaSnapshotPoller();
+}
+
+// Read settings + combos from the DB and (re)configure the scheduler. Never
+// throws. A combos read failure keeps a running scheduler (a DB blip must not
+// stop polling); a stopped one starts only for weighted settings.
+export async function syncQuotaSnapshotPoller({
+  getSettings: readSettings = getSettings,
+  getCombos: readCombos = getCombos,
+} = {}) {
+  try {
+    const settings = await readSettings();
+    let combos;
+    try {
+      combos = readCombos ? await readCombos() : [];
+    } catch (error) {
+      console.warn(`[QuotaSnapshotPoller] sync: combos read failed: ${error?.message}`);
+      if (!g.timer) configureQuotaSnapshotPoller(settings);
+      return;
+    }
+    configureQuotaSnapshotPoller(settings, combos);
+  } catch (error) {
+    console.warn(`[QuotaSnapshotPoller] sync: ${error?.message}`);
+  }
 }

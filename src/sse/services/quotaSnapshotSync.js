@@ -53,6 +53,17 @@ function usedFractionFor(quota) {
  * - github: chat/completions/premium_interactions→month
  * - kiro: resourceType key→model:<key>
  * - groq: Requests/Tokens→requests/tokens
+ * - kimi: `5h`→5h; `Weekly`/`7d`→7d; `Monthly`→month; `… #N` dedup suffix ignored (skips `Monthly (Code)` —
+ *   code-subset row, not account-wide — plus `Ratelimit*` legacy rows)
+ * - glm/glm-cn: `Session (5h)`→5h; `Weekly (7d)`→7d (skips `Tokens`,
+ *   `Limit (*)`, other `Session (Nh)` — ambiguous scope)
+ * - opencode-go: `Weekly`→7d; `Monthly`→month (skips `Rolling` — API does not
+ *   define it as a 5h window)
+ * - commandcode: `Session (5h)`→5h; `Weekly`→7d (skips `Credits` balance)
+ * - meta-code: `Session (5h)`→5h; `Weekly`→7d
+ * - ollama: `Session (5h)`→5h; `Weekly (7d)`→7d
+ * - xiaomi-mimo: `Weekly`→7d
+ * - minimax/minimax-cn: skipped (model-scoped display names, not model ids)
  */
 export function kindForName(provider, quotaKey, quota) {
   if (typeof quotaKey !== "string" || !quotaKey.trim()) return null;
@@ -94,6 +105,29 @@ export function kindForName(provider, quotaKey, quota) {
       return `model:${key}`;
     case "groq":
       return lower === "requests" || lower === "tokens" ? lower : null;
+    case "kimi": {
+      // limits[] rows are named by window ("5h", "7d") and deduped as "5h #2".
+      const base = lower.replace(/\s+#\d+$/, "");
+      if (base === "5h") return "5h";
+      if (base === "weekly" || base === "7d") return "7d";
+      return base === "monthly" ? "month" : null;
+    }
+    case "glm":
+    case "glm-cn":
+      if (lower === "session (5h)") return "5h";
+      return lower === "weekly (7d)" ? "7d" : null;
+    case "opencode-go":
+      if (lower === "weekly") return "7d";
+      return lower === "monthly" ? "month" : null;
+    case "commandcode":
+    case "meta-code":
+      if (lower === "session (5h)") return "5h";
+      return lower === "weekly" ? "7d" : null;
+    case "ollama":
+      if (lower === "session (5h)") return "5h";
+      return lower === "weekly (7d)" ? "7d" : null;
+    case "xiaomi-mimo":
+      return lower === "weekly" ? "7d" : null;
     default:
       return null;
   }
