@@ -208,3 +208,53 @@ describe("getProviderCredentials account strategies", () => {
     });
   });
 });
+
+// YAN-384: known 0%-quota connections are never selected, under any strategy.
+describe("getProviderCredentials quota-exhausted skip", () => {
+  const reset = () => new Date(Date.now() + 600_000).toISOString();
+  const exhaust = (id, provider = "claude", kind = "5h") =>
+    recordProbeWindows(id, provider, [{ kind, usedFraction: 1, resetsAt: reset() }]);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearQuotaSnapshots();
+    resetAccountSelection();
+    mocks.getProviderConnections.mockResolvedValue([{ id: "dry" }, { id: "wet" }]);
+  });
+
+  it.each([[{}], [{ fallbackStrategy: "round-robin" }], [{ fallbackStrategy: "weighted" }]])(
+    "skips exhausted account under %o",
+    async (settings) => {
+      mocks.getSettings.mockResolvedValue(settings);
+      exhaust("dry");
+      recordProbeWindows("wet", "claude", [{ kind: "5h", usedFraction: 0.97 }]);
+      await expect(getProviderCredentials("claude")).resolves.toMatchObject({
+        connectionId: "wet",
+      });
+    },
+  );
+
+  it("keeps unknown, other-model, and other-provider snapshots eligible", async () => {
+    mocks.getSettings.mockResolvedValue({});
+    exhaust("dry", "codex");
+    await expect(getProviderCredentials("claude")).resolves.toMatchObject({ connectionId: "dry" });
+    clearQuotaSnapshots();
+    exhaust("dry", "claude", "model:opus");
+    await expect(getProviderCredentials("claude", null, "sonnet")).resolves.toMatchObject({
+      connectionId: "dry",
+    });
+    await expect(getProviderCredentials("claude", null, "opus")).resolves.toMatchObject({
+      connectionId: "wet",
+    });
+  });
+
+  it("returns allRateLimited without an account when every account is exhausted", async () => {
+    mocks.getSettings.mockResolvedValue({});
+    exhaust("dry");
+    exhaust("wet");
+    const result = await getProviderCredentials("claude");
+    expect(result).toMatchObject({ allRateLimited: true, lastError: "Quota exhausted" });
+    expect(result.connectionId).toBeUndefined();
+    expect(Date.parse(result.retryAfter)).toBeGreaterThan(Date.now());
+  });
+});

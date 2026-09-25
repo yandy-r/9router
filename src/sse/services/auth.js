@@ -14,6 +14,7 @@ import {
   getModelLockUntil,
 } from "open-sse/services/accountFallback.js";
 import { MAX_RATE_LIMIT_COOLDOWN_MS } from "open-sse/config/errorConfig.js";
+import { getExhaustedUntil, getSnapshot } from "open-sse/services/quotaSnapshot.js";
 import { resolveProviderId, FREE_PROVIDERS } from "@/shared/constants/providers.js";
 import { extractClientApiKey } from "@/lib/auth/clientApiKey.js";
 import { getAntigravityQuotaCache } from "./antigravityQuota.js";
@@ -124,7 +125,9 @@ export async function getProviderCredentials(
     const isAntigravity = providerId === "antigravity";
     const antigravityQuotaCache = isAntigravity && model ? getAntigravityQuotaCache() : null;
 
-    // Filter out model-locked, excluded, and Antigravity quota-exhausted connections.
+    // Filter out model-locked, excluded, quota-snapshot-exhausted (YAN-384), and
+    // Antigravity quota-exhausted connections. Unknown quota stays eligible.
+    const quotaExpiries = [];
     const availableConnections = connections.filter((c) => {
       if (excludeSet.has(c.id)) return false;
       if (isModelLockActive(c, model)) return false;
@@ -144,6 +147,18 @@ export async function getProviderCredentials(
           );
           return false;
         }
+      }
+      // After the Antigravity block so its exact resetAt wins for retry timing.
+      const snapshot = getSnapshot(c.id);
+      const quotaUntil =
+        snapshot && resolveProviderId(snapshot.provider) === providerId
+          ? getExhaustedUntil(snapshot, model)
+          : 0;
+      if (quotaUntil) {
+        const until = new Date(quotaUntil).toISOString();
+        quotaExpiries.push(until);
+        log.info("AUTH", `${c.id?.slice(0, 8)} | QUOTA_SKIP ${model || "all"} until ${until}`);
+        return false;
       }
       return true;
     });
@@ -167,7 +182,10 @@ export async function getProviderCredentials(
     if (availableConnections.length === 0) {
       // Find earliest persistent lock or lazy Antigravity quota-cache reset for retry timing.
       const lockedConns = connections.filter((c) => isModelLockActive(c, model));
-      const expiries = lockedConns.map((c) => getModelLockUntil(c, model)).filter(Boolean);
+      const expiries = [
+        ...lockedConns.map((c) => getModelLockUntil(c, model)).filter(Boolean),
+        ...quotaExpiries,
+      ];
       if (isAntigravity && model && antigravityQuotaCache) {
         connections.forEach((c) => {
           const resetAt = antigravityQuotaCache.get(c.id)?.[model]?.resetAt;
@@ -179,13 +197,15 @@ export async function getProviderCredentials(
         const earliestConn = lockedConns[0];
         log.warn(
           "AUTH",
-          `${provider} | all ${connections.length} accounts locked for ${model || "all"} (${formatRetryAfter(earliest)}) | lastError=${earliestConn?.lastError?.slice(0, 50)}`,
+          `${provider} | all ${connections.length} accounts locked for ${model || "all"} (${formatRetryAfter(earliest)}) | lastError=${earliestConn?.lastError?.slice(0, 50) ?? (quotaExpiries.length ? "Quota exhausted" : "none")}`,
         );
         return {
           allRateLimited: true,
           retryAfter: earliest,
           retryAfterHuman: formatRetryAfter(earliest),
-          lastError: earliestConn?.lastError || null,
+          // Deliberately not "rate limit"/"quota exceeded": those text rules
+          // back off, which would delay combo fallthrough to the next member.
+          lastError: earliestConn?.lastError || (quotaExpiries.length ? "Quota exhausted" : null),
           lastErrorCode: earliestConn?.errorCode || null,
         };
       }
