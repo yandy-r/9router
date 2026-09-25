@@ -610,6 +610,11 @@ export class CursorExecutor extends BaseExecutor {
             },
           );
         }
+        // Only a clean EOF completes the turn; transport errors must propagate.
+        if (!finished) {
+          flushThinkingFallback(onEvent);
+          onEvent({ type: "done" });
+        }
       } finally {
         try {
           session.end();
@@ -617,10 +622,6 @@ export class CursorExecutor extends BaseExecutor {
         try {
           session.close();
         } catch {}
-        if (!finished) {
-          flushThinkingFallback(onEvent);
-          onEvent({ type: "done" });
-        }
       }
     };
 
