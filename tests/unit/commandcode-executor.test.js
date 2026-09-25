@@ -120,6 +120,35 @@ describe("inspectAndWrapCommandCodeResponse", () => {
     expect(body.error.message).toContain("Service temporarily unavailable");
   });
 
+  it("replays every NDJSON line when the whole answer arrives in one chunk", async () => {
+    const chunk = [
+      { type: "start" },
+      { type: "text-start" },
+      { type: "text-delta", text: "Hello" },
+      { type: "text-delta", text: " world" },
+      { type: "text-end" },
+      {
+        type: "finish-step",
+        finishReason: "stop",
+        usage: { inputTokens: 3, outputTokens: 2 },
+      },
+      { type: "finish" },
+    ]
+      .map((e) => JSON.stringify(e))
+      .join("\n");
+    const fakeResponse = new Response(createNdjsonStream([`${chunk}\n`]), { status: 200 });
+
+    const text = await (await inspectAndWrapCommandCodeResponse(fakeResponse, "m")).text();
+    const contents = text
+      .split("\n")
+      .filter((l) => l.startsWith("data: {"))
+      .map((l) => JSON.parse(l.slice(6)));
+    const content = contents.map((c) => c.choices?.[0]?.delta?.content || "").join("");
+    expect(content).toBe("Hello world");
+    expect(contents.some((c) => c.choices?.[0]?.finish_reason === "stop")).toBe(true);
+    expect(contents.some((c) => c.usage)).toBe(true);
+  });
+
   it("streams successful responses when content is emitted", async () => {
     const ndjsonBody = createNdjsonStream([
       JSON.stringify({ type: "start" }) + "\n",
