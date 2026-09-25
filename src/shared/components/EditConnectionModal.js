@@ -226,11 +226,10 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
         } finally {
           setValidating(false);
         }
-        if (isValid) {
-          updates.testStatus = "active";
-          updates.lastError = null;
-          updates.lastErrorAt = null;
-        }
+        // A failed check must not leave a replaced key labelled with the old status.
+        updates.testStatus = isValid ? "active" : "unknown";
+        updates.lastError = null;
+        updates.lastErrorAt = null;
       }
 
       // Add Azure-specific data if this is an Azure connection
