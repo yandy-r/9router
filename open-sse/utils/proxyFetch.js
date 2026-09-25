@@ -109,8 +109,6 @@ const MITM_BYPASS_HOSTS = [
 ];
 const GOOGLE_DNS_SERVERS = ["8.8.8.8", "8.8.4.4"];
 const HTTPS_PORT = 443;
-const HTTP_SUCCESS_MIN = 200;
-const HTTP_SUCCESS_MAX = 300;
 
 function normalizeString(value) {
   if (value === undefined || value === null) return "";
@@ -252,8 +250,23 @@ async function getDispatcher(proxyUrl) {
   return proxyDispatchers.get(normalized);
 }
 
+// Statuses whose Response must not carry a body (WHATWG Response constructor throws).
+const NULL_BODY_STATUSES = new Set([204, 205, 304]);
+
+function toHeaders(rawHeaders) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(rawHeaders)) {
+    if (Array.isArray(value)) for (const v of value) headers.append(key, v);
+    else if (value != null) headers.set(key, String(value));
+  }
+  return headers;
+}
+
 /**
- * Create HTTPS request with manual socket connection (bypass DNS)
+ * Create HTTPS request with manual socket connection (bypass DNS).
+ * Resolves a real WHATWG Response (clone/text/json/arrayBuffer share one body
+ * stream) and honors options.signal before connect, during the request and
+ * while the body streams.
  */
 async function createBypassRequest(parsedUrl, realIP, options) {
   const httpsModule = await import("https");
@@ -261,9 +274,23 @@ async function createBypassRequest(parsedUrl, realIP, options) {
   // CJS modules expose exports via .default in ESM dynamic import context
   const https = httpsModule.default ?? httpsModule;
   const net = netModule.default ?? netModule;
+  const { signal } = options;
+  signal?.throwIfAborted();
 
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
+    let req = null;
+    let res = null;
+    const onAbort = () => {
+      const reason = signal.reason;
+      // Erroring the response stream propagates the abort to body readers.
+      res?.destroy(reason);
+      req?.destroy(reason);
+      socket.destroy(reason);
+      reject(reason);
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    socket.once("close", () => signal?.removeEventListener("abort", onAbort));
 
     socket.connect(HTTPS_PORT, realIP, () => {
       const reqOptions = {
@@ -283,21 +310,24 @@ async function createBypassRequest(parsedUrl, realIP, options) {
         },
       };
 
-      const req = https.request(reqOptions, (res) => {
-        const response = {
-          ok: res.statusCode >= HTTP_SUCCESS_MIN && res.statusCode < HTTP_SUCCESS_MAX,
-          status: res.statusCode,
-          statusText: res.statusMessage,
-          headers: new Map(Object.entries(res.headers)),
-          body: Readable.toWeb(res),
-          text: async () => {
-            const chunks = [];
-            for await (const chunk of res) chunks.push(chunk);
-            return Buffer.concat(chunks).toString();
-          },
-          json: async () => JSON.parse(await response.text()),
-        };
-        resolve(response);
+      req = https.request(reqOptions, (incoming) => {
+        res = incoming;
+        // Response() throws on statuses outside 200-599 or bad headers; this
+        // callback runs outside the executor, so reject instead of throwing.
+        try {
+          const body = NULL_BODY_STATUSES.has(res.statusCode) ? null : Readable.toWeb(res);
+          resolve(
+            new Response(body, {
+              status: res.statusCode,
+              statusText: res.statusMessage || "",
+              headers: toHeaders(res.headers),
+            }),
+          );
+          if (!body) res.resume();
+        } catch (error) {
+          res.destroy();
+          reject(error);
+        }
       });
 
       req.on("error", reject);
@@ -354,6 +384,8 @@ export async function proxyAwareFetch(url, options = {}, proxyOptions = null) {
       const realIP = await resolveRealIP(parsedUrl.hostname);
       if (realIP) return await createBypassRequest(parsedUrl, realIP, options);
     } catch (error) {
+      // An aborted request must not be retried through the fallback fetch.
+      if (options.signal?.aborted) throw error;
       console.warn(`[ProxyFetch] MITM bypass failed: ${error.message}`);
     }
   }
