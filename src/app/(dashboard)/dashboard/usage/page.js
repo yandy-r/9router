@@ -43,6 +43,7 @@ function UsageContent() {
       {/* Tabs + period selector on same row */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <SegmentedControl
+          aria-label="Usage view"
           options={[
             { value: "overview", label: "Overview" },
             { value: "details", label: "Details" },
@@ -53,6 +54,7 @@ function UsageContent() {
         />
         {activeTab === "overview" && (
           <SegmentedControl
+            aria-label="Stats period"
             options={PERIODS}
             value={period}
             onChange={setPeriod}
