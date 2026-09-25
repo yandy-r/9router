@@ -50,6 +50,29 @@ describe("DB Concurrency — atomic safety", () => {
     expect(hist.length).toBe(N);
   });
 
+  it("same-millisecond identical requests are all recorded", async () => {
+    const N = 5;
+    const timestamp = new Date().toISOString();
+    await Promise.all(
+      Array.from({ length: N }, () =>
+        db.saveRequestUsage({
+          timestamp,
+          provider: "same-ms",
+          model: "m",
+          connectionId: "c-same",
+          apiKey: "sk-same",
+          tokens: { prompt_tokens: 7, completion_tokens: 3 },
+          endpoint: "/v1/chat",
+        }),
+      ),
+    );
+
+    expect((await db.getUsageHistory({ provider: "same-ms" })).length).toBe(N);
+    const stats = await db.getUsageStats("7d");
+    expect(stats.byProvider["same-ms"].requests).toBe(N);
+    expect(stats.byProvider["same-ms"].promptTokens).toBe(N * 7);
+  });
+
   it("200 parallel saveRequestDetail → all flushed", async () => {
     await db.updateSettings({ enableObservability: true, observabilityBatchSize: 10 });
 
