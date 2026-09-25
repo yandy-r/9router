@@ -1,3 +1,14 @@
+# v0.3.1 (2026-09-25)
+
+## Fixes
+- **Account fallback**: an active account-wide lock (for example, a monthly limit) is honored even when a per-model lock has expired, and the cooldown timer shows the active lock (#120).
+- **Executors**: Codex decides `/responses/compact` routing per request, and CommandCode replays full chunks after peeking (#123). Chat Completions bodies sent to `/v1/responses/compact` keep compact routing, and passthrough streams send `[DONE]` once (#188).
+- **Credentials**: stop accepting stale or unauthenticated provider credentials (#130). Kiro and CodeBuddy refresh failures no longer crash account fallback, and API-key connections skip impossible refresh retries (#131).
+- **Connection tests**: Kiro and Kimi tests use runtime refreshers (#173). OAuth providers and compatible nodes no longer report false errors (#185).
+- **Translation**: tool results, tool ids and Claude tool-choice intent survive translation (#169).
+- **Streaming**: Cursor AgentService read failures surface as errors instead of successful completions (#177). DNS-bypass requests honor aborts, and image/document input survives fallback attempts (#182).
+- **Usage**: concurrent identical requests are all recorded (#174). Kimi quota parses the live `/usages` schema, so an exhausted 5-hour window shows 0% and a monthly row appears (#249).
+
 # v0.3.0 (2026-09-25)
 
 ## Features

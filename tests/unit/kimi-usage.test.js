@@ -44,6 +44,90 @@ const ACTIVE_USAGE = {
   ],
 };
 
+// Live OAuth capture 2026-09-25 (YAN-383): `detail.used` not `remaining`,
+// no top-level `usage`/`user`, new `usages` map that disagrees on limit_5h.
+const LIVE_USAGE_2026_09 = {
+  limits: [
+    {
+      window: { duration: 300, timeUnit: "TIME_UNIT_MINUTE" },
+      detail: { limit: "100", used: "100", resetTime: "2026-09-25T20:51:06.623962Z" },
+    },
+  ],
+  usages: {
+    limit_5h: { used_ratio: 0, reset_time: "2026-09-25T20:51:05Z" },
+    limit_month_total: { used_ratio: 0.4049, reset_time: "2026-10-21T00:00:00Z" },
+    limit_month_code: { used_ratio: 0, reset_time: "2026-10-21T00:00:00Z" },
+  },
+};
+
+describe("kimi live /v1/usages schema (YAN-383)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("exhausted 5h window shows 0% remaining despite usages.limit_5h.used_ratio = 0", async () => {
+    proxyAwareFetch.mockResolvedValueOnce(jsonResponse(LIVE_USAGE_2026_09));
+    const usage = await getUsageForProvider({ provider: "kimi", accessToken: "tok" });
+
+    expect(usage.message).toBeUndefined();
+    expect(usage.plan).toBe("Kimi Coding");
+    expect(usage.quotas.Ratelimit).toBeUndefined();
+    expect(usage.quotas["5h"]).toMatchObject({
+      used: 100,
+      total: 100,
+      remainingPercentage: 0,
+      resetAt: "2026-09-25T20:51:06.623Z",
+    });
+    expect(usage.quotas.Monthly.remainingPercentage).toBeCloseTo(59.51, 2);
+    expect(usage.quotas.Monthly.resetAt).toBe("2026-10-21T00:00:00.000Z");
+    expect(usage.quotas["Monthly (Code)"].remainingPercentage).toBe(100);
+  });
+
+  it("uses usages ratio when it is more exhausted than limits[]", async () => {
+    proxyAwareFetch.mockResolvedValueOnce(
+      jsonResponse({
+        limits: [
+          {
+            window: { duration: 300, timeUnit: "TIME_UNIT_MINUTE" },
+            detail: { limit: "100", used: "10" },
+          },
+        ],
+        usages: { limit_5h: { used_ratio: 0.5, reset_time: "2026-09-25T20:51:05Z" } },
+      }),
+    );
+    const usage = await getUsageForProvider({ provider: "kimi", accessToken: "tok" });
+    expect(usage.quotas["5h"].remainingPercentage).toBe(50);
+  });
+
+  it("keeps one row per window instead of overwriting", async () => {
+    proxyAwareFetch.mockResolvedValueOnce(
+      jsonResponse({
+        limits: [
+          {
+            window: { duration: 300, timeUnit: "TIME_UNIT_MINUTE" },
+            detail: { limit: "100", used: "20" },
+          },
+          {
+            window: { duration: 7, timeUnit: "TIME_UNIT_DAY" },
+            detail: { limit: "1000", used: "250" },
+          },
+        ],
+      }),
+    );
+    const usage = await getUsageForProvider({ provider: "kimi", accessToken: "tok" });
+    expect(usage.quotas["5h"].remainingPercentage).toBe(80);
+    expect(usage.quotas["7d"].remainingPercentage).toBe(75);
+  });
+
+  it("parseQuotaData forwards the new rows", async () => {
+    proxyAwareFetch.mockResolvedValueOnce(jsonResponse(LIVE_USAGE_2026_09));
+    const usage = await getUsageForProvider({ provider: "kimi", accessToken: "tok" });
+    const rows = parseQuotaData("kimi", usage);
+    expect(rows.map((r) => r.name).sort()).toEqual(["5h", "Monthly", "Monthly (Code)"]);
+    expect(rows.find((r) => r.name === "5h").remainingPercentage).toBe(0);
+  });
+});
+
 describe("kimi registry usage flags", () => {
   it("exposes usage + usageApikey so OAuth and apikey cards appear on /quota", () => {
     expect(USAGE_SUPPORTED_PROVIDERS).toContain("kimi");
