@@ -312,10 +312,24 @@ export class DefaultExecutor extends BaseExecutor {
       : this.refreshWithForm(grant.url(), params, proxyOptions);
   }
 
-  async refreshCredentials(credentials, log, proxyOptions = null) {
-    if (!credentials.refreshToken) return null;
+  // Per-credential refresh capability for 401/403 handlers: true only when a
+  // refresh could actually produce a token — the provider has an entry in the
+  // refresher map AND the credential carries a refreshToken. Mirrors
+  // refreshCredentials' early exits (no refreshToken → null; no map entry →
+  // null), so handlers can skip the futile refreshWithRetry path (~3s of
+  // 1s+2s waits) for API-key-only credentials and unknown providers. Only
+  // DefaultExecutor (and subclasses) expose this; specialized executors
+  // (vertex, github, …) keep the legacy always-attempt path. Subclasses that
+  // override refreshCredentials with different requirements override this too.
+  canRefreshCredentials(credentials) {
+    return Boolean(credentials?.refreshToken && this.buildRefreshers(credentials)[this.provider]);
+  }
 
-    const refreshers = {
+  // Single source of truth for the provider refresher map, shared by
+  // canRefreshCredentials and refreshCredentials. The closures only run when
+  // invoked, so consulting the map for capability costs nothing.
+  buildRefreshers(credentials, log = null, proxyOptions = null) {
+    return {
       claude: () => this.refreshFromGrant(credentials, proxyOptions),
       codex: () => this.refreshFromGrant(credentials, proxyOptions),
       iflow: () => this.refreshIflow(credentials.refreshToken, proxyOptions),
@@ -329,8 +343,12 @@ export class DefaultExecutor extends BaseExecutor {
       // No refresh grant: refreshToken is the `dca:` device token, re-mint the key.
       "meta-code": () => refreshMetaCodeToken(credentials.refreshToken, log),
     };
+  }
 
-    const refresher = refreshers[this.provider];
+  async refreshCredentials(credentials, log, proxyOptions = null) {
+    if (!credentials.refreshToken) return null;
+
+    const refresher = this.buildRefreshers(credentials, log, proxyOptions)[this.provider];
     if (!refresher) return null;
 
     try {
