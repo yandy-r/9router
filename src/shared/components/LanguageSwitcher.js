@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { LOCALES, LOCALE_COOKIE, normalizeLocale } from "@/i18n/config";
-import { reloadTranslations } from "@/i18n/runtime";
+import { reloadTranslations, getCurrentLocale } from "@/i18n/runtime";
+import { RTL_LOCALES } from "@/i18n/config";
 
 function getLocaleFromCookie() {
   if (typeof document === "undefined") return "en";
@@ -105,6 +106,10 @@ export default function LanguageSwitcher({
 
       // Reload translations without full page reload
       await reloadTranslations();
+      const root = document.documentElement;
+      const active = getCurrentLocale();
+      root.lang = active;
+      root.dir = RTL_LOCALES.includes(active) ? "rtl" : "ltr";
       setLocale(nextLocale);
       setIsOpen(false, nextLocale);
     } catch (err) {

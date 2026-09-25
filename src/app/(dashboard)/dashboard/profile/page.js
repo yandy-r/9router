@@ -20,7 +20,8 @@ function getLocaleFromCookie() {
 
 export default function ProfilePage() {
   const { theme, setTheme, isDark } = useTheme();
-  const [locale, setLocale] = useState(() => getLocaleFromCookie());
+  const [locale, setLocale] = useState("en");
+  useEffect(() => setLocale(getLocaleFromCookie()), []);
   const [langOpen, setLangOpen] = useState(false);
   const [shutdownOpen, setShutdownOpen] = useState(false);
   const [isShuttingDown, setIsShuttingDown] = useState(false);
