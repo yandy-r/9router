@@ -1,3 +1,12 @@
+# v0.3.2 (2026-09-25)
+
+## Features
+- **Cursor**: connect from any browser with a "Login with browser" PKCE flow, including headless and Docker hosts. Tokens refresh, IDE import also captures the refresh token, and Provider Limits shows the Cursor plan and usage (#255).
+
+## Fixes
+- **Combos**: every combo strategy (fallback, round-robin, weighted, fusion) skips accounts whose quota window is known to be exhausted, instead of calling them until upstream returns 429/403 (#254).
+- **Cursor connection test**: makes a real authenticated read instead of only checking that a token exists, so expired or revoked sessions no longer show as valid. On 401/403 it refreshes, retries once and saves the new tokens (#257).
+
 # v0.3.1 (2026-09-25)
 
 ## Fixes
