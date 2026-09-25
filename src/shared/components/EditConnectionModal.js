@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import Modal from "@/shared/components/Modal";
 import Input from "@/shared/components/Input";
@@ -39,9 +39,14 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
   const [saving, setSaving] = useState(false);
+  // Bumped whenever a validation input changes; a check started under an older
+  // sequence no longer describes the form and its result is discarded.
+  const validationSeq = useRef(0);
 
+  // Re-seed on every open too: the modal stays mounted, so reopening the same
+  // connection must not show a previous session's key or check result.
   useEffect(() => {
-    if (connection) {
+    if (connection && isOpen) {
       setFormData({
         name: connection.name || "",
         priority: connection.priority || 1,
@@ -84,7 +89,13 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
       setTestResult(null);
       setValidationResult(null);
     }
-  }, [connection]);
+  }, [connection, isOpen]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deps are the validation inputs by design
+  useEffect(() => {
+    validationSeq.current += 1;
+    setValidationResult(null);
+  }, [formData.apiKey, azureData, cloudflareData, region]);
 
   const isOAuth = connection?.authType === "oauth";
   const isAzure = connection?.provider === "azure";
@@ -124,6 +135,7 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
 
   const handleValidate = async () => {
     if (!connection?.provider || !formData.apiKey) return;
+    const seq = validationSeq.current;
     setValidating(true);
     setValidationResult(null);
     try {
@@ -139,9 +151,9 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
         }),
       });
       const data = await res.json();
-      setValidationResult(data.valid ? "success" : "failed");
+      if (validationSeq.current === seq) setValidationResult(data.valid ? "success" : "failed");
     } catch {
-      setValidationResult("failed");
+      if (validationSeq.current === seq) setValidationResult("failed");
     } finally {
       setValidating(false);
     }
@@ -189,30 +201,30 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
       };
       if (!isOAuth && formData.apiKey) {
         updates.apiKey = formData.apiKey;
-        let isValid = validationResult === "success";
-        if (!isValid) {
-          try {
-            setValidating(true);
-            setValidationResult(null);
-            const res = await fetch("/api/providers/validate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                provider: connection.provider,
-                apiKey: formData.apiKey,
-                ...(isAzure ? { providerSpecificData: azureData } : {}),
-                ...(isCloudflareAi ? { providerSpecificData: cloudflareData } : {}),
-                ...(providerRegions ? { providerSpecificData: buildRegionSpecificData() } : {}),
-              }),
-            });
-            const data = await res.json();
-            isValid = !!data.valid;
-            setValidationResult(isValid ? "success" : "failed");
-          } catch {
-            setValidationResult("failed");
-          } finally {
-            setValidating(false);
-          }
+        // Always revalidate the submitted key; a prior check may belong to another key.
+        const seq = validationSeq.current;
+        let isValid = false;
+        try {
+          setValidating(true);
+          setValidationResult(null);
+          const res = await fetch("/api/providers/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              provider: connection.provider,
+              apiKey: formData.apiKey,
+              ...(isAzure ? { providerSpecificData: azureData } : {}),
+              ...(isCloudflareAi ? { providerSpecificData: cloudflareData } : {}),
+              ...(providerRegions ? { providerSpecificData: buildRegionSpecificData() } : {}),
+            }),
+          });
+          const data = await res.json();
+          isValid = !!data.valid;
+          if (validationSeq.current === seq) setValidationResult(isValid ? "success" : "failed");
+        } catch {
+          if (validationSeq.current === seq) setValidationResult("failed");
+        } finally {
+          setValidating(false);
         }
         if (isValid) {
           updates.testStatus = "active";

@@ -35,13 +35,13 @@ async function setupTestContext(nodeData) {
   };
 }
 
-function makeRequest(provider, name = "Test Connection") {
+function makeRequest(provider, name = "Test Connection", apiKey = "test-key") {
   return new Request("https://9router.local/api/providers", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       provider,
-      apiKey: "test-key",
+      apiKey,
       name,
       defaultModel: "test-model",
     }),
@@ -162,5 +162,28 @@ describe("compatible provider connections API", () => {
     expect(storedConnections).toHaveLength(2);
     expectCompatibleConnection(storedConnections[0], ctx.node, { apiType: "chat" });
     expectCompatibleConnection(storedConnections[1], ctx.node, { apiType: "chat" });
+  });
+
+  it("rejects a duplicate connection name without overwriting the existing key", async () => {
+    const ctx = await setupTestContext({
+      id: "openai-compatible-duplicate-test",
+      type: "openai-compatible",
+      name: "Duplicate Name Node",
+      prefix: "dup",
+      apiType: "chat",
+      baseUrl: "https://duplicate-name.test/v1",
+    });
+    cleanup = ctx.cleanup;
+
+    const firstResponse = await ctx.POST(makeRequest(ctx.node.id, "Key A", "original-key"));
+    const secondResponse = await ctx.POST(makeRequest(ctx.node.id, "Key A", "replacement-key"));
+    const body = await secondResponse.json();
+    const storedConnections = await ctx.getProviderConnections({ provider: ctx.node.id });
+
+    expect(firstResponse.status).toBe(201);
+    expect(secondResponse.status).toBe(409);
+    expect(body.error).toContain('"Key A"');
+    expect(storedConnections).toHaveLength(1);
+    expect(storedConnections[0].apiKey).toBe("original-key");
   });
 });
