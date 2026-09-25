@@ -6,6 +6,7 @@ import {
   clampNumber,
   copyTextToClipboard,
   describedByFor,
+  hasPanelContent,
   isRovingKey,
   nextRovingIndex,
   SEGMENTED_SIZES,
@@ -17,6 +18,10 @@ describe("buttonClasses", () => {
     expect(buttonClasses("primary", "md")).toContain("bg-lime");
     expect(buttonClasses("secondary", "sm")).toContain("bg-raised");
     expect(buttonClasses("ghost", "md")).toContain("bg-transparent");
+    // Kit.dc.html .btn.ghost: transparent fill, text color, line border.
+    expect(BUTTON_VARIANTS.ghost).toContain("text-text");
+    expect(BUTTON_VARIANTS.ghost).toContain("border-line");
+    expect(BUTTON_VARIANTS.ghost).not.toContain("text-muted");
     expect(buttonClasses("danger", "sm")).toContain("text-err");
     for (const variant of Object.keys(BUTTON_VARIANTS)) {
       for (const size of Object.keys(BUTTON_SIZES)) {
@@ -152,5 +157,16 @@ describe("copyTextToClipboard", () => {
     await expect(copyTextToClipboard("x")).rejects.toThrow("execCommand");
     expect(removeChild).toHaveBeenCalledWith(textarea);
     vi.unstubAllGlobals();
+  });
+});
+
+describe("hasPanelContent (tabs APG focus stop)", () => {
+  it("is false for empty panels so they add no tab stop", () => {
+    for (const empty of [undefined, null, false, ""]) expect(hasPanelContent(empty)).toBe(false);
+  });
+  it("is true for any rendered content", () => {
+    for (const content of ["text", 0, { type: "div" }, ["a"]]) {
+      expect(hasPanelContent(content)).toBe(true);
+    }
   });
 });

@@ -130,7 +130,7 @@ export const BUTTON_VARIANTS = {
   primary:
     "bg-lime text-on-lime border border-transparent shadow-[inset_0_0_0_1px_rgba(0,0,0,0.14)] hover:brightness-95",
   secondary: "bg-raised text-text border border-line hover:bg-line/60",
-  ghost: "bg-transparent text-muted border border-line hover:bg-raised hover:text-text",
+  ghost: "bg-transparent text-text border border-line hover:bg-raised",
   danger: "bg-err-bg text-err border border-transparent hover:bg-err/15",
   outline: "bg-transparent text-muted border border-line hover:bg-raised hover:text-text",
   success: "bg-ok-bg text-ok border border-transparent hover:bg-ok/15",
@@ -185,4 +185,15 @@ export function describedByFor(id, { hint, error } = {}) {
   if (error) return `${id}-error`;
   if (hint) return `${id}-hint`;
   return undefined;
+}
+
+/**
+ * WAI-ARIA tabs: a tabpanel is a tab stop (`tabIndex=0`) only when it renders
+ * content. Tabs used purely as a view switcher have empty panels, which must
+ * not add an invisible focus stop.
+ * @param {unknown} content - the panel's React node
+ * @returns {boolean}
+ */
+export function hasPanelContent(content) {
+  return content !== undefined && content !== null && content !== false && content !== "";
 }

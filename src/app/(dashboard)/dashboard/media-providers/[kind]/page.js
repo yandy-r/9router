@@ -91,7 +91,7 @@ function MediaProviderCard({ provider, kind, connections, isCustom, onToggle }) 
             <div
               className="size-8 rounded-lg flex items-center justify-center shrink-0"
               style={{
-                backgroundColor: `${provider.color?.length > 7 ? provider.color : (provider.color ?? "#888") + "15"}`,
+                backgroundColor: `color-mix(in srgb, ${provider.color ?? "var(--signal-line)"} 12%, transparent)`,
               }}
             >
               <ProviderIcon
@@ -156,7 +156,9 @@ function ComboList({ combos }) {
                       key={`${entry}-${i}`}
                       title={p?.name || entry}
                       className="size-5 rounded flex items-center justify-center"
-                      style={{ backgroundColor: `${p?.color ?? "#888"}15` }}
+                      style={{
+                        backgroundColor: `color-mix(in srgb, ${p?.color ?? "var(--signal-line)"} 12%, transparent)`,
+                      }}
                     >
                       <ProviderIcon
                         src={`/providers/${pid}.png`}

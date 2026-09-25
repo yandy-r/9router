@@ -35,6 +35,7 @@
   --signal-coral: #cf4323;
   --signal-coral-ink: #b93a1d;
   --signal-coral-bg: rgba(207, 67, 35, 0.09);
+  --signal-on-coral: #ffffff;
 
   /* Lime: live traffic, savings, the one primary action */
   --signal-lime: #cff24a;
@@ -58,9 +59,6 @@
   --signal-toggle-on: #16171c;
   --signal-toggle-knob-on: #cff24a;
 
-  /* Terminal/console surface (same in both themes) */
-  --signal-terminal-bg: #0a0b0e;
-
   color-scheme: light;
 }
 
@@ -78,6 +76,8 @@
   --signal-coral: #ff6a48;
   --signal-coral-ink: #ff8b70;
   --signal-coral-bg: rgba(255, 106, 72, 0.14);
+  /* Glyphs on a coral fill: white is 2.84:1 on dark coral, so use ink */
+  --signal-on-coral: #12140a;
 
   /* Lime */
   --signal-lime: #d5f84b;
@@ -101,9 +101,6 @@
   --signal-toggle-on: #d5f84b;
   --signal-toggle-knob-on: #12140a;
 
-  /* Terminal/console surface (same in both themes) */
-  --signal-terminal-bg: #0a0b0e;
-
   color-scheme: dark;
 }
 
@@ -125,6 +122,17 @@
 
   /* Coral focus-visible ring */
   --signal-focus-ring: 0 0 0 3px var(--signal-coral-bg), 0 0 0 1px var(--signal-coral);
+
+  /* Terminal/console (design-system §2): the surface is dark in BOTH themes,
+     so every text color on it is fixed-light and never theme-scoped. */
+  --signal-terminal-bg: #0a0b0e;
+  --signal-terminal-text: #e4e6eb;
+  --signal-terminal-time: #8a8f9e;
+  --signal-terminal-log: #3ddc97;
+  --signal-terminal-info: #72b7ff;
+  --signal-terminal-warn: #ffc24b;
+  --signal-terminal-error: #ff6384;
+  --signal-terminal-debug: #c4a1ff;
 }
 
 /* ============================================================
@@ -257,6 +265,7 @@ select {
   --color-coral: var(--signal-coral);
   --color-coral-ink: var(--signal-coral-ink);
   --color-coral-bg: var(--signal-coral-bg);
+  --color-on-coral: var(--signal-on-coral);
   --color-lime: var(--signal-lime);
   --color-lime-ink: var(--signal-lime-ink);
   --color-lime-bg: var(--signal-lime-bg);
@@ -372,6 +381,32 @@ select {
   .animate-pulse {
     animation: none;
   }
+}
+
+/* Terminal surface + line colors. Plain classes (not theme utilities) so the
+   fixed-light text can never fall back to the inherited theme text color. */
+.signal-terminal {
+  background-color: var(--signal-terminal-bg);
+  color: var(--signal-terminal-text);
+  color-scheme: dark;
+}
+.signal-terminal-time {
+  color: var(--signal-terminal-time);
+}
+.signal-terminal-log {
+  color: var(--signal-terminal-log);
+}
+.signal-terminal-info {
+  color: var(--signal-terminal-info);
+}
+.signal-terminal-warn {
+  color: var(--signal-terminal-warn);
+}
+.signal-terminal-error {
+  color: var(--signal-terminal-error);
+}
+.signal-terminal-debug {
+  color: var(--signal-terminal-debug);
 }
 
 /* Base */

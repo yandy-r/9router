@@ -3,7 +3,7 @@
 import PropTypes from "prop-types";
 import { useId, useRef, useState } from "react";
 import { cn } from "@/shared/utils/cn";
-import { nextRovingIndex } from "./formPrimitives";
+import { hasPanelContent, nextRovingIndex } from "./formPrimitives";
 
 // Horizontal tablist: Up/Down stay free for page scrolling (APG).
 const TAB_KEYS = ["ArrowLeft", "ArrowRight", "Home", "End"];
@@ -103,8 +103,10 @@ export default function Tabs({
           id={`${baseId}-panel-${tab.value}`}
           aria-labelledby={`${baseId}-tab-${tab.value}`}
           hidden={index !== active}
+          // APG: a panel is a tab stop only when it has content to reach; an
+          // empty panel (tabs used as a view switcher) must not add a focus stop.
           // biome-ignore lint/a11y/noNoninteractiveTabindex: APG tabpanel is focusable so keyboard users can reach non-interactive panel content.
-          tabIndex={0}
+          tabIndex={hasPanelContent(tab.content) ? 0 : undefined}
         >
           {tab.content}
         </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Card from "@/shared/components/Card";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import Badge from "@/shared/components/Badge";
+import { getProviderBrand } from "@/shared/constants/providerBrands";
 import QuotaProgressBar from "./QuotaProgressBar";
 import { calculatePercentage } from "./utils";
 
@@ -37,20 +38,8 @@ export default function ProviderLimitCard({
     }
   };
 
-  // Get provider info from config
-  const getProviderColor = () => {
-    const colors = {
-      github: "#000000",
-      antigravity: "#4285F4",
-      codex: "#10A37F",
-      kiro: "#FF9900",
-      qoder: "#EC4899",
-      claude: "#D97757",
-    };
-    return colors[provider?.toLowerCase()] || "#6B7280";
-  };
-
-  const providerColor = getProviderColor();
+  // Tile background from the shared contrast-safe brand map.
+  const providerColor = getProviderBrand(provider).color;
   const planVariant = planVariants[plan?.toLowerCase()] || "default";
 
   return (
@@ -61,7 +50,7 @@ export default function ProviderLimitCard({
           {/* Provider Logo */}
           <div
             className="size-10 rounded-lg flex items-center justify-center p-1.5"
-            style={{ backgroundColor: `${providerColor}15` }}
+            style={{ backgroundColor: `color-mix(in srgb, ${providerColor} 12%, transparent)` }}
           >
             <ProviderIcon
               src={`/providers/${provider}.png`}
