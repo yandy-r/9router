@@ -112,3 +112,4 @@ temp/
 # shellcheck binary installed by scripts/install-shellcheck.sh
 /tools/shellcheck
 .playwright-cli
+.playwright-mcp
