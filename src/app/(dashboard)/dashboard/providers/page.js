@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { Card, CardSkeleton, Badge, Button, Toggle } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
+import { getProviderBrand } from "@/shared/constants/providerBrands";
 import { getProviderIconSrc } from "@/shared/utils/providerIcon";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS } from "@/shared/constants/config";
 import {
@@ -241,7 +242,7 @@ export default function ProvidersPage() {
     .map((node) => ({
       id: node.id,
       name: node.name || "OpenAI Compatible",
-      color: "#10A37F",
+      color: getProviderBrand("openai-compatible").color,
       textIcon: "OC",
       apiType: node.apiType,
     }))
@@ -252,7 +253,7 @@ export default function ProvidersPage() {
     .map((node) => ({
       id: node.id,
       name: node.name || "Anthropic Compatible",
-      color: "#D97757",
+      color: getProviderBrand("anthropic-compatible").color,
       textIcon: "AC",
     }))
     .filter((p) => matchSearch(p.name) && matchStatus(getProviderStats(p.id, "apikey")));
@@ -685,7 +686,7 @@ function ProviderCard({ providerId, provider, stats, authType, onToggle }) {
             <div
               className="size-8 shrink-0 rounded-lg flex items-center justify-center"
               style={{
-                backgroundColor: `${provider.color?.length > 7 ? provider.color : provider.color + "15"}`,
+                backgroundColor: `color-mix(in srgb, ${provider.color} 12%, transparent)`,
               }}
             >
               <ProviderIcon
@@ -799,7 +800,7 @@ function ApiKeyProviderCard({ providerId, provider, stats, authType, onToggle })
             <div
               className="size-8 shrink-0 rounded-lg flex items-center justify-center"
               style={{
-                backgroundColor: `${provider.color?.length > 7 ? provider.color : provider.color + "15"}`,
+                backgroundColor: `color-mix(in srgb, ${provider.color} 12%, transparent)`,
               }}
             >
               <ProviderIcon

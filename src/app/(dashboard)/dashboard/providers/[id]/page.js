@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getProviderIconSrc, markProviderIconMissing } from "@/shared/utils/providerIcon";
+import { getProviderBrand } from "@/shared/constants/providerBrands";
 import {
   Card,
   Button,
@@ -209,7 +210,7 @@ export default function ProviderDetailPage() {
           (providerNode.type === "anthropic-compatible"
             ? "Anthropic Compatible"
             : "OpenAI Compatible"),
-        color: providerNode.type === "anthropic-compatible" ? "#D97757" : "#10A37F",
+        color: getProviderBrand(providerNode.type).color,
         textIcon: providerNode.type === "anthropic-compatible" ? "AC" : "OC",
         apiType: providerNode.apiType,
         baseUrl: providerNode.baseUrl,

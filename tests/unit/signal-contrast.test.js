@@ -10,8 +10,7 @@
  * - toggle track vs knob ≥ 3 (both themes; the pair the spec requires at 3:1)
  * - line vs panel ≥ 1.1 (approved 1px hairline is ~1.3:1; 3:1 would abandon the token)
  *
- * No provider brand-color map exists yet (added in YAN-277), so the monogram
- * assertion is skipped until then.
+ * Provider monogram contrast is asserted in signal-display-primitives.test.js.
  */
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -103,7 +102,6 @@ describe("signal token contrast", () => {
           "err-bg",
           "toggle-on",
           "toggle-knob-on",
-          "terminal-bg",
         ]) {
           expect(props[`--signal-${role}`], `${name} --signal-${role}`).toBeTruthy();
         }
@@ -150,6 +148,13 @@ describe("signal token contrast", () => {
         }
       });
 
+      it("on-coral glyphs (checkbox check) on coral >= 3", () => {
+        const ratio = contrastRatio(props["--signal-on-coral"], props["--signal-coral"]);
+        expect(ratio, `${name} on-coral on coral = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(
+          UI_MIN,
+        );
+      });
+
       it("toggle track vs knob >= 3", () => {
         const ratio = contrastRatio(props["--signal-toggle-on"], props["--signal-toggle-knob-on"]);
         expect(ratio, `${name} toggle = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(UI_MIN);
@@ -160,9 +165,8 @@ describe("signal token contrast", () => {
         expect(ratio, `${name} line vs panel = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(1.1);
       });
 
-      it("terminal surface is defined and differs from panel", () => {
-        expect(props["--signal-terminal-bg"]).toBeTruthy();
-        expect(props["--signal-terminal-bg"]).not.toBe(props["--signal-panel"]);
+      it("terminal surface differs from panel", () => {
+        expect(light["--signal-terminal-bg"]).not.toBe(props["--signal-panel"]);
       });
 
       it("white text on legacy brand fills >= 4.5", () => {
@@ -183,6 +187,24 @@ describe("signal token contrast", () => {
     });
   }
 
-  // No provider brand-color map exists yet (YAN-277 adds it); the monogram
-  // assertion lands with that issue.
+  describe("terminal (theme-independent, dark in both themes)", () => {
+    it("is declared once, outside the theme-scoped blocks", () => {
+      expect(light["--signal-terminal-bg"]).toBeTruthy();
+      expect(dark["--signal-terminal-bg"]).toBeUndefined();
+      expect(dark["--signal-terminal-text"]).toBeUndefined();
+    });
+
+    it("text, timestamp and level colors on the terminal surface >= 4.5", () => {
+      const bg = light["--signal-terminal-bg"];
+      for (const role of ["text", "time", "log", "info", "warn", "error", "debug"]) {
+        const fg = light[`--signal-terminal-${role}`];
+        expect(fg, `--signal-terminal-${role}`).toBeTruthy();
+        const ratio = contrastRatio(fg, bg);
+        expect(ratio, `terminal ${role} = ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(TEXT_MIN);
+      }
+    });
+  });
+
+  // Provider monogram contrast (white on every brand tile) lives in
+  // signal-display-primitives.test.js next to the brand map (YAN-277).
 });

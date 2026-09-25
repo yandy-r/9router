@@ -12,6 +12,7 @@ import {
   ProviderInfoCard,
 } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
+import { getProviderBrand } from "@/shared/constants/providerBrands";
 import {
   MEDIA_PROVIDER_KINDS,
   AI_PROVIDERS,
@@ -72,7 +73,12 @@ export default function MediaProviderDetailPage() {
   // For custom embedding nodes, build a synthetic provider object
   const provider = isCustom
     ? customNode
-      ? { id, name: customNode.name || "Custom Embedding", color: "#6366F1", textIcon: "CE" }
+      ? {
+          id,
+          name: customNode.name || "Custom Embedding",
+          color: getProviderBrand("custom-embedding").color,
+          textIcon: "CE",
+        }
       : null
     : builtInProvider;
 
@@ -101,7 +107,7 @@ export default function MediaProviderDetailPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <div
             className="size-12 rounded-lg flex items-center justify-center shrink-0"
-            style={{ backgroundColor: `${provider.color}15` }}
+            style={{ backgroundColor: `color-mix(in srgb, ${provider.color} 12%, transparent)` }}
           >
             <ProviderIcon
               src={`/providers/${provider.id}.png`}
