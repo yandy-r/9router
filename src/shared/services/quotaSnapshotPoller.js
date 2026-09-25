@@ -107,8 +107,10 @@ async function pollConnection(connection, deps, state) {
       provider: freshConnection.provider,
       usage,
       fallbackTier:
-        freshConnection.providerSpecificData?.planTier ??
-        freshConnection.providerSpecificData?.chatgptPlanType,
+        freshConnection.providerSpecificData?.planTierManual === true
+          ? freshConnection.providerSpecificData?.chatgptPlanType
+          : (freshConnection.providerSpecificData?.planTier ??
+            freshConnection.providerSpecificData?.chatgptPlanType),
     });
     if (freshConnection.provider === "claude") {
       await fetchAndPersistClaudePlanTier(freshConnection, proxyOptions);

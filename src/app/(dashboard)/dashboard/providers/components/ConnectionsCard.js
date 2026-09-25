@@ -563,7 +563,9 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
   // Preserve NoAuthProxyCard/other keys (rotateStrategy, proxyPoolId); only touch
   // fallbackStrategy/stickyRoundRobinLimit.
   const saveStrategy = async (strategy, stickyLimit) => {
-    if (stickyLimit !== "") {
+    const persistSticky =
+      strategy === "round-robin" || strategy === "weighted" || strategy === null;
+    if (persistSticky && stickyLimit !== "") {
       const n = Number(stickyLimit);
       if (!/^\d+$/.test(stickyLimit) || !Number.isInteger(n) || n < 1 || n > 100) {
         setStrategyError("Sticky limit must be an integer from 1 to 100.");
@@ -580,11 +582,13 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
       const override = { ...(current[providerId] || {}) };
       if (strategy) override.fallbackStrategy = strategy;
       else delete override.fallbackStrategy;
-      if (strategy === "round-robin" || strategy === "weighted") {
+      // Inherit (null) keeps an explicit sticky so it can be edited/cleared without
+      // forcing a fallbackStrategy override.
+      if (persistSticky) {
         if (stickyLimit !== "") override.stickyRoundRobinLimit = Number(stickyLimit);
         else if (strategy === "round-robin") override.stickyRoundRobinLimit = 1;
-        // Blank weighted clears the key so routing reverts to the global/OAuth default;
-        // blank round-robin keeps its historical per-provider default of 1.
+        // Blank weighted/inherit clears the key so routing reverts to the global/OAuth
+        // default; blank round-robin keeps its historical per-provider default of 1.
         else delete override.stickyRoundRobinLimit;
       } else {
         delete override.stickyRoundRobinLimit;
@@ -728,50 +732,58 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-      if (res.ok) {
-        await fetch_();
-        setShowEditModal(false);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return data.error || "Failed to save connection";
       }
+      await fetch_();
+      setShowEditModal(false);
+      return null;
     } catch (e) {
       console.log("update connection error:", e);
+      return "Failed to save connection";
     }
   };
 
   const effectiveStrategy = providerStrategy || globalStrategy;
   const isWeighted = effectiveStrategy === "weighted";
-  const usesSticky = providerStrategy === "round-robin" || providerStrategy === "weighted";
-  // Weighted inheriting the global strategy still routes via the global limit; show a
-  // read-only caption so blank inherit isn't mistaken for "no sticky".
-  const inheritedWeighted = providerStrategy == null && isWeighted;
-  const showSticky = usesSticky || inheritedWeighted;
+  const subscription = isOAuthSubscription(providerId, isOAuth);
+  const inheriting = providerStrategy == null;
+  // Inheriting still shows an editable input when the global strategy uses sticky, or
+  // when an orphan per-provider sticky exists, so it can be edited or cleared.
+  const showSticky =
+    effectiveStrategy === "round-robin" ||
+    isWeighted ||
+    (inheriting && savedStickyLimit.current !== "");
   const stickyInputId = `sticky-${providerId}`;
-  // Placeholder mirrors routing default when override blank: weighted uses 3 for OAuth
-  // subscriptions, 1 otherwise; round-robin keeps its existing global default.
-  const stickyPlaceholder =
-    providerStrategy === "weighted"
-      ? isOAuthSubscription(providerId, isOAuth)
-        ? String(globalStickyLimit)
-        : "1"
+  // Placeholder mirrors routing default when override blank: weighted uses the global
+  // limit for OAuth subscriptions, 1 otherwise; explicit round-robin defaults to 1,
+  // inherited round-robin uses the global limit.
+  const stickyPlaceholder = isWeighted
+    ? subscription
+      ? String(globalStickyLimit)
+      : "1"
+    : inheriting
+      ? String(globalStickyLimit)
       : "1";
   const shares = isWeighted ? activeShares(connections) : new Map();
-  const subscription = isOAuthSubscription(providerId, isOAuth);
   const weightedHint = isWeighted && subscription ? OAUTH_STICKY_HINT : "";
-  // ponytail: key-count decides delete vs merge (not value equality). A blank sticky
-  // keeps the routing backend on global/OAuth default; an explicit 0/"" in stored
-  // settings would fail backend validation. Revisit only if backend starts treating
-  // absent and blank override keys differently.
-  const overrideSticky =
-    providerStrategy === "weighted" && providerStickyLimit !== "" ? providerStickyLimit : null;
+  // Weighted routing honors an explicit provider sticky even when the strategy itself
+  // is inherited (resolveWeightedStickyLimit), so warn on inherited sticky 1 too.
   const effectiveSticky =
-    overrideSticky != null ? Number(overrideSticky) : subscription ? Number(globalStickyLimit) : 1;
-  const stickyOneWarning =
-    isWeighted && subscription && providerStickyLimit !== "" && effectiveSticky === 1;
+    providerStickyLimit !== ""
+      ? Number(providerStickyLimit)
+      : subscription
+        ? Number(globalStickyLimit)
+        : 1;
+  const stickyOneWarning = isWeighted && subscription && effectiveSticky === 1;
 
   const handleStrategyChange = (value) => {
     const strategy = value === INHERIT ? null : value;
     const prevStrategy = providerStrategy;
     setProviderStrategy(strategy);
-    saveStrategy(strategy, savedStickyLimit.current).then((saved) => {
+    // Pass the uncommitted draft; saveStrategy validates it and reverts on failure.
+    saveStrategy(strategy, providerStickyLimit).then((saved) => {
       if (!saved) setProviderStrategy(prevStrategy);
     });
   };
@@ -802,36 +814,44 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
               options={STRATEGY_SELECT_OPTIONS}
               selectClassName="py-1.5 text-xs sm:text-xs"
             />
-            {showSticky &&
-              (usesSticky ? (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <label htmlFor={stickyInputId} className="text-xs text-text-muted">
-                    Sticky:
-                  </label>
-                  <input
-                    id={stickyInputId}
-                    type="number"
-                    min={1}
-                    max={100}
-                    value={providerStickyLimit}
-                    placeholder={stickyPlaceholder}
-                    onChange={(e) => setProviderStickyLimit(e.target.value)}
-                    onBlur={(e) => commitStickyLimit(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") e.currentTarget.blur();
-                      else if (e.key === "Escape") setProviderStickyLimit(savedStickyLimit.current);
-                    }}
-                    className="w-16 px-2 py-1 text-xs border border-border rounded-md bg-background focus:outline-none focus:border-primary"
-                  />
-                </div>
-              ) : (
-                <span
-                  className="text-xs text-text-muted"
-                  title="Provider inherits the global account strategy"
-                >
-                  Sticky: {effectiveSticky} (inherited)
-                </span>
-              ))}
+            {showSticky && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <label htmlFor={stickyInputId} className="text-xs text-text-muted">
+                  Sticky:
+                </label>
+                <input
+                  id={stickyInputId}
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={providerStickyLimit}
+                  placeholder={stickyPlaceholder}
+                  title={
+                    inheriting
+                      ? "Blank uses the global sticky limit; a value here overrides it for this provider only"
+                      : undefined
+                  }
+                  onChange={(e) => setProviderStickyLimit(e.target.value)}
+                  onBlur={(e) => commitStickyLimit(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                    else if (e.key === "Escape") setProviderStickyLimit(savedStickyLimit.current);
+                  }}
+                  className="w-16 px-2 py-1 text-xs border border-border rounded-md bg-background focus:outline-none focus:border-primary"
+                />
+                {inheriting && savedStickyLimit.current !== "" && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => saveStrategy(null, "")}
+                    disabled={strategySaving}
+                    className="text-xs text-text-muted underline-offset-2 hover:text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Clear override
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

@@ -129,6 +129,8 @@ export default function ProviderDetailPage() {
   const [providerStrategy, setProviderStrategy] = useState(null);
   const [globalFallbackStrategy, setGlobalFallbackStrategy] = useState(null);
   const [providerStickyLimit, setProviderStickyLimit] = useState("");
+  // Persisted sticky; gates the inherit-mode input so clearing the draft can't unmount it.
+  const [savedProviderStickyLimit, setSavedProviderStickyLimit] = useState("");
   const [globalStickyLimit, setGlobalStickyLimit] = useState(null);
   const [providerStrategyError, setProviderStrategyError] = useState("");
   const [savingProviderStrategy, setSavingProviderStrategy] = useState(false);
@@ -425,9 +427,10 @@ export default function ProviderDetailPage() {
       setGlobalStickyLimit(settingsData.stickyRoundRobinLimit ?? null);
       // Round-robin keeps legacy default 1. Weighted resolves its OAuth default of 3
       // at selection time (resolveWeightedStickyLimit), so preserve whatever is stored.
-      setProviderStickyLimit(
-        override.stickyRoundRobinLimit != null ? String(override.stickyRoundRobinLimit) : "",
-      );
+      const storedSticky =
+        override.stickyRoundRobinLimit != null ? String(override.stickyRoundRobinLimit) : "";
+      setProviderStickyLimit(storedSticky);
+      setSavedProviderStickyLimit(storedSticky);
       // Load per-provider thinking config
       const thinkingCfg = (settingsData.providerThinking || {})[providerId] || {};
       setThinkingMode(thinkingCfg.mode || "auto");
@@ -480,8 +483,9 @@ export default function ProviderDetailPage() {
   const saveProviderStrategy = async (strategy, stickyLimit) => {
     // Validate at the save boundary: strategy switches reuse the sticky draft and
     // must not send a value the settings API rejects (400).
-    const usesStickyLimit = strategy === "round-robin" || strategy === "weighted";
-    const stickyError = usesStickyLimit ? stickyLimitError(stickyLimit) : "";
+    const persistSticky =
+      strategy === "round-robin" || strategy === "weighted" || strategy === null;
+    const stickyError = persistSticky ? stickyLimitError(stickyLimit) : "";
     if (stickyError) {
       setProviderStrategyError(stickyError);
       return false;
@@ -496,7 +500,7 @@ export default function ProviderDetailPage() {
       const override = { ...(current[providerId] || {}) };
       if (strategy) override.fallbackStrategy = strategy;
       else delete override.fallbackStrategy;
-      if (strategy === "round-robin" || strategy === "weighted") {
+      if (persistSticky) {
         if (stickyLimit === "") delete override.stickyRoundRobinLimit;
         else override.stickyRoundRobinLimit = Number(stickyLimit);
       } else {
@@ -508,6 +512,7 @@ export default function ProviderDetailPage() {
       else updated[providerId] = override;
       if (JSON.stringify(updated) === JSON.stringify(current)) {
         setProviderStrategy(strategy);
+        setSavedProviderStickyLimit(override.stickyRoundRobinLimit?.toString() ?? "");
         return true;
       }
 
@@ -518,6 +523,7 @@ export default function ProviderDetailPage() {
       });
       if (!saveRes.ok) throw new Error("Failed to save provider strategy.");
       setProviderStrategy(strategy);
+      setSavedProviderStickyLimit(override.stickyRoundRobinLimit?.toString() ?? "");
       return true;
     } catch (error) {
       setProviderStrategyError(error instanceof Error ? error.message : "Failed to save strategy.");
@@ -532,12 +538,18 @@ export default function ProviderDetailPage() {
     const stickyLimit =
       strategy === "round-robin" && providerStickyLimit === "" ? "1" : providerStickyLimit;
     if (await saveProviderStrategy(strategy, stickyLimit)) {
-      setProviderStickyLimit(strategy ? stickyLimit : "");
+      // Inherit keeps any sticky draft editable; fill-first deletes stored sticky.
+      setProviderStickyLimit(strategy === "fill-first" ? "" : stickyLimit);
     }
   };
 
   const commitStickyLimit = () => {
-    if (providerStrategy !== "round-robin" && providerStrategy !== "weighted") return;
+    if (
+      providerStrategy !== "round-robin" &&
+      providerStrategy !== "weighted" &&
+      providerStrategy !== null
+    )
+      return;
     saveProviderStrategy(
       providerStrategy,
       providerStickyLimit === "" && providerStrategy === "round-robin" ? "1" : providerStickyLimit,
@@ -882,12 +894,16 @@ export default function ProviderDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-      if (res.ok) {
-        await fetchConnections();
-        setShowEditModal(false);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return data.error || "Failed to save connection";
       }
+      await fetchConnections();
+      setShowEditModal(false);
+      return null;
     } catch (error) {
       console.log("Error updating connection:", error);
+      return "Failed to save connection";
     }
   };
 
@@ -1049,6 +1065,21 @@ export default function ProviderDetailPage() {
         ? `Effective: round-robin (global), sticky ${globalStickyLimit ?? 3} calls per account (global).`
         : `Effective: weighted (global), sticky ${globalStickyLimit ?? 3} calls per account for OAuth subscription providers, otherwise 1 (global).`;
   const showWeighted = effectiveStrategy === "weighted";
+  const subscriptionProvider = [
+    "claude",
+    "codex",
+    "github",
+    "gemini-cli",
+    "antigravity",
+    "kiro",
+    "cursor",
+  ].includes(providerId);
+  const effectiveWeightedSticky =
+    providerStickyLimit !== ""
+      ? Number(providerStickyLimit)
+      : subscriptionProvider
+        ? Number(globalStickyLimit ?? 3)
+        : 1;
   const activeConnections = connections.filter((connection) => connection.isActive !== false);
   const totalWeight = activeConnections.reduce(
     (sum, connection) => sum + Math.max(0, connection.effectiveWeight?.weight || 0),
@@ -1655,6 +1686,7 @@ export default function ProviderDetailPage() {
                 <div className="min-w-[220px] flex-1">
                   <Select
                     label="Account Strategy"
+                    aria-label="Account strategy for this provider"
                     value={providerStrategy || "inherit"}
                     onChange={(e) => handleStrategyChange(e.target.value)}
                     disabled={savingProviderStrategy}
@@ -1672,7 +1704,10 @@ export default function ProviderDetailPage() {
                     }
                   />
                 </div>
-                {(providerStrategy === "round-robin" || providerStrategy === "weighted") && (
+                {(providerStrategy === "round-robin" ||
+                  providerStrategy === "weighted" ||
+                  (providerStrategy === null &&
+                    (usesStickyLimit || savedProviderStickyLimit !== ""))) && (
                   <div className="flex flex-col gap-1">
                     <Input
                       label="Sticky limit"
@@ -1682,24 +1717,39 @@ export default function ProviderDetailPage() {
                       value={providerStickyLimit}
                       onChange={(e) => setProviderStickyLimit(e.target.value)}
                       onBlur={commitStickyLimit}
-                      placeholder={providerStrategy === "weighted" ? "Auto" : "1"}
+                      placeholder={
+                        (providerStrategy || effectiveStrategy) === "weighted" ? "Auto" : "1"
+                      }
                       disabled={savingProviderStrategy}
                       hint={
-                        providerStrategy === "weighted"
+                        (providerStrategy || effectiveStrategy) === "weighted"
                           ? OAUTH_STICKY_HINT
-                          : "Calls per account before rotating"
+                          : "Calls per account before rotating. Blank inherits the global limit."
                       }
                     />
-                    {isOAuth && Number(providerStickyLimit) === 1 && (
-                      <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                        Sticky limit 1 rotates every request; OAuth providers may flag rapid account
-                        switching.
-                      </p>
+                    {providerStrategy === null && savedProviderStickyLimit !== "" && (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={async () => {
+                          if (await saveProviderStrategy(null, "")) setProviderStickyLimit("");
+                        }}
+                        disabled={savingProviderStrategy}
+                        className="self-start text-xs text-text-muted underline-offset-2 hover:text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Clear override
+                      </button>
                     )}
                   </div>
                 )}
                 {providerStrategy === null && inheritedStickyText && (
                   <p className="text-xs text-text-muted">{inheritedStickyText}</p>
+                )}
+                {showWeighted && subscriptionProvider && effectiveWeightedSticky === 1 && (
+                  <p className="text-xs text-yellow-600 dark:text-yellow-400">
+                    Sticky limit 1 rotates every request; subscription OAuth providers may flag
+                    rapid account switching.
+                  </p>
                 )}
                 {providerStrategyError && (
                   <p className="text-xs text-red-500">{providerStrategyError}</p>

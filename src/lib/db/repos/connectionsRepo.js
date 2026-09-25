@@ -168,6 +168,9 @@ function mergeReloginProviderData(previous, fresh) {
   if (previous?.planTierManual === true) {
     merged.planTier = previous.planTier;
     merged.planTierManual = true;
+  } else if (previous && !Object.hasOwn(fresh || {}, "planTier")) {
+    delete merged.planTier;
+    delete merged.planTierCheckedAt;
   }
   return merged;
 }

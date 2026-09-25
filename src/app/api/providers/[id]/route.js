@@ -6,7 +6,7 @@ import {
   deleteProviderConnection,
 } from "@/models";
 import { PLAN_CAPACITY } from "open-sse/config/quotaSnapshot.js";
-import { sanitizePlanTier } from "open-sse/services/quotaSnapshot.js";
+import { sanitizePlanTier, clearSnapshotPlanTier } from "open-sse/services/quotaSnapshot.js";
 
 const DANGEROUS_MAP_KEYS = new Set(["__proto__", "constructor", "prototype"]);
 
@@ -235,6 +235,16 @@ export async function PUT(request, { params }) {
     }
 
     const updated = await updateProviderConnection(id, updateData);
+    const oldManualTier =
+      existing.providerSpecificData?.planTierManual === true
+        ? sanitizePlanTier(existing.providerSpecificData.planTier)
+        : null;
+    const nextPsd = updateData.providerSpecificData;
+    const nextManualTier =
+      nextPsd?.planTierManual === true ? sanitizePlanTier(nextPsd.planTier) : null;
+    if (oldManualTier && nextPsd && oldManualTier !== nextManualTier) {
+      clearSnapshotPlanTier(id, oldManualTier);
+    }
 
     // Hide sensitive fields
     const result = { ...updated };

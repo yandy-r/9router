@@ -1,7 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearQuotaSnapshots, recordProbeWindows } from "open-sse/services/quotaSnapshot.js";
 
-const mocks = vi.hoisted(() => ({ getProviderConnections: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  getProviderConnections: vi.fn(),
+  getProviderConnectionById: vi.fn(),
+  getUsageForProvider: vi.fn(),
+}));
+
+vi.mock("open-sse/index.js", () => ({}), { virtual: true });
+vi.mock("@/lib/localDb", () => ({
+  getProviderConnectionById: mocks.getProviderConnectionById,
+  updateProviderConnection: vi.fn(),
+}));
+vi.mock("open-sse/services/usage.js", () => ({ getUsageForProvider: mocks.getUsageForProvider }));
+vi.mock("open-sse/executors/index.js", () => ({
+  getExecutor: () => ({ needsRefresh: () => false }),
+}));
+vi.mock("@/lib/network/connectionProxy", () => ({
+  resolveConnectionProxyConfig: vi.fn(async () => ({})),
+}));
+vi.mock("@/shared/services/weightedTargets", () => ({ isWeightedProvider: () => false }));
+vi.mock("@/sse/services/quotaSnapshotSync", async (importOriginal) => {
+  const original = await importOriginal();
+  return {
+    ...original,
+    recordUsageSnapshot: vi.fn(async () => null),
+  };
+});
 
 vi.mock("next/server", () => ({
   NextResponse: { json: (body, init) => ({ status: init?.status || 200, body }) },
@@ -52,5 +77,34 @@ describe("GET /api/providers effectiveWeight", () => {
     });
     expect(c.effectiveWeight).toMatchObject({ weight: 1, baseSource: "default" });
     expect(JSON.stringify(body)).not.toMatch(/secret-/);
+  });
+
+  it("usage GET returns a stale base-weight view when no snapshot exists", async () => {
+    mocks.getProviderConnectionById.mockResolvedValue({
+      id: "a",
+      provider: "claude",
+      authType: "oauth",
+      providerSpecificData: { planTier: "default_claude_max_20x", planTierManual: true },
+    });
+    mocks.getUsageForProvider.mockResolvedValue({ quotas: {} });
+
+    const { GET: usageGET } = await import("@/app/api/usage/[connectionId]/route.js");
+    const res = await usageGET(new Request("http://localhost/api/usage/a"), {
+      params: Promise.resolve({ connectionId: "a" }),
+    });
+    const body = await res.json();
+
+    expect(body.quotaSnapshot).toMatchObject({
+      planTier: "default_claude_max_20x",
+      windows: [],
+      stale: true,
+      updatedAt: null,
+    });
+    expect(body.quotaSnapshot.effectiveWeight).toMatchObject({
+      weight: 20,
+      base: 20,
+      baseSource: "plan",
+      headroomSource: "static",
+    });
   });
 });

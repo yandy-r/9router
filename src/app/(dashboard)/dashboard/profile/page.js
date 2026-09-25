@@ -26,6 +26,8 @@ export default function ProfilePage() {
   const [isShuttingDown, setIsShuttingDown] = useState(false);
   const [settings, setSettings] = useState({ fallbackStrategy: "fill-first" });
   const [loading, setLoading] = useState(true);
+  const [strategySaving, setStrategySaving] = useState(false);
+  const [strategyError, setStrategyError] = useState("");
   const [passwords, setPasswords] = useState({ current: "", new: "", confirm: "" });
   const [passStatus, setPassStatus] = useState({ type: "", message: "" });
   const [passLoading, setPassLoading] = useState(false);
@@ -265,17 +267,25 @@ export default function ProfilePage() {
   };
 
   const updateFallbackStrategy = async (strategy) => {
+    setStrategySaving(true);
+    setStrategyError("");
     try {
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fallbackStrategy: strategy }),
       });
-      if (res.ok) {
-        setSettings((prev) => ({ ...prev, fallbackStrategy: strategy }));
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setStrategyError(data.error || "Failed to update account strategy");
+        return;
       }
+      setSettings((prev) => ({ ...prev, fallbackStrategy: strategy }));
     } catch (err) {
       console.error("Failed to update settings:", err);
+      setStrategyError("Failed to update account strategy");
+    } finally {
+      setStrategySaving(false);
     }
   };
 
@@ -1616,7 +1626,7 @@ export default function ProfilePage() {
               aria-label="Account strategy"
               value={settings.fallbackStrategy || "fill-first"}
               onChange={(e) => updateFallbackStrategy(e.target.value)}
-              disabled={loading}
+              disabled={loading || strategySaving}
               options={ACCOUNT_STRATEGY_OPTIONS}
               hint={
                 settings.fallbackStrategy === "weighted"
@@ -1624,6 +1634,11 @@ export default function ProfilePage() {
                   : "Cycle through accounts (Round Robin) or use priority order (Fill First)."
               }
             />
+            {strategyError && (
+              <p className="text-xs text-red-500" role="alert">
+                {strategyError}
+              </p>
+            )}
 
             {/* Sticky Limit */}
             {(settings.fallbackStrategy === "round-robin" ||
@@ -1632,7 +1647,9 @@ export default function ProfilePage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm sm:text-base">Sticky Limit</p>
                   <p className="text-xs sm:text-sm text-text-muted">
-                    Calls per account before switching
+                    {settings.fallbackStrategy === "weighted"
+                      ? "Calls per subscription OAuth account before switching; other providers use 1 unless overridden"
+                      : "Calls per account before switching"}
                   </p>
                   {settings.fallbackStrategy === "weighted" &&
                     Number(settings.stickyRoundRobinLimit || 3) === 1 && (
@@ -1696,7 +1713,7 @@ export default function ProfilePage() {
               {settings.fallbackStrategy === "round-robin"
                 ? `Currently distributing requests across all available accounts with ${settings.stickyRoundRobinLimit || 3} calls per account.`
                 : settings.fallbackStrategy === "weighted"
-                  ? `Currently routing by plan capacity × remaining quota with ${settings.stickyRoundRobinLimit || 3} calls per account.`
+                  ? `Currently routing by plan capacity × remaining quota with ${settings.stickyRoundRobinLimit || 3} calls per subscription OAuth account.`
                   : "Currently using accounts in priority order (Fill First)."}
               {settings.comboStrategy === "round-robin"
                 ? ` Combos rotate after ${settings.comboStickyRoundRobinLimit || 1} call${(settings.comboStickyRoundRobinLimit || 1) === 1 ? "" : "s"} per model.`

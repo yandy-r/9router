@@ -96,6 +96,9 @@ describe("weighted account overrides", () => {
       providerSpecificData: { region: "us", weight: 5, planTier: "pro", planTierManual: true },
     });
 
+    store.recordProbeWindows("c1", "claude", [{ kind: "5h", usedFraction: 0.2 }], {
+      planTier: "pro",
+    });
     await PUT(putRequest("c1", { weight: null, planTier: null, planTierManual: null }), {
       params: Promise.resolve({ id: "c1" }),
     });
@@ -103,6 +106,23 @@ describe("weighted account overrides", () => {
     expect(mocks.updateProviderConnection).toHaveBeenCalledWith("c1", {
       providerSpecificData: { region: "us" },
     });
+    expect(store.getSnapshot("c1").planTier).toBeNull();
+    expect(store.getSnapshot("c1").windows).toHaveLength(1);
+  });
+
+  it("clears a manual snapshot tier when plan alone is reset", async () => {
+    mocks.getProviderConnectionById.mockResolvedValue({
+      id: "c1",
+      provider: "claude",
+      providerSpecificData: { planTier: "pro", planTierManual: true },
+    });
+    store.recordProbeWindows("c1", "claude", [], { planTier: "pro" });
+
+    await PUT(putRequest("c1", { planTier: null }), {
+      params: Promise.resolve({ id: "c1" }),
+    });
+
+    expect(store.getSnapshot("c1").planTier).toBeNull();
   });
 
   it("rejects out-of-range weights, unknown tiers, and dangerous keys", async () => {
@@ -203,6 +223,38 @@ describe("weighted account overrides", () => {
       planTierManual: true,
       weight: 7,
       region: "us",
+      accessToken: "fresh-access",
+    });
+  });
+
+  it("clears stale auto-detected tier on OAuth re-login so it re-detects", async () => {
+    const { createProviderConnection } = await import("../../src/lib/db/repos/connectionsRepo.js");
+    const created = await createProviderConnection({
+      provider: "claude",
+      authType: "oauth",
+      email: "auto@example.com",
+      providerSpecificData: {
+        planTier: "pro",
+        planTierCheckedAt: 123,
+        weight: 3,
+        connectionProxyUrl: "http://proxy.local:8080",
+      },
+    });
+
+    const relogin = await createProviderConnection({
+      provider: "claude",
+      authType: "oauth",
+      email: "auto@example.com",
+      accessToken: "fresh-access",
+      providerSpecificData: { accessToken: "fresh-access" },
+    });
+
+    expect(relogin.id).toBe(created.id);
+    expect(relogin.providerSpecificData).not.toHaveProperty("planTier");
+    expect(relogin.providerSpecificData).not.toHaveProperty("planTierCheckedAt");
+    expect(relogin.providerSpecificData).toMatchObject({
+      weight: 3,
+      connectionProxyUrl: "http://proxy.local:8080",
       accessToken: "fresh-access",
     });
   });

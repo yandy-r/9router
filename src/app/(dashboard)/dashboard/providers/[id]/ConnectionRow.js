@@ -233,7 +233,9 @@ export default function ConnectionRow({
               >
                 <Badge variant="default" size="sm">
                   {`Weight ${formatWeight(weightInfo.weight)} · ~${weightInfo.sharePct.toFixed(1)}% share · ${weightInfo.baseSource} / ${weightInfo.headroomSource}`}
-                  {weightInfo.belowFloor && " · below quota floor"}
+                  {weightInfo.baseSource === "manual" && weightInfo.base === 0
+                    ? " · manual 0 (fail-open if all accounts have zero weight)"
+                    : weightInfo.belowFloor && " · below quota floor"}
                   {weightInfo.allExhausted && " · all exhausted, equal fallback"}
                 </Badge>
               </span>

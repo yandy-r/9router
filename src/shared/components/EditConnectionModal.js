@@ -33,6 +33,7 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
   const [planTier, setPlanTier] = useState("");
   const [weightOverride, setWeightOverride] = useState("");
   const [weightError, setWeightError] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [validating, setValidating] = useState(false);
@@ -57,6 +58,7 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
           : String(connection.providerSpecificData.weight),
       );
       setWeightError("");
+      setSaveError("");
       // Load Azure-specific data if present
       if (connection.provider === "azure" && connection.providerSpecificData) {
         setAzureData({
@@ -178,6 +180,7 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
       return;
     }
     setWeightError("");
+    setSaveError("");
     setSaving(true);
     try {
       const updates = {
@@ -240,7 +243,10 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
         updates.providerSpecificData = { ...updates.providerSpecificData, ...weighted };
       }
 
-      await onSave(updates);
+      const error = await onSave(updates);
+      if (error) setSaveError(error);
+    } catch {
+      setSaveError("Failed to save connection");
     } finally {
       setSaving(false);
     }
@@ -373,6 +379,11 @@ export default function EditConnectionModal({ isOpen, connection, onSave, onClos
           </div>
         )}
 
+        {saveError && (
+          <p className="text-sm text-red-500" role="alert">
+            {saveError}
+          </p>
+        )}
         <div className="flex gap-2">
           <Button onClick={handleSubmit} fullWidth disabled={saving}>
             {saving ? "Saving..." : "Save"}

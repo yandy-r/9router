@@ -156,6 +156,12 @@ export function clearQuotaSnapshots() {
   snapshots.clear();
 }
 
+/** Forget a manual tier when its override is cleared; keep quota windows intact. */
+export function clearSnapshotPlanTier(connectionId, tier) {
+  const snapshot = snapshots.get(connectionId);
+  if (snapshot?.planTier === tier) snapshots.set(connectionId, { ...snapshot, planTier: null });
+}
+
 /** Normalize used/remaining quota values to a used fraction in [0, 1]. */
 export function normalizeUsedFraction(raw, scale) {
   const value = finiteNumber(raw);
