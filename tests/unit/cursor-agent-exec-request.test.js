@@ -71,15 +71,18 @@ function trailerErrorFrame(error) {
   return Buffer.concat([header, payload]);
 }
 
-function stubAgentSession(executor, frames) {
+function stubAgentSession(executor, frames, { readError, session = {} } = {}) {
   const written = [];
   const queue = [...frames];
   executor.openAgentHttp2Stream = () => ({
     responseHeaders: Promise.resolve({ ":status": 200 }),
     write: (frame) => written.push(Buffer.from(frame)),
     end() {},
-    close() {},
+    close() {
+      session.closed = true;
+    },
     async read() {
+      if (!queue.length && readError) throw readError;
       if (!queue.length) return { value: undefined, done: true };
       return { value: queue.shift(), done: false };
     },
@@ -136,6 +139,44 @@ describe("CursorExecutor AgentService exec_request handling", () => {
       }),
     ).rejects.toThrow("write failed");
     expect(closed).toBe(true);
+  });
+
+  it("propagates a mid-stream read failure instead of finishing the stream", async () => {
+    const executor = new CursorExecutor();
+    const session = {};
+    stubAgentSession(executor, [textFrame("Partial answer")], {
+      readError: new Error("ECONNRESET"),
+      session,
+    });
+    const result = await executor.executeAgent({
+      model: "gpt-5.2",
+      body: { messages: [{ role: "user", content: "hi" }] },
+      stream: true,
+      credentials,
+    });
+    const reader = result.response.body.getReader();
+    const first = new TextDecoder().decode((await reader.read()).value);
+
+    expect(first).toContain("Partial answer");
+    expect(parseSSE(first)[0].choices[0].finish_reason).toBeNull();
+    await expect(reader.read()).rejects.toThrow("ECONNRESET");
+    expect(session.closed).toBe(true);
+  });
+
+  it("returns a connection error for a non-streaming read failure", async () => {
+    const executor = new CursorExecutor();
+    stubAgentSession(executor, [textFrame("Partial answer")], {
+      readError: new Error("ECONNRESET"),
+    });
+    const result = await executor.execute({
+      model: "gpt-5.2",
+      body: { messages: [{ role: "user", content: "hi" }] },
+      stream: false,
+      credentials,
+    });
+
+    expect(result.response.status).toBe(500);
+    expect((await result.response.json()).error.type).toBe("connection_error");
   });
 
   it("acknowledges a request-context exec request without ending the turn", async () => {
