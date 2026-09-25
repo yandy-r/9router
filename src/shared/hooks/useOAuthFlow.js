@@ -426,6 +426,17 @@ export default function useOAuthFlow({
     flowRef.current = emptyLedger();
   }, [isOpen, stopOwnedProxy]);
 
+  // Cleanup on unmount: wrappers (Cursor/Kiro/GitLab) unmount this modal while
+  // isOpen stays true, so the close effect above never fires. Abort polling and
+  // stop any owned proxy so no orphaned loop can fire a stale onSuccess.
+  // openedRef is intentionally untouched so StrictMode remounts don't re-open.
+  useEffect(() => {
+    return () => {
+      pollingAbortRef.current = true;
+      stopOwnedProxy();
+    };
+  }, [stopOwnedProxy]);
+
   useOAuthProxyStatus({
     isOpen,
     authData,
@@ -475,6 +486,7 @@ export default function useOAuthFlow({
 
   // Every close path (button, Esc, backdrop) funnels here; proxy stop is idempotent.
   const handleClose = useCallback(() => {
+    pollingAbortRef.current = true;
     stopOwnedProxy();
     onCloseRef.current();
   }, [stopOwnedProxy]);

@@ -84,7 +84,18 @@ const OAUTH_TEST_CONFIG = {
   },
   kimi: { checkExpiry: true, refreshable: true },
   "kimi-coding": { checkExpiry: true, refreshable: true },
-  cursor: { tokenExists: true },
+  // Connect-RPC JSON usage read doubles as an authenticated probe (no quota spent).
+  cursor: {
+    url: PROVIDERS.cursor?.usage?.url,
+    method: "POST",
+    authHeader: "Authorization",
+    authPrefix: "Bearer ",
+    extraHeaders: { "Content-Type": "application/json", "Connect-Protocol-Version": "1" },
+    body: "{}",
+    refreshable: true,
+    // Cursor rejects stale session JWTs with 403 as well as 401.
+    refreshOnStatuses: [401, 403],
+  },
   kilocode: {
     url: `${KILOCODE_CONFIG.apiBaseUrl}/api/profile`,
     method: "GET",
@@ -121,7 +132,7 @@ const OAUTH_TEST_CONFIG = {
   zed: {},
   // Runtime Trae refresher has no configured endpoint; expired tokens require re-login.
   trae: { checkExpiry: true },
-  // ponytail: gRPC-only API, token presence only (like cursor); add a probe if one is exposed.
+  // ponytail: gRPC-only API, token presence only; add a probe if one is exposed.
   windsurf: { tokenExists: true },
   kimchi: {
     url: KIMCHI_CONFIG.validationUrl || "https://api.cast.ai/v1/llm/openai/supported-providers",
@@ -297,7 +308,8 @@ async function refreshOAuthToken(connection) {
       provider === "kiro" ||
       provider === "kimi" ||
       provider === "kimi-coding" ||
-      provider === "codebuddy-intl"
+      provider === "codebuddy-intl" ||
+      provider === "cursor"
     ) {
       return await refreshProviderCredentials(provider, connection, console);
     }
@@ -363,7 +375,7 @@ async function testOAuthConnection(connection, effectiveProxy = null) {
   if (config.unusableMessage)
     return { valid: false, error: config.unusableMessage, refreshed: false };
 
-  // Cursor uses protobuf API - can only verify token exists, not test endpoint
+  // No cheap authenticated read endpoint (gRPC/protobuf-only) - can only verify the token exists
   if (config.tokenExists) {
     return { valid: true, error: null, refreshed: false, newTokens: null };
   }
@@ -477,7 +489,13 @@ async function testOAuthConnection(connection, effectiveProxy = null) {
       };
     }
 
-    if (res.status === 401 && config.refreshable && !refreshed && connection.refreshToken) {
+    const refreshOnStatuses = config.refreshOnStatuses || [401];
+    if (
+      refreshOnStatuses.includes(res.status) &&
+      config.refreshable &&
+      !refreshed &&
+      connection.refreshToken
+    ) {
       const tokens = await refreshOAuthToken(connection);
       if (tokens?.accessToken) {
         const retryUrl = config.buildUrl ? config.buildUrl(tokens.accessToken) : testUrl;

@@ -42,6 +42,12 @@ export async function POST(request) {
     } catch (err) {
       console.warn("[Settings][DatabaseImport] Failed to re-apply outbound proxy env:", err);
     }
+    // Imported combos/strategies decide quota polling (YAN-384).
+    import("@/shared/services/quotaSnapshotPoller")
+      .then(({ syncQuotaSnapshotPoller }) => syncQuotaSnapshotPoller())
+      .catch((error) =>
+        console.warn("[Settings][DatabaseImport] quota poller sync failed:", error?.message),
+      );
 
     return NextResponse.json({ success: true });
   } catch (error) {

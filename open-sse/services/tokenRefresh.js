@@ -20,6 +20,7 @@ import {
   refreshMetaCodeToken,
   classifyOAuthRefreshError,
 } from "./tokenRefresh/providers.js";
+import { refreshCursorToken, cursorRefreshSource } from "./tokenRefresh/cursor.js";
 
 // Re-export all provider refresh functions (preserves public API for all consumers)
 export {
@@ -39,6 +40,7 @@ export {
   refreshZedToken,
   refreshWindsurfToken,
   refreshMetaCodeToken,
+  refreshCursorToken,
   classifyOAuthRefreshError,
 };
 
@@ -172,6 +174,7 @@ const REFRESH_HANDLERS = {
   // ClinePass shares Cline's WorkOS auth endpoints, so the same refresh works.
   clinepass: (c, log) => refreshClineToken(c.refreshToken, log),
   zed: () => refreshZedToken(),
+  cursor: (c, log) => refreshCursorToken(cursorRefreshSource(c), log),
   windsurf: (c, log) => refreshWindsurfToken(c, log),
   // Kimi Code OAuth (merged into id `kimi`); legacy id still routes here
   kimi: (c, log) => refreshKimiToken(c.refreshToken, c, log),

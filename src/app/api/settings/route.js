@@ -81,7 +81,7 @@ async function handleComboStrategyPatch(body) {
 
   resetComboRotation();
   import("@/shared/services/quotaSnapshotPoller")
-    .then(({ configureQuotaSnapshotPoller }) => configureQuotaSnapshotPoller(settings))
+    .then(({ syncQuotaSnapshotPoller }) => syncQuotaSnapshotPoller())
     .catch((error) => console.warn("[QuotaSnapshotPoller] settings update failed:", error.message));
   return safeSettingsResponse(settings);
 }
@@ -281,8 +281,8 @@ export async function PATCH(request) {
     ) {
       // Weighted gating changed: start/stop the snapshot backfill poller (YAN-259).
       import("@/shared/services/quotaSnapshotPoller")
-        .then(({ configureQuotaSnapshotPoller }) => {
-          configureQuotaSnapshotPoller(settings);
+        .then(({ syncQuotaSnapshotPoller }) => {
+          syncQuotaSnapshotPoller();
         })
         .catch((error) =>
           console.warn("[QuotaSnapshotPoller] settings update failed:", error.message),

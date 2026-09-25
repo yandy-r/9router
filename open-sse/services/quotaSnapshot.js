@@ -1,3 +1,4 @@
+import { MAX_RATE_LIMIT_COOLDOWN_MS, TRANSIENT_COOLDOWN_MS } from "../config/errorConfig.js";
 import { PLAN_CAPACITY, QUOTA_SNAPSHOT } from "../config/quotaSnapshot.js";
 import { isDurationString } from "../utils/duration.js";
 
@@ -263,6 +264,15 @@ function modelWindowMatches(windowModel, modelLower) {
   return false;
 }
 
+function windowApplies(kind, modelLower) {
+  if (GLOBAL_WINDOW_KINDS.has(kind)) return true;
+  if (kind.toLowerCase().startsWith("model:") && modelLower) {
+    const windowModel = kind.slice(kind.indexOf(":") + 1).toLowerCase();
+    return modelWindowMatches(windowModel, modelLower);
+  }
+  return false;
+}
+
 /** Find minimum applicable quota headroom for a snapshot and optional model. */
 export function getHeadroom(_provider, snapshot, model) {
   try {
@@ -278,12 +288,7 @@ export function getHeadroom(_provider, snapshot, model) {
       const usedFraction = normalizeUsedFraction(window.usedFraction, "used01");
       if (!kind || usedFraction === null) continue;
 
-      let applies = GLOBAL_WINDOW_KINDS.has(kind);
-      if (!applies && kind.toLowerCase().startsWith("model:") && modelLower) {
-        const windowModel = kind.slice(kind.indexOf(":") + 1).toLowerCase();
-        applies = modelWindowMatches(windowModel, modelLower);
-      }
-      if (!applies) continue;
+      if (!windowApplies(kind, modelLower)) continue;
 
       const headroom = 1 - usedFraction;
       if (!binding || headroom < binding.headroom) {
@@ -297,6 +302,42 @@ export function getHeadroom(_provider, snapshot, model) {
     return binding ?? { headroom: 1, source: "static", stale: false };
   } catch {
     return { headroom: 1, source: "static", stale: !snapshot };
+  }
+}
+
+const SHORT_WINDOW_KINDS = new Set(QUOTA_SNAPSHOT.shortWindowKinds);
+
+/**
+ * Epoch ms until which the snapshot shows the model's quota exhausted (0 = not
+ * known exhausted). Each exhausted window is capped at observedAt +
+ * MAX_RATE_LIMIT_COOLDOWN_MS so a stale zero gets re-probed. Never throws.
+ */
+export function getExhaustedUntil(snapshot, model, nowMs = Date.now()) {
+  try {
+    if (!snapshot || typeof snapshot !== "object" || !Array.isArray(snapshot.windows)) return 0;
+    const now = validNow(nowMs);
+    const modelLower = typeof model === "string" ? model.trim().toLowerCase() : "";
+    let until = 0;
+    for (const window of snapshot.windows) {
+      if (!window || typeof window !== "object") continue;
+      const kind = sanitizedWindowKind(window.kind);
+      const usedFraction = normalizeUsedFraction(window.usedFraction, "used01");
+      const observedAt = finiteNumber(window.observedAt);
+      if (!kind || usedFraction === null || usedFraction < 1 || observedAt === null) continue;
+      const resetsAt = finiteNumber(window.resetsAt) ?? 0;
+      if (!isLiveWindow({ resetsAt, observedAt }, now) || !windowApplies(kind, modelLower)) {
+        continue;
+      }
+
+      const cap = observedAt + MAX_RATE_LIMIT_COOLDOWN_MS;
+      let windowUntil = cap;
+      if (resetsAt > 0) windowUntil = Math.min(resetsAt, cap);
+      else if (SHORT_WINDOW_KINDS.has(kind)) windowUntil = observedAt + TRANSIENT_COOLDOWN_MS;
+      if (windowUntil > now && windowUntil > until) until = windowUntil;
+    }
+    return until;
+  } catch {
+    return 0;
   }
 }
 

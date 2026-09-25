@@ -32,6 +32,7 @@ const SUPPORTED = [
   "deepseek",
   "opencode-go",
   "zed",
+  "cursor",
   "commandcode",
   "meta-code",
 ];
