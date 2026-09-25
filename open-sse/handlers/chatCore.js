@@ -581,6 +581,8 @@ export async function handleChatCore({
   if (
     !executor?.noAuth &&
     executor?.supportsRefresh !== false &&
+    (typeof executor?.canRefreshCredentials !== "function" ||
+      executor.canRefreshCredentials(credentials)) &&
     (providerResponse.status === HTTP_STATUS.UNAUTHORIZED ||
       providerResponse.status === HTTP_STATUS.FORBIDDEN)
   ) {

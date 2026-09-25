@@ -370,8 +370,13 @@ async function resolveKiroProfileArnPatch(providerSpecificData, accessToken, ref
   if (providerSpecificData?.profileArn) return {};
   let profileArn = refreshedArn?.trim?.() || null;
   if (!profileArn) {
-    const { fetchKiroProfileArn } = await import("../../../src/lib/oauth/providers.js");
-    profileArn = await fetchKiroProfileArn(accessToken);
+    try {
+      const { fetchKiroProfileArn } = await import("../../../src/lib/oauth/providers.js");
+      profileArn = await fetchKiroProfileArn(accessToken);
+    } catch {
+      // Profile discovery is optional; keep the refreshed token.
+      return {};
+    }
   }
   return profileArn ? { providerSpecificData: { profileArn } } : {};
 }
@@ -404,64 +409,122 @@ export async function refreshKiroToken(
           return null;
         }
 
-        const response = await proxyAwareFetch(
-          refreshRequest.tokenEndpoint,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              Accept: "application/json",
+        try {
+          const response = await proxyAwareFetch(
+            refreshRequest.tokenEndpoint,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                Accept: "application/json",
+              },
+              body: refreshRequest.body,
             },
-            body: refreshRequest.body,
-          },
-          proxyOptions,
-        );
+            proxyOptions,
+          );
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          log?.error?.("TOKEN_REFRESH", "Failed to refresh Kiro external_idp token", {
-            status: response.status,
-            error: errorText,
+          if (!response.ok) {
+            const errorText = await response.text();
+            log?.error?.("TOKEN_REFRESH", "Failed to refresh Kiro external_idp token", {
+              status: response.status,
+              error: errorText,
+            });
+            return null;
+          }
+
+          const tokens = await response.json();
+
+          log?.info?.("TOKEN_REFRESH", "Successfully refreshed Kiro external_idp token", {
+            hasNewAccessToken: !!tokens.access_token,
+            hasNewRefreshToken: !!tokens.refresh_token,
+            expiresIn: tokens.expires_in,
           });
+
+          return {
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token || refreshToken,
+            expiresIn: tokens.expires_in,
+            providerSpecificData: refreshRequest.providerSpecificData,
+          };
+        } catch (error) {
+          log?.error?.(
+            "TOKEN_REFRESH",
+            `Error refreshing Kiro external_idp token: ${error.message}`,
+          );
           return null;
         }
-
-        const tokens = await response.json();
-
-        log?.info?.("TOKEN_REFRESH", "Successfully refreshed Kiro external_idp token", {
-          hasNewAccessToken: !!tokens.access_token,
-          hasNewRefreshToken: !!tokens.refresh_token,
-          expiresIn: tokens.expires_in,
-        });
-
-        return {
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token || refreshToken,
-          expiresIn: tokens.expires_in,
-          providerSpecificData: refreshRequest.providerSpecificData,
-        };
       }
 
-      if (clientId && clientSecret) {
-        const isIDC = authMethod === "idc";
-        const endpoint =
-          isIDC && region
-            ? `https://oidc.${region}.amazonaws.com/token`
-            : "https://oidc.us-east-1.amazonaws.com/token";
+      try {
+        if (clientId && clientSecret) {
+          const isIDC = authMethod === "idc";
+          const endpoint =
+            isIDC && region
+              ? `https://oidc.${region}.amazonaws.com/token`
+              : "https://oidc.us-east-1.amazonaws.com/token";
 
+          const response = await proxyAwareFetch(
+            endpoint,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify({
+                clientId: clientId,
+                clientSecret: clientSecret,
+                refreshToken: refreshToken,
+                grantType: "refresh_token",
+              }),
+            },
+            proxyOptions,
+          );
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            log?.error?.("TOKEN_REFRESH", "Failed to refresh Kiro AWS token", {
+              status: response.status,
+              error: errorText,
+            });
+            return null;
+          }
+
+          const tokens = await response.json();
+
+          log?.info?.("TOKEN_REFRESH", "Successfully refreshed Kiro AWS token", {
+            hasNewAccessToken: !!tokens.accessToken,
+            expiresIn: tokens.expiresIn,
+          });
+
+          return {
+            accessToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken || refreshToken,
+            expiresIn: tokens.expiresIn,
+            ...(await resolveKiroProfileArnPatch(
+              providerSpecificData,
+              tokens.accessToken,
+              tokens.profileArn,
+            )),
+          };
+        }
+      } catch (error) {
+        log?.error?.("TOKEN_REFRESH", `Error refreshing Kiro AWS token: ${error.message}`);
+        return null;
+      }
+
+      try {
         const response = await proxyAwareFetch(
-          endpoint,
+          PROVIDERS.kiro.tokenUrl,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Accept: "application/json",
+              "User-Agent": "kiro-cli/1.0.0",
             },
             body: JSON.stringify({
-              clientId: clientId,
-              clientSecret: clientSecret,
               refreshToken: refreshToken,
-              grantType: "refresh_token",
             }),
           },
           proxyOptions,
@@ -469,7 +532,7 @@ export async function refreshKiroToken(
 
         if (!response.ok) {
           const errorText = await response.text();
-          log?.error?.("TOKEN_REFRESH", "Failed to refresh Kiro AWS token", {
+          log?.error?.("TOKEN_REFRESH", "Failed to refresh Kiro social token", {
             status: response.status,
             error: errorText,
           });
@@ -478,7 +541,7 @@ export async function refreshKiroToken(
 
         const tokens = await response.json();
 
-        log?.info?.("TOKEN_REFRESH", "Successfully refreshed Kiro AWS token", {
+        log?.info?.("TOKEN_REFRESH", "Successfully refreshed Kiro social token", {
           hasNewAccessToken: !!tokens.accessToken,
           expiresIn: tokens.expiresIn,
         });
@@ -493,50 +556,10 @@ export async function refreshKiroToken(
             tokens.profileArn,
           )),
         };
-      }
-
-      const response = await proxyAwareFetch(
-        PROVIDERS.kiro.tokenUrl,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "User-Agent": "kiro-cli/1.0.0",
-          },
-          body: JSON.stringify({
-            refreshToken: refreshToken,
-          }),
-        },
-        proxyOptions,
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        log?.error?.("TOKEN_REFRESH", "Failed to refresh Kiro social token", {
-          status: response.status,
-          error: errorText,
-        });
+      } catch (error) {
+        log?.error?.("TOKEN_REFRESH", `Error refreshing Kiro social token: ${error.message}`);
         return null;
       }
-
-      const tokens = await response.json();
-
-      log?.info?.("TOKEN_REFRESH", "Successfully refreshed Kiro social token", {
-        hasNewAccessToken: !!tokens.accessToken,
-        expiresIn: tokens.expiresIn,
-      });
-
-      return {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken || refreshToken,
-        expiresIn: tokens.expiresIn,
-        ...(await resolveKiroProfileArnPatch(
-          providerSpecificData,
-          tokens.accessToken,
-          tokens.profileArn,
-        )),
-      };
     },
     log,
   );
@@ -610,51 +633,56 @@ export async function refreshCodebuddyToken(refreshToken, log) {
     "codebuddy-cn",
     refreshToken,
     async () => {
-      const oauth = PROVIDER_OAUTH["codebuddy-cn"] || {};
-      const response = await fetch(oauth.refreshUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "User-Agent": oauth.userAgent,
-          "X-Requested-With": "XMLHttpRequest",
-          "X-Domain": "copilot.tencent.com",
-          "X-Refresh-Token": refreshToken,
-          "X-Auth-Refresh-Source": "plugin",
-          "X-Product": "SaaS",
-        },
-        body: "{}",
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        log?.error?.("TOKEN_REFRESH", "Failed to refresh CodeBuddy token", {
-          status: response.status,
-          error: errorText,
+      try {
+        const oauth = PROVIDER_OAUTH["codebuddy-cn"] || {};
+        const response = await fetch(oauth.refreshUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "User-Agent": oauth.userAgent,
+            "X-Requested-With": "XMLHttpRequest",
+            "X-Domain": "copilot.tencent.com",
+            "X-Refresh-Token": refreshToken,
+            "X-Auth-Refresh-Source": "plugin",
+            "X-Product": "SaaS",
+          },
+          body: "{}",
         });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          log?.error?.("TOKEN_REFRESH", "Failed to refresh CodeBuddy token", {
+            status: response.status,
+            error: errorText,
+          });
+          return null;
+        }
+
+        const data = await response.json();
+        if (data.code !== 0 || !data.data?.accessToken) {
+          log?.error?.("TOKEN_REFRESH", "CodeBuddy token refresh returned no token", {
+            code: data.code,
+            msg: data.msg,
+          });
+          return null;
+        }
+
+        log?.info?.("TOKEN_REFRESH", "Successfully refreshed CodeBuddy token", {
+          hasNewAccessToken: !!data.data.accessToken,
+          hasNewRefreshToken: !!data.data.refreshToken,
+          expiresIn: data.data.expiresIn,
+        });
+
+        return {
+          accessToken: data.data.accessToken,
+          refreshToken: data.data.refreshToken || refreshToken,
+          expiresIn: data.data.expiresIn,
+        };
+      } catch (error) {
+        log?.error?.("TOKEN_REFRESH", `Error refreshing CodeBuddy token: ${error.message}`);
         return null;
       }
-
-      const data = await response.json();
-      if (data.code !== 0 || !data.data?.accessToken) {
-        log?.error?.("TOKEN_REFRESH", "CodeBuddy token refresh returned no token", {
-          code: data.code,
-          msg: data.msg,
-        });
-        return null;
-      }
-
-      log?.info?.("TOKEN_REFRESH", "Successfully refreshed CodeBuddy token", {
-        hasNewAccessToken: !!data.data.accessToken,
-        hasNewRefreshToken: !!data.data.refreshToken,
-        expiresIn: data.data.expiresIn,
-      });
-
-      return {
-        accessToken: data.data.accessToken,
-        refreshToken: data.data.refreshToken || refreshToken,
-        expiresIn: data.data.expiresIn,
-      };
     },
     log,
   );
@@ -666,51 +694,56 @@ export async function refreshCodebuddyIntlToken(refreshToken, log) {
     "codebuddy-intl",
     refreshToken,
     async () => {
-      const oauth = PROVIDER_OAUTH["codebuddy-intl"] || {};
-      const response = await fetch(oauth.refreshUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "User-Agent": oauth.userAgent,
-          "X-Requested-With": "XMLHttpRequest",
-          "X-Domain": "www.codebuddy.ai",
-          "X-Refresh-Token": refreshToken,
-          "X-Auth-Refresh-Source": "plugin",
-          "X-Product": "SaaS",
-        },
-        body: "{}",
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        log?.error?.("TOKEN_REFRESH", "Failed to refresh CodeBuddy intl token", {
-          status: response.status,
-          error: errorText,
+      try {
+        const oauth = PROVIDER_OAUTH["codebuddy-intl"] || {};
+        const response = await fetch(oauth.refreshUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "User-Agent": oauth.userAgent,
+            "X-Requested-With": "XMLHttpRequest",
+            "X-Domain": "www.codebuddy.ai",
+            "X-Refresh-Token": refreshToken,
+            "X-Auth-Refresh-Source": "plugin",
+            "X-Product": "SaaS",
+          },
+          body: "{}",
         });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          log?.error?.("TOKEN_REFRESH", "Failed to refresh CodeBuddy intl token", {
+            status: response.status,
+            error: errorText,
+          });
+          return null;
+        }
+
+        const data = await response.json();
+        if (data.code !== 0 || !data.data?.accessToken) {
+          log?.error?.("TOKEN_REFRESH", "CodeBuddy intl token refresh returned no token", {
+            code: data.code,
+            msg: data.msg,
+          });
+          return null;
+        }
+
+        log?.info?.("TOKEN_REFRESH", "Successfully refreshed CodeBuddy intl token", {
+          hasNewAccessToken: !!data.data.accessToken,
+          hasNewRefreshToken: !!data.data.refreshToken,
+          expiresIn: data.data.expiresIn,
+        });
+
+        return {
+          accessToken: data.data.accessToken,
+          refreshToken: data.data.refreshToken || refreshToken,
+          expiresIn: data.data.expiresIn,
+        };
+      } catch (error) {
+        log?.error?.("TOKEN_REFRESH", `Error refreshing CodeBuddy intl token: ${error.message}`);
         return null;
       }
-
-      const data = await response.json();
-      if (data.code !== 0 || !data.data?.accessToken) {
-        log?.error?.("TOKEN_REFRESH", "CodeBuddy intl token refresh returned no token", {
-          code: data.code,
-          msg: data.msg,
-        });
-        return null;
-      }
-
-      log?.info?.("TOKEN_REFRESH", "Successfully refreshed CodeBuddy intl token", {
-        hasNewAccessToken: !!data.data.accessToken,
-        hasNewRefreshToken: !!data.data.refreshToken,
-        expiresIn: data.data.expiresIn,
-      });
-
-      return {
-        accessToken: data.data.accessToken,
-        refreshToken: data.data.refreshToken || refreshToken,
-        expiresIn: data.data.expiresIn,
-      };
     },
     log,
   );
