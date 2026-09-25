@@ -360,7 +360,8 @@ export async function POST(request) {
         }
 
         case "openrouter": {
-          const openrouterRes = await fetch("https://openrouter.ai/api/v1/models", {
+          // /models is public (200 for any key); /auth/key requires a valid key.
+          const openrouterRes = await fetch("https://openrouter.ai/api/v1/auth/key", {
             headers: { Authorization: `Bearer ${apiKey}` },
           });
           isValid = openrouterRes.ok;

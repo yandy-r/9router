@@ -196,9 +196,22 @@ export async function POST(request) {
       mergedProviderSpecificData.proxyPoolId = proxyPoolId;
     }
 
+    const authType = isWebCookieProvider ? "cookie" : "apikey";
+    // createProviderConnection upserts apikey rows by name; reject here so a reused
+    // name never silently replaces another connection's key.
+    if (authType === "apikey") {
+      const existing = await getProviderConnections({ provider });
+      if (existing.some((c) => c.authType === "apikey" && c.name === connectionName)) {
+        return NextResponse.json(
+          { error: `A connection named "${connectionName}" already exists for this provider` },
+          { status: 409 },
+        );
+      }
+    }
+
     const newConnection = await createProviderConnection({
       provider,
-      authType: isWebCookieProvider ? "cookie" : "apikey",
+      authType,
       name: connectionName,
       apiKey: apiKey || "",
       priority: priority || 1,

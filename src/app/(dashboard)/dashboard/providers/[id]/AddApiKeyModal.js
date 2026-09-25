@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Button, Badge, Input, Modal, Select } from "@/shared/components";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
@@ -76,6 +76,41 @@ export default function AddApiKeyModal({
   const [mode, setMode] = useState("single"); // "single" | "bulk"
   const [bulkText, setBulkText] = useState("");
   const [bulkResult, setBulkResult] = useState(null); // { success, failed }
+  // Bumped whenever a validation input changes; a check started under an older
+  // sequence no longer describes the form and its result is discarded.
+  const validationSeq = useRef(0);
+
+  // Reset state when modal opens so a reopened Add never reuses prior credentials
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        name: "",
+        apiKey: "",
+        defaultModel: "",
+        priority: 1,
+        proxyPoolId: NONE_PROXY_POOL_VALUE,
+        ollamaHostUrl: "",
+      });
+      setAzureData({
+        azureEndpoint: "",
+        apiVersion: "2024-10-01-preview",
+        deployment: "",
+        organization: "",
+      });
+      setCloudflareData({ accountId: "" });
+      setRegion(defaultRegion);
+      setValidationResult(null);
+      setMode("single");
+      setBulkText("");
+      setBulkResult(null);
+    }
+  }, [isOpen, defaultRegion]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deps are the validation inputs by design
+  useEffect(() => {
+    validationSeq.current += 1;
+    setValidationResult(null);
+  }, [formData.apiKey, formData.ollamaHostUrl, azureData, cloudflareData, region]);
 
   const buildProviderSpecificData = () => {
     if (isOllamaLocal && formData.ollamaHostUrl.trim()) {
@@ -99,6 +134,7 @@ export default function AddApiKeyModal({
   };
 
   const handleValidate = async () => {
+    const seq = validationSeq.current;
     setValidating(true);
     try {
       const res = await fetch("/api/providers/validate", {
@@ -111,9 +147,9 @@ export default function AddApiKeyModal({
         }),
       });
       const data = await res.json();
-      setValidationResult(data.valid ? "success" : "failed");
+      if (validationSeq.current === seq) setValidationResult(data.valid ? "success" : "failed");
     } catch {
-      setValidationResult("failed");
+      if (validationSeq.current === seq) setValidationResult("failed");
     } finally {
       setValidating(false);
     }
@@ -130,6 +166,7 @@ export default function AddApiKeyModal({
 
     setSaving(true);
     try {
+      const seq = validationSeq.current;
       let isValid = false;
       try {
         setValidating(true);
@@ -145,9 +182,9 @@ export default function AddApiKeyModal({
         });
         const data = await res.json();
         isValid = !!data.valid;
-        setValidationResult(isValid ? "success" : "failed");
+        if (validationSeq.current === seq) setValidationResult(isValid ? "success" : "failed");
       } catch {
-        setValidationResult("failed");
+        if (validationSeq.current === seq) setValidationResult("failed");
       } finally {
         setValidating(false);
       }
@@ -465,7 +502,7 @@ export default function AddApiKeyModal({
               type="number"
               value={formData.priority}
               onChange={(e) =>
-                setFormData({ ...formData, priority: Number.parseInt(e.target.value) || 1 })
+                setFormData({ ...formData, priority: Number.parseInt(e.target.value, 10) || 1 })
               }
             />
 

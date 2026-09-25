@@ -363,7 +363,7 @@ ConnectionRow.propTypes = {
 };
 
 // ── AddApiKeyModal ─────────────────────────────────────────────
-function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, onSave, onClose }) {
+function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, error, onSave, onClose }) {
   const NONE = "__none__";
   const [formData, setFormData] = useState({
     name: "",
@@ -374,8 +374,26 @@ function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, onSave, on
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
   const [saving, setSaving] = useState(false);
+  // Bumped whenever the key changes; an in-flight check from an older key is discarded.
+  const validationSeq = useRef(0);
+
+  // The modal stays mounted: start every open from a blank form so a reused
+  // name/key can never overwrite an existing connection.
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({ name: "", apiKey: "", priority: 1, proxyPoolId: NONE });
+      setValidationResult(null);
+    }
+  }, [isOpen]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dep is the validation input by design
+  useEffect(() => {
+    validationSeq.current += 1;
+    setValidationResult(null);
+  }, [formData.apiKey]);
 
   const handleValidate = async () => {
+    const seq = validationSeq.current;
     setValidating(true);
     try {
       const res = await fetch("/api/providers/validate", {
@@ -384,9 +402,9 @@ function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, onSave, on
         body: JSON.stringify({ provider, apiKey: formData.apiKey }),
       });
       const data = await res.json();
-      setValidationResult(data.valid ? "success" : "failed");
+      if (validationSeq.current === seq) setValidationResult(data.valid ? "success" : "failed");
     } catch {
-      setValidationResult("failed");
+      if (validationSeq.current === seq) setValidationResult("failed");
     } finally {
       setValidating(false);
     }
@@ -396,6 +414,7 @@ function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, onSave, on
     if (!provider || !formData.apiKey) return;
     setSaving(true);
     try {
+      const seq = validationSeq.current;
       let isValid = false;
       try {
         setValidating(true);
@@ -407,9 +426,9 @@ function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, onSave, on
         });
         const data = await res.json();
         isValid = !!data.valid;
-        setValidationResult(isValid ? "success" : "failed");
+        if (validationSeq.current === seq) setValidationResult(isValid ? "success" : "failed");
       } catch {
-        setValidationResult("failed");
+        if (validationSeq.current === seq) setValidationResult("failed");
       } finally {
         setValidating(false);
       }
@@ -464,6 +483,7 @@ function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, onSave, on
             {validationResult === "success" ? "Valid" : "Invalid"}
           </Badge>
         )}
+        {error && <p className="text-xs text-red-500 break-words">{error}</p>}
         <div>
           <label className="text-xs text-text-muted mb-1 block">Priority</label>
           <input
@@ -471,7 +491,7 @@ function AddApiKeyModal({ isOpen, provider, providerName, proxyPools, onSave, on
             className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:border-primary"
             value={formData.priority}
             onChange={(e) =>
-              setFormData({ ...formData, priority: Number.parseInt(e.target.value) || 1 })
+              setFormData({ ...formData, priority: Number.parseInt(e.target.value, 10) || 1 })
             }
           />
         </div>
@@ -506,6 +526,7 @@ AddApiKeyModal.propTypes = {
   provider: PropTypes.string,
   providerName: PropTypes.string,
   proxyPools: PropTypes.array,
+  error: PropTypes.string,
   onSave: PropTypes.func.isRequired,
   onClose: PropTypes.func.isRequired,
 };
@@ -517,6 +538,7 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
   const [proxyPools, setProxyPools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addError, setAddError] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [providerStrategy, setProviderStrategy] = useState(null);
@@ -710,6 +732,7 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
   };
 
   const handleSaveApiKey = async (formData) => {
+    setAddError("");
     try {
       const res = await fetch("/api/providers", {
         method: "POST",
@@ -719,9 +742,13 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
       if (res.ok) {
         await fetch_();
         setShowAddModal(false);
+        return;
       }
+      const data = await res.json().catch(() => null);
+      setAddError(data?.error || "Failed to save connection");
     } catch (e) {
       console.log("save apikey error:", e);
+      setAddError("Failed to save connection");
     }
   };
 
@@ -923,8 +950,12 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
         isOpen={showAddModal}
         provider={providerId}
         proxyPools={proxyPools}
+        error={addError}
         onSave={handleSaveApiKey}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setAddError("");
+          setShowAddModal(false);
+        }}
       />
       <EditConnectionModal
         isOpen={showEditModal}
