@@ -21,7 +21,7 @@ export const UPDATER_CONFIG = {
 // Theme configuration
 export const THEME_CONFIG = {
   storageKey: "theme",
-  defaultTheme: "system", // "light" | "dark" | "system"
+  defaultTheme: "dark", // "light" | "dark" | "system" (Signal: dark-first for new installs)
 };
 
 // Subscription
