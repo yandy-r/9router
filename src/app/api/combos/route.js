@@ -61,6 +61,10 @@ export async function POST(request) {
 
     const combo = await createCombo({ name, models: models || [], kind: kind || null });
 
+    import("@/shared/services/quotaSnapshotPoller")
+      .then(({ syncQuotaSnapshotPoller }) => syncQuotaSnapshotPoller())
+      .catch((error) => console.warn("[Combos] quota poller sync failed:", error?.message));
+
     return NextResponse.json(combo, { status: 201 });
   } catch (error) {
     console.log("Error creating combo:", error);

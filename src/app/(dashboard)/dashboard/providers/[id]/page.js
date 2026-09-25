@@ -2063,6 +2063,7 @@ export default function ProviderDetailPage() {
       ) : providerId === "cursor" ? (
         <CursorAuthModal
           isOpen={showOAuthModal}
+          providerInfo={providerInfo}
           onSuccess={handleOAuthSuccess}
           onClose={() => setShowOAuthModal(false)}
         />

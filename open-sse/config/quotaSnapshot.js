@@ -10,6 +10,8 @@ export const QUOTA_SNAPSHOT = {
   maxWindowsPerConnection: 32,
   profileRecheckMs: 86_400_000,
   poller: { tickMs: 60_000, staleMs: 900_000, failureCooldownMs: 900_000 },
+  // Per-minute rate windows: a 0 without a reset is re-probed after a transient cooldown.
+  shortWindowKinds: ["requests", "tokens", "input-tokens", "output-tokens"],
 };
 
 /**
@@ -51,5 +53,14 @@ export const PLAN_CAPACITY = {
     pro_plus: 2, // _verify ids
     pro_max: 5, // _verify ids
     power: 10, // _verify ids
+  },
+  cursor: {
+    free: 0.1, // _verify
+    pro: 1,
+    pro_plus: 3, // _verify
+    ultra: 20, // _verify
+    team: 1,
+    business: 1,
+    enterprise: 1,
   },
 };

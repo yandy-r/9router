@@ -8,6 +8,7 @@ import { promisify } from "util";
 const execFileAsync = promisify(execFile);
 
 const ACCESS_TOKEN_KEYS = ["cursorAuth/accessToken", "cursorAuth/token"];
+const REFRESH_TOKEN_KEYS = ["cursorAuth/refreshToken"];
 const MACHINE_ID_KEYS = ["storage.serviceMachineId", "storage.machineId", "telemetry.machineId"];
 
 /** Get candidate db paths by platform */
@@ -49,10 +50,25 @@ const normalize = (value) => {
 };
 
 /**
+ * Return the normalized value of the first key whose query yields a non-empty value.
+ * `query` may be sync or async; errors propagate (callers decide whether a key miss is fatal).
+ * @param {string[]} keys - itemTable keys in priority order
+ * @param {(key: string) => unknown} query - lookup for one key
+ * @param {(raw: unknown) => unknown} normalizeValue - applied to the first hit
+ */
+async function firstValue(keys, query, normalizeValue) {
+  for (const key of keys) {
+    const raw = await query(key);
+    if (raw) return normalizeValue(raw);
+  }
+  return null;
+}
+
+/**
  * Extract tokens via better-sqlite3 (bundled dependency).
  * This is the preferred strategy — no external CLI required.
  */
-function extractTokensViaBetterSqlite(dbPath) {
+async function extractTokensViaBetterSqlite(dbPath) {
   // Dynamic require so the route stays importable even if native bindings fail
   const Database = require("better-sqlite3");
   const db = new Database(dbPath, { readonly: true, fileMustExist: true });
@@ -72,26 +88,12 @@ function extractTokensViaBetterSqlite(dbPath) {
     }
   };
 
-  let accessToken = null;
-  for (const key of ACCESS_TOKEN_KEYS) {
-    const raw = query(key);
-    if (raw) {
-      accessToken = normalize(raw);
-      break;
-    }
-  }
-
-  let machineId = null;
-  for (const key of MACHINE_ID_KEYS) {
-    const raw = query(key);
-    if (raw) {
-      machineId = normalize(raw);
-      break;
-    }
-  }
+  const accessToken = await firstValue(ACCESS_TOKEN_KEYS, query, normalize);
+  const refreshToken = await firstValue(REFRESH_TOKEN_KEYS, query, normalize);
+  const machineId = await firstValue(MACHINE_ID_KEYS, query, normalize);
 
   db.close();
-  return { accessToken, machineId };
+  return { accessToken, refreshToken, machineId };
 }
 
 /**
@@ -116,34 +118,16 @@ async function extractTokensViaCLI(dbPath) {
     return stdout.trim();
   };
 
-  // Try each key in priority order
-  let accessToken = null;
-  for (const key of ACCESS_TOKEN_KEYS) {
-    try {
-      const raw = await query(`SELECT value FROM itemTable WHERE key='${key}' LIMIT 1`);
-      if (raw) {
-        accessToken = normalize(raw);
-        break;
-      }
-    } catch {
-      /* try next */
-    }
-  }
+  // A failed lookup is a miss for that key; try the next one.
+  const queryKey = (key) =>
+    query(`SELECT value FROM itemTable WHERE key='${key}' LIMIT 1`).catch(() => null);
 
-  let machineId = null;
-  for (const key of MACHINE_ID_KEYS) {
-    try {
-      const raw = await query(`SELECT value FROM itemTable WHERE key='${key}' LIMIT 1`);
-      if (raw) {
-        machineId = normalize(raw);
-        break;
-      }
-    } catch {
-      /* try next */
-    }
-  }
+  // Try each key in priority order; refresh token is optional — absence is not an error
+  const accessToken = await firstValue(ACCESS_TOKEN_KEYS, queryKey, normalize);
+  const refreshToken = await firstValue(REFRESH_TOKEN_KEYS, queryKey, normalize);
+  const machineId = await firstValue(MACHINE_ID_KEYS, queryKey, normalize);
 
-  return { accessToken, machineId };
+  return { accessToken, refreshToken, machineId };
 }
 
 /**
@@ -200,11 +184,12 @@ export async function GET() {
 
     // Strategy 1: better-sqlite3 (bundled — no external tools required)
     try {
-      const tokens = extractTokensViaBetterSqlite(dbPath);
+      const tokens = await extractTokensViaBetterSqlite(dbPath);
       if (tokens.accessToken && tokens.machineId) {
         return NextResponse.json({
           found: true,
           accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
           machineId: tokens.machineId,
         });
       }
@@ -219,6 +204,7 @@ export async function GET() {
         return NextResponse.json({
           found: true,
           accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
           machineId: tokens.machineId,
         });
       }

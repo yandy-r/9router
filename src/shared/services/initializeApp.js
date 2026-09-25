@@ -169,7 +169,7 @@ async function runHeavyStartup() {
   }
 
   import("@/shared/services/quotaSnapshotPoller")
-    .then(({ configureQuotaSnapshotPoller }) => configureQuotaSnapshotPoller(settings))
+    .then(({ syncQuotaSnapshotPoller }) => syncQuotaSnapshotPoller())
     .catch((e) => console.log("[QuotaSnapshotPoller] scheduler start failed:", e.message));
 
   // Proactive OAuth token refresh (e.g. grok-cli ~6h TTL). Module is idempotent

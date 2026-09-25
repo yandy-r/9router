@@ -4,6 +4,7 @@ import { ingestResponseHeaders, parseQuotaHeaders } from "../../open-sse/service
 import {
   clearQuotaSnapshots,
   computeEffectiveWeight,
+  getExhaustedUntil,
   getHeadroom,
   getProviderHeadroom,
   getSnapshot,
@@ -408,6 +409,58 @@ describe("getProviderHeadroom", () => {
     expect(getProviderHeadroom("claude", [], null, NOW)).toEqual(fallback);
     expect(getProviderHeadroom("claude", [null, 42, ""], null, NOW)).toEqual(fallback);
     expect(getProviderHeadroom("claude", null, null, NOW)).toEqual(fallback);
+  });
+});
+
+describe("getExhaustedUntil", () => {
+  const CAP = 30 * 60_000;
+  const SHORT = 30_000;
+  const snap = (windows) => ({ windows: windows.map((w) => ({ observedAt: NOW, ...w })) });
+
+  it("returns 0 for null or non-exhausted snapshots", () => {
+    expect(getExhaustedUntil(null, "m", NOW)).toBe(0);
+    expect(getExhaustedUntil("bad", "m", NOW)).toBe(0);
+    expect(getExhaustedUntil({ windows: [] }, "m", NOW)).toBe(0);
+    expect(
+      getExhaustedUntil(snap([{ kind: "5h", usedFraction: 0.99, resetsAt: NOW + HOUR }]), "m", NOW),
+    ).toBe(0);
+    expect(() => getExhaustedUntil(null, "m", NOW)).not.toThrow();
+  });
+
+  it("uses reset capped at observedAt+30min, else cap or 30s for short windows", () => {
+    expect(
+      getExhaustedUntil(snap([{ kind: "5h", usedFraction: 1, resetsAt: NOW + 60_000 }]), "m", NOW),
+    ).toBe(NOW + 60_000);
+    expect(
+      getExhaustedUntil(
+        snap([{ kind: "5h", usedFraction: 1, resetsAt: NOW + 2 * HOUR }]),
+        "m",
+        NOW,
+      ),
+    ).toBe(NOW + CAP);
+    expect(getExhaustedUntil(snap([{ kind: "5h", usedFraction: 1 }]), "m", NOW)).toBe(NOW + CAP);
+    expect(getExhaustedUntil(snap([{ kind: "requests", usedFraction: 1 }]), "m", NOW)).toBe(
+      NOW + SHORT,
+    );
+  });
+
+  it("applies model windows only on match and takes max across windows", () => {
+    const windows = [
+      { kind: "model:opus", usedFraction: 1, observedAt: NOW },
+      { kind: "requests", usedFraction: 1, observedAt: NOW },
+      { kind: "5h", usedFraction: 1, resetsAt: NOW + 60_000, observedAt: NOW },
+    ];
+    expect(getExhaustedUntil(snap(windows), "claude-opus", NOW)).toBe(NOW + CAP);
+    expect(getExhaustedUntil(snap(windows), "gpt-5", NOW)).toBe(NOW + 60_000);
+    expect(getExhaustedUntil(snap(windows), null, NOW)).toBe(NOW + 60_000);
+    expect(
+      getExhaustedUntil(snap([{ kind: "model:x", usedFraction: 1, observedAt: NOW }]), null, NOW),
+    ).toBe(0);
+  });
+
+  it("returns 0 once the cap expired", () => {
+    const snapshot = snap([{ kind: "5h", usedFraction: 1 }]);
+    expect(getExhaustedUntil(snapshot, "m", NOW + CAP)).toBe(0);
   });
 });
 

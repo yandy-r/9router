@@ -28,17 +28,19 @@ export default function OAuthDeviceStep({ deviceData, copied, copy, polling }) {
             />
           </div>
         </div>
-        <div className="rounded-xl bg-coral-bg p-4">
-          <p className="mb-1 text-xs text-muted">Your Code</p>
-          <div className="flex items-center justify-center gap-2">
-            <p className="font-mono text-2xl font-bold text-coral-ink">{deviceData?.user_code}</p>
-            <IconButton
-              icon={copied === "user_code" ? "check" : "content_copy"}
-              label="Copy code"
-              onClick={() => copy(deviceData.user_code, "user_code")}
-            />
+        {deviceData?.user_code && (
+          <div className="rounded-xl bg-coral-bg p-4">
+            <p className="mb-1 text-xs text-muted">Your Code</p>
+            <div className="flex items-center justify-center gap-2">
+              <p className="font-mono text-2xl font-bold text-coral-ink">{deviceData.user_code}</p>
+              <IconButton
+                icon={copied === "user_code" ? "check" : "content_copy"}
+                label="Copy code"
+                onClick={() => copy(deviceData.user_code, "user_code")}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
       {polling && (
         <div role="status" className="flex items-center justify-center gap-2 text-sm text-muted">

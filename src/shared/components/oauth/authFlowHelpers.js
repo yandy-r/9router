@@ -16,6 +16,7 @@ export const DEVICE_CODE_PROVIDERS = new Set([
   "qoder",
   "grok-cli",
   "meta-code",
+  "cursor",
 ]);
 
 const DEFAULT_DEVICE_TIMEOUT_MS = 120_000;
