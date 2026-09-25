@@ -64,6 +64,19 @@ export function translateRequest(
 ) {
   ensureInitialized();
   let result = body;
+  // Translators build fresh bodies; keep the /v1/responses/compact routing flag.
+  const compact = body?._compact === true;
+
+  // /v1/responses* forces openai-responses, but a chat-shaped body (messages,
+  // no input) is still Chat Completions on the request side. The response side
+  // keeps the endpoint's format.
+  if (
+    sourceFormat === FORMATS.OPENAI_RESPONSES &&
+    Array.isArray(body?.messages) &&
+    body.input == null
+  ) {
+    sourceFormat = FORMATS.OPENAI;
+  }
 
   // Strip explicit content types (opt-in via strip[] in PROVIDER_MODELS entry)
   stripContentTypes(result, stripList);
@@ -174,6 +187,7 @@ export function translateRequest(
   //   }
   // }
 
+  if (compact && result && typeof result === "object") result._compact = true;
   return result;
 }
 

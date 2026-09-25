@@ -35,6 +35,9 @@ const STREAM_MODE = {
   PASSTHROUGH: "passthrough", // No translation, normalize output, extract usage
 };
 
+// Matches both "data: [DONE]" and "data:[DONE]" (already trimmed).
+const isDoneLine = (line) => line.startsWith("data:") && line.slice(5).trim() === "[DONE]";
+
 /**
  * Create unified SSE transform stream
  * @param {object} options
@@ -179,7 +182,11 @@ export function createSSEStream(options = {}) {
           let injectedUsage = false;
           let responsesTerminal = false;
 
-          if (trimmed.startsWith("data:") && trimmed.slice(5).trim() !== "[DONE]") {
+          // Forward the upstream [DONE] once; flush() must not append another.
+          if (isDoneLine(trimmed)) {
+            if (streamDoneSent) continue;
+            streamDoneSent = true;
+          } else if (trimmed.startsWith("data:")) {
             try {
               const parsed = JSON.parse(trimmed.slice(5).trim());
 
@@ -451,7 +458,9 @@ export function createSSEStream(options = {}) {
         if (remaining) buffer += remaining;
 
         if (mode === STREAM_MODE.PASSTHROUGH) {
-          if (buffer) {
+          const doneTail = isDoneLine(buffer.trim());
+          if (buffer && !(doneTail && streamDoneSent)) {
+            if (doneTail) streamDoneSent = true;
             let output = buffer;
             if (buffer.startsWith("data:") && !buffer.startsWith("data: ")) {
               output = "data: " + buffer.slice(5);
