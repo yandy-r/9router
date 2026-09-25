@@ -188,14 +188,13 @@ export async function inspectAndWrapCommandCodeResponse(originalResponse, model)
       buffer = lines.pop() || "";
 
       let stopLoop = false;
-      for (let i = 0; i < lines.length; i++) {
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
         if (stopLoop) {
-          const trimmed = lines[i].trim();
-          if (trimmed) bufferedLines.push(trimmed);
+          bufferedLines.push(trimmed);
           continue;
         }
-        const trimmed = lines[i].trim();
-        if (!trimmed) continue;
         const jsonStr = trimmed.startsWith("data:") ? trimmed.slice(5).trim() : trimmed;
         if (!jsonStr || jsonStr === "[DONE]") {
           bufferedLines.push(trimmed);
