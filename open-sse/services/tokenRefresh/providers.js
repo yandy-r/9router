@@ -854,7 +854,7 @@ export async function refreshMetaCodeToken(dcaToken, log) {
 
 // Zed access_token is long-lived; auth flow returns no refresh_token.
 // No refresh possible — re-login required when token expires/revoked.
-// Mirrors cursor/kilocode null-refresh pattern.
+// Mirrors kilocode null-refresh pattern.
 export function refreshZedToken() {
   return null;
 }

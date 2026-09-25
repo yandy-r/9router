@@ -1,8 +1,10 @@
+import { cursorJwtExpiresIn, getCursorTokenIdentity } from "open-sse/shared/cursorAuth.js";
 import { CURSOR_CONFIG } from "../constants/oauth.js";
 
 /**
- * Cursor IDE OAuth Service
- * Supports Import Token method from Cursor IDE's local SQLite database
+ * Cursor IDE Import Token Service
+ * Imports a session from Cursor IDE's local SQLite database. (Browser PKCE
+ * login lives in the device-code provider, src/lib/oauth/providers/cursor.js.)
  *
  * Token Location:
  * - Linux: ~/.config/Cursor/User/globalStorage/state.vscdb
@@ -10,7 +12,8 @@ import { CURSOR_CONFIG } from "../constants/oauth.js";
  * - Windows: %APPDATA%\Cursor\User\globalStorage\state.vscdb
  *
  * Database Keys:
- * - cursorAuth/accessToken: The access token
+ * - cursorAuth/accessToken: The access token (session JWT; expiry read from `exp`)
+ * - cursorAuth/refreshToken: Optional refresh token (the session JWT also works)
  * - storage.serviceMachineId: Machine ID for checksum
  */
 
@@ -20,79 +23,14 @@ export class CursorService {
   }
 
   /**
-   * Generate Cursor checksum (jyh cipher)
-   * Algorithm: XOR timestamp bytes with rolling key (initial 165), then base64 encode
-   * Format: {encoded_timestamp},{machineId}
-   */
-  generateChecksum(machineId) {
-    const timestamp = Math.floor(Date.now() / 1000).toString();
-    let key = 165;
-    const encoded = [];
-
-    for (let i = 0; i < timestamp.length; i++) {
-      const charCode = timestamp.charCodeAt(i);
-      encoded.push(charCode ^ key);
-      key = (key + charCode) & 0xff; // Rolling key update
-    }
-
-    const base64Encoded = Buffer.from(encoded).toString("base64");
-    return `${base64Encoded},${machineId}`;
-  }
-
-  /**
-   * Build request headers for Cursor API
-   */
-  buildHeaders(accessToken, machineId, ghostMode = false) {
-    const checksum = this.generateChecksum(machineId);
-
-    return {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/connect+proto",
-      "Connect-Protocol-Version": "1",
-      "x-cursor-client-version": this.config.clientVersion,
-      "x-cursor-client-type": this.config.clientType,
-      "x-cursor-client-os": this.detectOS(),
-      "x-cursor-client-arch": this.detectArch(),
-      "x-cursor-client-device-type": "desktop",
-      "x-cursor-checksum": checksum,
-      "x-ghost-mode": ghostMode ? "true" : "false",
-    };
-  }
-
-  /**
-   * Detect OS for headers
-   */
-  detectOS() {
-    if (typeof process !== "undefined") {
-      const platform = process.platform;
-      if (platform === "win32") return "windows";
-      if (platform === "darwin") return "macos";
-      return "linux";
-    }
-    return "linux";
-  }
-
-  /**
-   * Detect architecture for headers
-   */
-  detectArch() {
-    if (typeof process !== "undefined") {
-      const arch = process.arch;
-      if (arch === "x64") return "x86_64";
-      if (arch === "arm64") return "aarch64";
-      return arch;
-    }
-    return "x86_64";
-  }
-
-  /**
    * Validate and import token from Cursor IDE
    * Note: We skip API validation because Cursor API uses complex protobuf format.
    * Token will be validated when actually used for requests.
    * @param {string} accessToken - Access token from state.vscdb
    * @param {string} machineId - Machine ID from state.vscdb
+   * @param {string} [refreshToken] - Optional refresh token from state.vscdb
    */
-  async validateImportToken(accessToken, machineId) {
+  async validateImportToken(accessToken, machineId, refreshToken) {
     // Basic validation
     if (!accessToken || typeof accessToken !== "string") {
       throw new Error("Access token is required");
@@ -119,37 +57,21 @@ export class CursorService {
     return {
       accessToken,
       machineId,
-      expiresIn: 86400, // Cursor tokens typically last 24 hours
+      // The session JWT doubles as a refresh token when none was provided.
+      refreshToken: (typeof refreshToken === "string" && refreshToken.trim()) || accessToken,
+      expiresIn: cursorJwtExpiresIn(accessToken),
       authMethod: "imported",
     };
   }
 
   /**
-   * Extract user info from token if possible
-   * Cursor tokens may contain encoded user info
+   * Extract user info from the token's JWT payload.
+   * @returns {{email: string|null, userId: string|null}|null} null when the token carries neither
    */
   extractUserInfo(accessToken) {
-    try {
-      // Try to decode as JWT
-      const parts = accessToken.split(".");
-      if (parts.length === 3) {
-        let payload = parts[1];
-        while (payload.length % 4) {
-          payload += "=";
-        }
-        const decoded = JSON.parse(
-          Buffer.from(payload.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString(),
-        );
-        return {
-          email: decoded.email || decoded.sub,
-          userId: decoded.sub || decoded.user_id,
-        };
-      }
-    } catch {
-      // Token is not a JWT, that's okay
-    }
-
-    return null;
+    const identity = getCursorTokenIdentity(accessToken);
+    if (!identity.email && !identity.userId) return null;
+    return identity;
   }
 
   /**
@@ -168,11 +90,13 @@ export class CursorService {
         "   sqlite3 state.vscdb \"SELECT value FROM itemTable WHERE key='cursorAuth/accessToken'\"",
         "4. Also get the machine ID:",
         "   sqlite3 state.vscdb \"SELECT value FROM itemTable WHERE key='storage.serviceMachineId'\"",
-        "5. Paste both values in the form below",
+        "5. Optionally get the refresh token (enables automatic token refresh):",
+        "   sqlite3 state.vscdb \"SELECT value FROM itemTable WHERE key='cursorAuth/refreshToken'\"",
+        "6. Paste the values in the form below",
       ],
       alternativeMethod: [
         "Or use this one-liner to get both values:",
-        "sqlite3 state.vscdb \"SELECT key, value FROM itemTable WHERE key IN ('cursorAuth/accessToken', 'storage.serviceMachineId')\"",
+        "sqlite3 state.vscdb \"SELECT key, value FROM itemTable WHERE key IN ('cursorAuth/accessToken', 'cursorAuth/refreshToken', 'storage.serviceMachineId')\"",
       ],
     };
   }

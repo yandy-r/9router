@@ -8,6 +8,7 @@ import { promisify } from "util";
 const execFileAsync = promisify(execFile);
 
 const ACCESS_TOKEN_KEYS = ["cursorAuth/accessToken", "cursorAuth/token"];
+const REFRESH_TOKEN_KEYS = ["cursorAuth/refreshToken"];
 const MACHINE_ID_KEYS = ["storage.serviceMachineId", "storage.machineId", "telemetry.machineId"];
 
 /** Get candidate db paths by platform */
@@ -81,6 +82,15 @@ function extractTokensViaBetterSqlite(dbPath) {
     }
   }
 
+  let refreshToken = null;
+  for (const key of REFRESH_TOKEN_KEYS) {
+    const raw = query(key);
+    if (raw) {
+      refreshToken = normalize(raw);
+      break;
+    }
+  }
+
   let machineId = null;
   for (const key of MACHINE_ID_KEYS) {
     const raw = query(key);
@@ -91,7 +101,7 @@ function extractTokensViaBetterSqlite(dbPath) {
   }
 
   db.close();
-  return { accessToken, machineId };
+  return { accessToken, refreshToken, machineId };
 }
 
 /**
@@ -130,6 +140,20 @@ async function extractTokensViaCLI(dbPath) {
     }
   }
 
+  // Optional — absence is not an error
+  let refreshToken = null;
+  for (const key of REFRESH_TOKEN_KEYS) {
+    try {
+      const raw = await query(`SELECT value FROM itemTable WHERE key='${key}' LIMIT 1`);
+      if (raw) {
+        refreshToken = normalize(raw);
+        break;
+      }
+    } catch {
+      /* try next */
+    }
+  }
+
   let machineId = null;
   for (const key of MACHINE_ID_KEYS) {
     try {
@@ -143,7 +167,7 @@ async function extractTokensViaCLI(dbPath) {
     }
   }
 
-  return { accessToken, machineId };
+  return { accessToken, refreshToken, machineId };
 }
 
 /**
@@ -205,6 +229,7 @@ export async function GET() {
         return NextResponse.json({
           found: true,
           accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
           machineId: tokens.machineId,
         });
       }
@@ -219,6 +244,7 @@ export async function GET() {
         return NextResponse.json({
           found: true,
           accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
           machineId: tokens.machineId,
         });
       }

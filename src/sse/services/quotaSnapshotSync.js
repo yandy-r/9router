@@ -10,6 +10,7 @@ import {
 } from "open-sse/services/quotaSnapshot.js";
 import { QUOTA_SNAPSHOT } from "open-sse/config/quotaSnapshot.js";
 import { fetchClaudePlanTier } from "open-sse/services/usage/claude.js";
+import { cursorPlanTier } from "open-sse/services/usage/cursor.js";
 import { getProviderConnectionById, updateProviderConnection } from "@/lib/localDb";
 
 export { getSnapshot };
@@ -53,6 +54,7 @@ function usedFractionFor(quota) {
  * - github: chat/completions/premium_interactions→month
  * - kiro: resourceType key→model:<key>
  * - groq: Requests/Tokens→requests/tokens
+ * - cursor: Total→month (billing-cycle % used); other rows skipped
  */
 export function kindForName(provider, quotaKey, quota) {
   if (typeof quotaKey !== "string" || !quotaKey.trim()) return null;
@@ -94,6 +96,8 @@ export function kindForName(provider, quotaKey, quota) {
       return `model:${key}`;
     case "groq":
       return lower === "requests" || lower === "tokens" ? lower : null;
+    case "cursor":
+      return lower === "total" ? "month" : null;
     default:
       return null;
   }
@@ -129,6 +133,8 @@ function planTierFor(provider, usage) {
         nonEmpty(usage.subscriptionInfo?.paidTier?.id) ??
         nonEmpty(usage.subscriptionInfo?.currentTier?.id)
       );
+    case "cursor":
+      return cursorPlanTier(usage.planName ?? usage.plan);
     default:
       return null;
   }

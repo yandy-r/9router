@@ -19,6 +19,7 @@ import { SSE_DONE, SSE_HEADERS } from "../utils/sseConstants.js";
 import { chatChunkSse, sseChunk } from "../utils/sse.js";
 import { FORMATS } from "../translator/formats.js";
 import { ROLE, OPENAI_BLOCK } from "../translator/schema/index.js";
+import { refreshCursorToken } from "../services/tokenRefresh/cursor.js";
 import zlib from "zlib";
 import crypto from "crypto";
 
@@ -255,6 +256,22 @@ export function classifyCursorError(jsonError) {
       message,
     };
   }
+  if (jsonError?.error?.code === "unauthenticated") {
+    return {
+      status: HTTP_STATUS.UNAUTHORIZED,
+      type: "authentication_error",
+      code: "unauthenticated",
+      message,
+    };
+  }
+  if (jsonError?.error?.code === "permission_denied") {
+    return {
+      status: HTTP_STATUS.FORBIDDEN,
+      type: "permission_error",
+      code: "permission_denied",
+      message,
+    };
+  }
   return {
     status: HTTP_STATUS.BAD_REQUEST,
     type: "api_error",
@@ -276,8 +293,10 @@ function parseConnectTrailerError(payload) {
 export class CursorExecutor extends BaseExecutor {
   constructor() {
     super("cursor", PROVIDERS.cursor);
-    // No OAuth refresh mechanism (refreshCredentials → null).
-    this.supportsRefresh = false;
+  }
+
+  canRefreshCredentials(credentials) {
+    return Boolean(credentials?.refreshToken || credentials?.accessToken);
   }
 
   buildHeaders(credentials) {
@@ -827,8 +846,10 @@ export class CursorExecutor extends BaseExecutor {
     }
   }
 
-  async refreshCredentials() {
-    return null;
+  // The accessToken fallback heals legacy imported rows that have no refresh
+  // token: a Cursor session JWT is itself a valid refresh_token.
+  async refreshCredentials(credentials, log) {
+    return refreshCursorToken(credentials?.refreshToken || credentials?.accessToken, log);
   }
 }
 

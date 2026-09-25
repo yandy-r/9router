@@ -672,6 +672,21 @@ export function parseQuotaData(provider, data) {
         }
         break;
 
+      case "cursor":
+        // Billing-cycle % rows (Total / Auto + Composer / API) + On-demand spend (USD).
+        if (data.quotas) {
+          Object.entries(data.quotas).forEach(([name, quota]) => {
+            normalizedQuotas.push({
+              name,
+              used: quota.used || 0,
+              total: quota.total || 0,
+              resetAt: quota.resetAt || null,
+              remainingPercentage: quota.remainingPercentage,
+            });
+          });
+        }
+        break;
+
       default:
         // Generic fallback for unknown providers
         if (data.quotas) {

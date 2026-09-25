@@ -28,7 +28,7 @@ export class BaseExecutor {
     // skip the futile refreshWithRetry path (~3s of 1s+2s waits) and return the
     // upstream error immediately. NOTE: default true keeps every existing
     // executor on the refresh path; only no-mechanism executors opt out
-    // (currently zed, qoder, cursor, trae, windsurf — each verified to return
+    // (currently zed, qoder, trae, windsurf — each verified to return
     // null unconditionally). Base-inherited no-ops (CLI/noAuth executors) and
     // DefaultExecutor subclasses with real refreshers stay on the path.
     this.supportsRefresh = true;
