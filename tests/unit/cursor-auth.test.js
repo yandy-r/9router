@@ -3,8 +3,19 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { CursorExecutor, classifyCursorError } from "../../open-sse/executors/cursor.js";
 import { refreshTokenByProvider } from "../../open-sse/services/tokenRefresh.js";
-import { refreshCursorToken } from "../../open-sse/services/tokenRefresh/cursor.js";
+import {
+  cursorRefreshSource,
+  refreshCursorToken,
+} from "../../open-sse/services/tokenRefresh/cursor.js";
 import cursorOAuth from "../../src/lib/oauth/providers/cursor.js";
+import { CursorService } from "../../src/lib/oauth/services/cursor.js";
+
+// cursorAuth routes through proxyAwareFetch, which captures the real fetch at import
+// (and DNS-bypasses api2.cursor.sh). Delegate to the per-test global fetch stub instead.
+vi.mock("../../open-sse/utils/proxyFetch.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  proxyAwareFetch: (url, options) => globalThis.fetch(url, options),
+}));
 
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status });
 const fakeJwt = (payload) => `h.${Buffer.from(JSON.stringify(payload)).toString("base64url")}.s`;
@@ -60,6 +71,43 @@ describe("cursor oauth provider", () => {
     expect(out.data.error).toBe("access_denied");
   });
 
+  it("pollToken maps a dead session (410 or tokenless 200) to terminal expired_token", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("", { status: 410 })),
+    );
+    const gone = await cursorOAuth.pollToken(cursorOAuth.config, "uuid-4", "verifier-4");
+    expect(gone.ok).toBe(false);
+    expect(gone.data.error).toBe("expired_token");
+    expect(gone.data.error_description).toMatch(/expired or was rejected/);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json({})),
+    );
+    const empty = await cursorOAuth.pollToken(cursorOAuth.config, "uuid-5", "verifier-5");
+    expect(empty.data.error).toBe("expired_token");
+  });
+
+  it("pollToken maps 503, 429 and network errors to transient poll_failed", async () => {
+    for (const status of [503, 429]) {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => new Response("", { status })),
+      );
+      const out = await cursorOAuth.pollToken(cursorOAuth.config, "uuid-6", "verifier-6");
+      expect(out.data.error).toBe("poll_failed");
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new TypeError("fetch failed");
+      }),
+    );
+    const out = await cursorOAuth.pollToken(cursorOAuth.config, "uuid-7", "verifier-7");
+    expect(out.data.error).toBe("poll_failed");
+  });
+
   it("mapTokens derives identity, a hex machineId, and falls back refreshToken to access", () => {
     const access = fakeJwt({ sub: "github|user_1" });
     const out = cursorOAuth.mapTokens({ access_token: access, expires_in: 100 });
@@ -68,6 +116,28 @@ describe("cursor oauth provider", () => {
     expect(out.expiresIn).toBe(100);
     expect(out.providerSpecificData.machineId).toMatch(/^[0-9a-f]{64}$/);
     expect(out.providerSpecificData.authMethod).toBe("browser");
+  });
+});
+
+describe("CursorService.validateImportToken", () => {
+  const machineId = "a".repeat(64);
+
+  it("falls back refreshToken to the access token and derives expiresIn from the JWT", async () => {
+    const access = fakeJwt({
+      sub: "github|user_1",
+      exp: nowSec() + SIXTY_DAYS,
+      pad: "x".repeat(40),
+    });
+    const out = await new CursorService().validateImportToken(access, machineId);
+    expect(out.refreshToken).toBe(access);
+    expect(Math.abs(out.expiresIn - SIXTY_DAYS)).toBeLessThanOrEqual(5);
+    expect(out.authMethod).toBe("imported");
+  });
+
+  it("keeps an explicit refresh token", async () => {
+    const access = fakeJwt({ sub: "u", exp: nowSec() + 3600, pad: "x".repeat(40) });
+    const out = await new CursorService().validateImportToken(access, machineId, "rt-explicit");
+    expect(out.refreshToken).toBe("rt-explicit");
   });
 });
 
@@ -132,12 +202,46 @@ describe("cursor executor auth", () => {
     expect(ex.canRefreshCredentials({})).toBe(false);
   });
 
-  it("maps Connect unauthenticated/permission_denied to 401/403", () => {
+  it("maps Connect unauthenticated to 401 and keeps permission_denied request-scoped", () => {
     expect(classifyCursorError({ error: { code: "unauthenticated", message: "x" } }).status).toBe(
       401,
     );
-    expect(classifyCursorError({ error: { code: "permission_denied", message: "x" } }).status).toBe(
-      403,
+    const denied = classifyCursorError({ error: { code: "permission_denied", message: "x" } });
+    expect(denied.status).toBe(400);
+    expect(denied.code).toBe("permission_denied");
+  });
+
+  it("refreshCredentials falls back to the access token as refresh_token", async () => {
+    const access = fakeJwt({ sub: "u", exp: nowSec() + 3600, n: "exec-fallback" });
+    const fresh = fakeJwt({ sub: "u", exp: nowSec() + SIXTY_DAYS });
+    const fetchMock = vi.fn(async () => json({ access_token: fresh, shouldLogout: false }));
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await new CursorExecutor().refreshCredentials(
+      { accessToken: access, refreshToken: null },
+      null,
     );
+    expect(out.accessToken).toBe(fresh);
+    expect(out.refreshToken).toBe(fresh);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).refresh_token).toBe(access);
+  });
+
+  it("refreshCredentials prefers a stored refresh token over the access token", async () => {
+    const fresh = fakeJwt({ sub: "u", exp: nowSec() + 3600 });
+    const fetchMock = vi.fn(async () => json({ access_token: fresh, shouldLogout: false }));
+    vi.stubGlobal("fetch", fetchMock);
+    await new CursorExecutor().refreshCredentials(
+      { accessToken: "at-ignored", refreshToken: "rt-exec-preferred" },
+      null,
+    );
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).refresh_token).toBe("rt-exec-preferred");
+  });
+});
+
+describe("cursorRefreshSource", () => {
+  it("prefers refreshToken, falls back to accessToken, else null", () => {
+    expect(cursorRefreshSource({ refreshToken: "r", accessToken: "a" })).toBe("r");
+    expect(cursorRefreshSource({ refreshToken: null, accessToken: "a" })).toBe("a");
+    expect(cursorRefreshSource({})).toBeNull();
+    expect(cursorRefreshSource(null)).toBeNull();
   });
 });

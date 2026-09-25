@@ -58,6 +58,14 @@ const cursor = {
         data: { error: "access_denied", error_description: result.message },
       };
     }
+    // Terminal: the login session is dead, so the modal must stop polling.
+    if (result.status === "expired") {
+      return {
+        ok: false,
+        data: { error: "expired_token", error_description: result.message },
+      };
+    }
+    // Transient (429/5xx/network): the modal keeps polling.
     return {
       ok: false,
       data: { error: "poll_failed", error_description: result.message },

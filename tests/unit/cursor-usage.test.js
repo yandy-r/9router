@@ -68,6 +68,14 @@ describe("parseCursorUsage", () => {
     );
     expect(result.quotas["On-demand"]).toMatchObject({ used: 100, total: 500 });
   });
+
+  it("uses the pooled limit/used pair when individualLimit is omitted", () => {
+    const result = parseCursorUsage(
+      { spendLimitUsage: { individualUsed: 9469, pooledLimit: 50000, pooledUsed: 10000 } },
+      undefined,
+    );
+    expect(result.quotas["On-demand"]).toMatchObject({ used: 100, total: 500 });
+  });
 });
 
 describe("cursorPlanTier", () => {
@@ -90,6 +98,13 @@ describe("getCursorUsage", () => {
     const result = await getCursorUsage("tok", {}, null);
     expect(result.message).toMatch(/expired/i);
     expect(result.message).toMatch(/401/);
+  });
+
+  it("reports the real status in the expired-auth message on 403", async () => {
+    vi.mocked(proxyAwareFetch).mockResolvedValue(jsonResponse(403, {}));
+    const result = await getCursorUsage("tok", {}, null);
+    expect(result.message).toMatch(/expired/i);
+    expect(result.message).toMatch(/403/);
   });
 
   it("combines usage + plan info and sends Connect headers", async () => {

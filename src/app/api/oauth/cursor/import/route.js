@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { CursorService } from "@/lib/oauth/services/cursor";
 import { createProviderConnection } from "@/models";
 
+// Cursor session JWTs are ~1 KB; anything this large is not a real token.
+const MAX_TOKEN_LENGTH = 16384;
+
 /**
  * POST /api/oauth/cursor/import
  * Import and validate access token from Cursor IDE's local SQLite database
@@ -20,12 +23,20 @@ export async function POST(request) {
       return NextResponse.json({ error: "Access token is required" }, { status: 400 });
     }
 
+    if (accessToken.length > MAX_TOKEN_LENGTH) {
+      return NextResponse.json({ error: "Access token is too long" }, { status: 400 });
+    }
+
     if (!machineId || typeof machineId !== "string") {
       return NextResponse.json({ error: "Machine ID is required" }, { status: 400 });
     }
 
     if (refreshToken !== undefined && refreshToken !== null && typeof refreshToken !== "string") {
       return NextResponse.json({ error: "Refresh token must be a string" }, { status: 400 });
+    }
+
+    if (typeof refreshToken === "string" && refreshToken.length > MAX_TOKEN_LENGTH) {
+      return NextResponse.json({ error: "Refresh token is too long" }, { status: 400 });
     }
 
     const cursorService = new CursorService();

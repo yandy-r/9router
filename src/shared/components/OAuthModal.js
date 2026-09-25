@@ -519,6 +519,17 @@ export default function OAuthModal({
     flowRef.current = { proxyStarted: false, proxyProvider: null, stopSent: false };
   }, [isOpen, provider, stopOwnedProxy]);
 
+  // Cleanup on unmount: wrappers (Cursor/Kiro/GitLab) unmount this modal while
+  // isOpen stays true, so the close effect above never fires. Abort polling and
+  // stop any owned proxy so no orphaned loop can fire a stale onSuccess.
+  // openedRef is intentionally untouched so StrictMode remounts don't re-open.
+  useEffect(() => {
+    return () => {
+      pollingAbortRef.current = true;
+      stopOwnedProxy();
+    };
+  }, [stopOwnedProxy]);
+
   // Server-side proxy mode (codex/xai fixed-port + trae/windsurf dynamic-port):
   // poll status until the proxy auto-exchanges and saves the connection.
   useEffect(() => {
@@ -756,6 +767,7 @@ export default function OAuthModal({
   // proxy is stopped at most once across effect-close, button-close, and
   // Escape/backdrop-close — all funnel through here or the close effect).
   const handleClose = useCallback(() => {
+    pollingAbortRef.current = true;
     stopOwnedProxy();
     onCloseRef.current();
   }, [stopOwnedProxy]);

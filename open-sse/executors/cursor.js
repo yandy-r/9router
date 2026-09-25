@@ -19,7 +19,7 @@ import { SSE_DONE, SSE_HEADERS } from "../utils/sseConstants.js";
 import { chatChunkSse, sseChunk } from "../utils/sse.js";
 import { FORMATS } from "../translator/formats.js";
 import { ROLE, OPENAI_BLOCK } from "../translator/schema/index.js";
-import { refreshCursorToken } from "../services/tokenRefresh/cursor.js";
+import { refreshCursorToken, cursorRefreshSource } from "../services/tokenRefresh/cursor.js";
 import zlib from "zlib";
 import crypto from "crypto";
 
@@ -264,14 +264,6 @@ export function classifyCursorError(jsonError) {
       message,
     };
   }
-  if (jsonError?.error?.code === "permission_denied") {
-    return {
-      status: HTTP_STATUS.FORBIDDEN,
-      type: "permission_error",
-      code: "permission_denied",
-      message,
-    };
-  }
   return {
     status: HTTP_STATUS.BAD_REQUEST,
     type: "api_error",
@@ -296,7 +288,7 @@ export class CursorExecutor extends BaseExecutor {
   }
 
   canRefreshCredentials(credentials) {
-    return Boolean(credentials?.refreshToken || credentials?.accessToken);
+    return Boolean(cursorRefreshSource(credentials));
   }
 
   buildHeaders(credentials) {
@@ -621,6 +613,10 @@ export class CursorExecutor extends BaseExecutor {
                 session.write(reply.frame);
               }
             },
+            // Known limitation: an auth failure (e.g. `unauthenticated`) that only
+            // surfaces in this end-of-stream trailer arrives after the 200 response
+            // was already returned, so it can't trigger reactive refresh/fallback.
+            // Proactive refresh (registry refreshLeadMs, 1 day) covers expiry.
             (trailer) => {
               const trailerError = parseConnectTrailerError(trailer);
               if (!trailerError || finished) return;
@@ -846,10 +842,10 @@ export class CursorExecutor extends BaseExecutor {
     }
   }
 
-  // The accessToken fallback heals legacy imported rows that have no refresh
-  // token: a Cursor session JWT is itself a valid refresh_token.
-  async refreshCredentials(credentials, log) {
-    return refreshCursorToken(credentials?.refreshToken || credentials?.accessToken, log);
+  // cursorRefreshSource falls back to the accessToken for legacy imported rows
+  // that have no refresh token: a Cursor session JWT is itself a valid refresh_token.
+  async refreshCredentials(credentials, log, proxyOptions = null) {
+    return refreshCursorToken(cursorRefreshSource(credentials), log, proxyOptions);
   }
 }
 

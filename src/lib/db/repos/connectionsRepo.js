@@ -161,10 +161,21 @@ function reorderInTx(db, providerId) {
 
 // OAuth re-login: fresh token metadata wins, but omitted fields (proxy etc.) and
 // user-set weighted overrides (weight, manual planTier) survive.
-function mergeReloginProviderData(previous, fresh) {
+function mergeReloginProviderData(previous, fresh, provider) {
   if (!previous && !fresh) return undefined;
   const merged = { ...(previous || {}), ...(fresh || {}) };
   if (previous && Object.hasOwn(previous, "weight")) merged.weight = previous.weight;
+  // Cursor machineId is a device fingerprint: keep it stable across re-logins so
+  // an IDE id captured at import survives a browser re-login (which mints a random
+  // one). A fresh import carries the real IDE id, so it still wins.
+  if (
+    provider === "cursor" &&
+    typeof previous?.machineId === "string" &&
+    previous.machineId.trim() &&
+    fresh?.authMethod !== "imported"
+  ) {
+    merged.machineId = previous.machineId;
+  }
   if (previous?.planTierManual === true) {
     merged.planTier = previous.planTier;
     merged.planTierManual = true;
@@ -231,6 +242,7 @@ export async function createProviderConnection(data) {
         const providerSpecificData = mergeReloginProviderData(
           existing.providerSpecificData,
           data.providerSpecificData,
+          data.provider,
         );
         if (providerSpecificData) merged.providerSpecificData = providerSpecificData;
       }

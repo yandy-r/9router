@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
 import OAuthModal from "./OAuthModal";
@@ -20,6 +20,9 @@ export default function CursorAuthModal({ isOpen, providerInfo, onSuccess, onClo
   const [autoDetecting, setAutoDetecting] = useState(false);
   const [autoDetected, setAutoDetected] = useState(false);
   const [windowsManual, setWindowsManual] = useState(false);
+  // Latest method, readable from async callbacks that captured an older render.
+  const methodRef = useRef(method);
+  methodRef.current = method;
 
   const runAutoDetect = async () => {
     setAutoDetecting(true);
@@ -121,6 +124,8 @@ export default function CursorAuthModal({ isOpen, providerInfo, onSuccess, onClo
         provider="cursor"
         providerInfo={providerInfo}
         onSuccess={() => {
+          // Ignore a stale success from a flow the user already backed out of.
+          if (methodRef.current !== "browser") return;
           setMethod(null);
           onSuccess?.();
           onClose?.();

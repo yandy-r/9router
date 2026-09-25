@@ -46,8 +46,18 @@ export function parseCursorUsage(data, planInfo) {
   const spend = data?.spendLimitUsage;
   if (spend && typeof spend === "object") {
     // Individual caps first; team plans may report pooled caps instead. Values are cents.
-    const limit = toFiniteNumber(spend.individualLimit ?? spend.pooledLimit, 0);
-    const used = toFiniteNumber(spend.individualUsed ?? spend.pooledUsed, 0);
+    // Pick limit/used as a pair — proto3 omits zero fields, so mixing sources is wrong.
+    const individualLimit = toFiniteNumber(spend.individualLimit, 0);
+    const pooledLimit = toFiniteNumber(spend.pooledLimit, 0);
+    let limit = 0;
+    let used = 0;
+    if (individualLimit > 0) {
+      limit = individualLimit;
+      used = toFiniteNumber(spend.individualUsed, 0);
+    } else if (pooledLimit > 0) {
+      limit = pooledLimit;
+      used = toFiniteNumber(spend.pooledUsed, 0);
+    }
     if (limit > 0) {
       quotas["On-demand"] = {
         used: Math.round(used) / 100,
@@ -69,6 +79,15 @@ export function cursorPlanTier(name) {
   if (PRO_PLUS_ALIASES.has(tier)) tier = "pro_plus";
   else if (tier === "hobby") tier = "free";
   return CURSOR_PLAN_TIERS.has(tier) ? tier : null;
+}
+
+/** Release an unread response body so the underlying connection is freed. */
+function cancelBody(res) {
+  try {
+    res?.body?.cancel?.()?.catch?.(() => {});
+  } catch {
+    // Body already consumed/locked — nothing to release.
+  }
 }
 
 async function readJson(res) {
@@ -105,25 +124,37 @@ export async function getCursorUsage(accessToken, _providerSpecificData, proxyOp
     fetchWithTimeout(endpoints.planInfoUrl, opts, 10000, proxyOptions),
   ]);
 
+  const planRes = planResult.status === "fulfilled" ? planResult.value : null;
+
   if (usageResult.status !== "fulfilled" || !usageResult.value) {
+    cancelBody(planRes);
     return { message: "Cursor usage unavailable (network error)" };
   }
   const usageRes = usageResult.value;
   if (usageRes.status === 401 || usageRes.status === 403) {
-    return { message: "Cursor authentication expired (401). Re-authorize the connection." };
+    cancelBody(usageRes);
+    cancelBody(planRes);
+    return {
+      message: `Cursor authentication expired (${usageRes.status}). Re-authorize the connection.`,
+    };
   }
   if (!usageRes.ok) {
+    cancelBody(usageRes);
+    cancelBody(planRes);
     return { message: `Cursor usage unavailable (${usageRes.status})` };
   }
 
   const usageJson = await readJson(usageRes);
   if (!usageJson || typeof usageJson !== "object") {
+    cancelBody(planRes);
     return { message: "Cursor usage unavailable (invalid response)" };
   }
 
   let planInfo = null;
-  if (planResult.status === "fulfilled" && planResult.value?.ok) {
-    planInfo = (await readJson(planResult.value))?.planInfo ?? null;
+  if (planRes?.ok) {
+    planInfo = (await readJson(planRes))?.planInfo ?? null;
+  } else {
+    cancelBody(planRes);
   }
 
   return parseCursorUsage(usageJson, planInfo);
