@@ -69,6 +69,26 @@ export function formatKimiUsageError(status, responseText) {
     : `Kimi Coding connected. API Error ${status}`;
 }
 
+const USAGES_NAMES = {
+  limit_5h: "5h",
+  limit_month_total: "Monthly",
+  limit_month_code: "Monthly (Code)",
+};
+
+/** Row label from limits[].window ({ duration: 300, timeUnit: "TIME_UNIT_MINUTE" } ⇒ "5h"). */
+function windowName(window) {
+  const duration = toFiniteNumber(window?.duration, 0);
+  const unit = String(window?.timeUnit || "")
+    .replace(/^TIME_UNIT_/, "")
+    .toUpperCase();
+  if (duration <= 0) return "Ratelimit"; // Legacy payload lacks window duration.
+  const minutes = duration * ({ MINUTE: 1, HOUR: 60, DAY: 1440 }[unit] || 0);
+  if (!minutes) return `Ratelimit (${duration} ${unit || "units"})`;
+  if (minutes % 1440 === 0) return `${minutes / 1440}d`;
+  if (minutes % 60 === 0) return `${minutes / 60}h`;
+  return `${minutes}m`;
+}
+
 function makeQuota({ used, total, remaining, resetAt }) {
   const safeTotal = Math.max(0, toFiniteNumber(total, 0));
   const safeUsed = Math.max(0, toFiniteNumber(used, 0));
@@ -176,16 +196,45 @@ export async function getKimiUsage(
       if (!item || typeof item !== "object") continue;
       const detail = item.detail && typeof item.detail === "object" ? item.detail : {};
       const limit = toFiniteNumber(detail.limit ?? detail.Limit, 0);
-      const remaining = toFiniteNumber(detail.remaining ?? detail.Remaining, NaN);
+      if (limit <= 0) continue;
+      // Legacy payloads send `remaining`; current ones send `used` only.
+      // Neither present ⇒ unknown, treat as untouched window.
+      const remainingRaw = toFiniteNumber(detail.remaining ?? detail.Remaining, NaN);
+      const usedRaw = toFiniteNumber(detail.used ?? detail.Used, NaN);
+      const rem = Number.isFinite(remainingRaw)
+        ? remainingRaw
+        : Number.isFinite(usedRaw)
+          ? Math.max(0, limit - usedRaw)
+          : limit;
       const resetTime = detail.resetTime || detail.reset_at || detail.resetAt;
-      if (limit > 0) {
-        const rem = Number.isFinite(remaining) ? remaining : Math.max(0, limit);
-        quotas.Ratelimit = makeQuota({
-          used: Math.max(0, limit - rem),
-          total: limit,
-          remaining: rem,
-          resetAt: parseResetTime(resetTime),
-        });
+      let name = windowName(item.window);
+      for (let n = 2; quotas[name]; n++) name = `${windowName(item.window)} #${n}`;
+      quotas[name] = makeQuota({
+        used: Math.max(0, limit - rem),
+        total: limit,
+        remaining: rem,
+        resetAt: parseResetTime(resetTime),
+      });
+    }
+
+    // `usages` map: { limit_5h, limit_month_total, limit_month_code, … } with used_ratio 0–1.
+    const usagesObj = data?.usages && typeof data.usages === "object" ? data.usages : {};
+    for (const [key, entry] of Object.entries(usagesObj)) {
+      const ratio = toFiniteNumber(entry?.used_ratio ?? entry?.usedRatio, NaN);
+      if (!Number.isFinite(ratio)) continue;
+      const name = USAGES_NAMES[key] || key.replace(/^limit_/, "");
+      const usedPct = Math.min(100, Math.max(0, ratio * 100));
+      const quota = makeQuota({
+        used: usedPct,
+        total: 100,
+        resetAt: parseResetTime(entry.reset_time || entry.resetTime),
+      });
+      // Conflict (seen live): usages.limit_5h.used_ratio = 0 while
+      // limits[].detail.used == limit and chat returns 403 "5-hour usage limit".
+      // Keep the more-exhausted row — overstating quota causes failed requests.
+      const existing = quotas[name];
+      if (!existing || quota.remainingPercentage < existing.remainingPercentage) {
+        quotas[name] = quota;
       }
     }
 

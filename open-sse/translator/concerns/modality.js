@@ -60,57 +60,60 @@ function filterBlocks(blocks, capOf, caps, removed, isLast) {
   return out;
 }
 
+const isImageAttachment = (a) =>
+  a?.contentType?.startsWith("image/") ||
+  (typeof a?.url === "string" && a.url.startsWith("data:image/"));
+
+// Map a list to new items without touching the caller's objects: stripFn returns
+// a replacement item, or the same reference when nothing changed.
+// Combo/account fallback attempts share nested messages via a shallow body copy,
+// so mutating them would strip media from later (vision-capable) attempts too.
+const mapItems = (list, stripFn) => {
+  const last = list.length - 1;
+  return list.map((item, i) => stripFn(item, i === last));
+};
+
 // OpenAI / OpenAI-compatible chat messages[].content[].
 function stripOpenAI(body, caps) {
   if (!Array.isArray(body.messages)) return;
-  const last = body.messages.length - 1;
-  body.messages.forEach((msg, i) => {
+  body.messages = mapItems(body.messages, (msg, isLast) => {
+    if (!msg || typeof msg !== "object") return msg;
+    const next = { ...msg };
     if (caps.vision === false) {
-      if (Array.isArray(msg.images)) delete msg.images;
-      if (Array.isArray(msg.experimental_attachments)) {
-        msg.experimental_attachments = msg.experimental_attachments.filter(
-          (a) =>
-            !(
-              a?.contentType?.startsWith("image/") ||
-              (typeof a?.url === "string" && a.url.startsWith("data:image/"))
-            ),
+      if (Array.isArray(next.images)) delete next.images;
+      if (Array.isArray(next.experimental_attachments)) {
+        next.experimental_attachments = next.experimental_attachments.filter(
+          (a) => !isImageAttachment(a),
         );
       }
-      if (Array.isArray(msg.attachments)) {
-        msg.attachments = msg.attachments.filter(
-          (a) =>
-            !(
-              a?.contentType?.startsWith("image/") ||
-              (typeof a?.url === "string" && a.url.startsWith("data:image/"))
-            ),
-        );
+      if (Array.isArray(next.attachments)) {
+        next.attachments = next.attachments.filter((a) => !isImageAttachment(a));
       }
     }
-    if (!Array.isArray(msg.content)) return;
-    const removed = new Set();
-    msg.content = filterBlocks(msg.content, capForOpenAIBlock, caps, removed, i === last);
+    if (Array.isArray(next.content)) {
+      next.content = filterBlocks(next.content, capForOpenAIBlock, caps, new Set(), isLast);
+    }
+    return next;
   });
 }
 
 // Claude messages[].content[].
 function stripClaude(body, caps) {
   if (!Array.isArray(body.messages)) return;
-  const last = body.messages.length - 1;
-  body.messages.forEach((msg, i) => {
-    if (!Array.isArray(msg.content)) return;
-    const removed = new Set();
-    msg.content = filterBlocks(msg.content, capForClaudeBlock, caps, removed, i === last);
-  });
+  body.messages = mapItems(body.messages, (msg, isLast) =>
+    Array.isArray(msg?.content)
+      ? { ...msg, content: filterBlocks(msg.content, capForClaudeBlock, caps, new Set(), isLast) }
+      : msg,
+  );
 }
 
 // OpenAI Responses input[].content[] (input_image / input_file).
 function stripResponses(body, caps) {
   if (!Array.isArray(body.input)) return;
-  const last = body.input.length - 1;
-  body.input.forEach((item, i) => {
-    if (!Array.isArray(item.content)) return;
+  body.input = mapItems(body.input, (item, isLast) => {
+    if (!Array.isArray(item?.content)) return item;
     const removed = new Set();
-    item.content = item.content.filter((b) => {
+    const content = item.content.filter((b) => {
       const cap = b?.type === "input_image" ? "vision" : b?.type === "input_file" ? "pdf" : null;
       if (cap && caps[cap] === false) {
         removed.add(cap);
@@ -118,18 +121,19 @@ function stripResponses(body, caps) {
       }
       return true;
     });
-    for (const cap of removed) item.content.push({ type: "input_text", text: ph(cap, i === last) });
+    for (const cap of removed) content.push({ type: "input_text", text: ph(cap, isLast) });
+    return { ...item, content };
   });
 }
 
 // Gemini / gemini-cli contents[].parts[] (inlineData / fileData by mime).
+// Returns a new contents array (or the input when it isn't an array).
 function stripGeminiParts(contents, caps) {
-  if (!Array.isArray(contents)) return;
-  const last = contents.length - 1;
-  contents.forEach((c, i) => {
-    if (!Array.isArray(c.parts)) return;
+  if (!Array.isArray(contents)) return contents;
+  return mapItems(contents, (c, isLast) => {
+    if (!Array.isArray(c?.parts)) return c;
     const removed = new Set();
-    c.parts = c.parts.filter((p) => {
+    const parts = c.parts.filter((p) => {
       const mime = p?.inlineData?.mimeType || p?.fileData?.mimeType;
       const cap = capForMime(mime);
       if (cap && caps[cap] === false) {
@@ -138,12 +142,15 @@ function stripGeminiParts(contents, caps) {
       }
       return true;
     });
-    for (const cap of removed) c.parts.push({ text: ph(cap, i === last) });
+    for (const cap of removed) parts.push({ text: ph(cap, isLast) });
+    return { ...c, parts };
   });
 }
 
 /**
- * Remove media blocks the model can't read, in-place on the source-format body.
+ * Remove media blocks the model can't read from the source-format body.
+ * Reassigns top-level fields (messages/input/contents/request) on `body` with
+ * new arrays/objects; nested objects shared with the caller are never mutated.
  * @param {object} body - request body (source format)
  * @param {string} sourceFormat - one of FORMATS
  * @param {object} caps - capabilities from getCapabilitiesForModel
@@ -173,10 +180,12 @@ export function stripUnsupportedModalities(body, sourceFormat, caps) {
     case FORMATS.GEMINI:
     case FORMATS.GEMINI_CLI:
     case FORMATS.VERTEX:
-      stripGeminiParts(body.contents, caps);
+      if (Array.isArray(body.contents)) body.contents = stripGeminiParts(body.contents, caps);
       break;
     case FORMATS.ANTIGRAVITY:
-      stripGeminiParts(body?.request?.contents, caps);
+      if (Array.isArray(body.request?.contents)) {
+        body.request = { ...body.request, contents: stripGeminiParts(body.request.contents, caps) };
+      }
       break;
     default:
       stripOpenAI(body, caps);
