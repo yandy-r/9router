@@ -24,6 +24,10 @@ export default {
       "User-Agent": "connect-es/1.6.1",
     },
     clientVersion: "3.12.17",
+    usage: {
+      url: "https://api2.cursor.sh/aiserver.v1.DashboardService/GetCurrentPeriodUsage",
+      planInfoUrl: "https://api2.cursor.sh/aiserver.v1.DashboardService/GetPlanInfo",
+    },
   },
   models: [
     { id: "default", name: "Auto (Server Picks)" },
@@ -50,12 +54,21 @@ export default {
     agentNonPrivacyEndpoint: "https://agentn.api5.cursor.sh",
     clientVersion: "3.12.17",
     clientType: "ide",
+    loginUrl: "https://cursor.com/loginDeepControl",
+    pollUrl: "https://api2.cursor.sh/auth/poll",
+    refreshUrl: "https://api2.cursor.sh/oauth/token",
+    // Cursor IDE public OAuth client used for the refresh_token grant; live-verified 2026-09-25.
+    refreshClientId: "KbZUR41cY7W6zRSdpSUJ7I7mLYBKOCmB",
+    // Tokens are ~60-day session JWTs; refresh a day early so sleeping hosts don't miss it.
+    refreshLeadMs: 86_400_000,
     dbKeys: {
       accessToken: "cursorAuth/accessToken",
+      refreshToken: "cursorAuth/refreshToken",
       machineId: "storage.serviceMachineId",
     },
   },
   features: {
+    usage: true,
     liveModels: true,
   },
 };

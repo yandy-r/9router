@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { CursorService } from "@/lib/oauth/services/cursor";
 import { createProviderConnection } from "@/models";
 
+// Cursor session JWTs are ~1 KB; anything this large is not a real token.
+const MAX_TOKEN_LENGTH = 16384;
+
 /**
  * POST /api/oauth/cursor/import
  * Import and validate access token from Cursor IDE's local SQLite database
@@ -9,23 +12,41 @@ import { createProviderConnection } from "@/models";
  * Request body:
  * - accessToken: string - Access token from cursorAuth/accessToken
  * - machineId: string - Machine ID from storage.serviceMachineId
+ * - refreshToken?: string - Optional refresh token from cursorAuth/refreshToken
+ *   (defaults to the access token, which Cursor accepts as a refresh token)
  */
 export async function POST(request) {
   try {
-    const { accessToken, machineId } = await request.json();
+    const { accessToken, machineId, refreshToken } = await request.json();
 
     if (!accessToken || typeof accessToken !== "string") {
       return NextResponse.json({ error: "Access token is required" }, { status: 400 });
+    }
+
+    if (accessToken.length > MAX_TOKEN_LENGTH) {
+      return NextResponse.json({ error: "Access token is too long" }, { status: 400 });
     }
 
     if (!machineId || typeof machineId !== "string") {
       return NextResponse.json({ error: "Machine ID is required" }, { status: 400 });
     }
 
+    if (refreshToken !== undefined && refreshToken !== null && typeof refreshToken !== "string") {
+      return NextResponse.json({ error: "Refresh token must be a string" }, { status: 400 });
+    }
+
+    if (typeof refreshToken === "string" && refreshToken.length > MAX_TOKEN_LENGTH) {
+      return NextResponse.json({ error: "Refresh token is too long" }, { status: 400 });
+    }
+
     const cursorService = new CursorService();
 
-    // Validate token by making API call
-    const tokenData = await cursorService.validateImportToken(accessToken.trim(), machineId.trim());
+    // Validate token format (no upstream call)
+    const tokenData = await cursorService.validateImportToken(
+      accessToken.trim(),
+      machineId.trim(),
+      refreshToken,
+    );
 
     // Try to extract user info from token
     const userInfo = cursorService.extractUserInfo(tokenData.accessToken);
@@ -35,7 +56,7 @@ export async function POST(request) {
       provider: "cursor",
       authType: "oauth",
       accessToken: tokenData.accessToken,
-      refreshToken: null, // Cursor doesn't have public refresh endpoint
+      refreshToken: tokenData.refreshToken,
       expiresAt: new Date(Date.now() + tokenData.expiresIn * 1000).toISOString(),
       email: userInfo?.email || null,
       providerSpecificData: {
@@ -85,6 +106,14 @@ export async function GET() {
         label: "Machine ID",
         description: "From storage.serviceMachineId in state.vscdb",
         type: "text",
+      },
+      {
+        name: "refreshToken",
+        label: "Refresh Token (optional)",
+        description:
+          "From cursorAuth/refreshToken in state.vscdb. Defaults to the access token when omitted.",
+        type: "textarea",
+        optional: true,
       },
     ],
   });

@@ -54,4 +54,13 @@ export const PLAN_CAPACITY = {
     pro_max: 5, // _verify ids
     power: 10, // _verify ids
   },
+  cursor: {
+    free: 0.1, // _verify
+    pro: 1,
+    pro_plus: 3, // _verify
+    ultra: 20, // _verify
+    team: 1,
+    business: 1,
+    enterprise: 1,
+  },
 };

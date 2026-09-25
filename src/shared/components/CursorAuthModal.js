@@ -1,27 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Modal, Button, Input } from "@/shared/components";
+import OAuthModal from "./OAuthModal";
 
 /**
  * Cursor Auth Modal
- * Auto-detect and import token from Cursor IDE's local SQLite database
+ * Method chooser: browser login (PKCE device-style flow via OAuthModal) or
+ * import from a local Cursor IDE install (reads its SQLite state database).
  */
-export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
+export default function CursorAuthModal({ isOpen, providerInfo, onSuccess, onClose }) {
+  const [method, setMethod] = useState(null); // null | "browser" | "import"
   const [accessToken, setAccessToken] = useState("");
+  const [refreshToken, setRefreshToken] = useState("");
   const [machineId, setMachineId] = useState("");
   const [error, setError] = useState(null);
   const [importing, setImporting] = useState(false);
   const [autoDetecting, setAutoDetecting] = useState(false);
   const [autoDetected, setAutoDetected] = useState(false);
   const [windowsManual, setWindowsManual] = useState(false);
+  // Latest method, readable from async callbacks that captured an older render.
+  const methodRef = useRef(method);
+  methodRef.current = method;
 
   const runAutoDetect = async () => {
     setAutoDetecting(true);
     setError(null);
     setAutoDetected(false);
     setWindowsManual(false);
+    setRefreshToken("");
 
     try {
       const res = await fetch("/api/oauth/cursor/auto-import");
@@ -30,6 +38,7 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
       if (data.found) {
         setAccessToken(data.accessToken);
         setMachineId(data.machineId);
+        setRefreshToken(data.refreshToken || "");
         setAutoDetected(true);
       } else if (data.windowsManual) {
         setWindowsManual(true);
@@ -43,11 +52,30 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
     }
   };
 
-  // Auto-detect tokens when modal opens
+  // Auto-detect only after the user picks Import: the auto-import endpoint is
+  // local-only, so it must not be called on remote/Docker hosts by default.
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || method !== "import") return;
     runAutoDetect();
+  }, [isOpen, method]);
+
+  // Return to the method chooser whenever the modal closes.
+  useEffect(() => {
+    if (isOpen) return;
+    setMethod(null);
+    setError(null);
   }, [isOpen]);
+
+  const handleClose = () => {
+    setMethod(null);
+    setError(null);
+    onClose();
+  };
+
+  const handleBack = () => {
+    setMethod(null);
+    setError(null);
+  };
 
   const handleImportToken = async () => {
     if (!accessToken.trim()) {
@@ -70,6 +98,7 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
         body: JSON.stringify({
           accessToken: accessToken.trim(),
           machineId: machineId.trim(),
+          ...(refreshToken.trim() ? { refreshToken: refreshToken.trim() } : {}),
         }),
       });
 
@@ -80,7 +109,7 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
       }
 
       onSuccess?.();
-      onClose();
+      handleClose();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -88,8 +117,58 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
     }
   };
 
+  if (method === "browser") {
+    return (
+      <OAuthModal
+        isOpen={isOpen}
+        provider="cursor"
+        providerInfo={providerInfo}
+        onSuccess={() => {
+          // Ignore a stale success from a flow the user already backed out of.
+          if (methodRef.current !== "browser") return;
+          setMethod(null);
+          onSuccess?.();
+          onClose?.();
+        }}
+        onClose={() => setMethod(null)}
+      />
+    );
+  }
+
+  if (method === null) {
+    return (
+      <Modal isOpen={isOpen} title="Connect Cursor" onClose={handleClose}>
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-text-muted">Choose how to connect your Cursor account:</p>
+          <div className="flex flex-col gap-1">
+            <Button onClick={() => setMethod("browser")} icon="login" size="lg" fullWidth>
+              Login with browser
+            </Button>
+            <p className="text-xs text-text-muted">
+              Sign in at cursor.com from any browser — works on remote and Docker hosts
+            </p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Button
+              onClick={() => setMethod("import")}
+              icon="download"
+              variant="secondary"
+              size="lg"
+              fullWidth
+            >
+              Import from Cursor IDE
+            </Button>
+            <p className="text-xs text-text-muted">
+              Read the token from a local Cursor IDE install
+            </p>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
-    <Modal isOpen={isOpen} title="Connect Cursor IDE" onClose={onClose}>
+    <Modal isOpen={isOpen} title="Connect Cursor IDE" onClose={handleClose}>
       <div className="flex flex-col gap-4">
         {/* Auto-detecting state */}
         {autoDetecting && (
@@ -163,7 +242,11 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
               </label>
               <textarea
                 value={accessToken}
-                onChange={(e) => setAccessToken(e.target.value)}
+                onChange={(e) => {
+                  setAccessToken(e.target.value);
+                  // A hand-edited access token no longer pairs with the detected refresh token.
+                  setRefreshToken("");
+                }}
                 placeholder="Access token will be auto-filled..."
                 rows={3}
                 className="w-full px-3 py-2 text-sm font-mono border border-border rounded-lg bg-background focus:outline-none focus:border-primary resize-none"
@@ -199,7 +282,10 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
               >
                 {importing ? "Importing..." : "Import Token"}
               </Button>
-              <Button onClick={onClose} variant="ghost" fullWidth>
+              <Button onClick={handleBack} variant="ghost" icon="arrow_back" fullWidth>
+                Back
+              </Button>
+              <Button onClick={handleClose} variant="ghost" fullWidth>
                 Cancel
               </Button>
             </div>
@@ -212,6 +298,7 @@ export default function CursorAuthModal({ isOpen, onSuccess, onClose }) {
 
 CursorAuthModal.propTypes = {
   isOpen: PropTypes.bool.isRequired,
+  providerInfo: PropTypes.object,
   onSuccess: PropTypes.func,
   onClose: PropTypes.func.isRequired,
 };

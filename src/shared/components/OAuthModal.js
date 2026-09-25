@@ -294,6 +294,7 @@ export default function OAuthModal({
         "qoder",
         "grok-cli",
         "meta-code",
+        "cursor",
       ];
       if (deviceCodeProviders.includes(provider)) {
         setIsDeviceCode(true);
@@ -517,6 +518,17 @@ export default function OAuthModal({
     stopOwnedProxy();
     flowRef.current = { proxyStarted: false, proxyProvider: null, stopSent: false };
   }, [isOpen, provider, stopOwnedProxy]);
+
+  // Cleanup on unmount: wrappers (Cursor/Kiro/GitLab) unmount this modal while
+  // isOpen stays true, so the close effect above never fires. Abort polling and
+  // stop any owned proxy so no orphaned loop can fire a stale onSuccess.
+  // openedRef is intentionally untouched so StrictMode remounts don't re-open.
+  useEffect(() => {
+    return () => {
+      pollingAbortRef.current = true;
+      stopOwnedProxy();
+    };
+  }, [stopOwnedProxy]);
 
   // Server-side proxy mode (codex/xai fixed-port + trae/windsurf dynamic-port):
   // poll status until the proxy auto-exchanges and saves the connection.
@@ -755,6 +767,7 @@ export default function OAuthModal({
   // proxy is stopped at most once across effect-close, button-close, and
   // Escape/backdrop-close — all funnel through here or the close effect).
   const handleClose = useCallback(() => {
+    pollingAbortRef.current = true;
     stopOwnedProxy();
     onCloseRef.current();
   }, [stopOwnedProxy]);
@@ -921,20 +934,22 @@ export default function OAuthModal({
                   </Button>
                 </div>
               </div>
-              <div className="bg-primary/10 p-4 rounded-lg">
-                <p className="text-xs text-text-muted mb-1">Your Code</p>
-                <div className="flex items-center justify-center gap-2">
-                  <p className="text-2xl font-mono font-bold text-primary">
-                    {deviceData.user_code}
-                  </p>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    icon={copied === "user_code" ? "check" : "content_copy"}
-                    onClick={() => copy(deviceData.user_code, "user_code")}
-                  />
+              {deviceData.user_code && (
+                <div className="bg-primary/10 p-4 rounded-lg">
+                  <p className="text-xs text-text-muted mb-1">Your Code</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-2xl font-mono font-bold text-primary">
+                      {deviceData.user_code}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      icon={copied === "user_code" ? "check" : "content_copy"}
+                      onClick={() => copy(deviceData.user_code, "user_code")}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             {polling && (
               <div className="flex items-center justify-center gap-2 text-sm text-text-muted">

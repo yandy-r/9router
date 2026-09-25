@@ -10,6 +10,7 @@ import {
 } from "open-sse/services/quotaSnapshot.js";
 import { QUOTA_SNAPSHOT } from "open-sse/config/quotaSnapshot.js";
 import { fetchClaudePlanTier } from "open-sse/services/usage/claude.js";
+import { cursorPlanTier } from "open-sse/services/usage/cursor.js";
 import { getProviderConnectionById, updateProviderConnection } from "@/lib/localDb";
 
 export { getSnapshot };
@@ -53,6 +54,7 @@ function usedFractionFor(quota) {
  * - github: chat/completions/premium_interactions→month
  * - kiro: resourceType key→model:<key>
  * - groq: Requests/Tokens→requests/tokens
+ * - cursor: Total→month (billing-cycle % used); other rows skipped
  * - kimi: `5h`→5h; `Weekly`/`7d`→7d; `Monthly`→month; `… #N` dedup suffix ignored (skips `Monthly (Code)` —
  *   code-subset row, not account-wide — plus `Ratelimit*` legacy rows)
  * - glm/glm-cn: `Session (5h)`→5h; `Weekly (7d)`→7d (skips `Tokens`,
@@ -105,6 +107,8 @@ export function kindForName(provider, quotaKey, quota) {
       return `model:${key}`;
     case "groq":
       return lower === "requests" || lower === "tokens" ? lower : null;
+    case "cursor":
+      return lower === "total" ? "month" : null;
     case "kimi": {
       // limits[] rows are named by window ("5h", "7d") and deduped as "5h #2".
       const base = lower.replace(/\s+#\d+$/, "");
@@ -163,6 +167,8 @@ function planTierFor(provider, usage) {
         nonEmpty(usage.subscriptionInfo?.paidTier?.id) ??
         nonEmpty(usage.subscriptionInfo?.currentTier?.id)
       );
+    case "cursor":
+      return cursorPlanTier(usage.planName ?? usage.plan);
     default:
       return null;
   }

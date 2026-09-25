@@ -641,7 +641,9 @@ export function parseQuotaData(provider, data) {
         break;
 
       case "ollama":
-        // Session (5h) / Weekly (7d) usage % from ollama.com/api/usage.
+      case "cursor":
+        // ollama: Session (5h) / Weekly (7d) usage % from ollama.com/api/usage.
+        // cursor: billing-cycle % rows (Total / Auto + Composer / API) + On-demand spend (USD).
         // remainingPercentage only — no absolute remaining (UI treats remaining as %).
         if (data.quotas) {
           Object.entries(data.quotas).forEach(([name, quota]) => {
