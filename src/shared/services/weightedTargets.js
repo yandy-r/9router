@@ -11,12 +11,22 @@ function comboIsWeighted(combo, settings) {
   return resolveComboStrategy(settings, combo?.name).strategy === "weighted";
 }
 
-export function weightedProviders(settings, combos) {
+export function weightedProviders(settings, combos, providerIds = []) {
   const direct = new Set(
     Object.entries(settings?.providerStrategies || {})
       .filter(([, strategy]) => strategy?.fallbackStrategy === "weighted")
       .map(([provider]) => provider),
   );
+  if (settings?.fallbackStrategy === "weighted") {
+    for (const provider of providerIds) {
+      if (
+        provider &&
+        (settings.providerStrategies?.[provider]?.fallbackStrategy || "weighted") === "weighted"
+      ) {
+        direct.add(provider);
+      }
+    }
+  }
   for (const combo of combos || []) {
     if (!comboIsWeighted(combo, settings)) continue;
     for (const model of combo?.models || []) {
@@ -38,7 +48,8 @@ export async function isWeightedProvider(provider, deps = { getSettings, getComb
   try {
     const settings = await deps.getSettings();
     const combos = deps.getCombos ? await deps.getCombos().catch(() => []) : [];
-    return weightedProviders(settings, combos).has(provider);
+    // Global weighted applies to any provider without its own override.
+    return weightedProviders(settings, combos, [provider]).has(provider);
   } catch {
     return false;
   }

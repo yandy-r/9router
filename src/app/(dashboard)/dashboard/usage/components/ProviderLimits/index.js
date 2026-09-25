@@ -452,16 +452,20 @@ export default function ProviderLimits() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formData),
         });
-        if (res.ok) {
-          await fetchConnections();
-          setShowEditModal(false);
-          setSelectedConnection(null);
-          if (USAGE_SUPPORTED_PROVIDERS.includes(provider)) {
-            await fetchQuota(connectionId, provider);
-          }
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          return data.error || "Failed to save connection";
         }
+        await fetchConnections();
+        setShowEditModal(false);
+        setSelectedConnection(null);
+        if (USAGE_SUPPORTED_PROVIDERS.includes(provider)) {
+          await fetchQuota(connectionId, provider);
+        }
+        return null;
       } catch (error) {
         console.error("Error saving connection:", error);
+        return "Failed to save connection";
       }
     },
     [selectedConnection, fetchConnections, fetchQuota],

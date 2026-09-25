@@ -150,12 +150,14 @@ async function persistPlanTier(connectionId, rawTier, { markChecked = false } = 
   const existing = await getProviderConnectionById(connectionId);
   if (!existing) return null;
   const psd = existing.providerSpecificData || {};
-  const changed = tier !== null && tier !== sanitizePlanTier(psd.planTier);
+  // Manual tier (set via PUT) is never overwritten; check time still persists.
+  const changed =
+    psd.planTierManual !== true && tier !== null && tier !== sanitizePlanTier(psd.planTier);
   if (changed || markChecked) {
     await updateProviderConnection(connectionId, {
       providerSpecificData: {
         ...psd,
-        ...(tier ? { planTier: tier } : {}),
+        ...(changed ? { planTier: tier } : {}),
         ...(markChecked ? { planTierCheckedAt: new Date().toISOString() } : {}),
       },
     });
@@ -199,11 +201,18 @@ export async function recordUsageSnapshot({
         : getSnapshot(connectionId);
     }
     const detectedTier = planTierFor(provider, usage);
+    if (windows.length === 0 && !detectedTier) {
+      // No fresh data: never bump updatedAt (would mask stale/429 state). A known
+      // fallback tier only seeds a tier-only snapshot when none exists yet.
+      const existing = getSnapshot(connectionId);
+      const seedTier =
+        provider === "codex" ? codexTier(fallbackTier) : sanitizePlanTier(fallbackTier);
+      if (existing || !seedTier) return existing;
+      return recordProbeWindows(connectionId, provider, [], { planTier: seedTier });
+    }
     const planTier =
       detectedTier ??
       (provider === "codex" ? codexTier(fallbackTier) : sanitizePlanTier(fallbackTier));
-    // Payloads with no windows and no tier carry nothing: don't bump updatedAt (would mask staleness).
-    if (windows.length === 0 && !planTier) return getSnapshot(connectionId);
 
     const snapshot = recordProbeWindows(connectionId, provider, windows, { planTier });
     if (detectedTier) await persistPlanTier(connectionId, detectedTier);
@@ -223,7 +232,8 @@ export async function fetchAndPersistClaudePlanTier(connection, proxyOptions = n
   try {
     if (!connection?.id) return null;
     const psd = connection.providerSpecificData || {};
-    const knownTier = sanitizePlanTier(psd.planTier);
+    // Snapshot holds detected tier only; a manual psd.planTier is applied at selection.
+    const knownTier = psd.planTierManual === true ? null : sanitizePlanTier(psd.planTier);
     const checkedMs = new Date(psd.planTierCheckedAt).getTime();
     const fresh =
       Number.isFinite(checkedMs) && Date.now() - checkedMs < QUOTA_SNAPSHOT.profileRecheckMs;

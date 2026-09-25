@@ -6,6 +6,10 @@ import PropTypes from "prop-types";
 import { Badge, Toggle, Tooltip } from "@/shared/components";
 import CooldownTimer from "./CooldownTimer";
 
+function formatWeight(value) {
+  return Number.isFinite(value) ? String(Number(value.toFixed(2))) : "?";
+}
+
 export default function ConnectionRow({
   connection,
   proxyPools,
@@ -18,6 +22,7 @@ export default function ConnectionRow({
   onUpdateProxy,
   onEdit,
   onDelete,
+  weightInfo = null,
   oneByOneStatus = null,
   autoPing = null,
 }) {
@@ -221,6 +226,20 @@ export default function ConnectionRow({
             {connection.globalPriority && (
               <span className="text-xs text-text-muted">Auto: {connection.globalPriority}</span>
             )}
+            {weightInfo && (
+              <span
+                className="max-w-full"
+                title={`Base ${formatWeight(weightInfo.base)} (${weightInfo.baseSource}) × headroom ${formatWeight(weightInfo.headroom)} (${weightInfo.headroomSource}). Share is an estimate across active accounts; model-specific quotas may differ.`}
+              >
+                <Badge variant="default" size="sm">
+                  {`Weight ${formatWeight(weightInfo.weight)} · ~${weightInfo.sharePct.toFixed(1)}% share · ${weightInfo.baseSource} / ${weightInfo.headroomSource}`}
+                  {weightInfo.baseSource === "manual" && weightInfo.base === 0
+                    ? " · manual 0 (fail-open if all accounts have zero weight)"
+                    : weightInfo.belowFloor && " · below quota floor"}
+                  {weightInfo.allExhausted && " · all exhausted, equal fallback"}
+                </Badge>
+              </span>
+            )}
             {getOneByOneLabel() && (
               <Badge variant={getOneByOneVariant()} size="sm">
                 {getOneByOneLabel()}
@@ -359,6 +378,16 @@ ConnectionRow.propTypes = {
   oneByOneStatus: PropTypes.shape({
     state: PropTypes.string,
     error: PropTypes.string,
+  }),
+  weightInfo: PropTypes.shape({
+    weight: PropTypes.number,
+    base: PropTypes.number,
+    baseSource: PropTypes.string,
+    headroom: PropTypes.number,
+    headroomSource: PropTypes.string,
+    belowFloor: PropTypes.bool,
+    allExhausted: PropTypes.bool,
+    sharePct: PropTypes.number,
   }),
   autoPing: PropTypes.shape({
     on: PropTypes.bool,

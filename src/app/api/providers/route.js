@@ -16,6 +16,8 @@ import {
   isCustomEmbeddingProvider,
 } from "@/shared/constants/providers";
 import { normalizeProviderId, normalizeProviderSpecificData } from "@/lib/providerNormalization";
+import { getSnapshot } from "open-sse/services/quotaSnapshot.js";
+import { effectiveWeightFor } from "@/sse/services/accountSelection";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +84,7 @@ export async function GET() {
       return {
         ...c,
         name,
+        effectiveWeight: effectiveWeightFor(c, { snapshot: getSnapshot(c.id) }),
         apiKey: undefined,
         accessToken: undefined,
         refreshToken: undefined,

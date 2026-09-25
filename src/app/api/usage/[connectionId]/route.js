@@ -9,8 +9,10 @@ import { USAGE_APIKEY_PROVIDERS } from "@/shared/constants/providers";
 import {
   buildQuotaSnapshotView,
   fetchAndPersistClaudePlanTier,
+  getSnapshot,
   recordUsageSnapshot,
 } from "@/sse/services/quotaSnapshotSync";
+import { effectiveWeightFor } from "@/sse/services/accountSelection";
 import { isWeightedProvider } from "@/shared/services/weightedTargets";
 
 // Detect auth-expired messages returned by usage providers instead of throwing
@@ -198,8 +200,10 @@ export async function GET(request, { params }) {
         provider: connection.provider,
         usage,
         fallbackTier:
-          connection.providerSpecificData?.planTier ??
-          connection.providerSpecificData?.chatgptPlanType,
+          connection.providerSpecificData?.planTierManual === true
+            ? connection.providerSpecificData?.chatgptPlanType
+            : (connection.providerSpecificData?.planTier ??
+              connection.providerSpecificData?.chatgptPlanType),
       });
       // Weighted Claude only (extra upstream call); throttled 24h, never throws.
       if (connection.provider === "claude" && isOAuth && (await isWeightedProvider("claude"))) {
@@ -209,10 +213,18 @@ export async function GET(request, { params }) {
       /* recordUsageSnapshot already swallows; belt for the response path */
     }
 
-    return Response.json({
-      ...usage,
-      quotaSnapshot: buildQuotaSnapshotView(connection.id, {}),
-    });
+    const snapshot = getSnapshot(connection.id);
+    const quotaSnapshot = buildQuotaSnapshotView(connection.id, {
+      manualWeight: connection.providerSpecificData?.weight,
+    }) ?? {
+      planTier: connection.providerSpecificData?.planTier ?? null,
+      windows: [],
+      stale: true,
+      updatedAt: null,
+    };
+    // Same tier rule as routing (manual psd.planTier wins over detected snapshot tier).
+    quotaSnapshot.effectiveWeight = effectiveWeightFor(connection, { snapshot });
+    return Response.json({ ...usage, quotaSnapshot });
   } catch (error) {
     const provider = connection?.provider ?? "unknown";
     console.warn(`[Usage] ${provider}: ${error.message}`);

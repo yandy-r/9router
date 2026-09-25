@@ -13,6 +13,42 @@ import {
   EditConnectionModal,
   ConfirmModal,
 } from "@/shared/components";
+import { ACCOUNT_STRATEGY_OPTIONS, OAUTH_STICKY_HINT } from "@/shared/constants/accountStrategies";
+
+const INHERIT = "__inherit__";
+const STRATEGY_SELECT_OPTIONS = [
+  { value: INHERIT, label: "Inherit global setting" },
+  ...ACCOUNT_STRATEGY_OPTIONS,
+];
+
+const OAUTH_SUBSCRIPTION_PROVIDERS = new Set([
+  "claude",
+  "codex",
+  "github",
+  "gemini-cli",
+  "antigravity",
+  "kiro",
+  "cursor",
+]);
+
+const isOAuthSubscription = (providerId, isOAuth) =>
+  isOAuth === true || OAUTH_SUBSCRIPTION_PROVIDERS.has(providerId);
+
+const weightOf = (c) => {
+  const w = c.effectiveWeight?.weight;
+  return Number.isFinite(w) && w > 0 ? w : 0;
+};
+
+/** Approximate share (%) among active peers; all-zero falls back to equal split like routing. */
+function activeShares(connections) {
+  const active = connections.filter((c) => c.isActive !== false && c.effectiveWeight);
+  const total = active.reduce((sum, c) => sum + weightOf(c), 0);
+  return new Map(
+    active.map((c) => [c.id, total > 0 ? (weightOf(c) / total) * 100 : 100 / active.length]),
+  );
+}
+
+const round1 = (n) => String(Math.round(n * 10) / 10);
 
 // ── CooldownTimer ──────────────────────────────────────────────
 function CooldownTimer({ until }) {
@@ -48,6 +84,8 @@ function ConnectionRow({
   isOAuth,
   isFirst,
   isLast,
+  isWeighted,
+  sharePct,
   onMoveUp,
   onMoveDown,
   onToggleActive,
@@ -91,11 +129,7 @@ function ConnectionRow({
   const noProxyText =
     boundProxyPool?.noProxy || connection.providerSpecificData?.connectionNoProxy || "";
   const proxyBadgeVariant =
-    boundProxyPool?.isActive === true
-      ? "success"
-      : boundProxyPoolId || hasLegacyProxy
-        ? "error"
-        : "default";
+    boundProxyPool?.isActive === true ? "success" : hasAnyProxy ? "error" : "default";
 
   const modelLockUntil =
     Object.entries(connection)
@@ -133,6 +167,10 @@ function ConnectionRow({
 
   const effectiveStatus =
     connection.testStatus === "unavailable" && !isCooldown ? "active" : connection.testStatus;
+  const ew = connection.effectiveWeight;
+  const activeWeight = Number.isFinite(ew?.weight) && ew.weight > 0 ? ew.weight : null;
+  const showWeight = isWeighted && ew && connection.isActive !== false;
+  const belowFloor = showWeight && activeWeight === null;
 
   const getStatusVariant = () => getConnectionStatusVariant(connection.isActive, effectiveStatus);
 
@@ -197,6 +235,21 @@ function ConnectionRow({
               </span>
             )}
             <span className="text-xs text-text-muted">#{connection.priority}</span>
+            {showWeight && (
+              <>
+                <Badge variant={belowFloor ? "warning" : "default"} size="sm">
+                  {belowFloor
+                    ? ew.baseSource === "manual" && ew.base === 0
+                      ? "Weight 0 (fail-open if alone)"
+                      : "Weight 0 (below floor)"
+                    : `Weight ${round1(ew.weight)}`}
+                </Badge>
+                {Number.isFinite(sharePct) && <Badge size="sm">~{round1(sharePct)}% share</Badge>}
+                <Badge size="sm">
+                  {ew.baseSource || "default"} · {ew.headroomSource || "static"}
+                </Badge>
+              </>
+            )}
           </div>
           {hasAnyProxy && (
             <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -299,6 +352,8 @@ ConnectionRow.propTypes = {
   isOAuth: PropTypes.bool.isRequired,
   isFirst: PropTypes.bool.isRequired,
   isLast: PropTypes.bool.isRequired,
+  isWeighted: PropTypes.bool,
+  sharePct: PropTypes.number,
   onMoveUp: PropTypes.func.isRequired,
   onMoveDown: PropTypes.func.isRequired,
   onToggleActive: PropTypes.func.isRequired,
@@ -465,7 +520,12 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [providerStrategy, setProviderStrategy] = useState(null);
-  const [providerStickyLimit, setProviderStickyLimit] = useState("1");
+  const [globalStrategy, setGlobalStrategy] = useState("fill-first");
+  const [providerStickyLimit, setProviderStickyLimit] = useState("");
+  const savedStickyLimit = useRef("");
+  const [globalStickyLimit, setGlobalStickyLimit] = useState(3);
+  const [strategySaving, setStrategySaving] = useState(false);
+  const [strategyError, setStrategyError] = useState("");
   const [confirmState, setConfirmState] = useState(null);
 
   const fetch_ = useCallback(async () => {
@@ -481,11 +541,14 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
       if (connRes.ok)
         setConnections((connData.connections || []).filter((c) => c.provider === providerId));
       if (proxyRes.ok) setProxyPools(proxyData.proxyPools || []);
-      const override = (settingsData.providerStrategies || {})[providerId] || {};
+      const override = settingsData.providerStrategies?.[providerId] || {};
       setProviderStrategy(override.fallbackStrategy || null);
-      setProviderStickyLimit(
-        override.stickyRoundRobinLimit != null ? String(override.stickyRoundRobinLimit) : "1",
-      );
+      setGlobalStrategy(settingsData.fallbackStrategy || "fill-first");
+      setGlobalStickyLimit(settingsData.stickyRoundRobinLimit ?? 3);
+      const stickyLimit =
+        override.stickyRoundRobinLimit != null ? String(override.stickyRoundRobinLimit) : "";
+      savedStickyLimit.current = stickyLimit;
+      setProviderStickyLimit(stickyLimit);
     } catch (e) {
       console.log("ConnectionsCard fetch error:", e);
     } finally {
@@ -497,25 +560,75 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
     fetch_();
   }, [fetch_]);
 
+  // Preserve NoAuthProxyCard/other keys (rotateStrategy, proxyPoolId); only touch
+  // fallbackStrategy/stickyRoundRobinLimit.
   const saveStrategy = async (strategy, stickyLimit) => {
+    const persistSticky =
+      strategy === "round-robin" || strategy === "weighted" || strategy === null;
+    if (persistSticky && stickyLimit !== "") {
+      const n = Number(stickyLimit);
+      if (!/^\d+$/.test(stickyLimit) || !Number.isInteger(n) || n < 1 || n > 100) {
+        setStrategyError("Sticky limit must be an integer from 1 to 100.");
+        return false;
+      }
+    }
+    setStrategySaving(true);
+    setStrategyError("");
     try {
       const res = await fetch("/api/settings", { cache: "no-store" });
-      const data = res.ok ? await res.json() : {};
+      if (!res.ok) throw new Error("Failed to load settings");
+      const data = await res.json();
       const current = data.providerStrategies || {};
-      const override = {};
+      const override = { ...(current[providerId] || {}) };
       if (strategy) override.fallbackStrategy = strategy;
-      if (strategy === "round-robin" && stickyLimit !== "")
-        override.stickyRoundRobinLimit = Number(stickyLimit) || 3;
+      else delete override.fallbackStrategy;
+      // Inherit (null) keeps an explicit sticky so it can be edited/cleared without
+      // forcing a fallbackStrategy override.
+      if (persistSticky) {
+        if (stickyLimit !== "") override.stickyRoundRobinLimit = Number(stickyLimit);
+        else if (strategy === "round-robin") override.stickyRoundRobinLimit = 1;
+        // Blank weighted/inherit clears the key so routing reverts to the global/OAuth
+        // default; blank round-robin keeps its historical per-provider default of 1.
+        else delete override.stickyRoundRobinLimit;
+      } else {
+        delete override.stickyRoundRobinLimit;
+      }
       const updated = { ...current };
-      if (Object.keys(override).length === 0) delete updated[providerId];
-      else updated[providerId] = override;
-      await fetch("/api/settings", {
+      // ponytail: key-count decides delete vs merge (not value equality). A blank sticky
+      // keeps the routing backend on its global/OAuth default; an explicit 0/"" in stored
+      // settings would instead fail backend validation. Revisit only if backend starts
+      // treating "absent override key" differently from "explicit blank".
+      if (override.fallbackStrategy == null && override.stickyRoundRobinLimit == null) {
+        if (current[providerId]) {
+          const rest = { ...current[providerId] };
+          delete rest.fallbackStrategy;
+          delete rest.stickyRoundRobinLimit;
+          if (Object.keys(rest).length === 0) delete updated[providerId];
+          else updated[providerId] = rest;
+        }
+      } else {
+        updated[providerId] = override;
+      }
+      const patchRes = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ providerStrategies: updated }),
       });
+      if (!patchRes.ok) {
+        const err = await patchRes.json().catch(() => ({}));
+        setStrategyError(err.error || "Failed to save strategy");
+        return false;
+      }
+      savedStickyLimit.current =
+        override.stickyRoundRobinLimit != null ? String(override.stickyRoundRobinLimit) : "";
+      setProviderStickyLimit(savedStickyLimit.current);
+      return true;
     } catch (e) {
       console.log("saveStrategy error:", e);
+      setStrategyError("Failed to save strategy");
+      return false;
+    } finally {
+      setStrategySaving(false);
     }
   };
 
@@ -619,13 +732,65 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
-      if (res.ok) {
-        await fetch_();
-        setShowEditModal(false);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return data.error || "Failed to save connection";
       }
+      await fetch_();
+      setShowEditModal(false);
+      return null;
     } catch (e) {
       console.log("update connection error:", e);
+      return "Failed to save connection";
     }
+  };
+
+  const effectiveStrategy = providerStrategy || globalStrategy;
+  const isWeighted = effectiveStrategy === "weighted";
+  const subscription = isOAuthSubscription(providerId, isOAuth);
+  const inheriting = providerStrategy == null;
+  // Inheriting still shows an editable input when the global strategy uses sticky, or
+  // when an orphan per-provider sticky exists, so it can be edited or cleared.
+  const showSticky =
+    effectiveStrategy === "round-robin" ||
+    isWeighted ||
+    (inheriting && savedStickyLimit.current !== "");
+  const stickyInputId = `sticky-${providerId}`;
+  // Placeholder mirrors routing default when override blank: weighted uses the global
+  // limit for OAuth subscriptions, 1 otherwise; explicit round-robin defaults to 1,
+  // inherited round-robin uses the global limit.
+  const stickyPlaceholder = isWeighted
+    ? subscription
+      ? String(globalStickyLimit)
+      : "1"
+    : inheriting
+      ? String(globalStickyLimit)
+      : "1";
+  const shares = isWeighted ? activeShares(connections) : new Map();
+  const weightedHint = isWeighted && subscription ? OAUTH_STICKY_HINT : "";
+  // Weighted routing honors an explicit provider sticky even when the strategy itself
+  // is inherited (resolveWeightedStickyLimit), so warn on inherited sticky 1 too.
+  const effectiveSticky =
+    providerStickyLimit !== ""
+      ? Number(providerStickyLimit)
+      : subscription
+        ? Number(globalStickyLimit)
+        : 1;
+  const stickyOneWarning = isWeighted && subscription && effectiveSticky === 1;
+
+  const handleStrategyChange = (value) => {
+    const strategy = value === INHERIT ? null : value;
+    const prevStrategy = providerStrategy;
+    setProviderStrategy(strategy);
+    // Pass the uncommitted draft; saveStrategy validates it and reverts on failure.
+    saveStrategy(strategy, providerStickyLimit).then((saved) => {
+      if (!saved) setProviderStrategy(prevStrategy);
+    });
+  };
+
+  const commitStickyLimit = (value) => {
+    if (strategySaving || (value === savedStickyLimit.current && !strategyError)) return;
+    saveStrategy(providerStrategy, value);
   };
 
   if (loading)
@@ -641,33 +806,71 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
           <h2 className="text-lg font-semibold">Connections</h2>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-text-muted font-medium">Round Robin</span>
-            <Toggle
-              checked={providerStrategy === "round-robin"}
-              onChange={(enabled) => {
-                const strategy = enabled ? "round-robin" : null;
-                setProviderStrategy(strategy);
-                if (enabled && !providerStickyLimit) setProviderStickyLimit("1");
-                saveStrategy(strategy, enabled ? providerStickyLimit || "1" : providerStickyLimit);
-              }}
+            <Select
+              aria-label="Account strategy for this provider"
+              value={providerStrategy || INHERIT}
+              onChange={(e) => handleStrategyChange(e.target.value)}
+              disabled={strategySaving}
+              options={STRATEGY_SELECT_OPTIONS}
+              selectClassName="py-1.5 text-xs sm:text-xs"
             />
-            {providerStrategy === "round-robin" && (
+            {showSticky && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-xs text-text-muted">Sticky:</span>
+                <label htmlFor={stickyInputId} className="text-xs text-text-muted">
+                  Sticky:
+                </label>
                 <input
+                  id={stickyInputId}
                   type="number"
                   min={1}
+                  max={100}
                   value={providerStickyLimit}
-                  onChange={(e) => {
-                    setProviderStickyLimit(e.target.value);
-                    saveStrategy("round-robin", e.target.value);
+                  placeholder={stickyPlaceholder}
+                  title={
+                    inheriting
+                      ? "Blank uses the global sticky limit; a value here overrides it for this provider only"
+                      : undefined
+                  }
+                  onChange={(e) => setProviderStickyLimit(e.target.value)}
+                  onBlur={(e) => commitStickyLimit(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") e.currentTarget.blur();
+                    else if (e.key === "Escape") setProviderStickyLimit(savedStickyLimit.current);
                   }}
                   className="w-16 px-2 py-1 text-xs border border-border rounded-md bg-background focus:outline-none focus:border-primary"
                 />
+                {inheriting && savedStickyLimit.current !== "" && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => saveStrategy(null, "")}
+                    disabled={strategySaving}
+                    className="text-xs text-text-muted underline-offset-2 hover:text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Clear override
+                  </button>
+                )}
               </div>
             )}
           </div>
         </div>
+
+        {(strategyError || weightedHint) && (
+          <div className="mb-4 flex flex-col gap-1">
+            {strategyError && (
+              <p className="text-xs text-red-500" role="alert">
+                {strategyError}
+              </p>
+            )}
+            {weightedHint && <p className="text-xs text-text-muted">{weightedHint}</p>}
+            {stickyOneWarning && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                Sticky 1 switches subscription accounts every request — may trip anti-abuse flags.
+                Prefer 3 or higher.
+              </p>
+            )}
+          </div>
+        )}
 
         {connections.length === 0 ? (
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -687,6 +890,8 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
                   isOAuth={isOAuth}
                   isFirst={idx === 0}
                   isLast={idx === connections.length - 1}
+                  isWeighted={isWeighted}
+                  sharePct={shares.get(conn.id)}
                   onMoveUp={() => handleSwapPriority(idx, idx - 1)}
                   onMoveDown={() => handleSwapPriority(idx, idx + 1)}
                   onToggleActive={(isActive) => handleToggleActive(conn.id, isActive)}
@@ -699,6 +904,12 @@ export default function ConnectionsCard({ providerId, isOAuth }) {
                 />
               ))}
             </div>
+            {isWeighted && shares.size > 0 && (
+              <p className="mt-2 text-xs text-text-muted">
+                Share is approximate: computed across active accounts from current quota data;
+                model-specific windows and temporary locks are not reflected.
+              </p>
+            )}
             <div className="mt-4 flex justify-stretch sm:justify-start">
               <Button size="sm" icon="add" onClick={() => setShowAddModal(true)}>
                 Add
