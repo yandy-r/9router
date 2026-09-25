@@ -11,6 +11,25 @@ function comboIsWeighted(combo, settings) {
   return resolveComboStrategy(settings, combo?.name).strategy === "weighted";
 }
 
+// All combo member providers, regardless of strategy. Never throws on malformed
+// models: one bad entry must not abort resolution. Alias models are skipped.
+export function comboMemberProviders(combos) {
+  const members = new Set();
+  for (const combo of combos || []) {
+    for (const model of combo?.models || []) {
+      try {
+        const raw = typeof model === "string" ? model : (model?.model ?? model?.name);
+        if (typeof raw !== "string") continue;
+        const { provider, isAlias } = parseModel(raw);
+        if (!isAlias && provider) members.add(provider);
+      } catch {
+        // One malformed combo model must not abort resolution.
+      }
+    }
+  }
+  return members;
+}
+
 export function weightedProviders(settings, combos, providerIds = []) {
   const direct = new Set(
     Object.entries(settings?.providerStrategies || {})
@@ -27,18 +46,9 @@ export function weightedProviders(settings, combos, providerIds = []) {
       }
     }
   }
-  for (const combo of combos || []) {
-    if (!comboIsWeighted(combo, settings)) continue;
-    for (const model of combo?.models || []) {
-      try {
-        const raw = typeof model === "string" ? model : (model?.model ?? model?.name);
-        if (typeof raw !== "string") continue;
-        const { provider, isAlias } = parseModel(raw);
-        if (!isAlias && provider) direct.add(provider);
-      } catch {
-        // One malformed combo model must not abort resolution.
-      }
-    }
+  const weightedCombos = (combos || []).filter((combo) => comboIsWeighted(combo, settings));
+  for (const provider of comboMemberProviders(weightedCombos)) {
+    direct.add(provider);
   }
   return direct;
 }

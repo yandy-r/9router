@@ -84,6 +84,10 @@ export async function PUT(request, { params }) {
     if (prev?.name) resetComboRotation(prev.name);
     if (combo.name && combo.name !== prev?.name) resetComboRotation(combo.name);
 
+    import("@/shared/services/quotaSnapshotPoller")
+      .then(({ syncQuotaSnapshotPoller }) => syncQuotaSnapshotPoller())
+      .catch((error) => console.warn("[Combos] quota poller sync failed:", error?.message));
+
     return NextResponse.json(combo);
   } catch (error) {
     console.log("Error updating combo:", error);
@@ -104,6 +108,10 @@ export async function DELETE(_request, { params }) {
 
     // deleteCombo drops combo row + own strategy key in one transaction.
     if (prev?.name) resetComboRotation(prev.name);
+
+    import("@/shared/services/quotaSnapshotPoller")
+      .then(({ syncQuotaSnapshotPoller }) => syncQuotaSnapshotPoller())
+      .catch((error) => console.warn("[Combos] quota poller sync failed:", error?.message));
 
     return NextResponse.json({ success: true });
   } catch (error) {

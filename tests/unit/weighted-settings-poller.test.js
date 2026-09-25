@@ -28,6 +28,7 @@ import { getCombos, getProviderConnections, getSettings, updateSettings } from "
 import { resetAccountSelection } from "@/sse/services/auth";
 import { PATCH } from "../../src/app/api/settings/route.js";
 import {
+  comboMemberProviders,
   weightedProviders,
   isWeightedProvider,
 } from "../../src/shared/services/weightedTargets.js";
@@ -35,6 +36,7 @@ import {
   configureQuotaSnapshotPoller,
   runQuotaSnapshotTick,
   stopQuotaSnapshotPoller,
+  syncQuotaSnapshotPoller,
 } from "../../src/shared/services/quotaSnapshotPoller.js";
 
 const patch = (body) => PATCH({ json: async () => body });
@@ -142,5 +144,72 @@ describe("global weighted poller", () => {
     expect(vi.getTimerCount()).toBe(1);
     configureQuotaSnapshotPoller({ fallbackStrategy: "fill-first" });
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("non-weighted combo members (YAN-384)", () => {
+  const combo = { name: "c", models: ["cx/gpt-5"] };
+
+  it("comboMemberProviders returns providers for any strategy; weightedProviders stays weighted-only", () => {
+    const fillFirst = { fallbackStrategy: "fill-first" };
+    expect(comboMemberProviders([combo]).has("codex")).toBe(true);
+    expect(weightedProviders(fillFirst, [combo], []).has("codex")).toBe(false);
+  });
+
+  it("poller starts for a non-weighted combo member and stops when combos are empty", () => {
+    const fillFirst = { fallbackStrategy: "fill-first" };
+    configureQuotaSnapshotPoller(fillFirst, [combo]);
+    expect(vi.getTimerCount()).toBe(1);
+    configureQuotaSnapshotPoller(fillFirst, [{ name: "e", models: [] }]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("tick polls non-weighted combo member providers", async () => {
+    const getProviderConnections = vi.fn(async ({ provider }) =>
+      provider ? [] : [{ provider: "claude" }],
+    );
+    await runQuotaSnapshotTick(
+      {
+        getSettings: async () => ({ fallbackStrategy: "fill-first" }),
+        getCombos: async () => [combo],
+        getProviderConnections,
+      },
+      { running: false, failureCache: {} },
+    );
+    expect(getProviderConnections.mock.calls.map(([filter]) => filter)).toEqual([
+      { provider: "codex", isActive: true },
+    ]);
+  });
+
+  it("isWeightedProvider stays false for a non-weighted combo member", async () => {
+    await expect(
+      isWeightedProvider("codex", {
+        getSettings: async () => ({ fallbackStrategy: "fill-first" }),
+        getCombos: async () => [combo],
+      }),
+    ).resolves.toBe(false);
+  });
+
+  it("syncQuotaSnapshotPoller starts for non-weighted combo and never throws on combos read failure", async () => {
+    await syncQuotaSnapshotPoller({
+      getSettings: async () => ({ fallbackStrategy: "fill-first" }),
+      getCombos: async () => [combo],
+    });
+    expect(vi.getTimerCount()).toBe(1);
+
+    await expect(
+      syncQuotaSnapshotPoller({
+        getSettings: async () => ({ fallbackStrategy: "fill-first" }),
+        getCombos: async () => Promise.reject(new Error("db down")),
+      }),
+    ).resolves.toBeUndefined();
+    // A transient combos read failure keeps the running scheduler.
+    expect(vi.getTimerCount()).toBe(1);
+
+    // A settings read failure never throws into fire-and-forget callers.
+    await expect(
+      syncQuotaSnapshotPoller({ getSettings: () => Promise.reject(new Error("db down")) }),
+    ).resolves.toBeUndefined();
+    expect(vi.getTimerCount()).toBe(1);
   });
 });

@@ -10,6 +10,8 @@ export const QUOTA_SNAPSHOT = {
   maxWindowsPerConnection: 32,
   profileRecheckMs: 86_400_000,
   poller: { tickMs: 60_000, staleMs: 900_000, failureCooldownMs: 900_000 },
+  // Per-minute rate windows: a 0 without a reset is re-probed after a transient cooldown.
+  shortWindowKinds: ["requests", "tokens", "input-tokens", "output-tokens"],
 };
 
 /**

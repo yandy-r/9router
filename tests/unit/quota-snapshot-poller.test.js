@@ -225,6 +225,65 @@ describe("quota snapshot sync", () => {
     );
   });
 
+  it("maps new providers to account-wide windows and skips ambiguous rows", () => {
+    const cases = [
+      ["kimi", "5h", "5h"],
+      ["kimi", "Weekly", "7d"],
+      ["kimi", "Monthly", "month"],
+      ["kimi", "7d", "7d"],
+      ["kimi", "5h #2", "5h"],
+      ["glm", "Session (5h)", "5h"],
+      ["glm-cn", "Session (5h)", "5h"],
+      ["glm", "Weekly (7d)", "7d"],
+      ["opencode-go", "Weekly", "7d"],
+      ["opencode-go", "Monthly", "month"],
+      ["commandcode", "Session (5h)", "5h"],
+      ["commandcode", "Weekly", "7d"],
+      ["meta-code", "Session (5h)", "5h"],
+      ["meta-code", "Weekly", "7d"],
+      ["ollama", "Session (5h)", "5h"],
+      ["ollama", "Weekly (7d)", "7d"],
+      ["xiaomi-mimo", "Weekly", "7d"],
+    ];
+    for (const [provider, key, kind] of cases) {
+      expect(sync.kindForName(provider, key, { remainingPercentage: 50 })).toBe(kind);
+    }
+    const skipped = [
+      ["kimi", "Monthly (Code)"],
+      ["kimi", "Ratelimit"],
+      ["glm", "Tokens"],
+      ["glm", "Session (3h)"],
+      ["opencode-go", "Rolling"],
+      ["commandcode", "Credits"],
+      ["meta-code", "Credits"],
+      ["ollama", "Weekly"],
+      ["xiaomi-mimo", "Monthly"],
+      ["minimax", "M-series (5h)"],
+      ["minimax-cn", "M-series (7d)"],
+      ["unknown-provider", "Weekly"],
+    ];
+    for (const [provider, key] of skipped) {
+      expect(sync.kindForName(provider, key, { remainingPercentage: 0 })).toBeNull();
+    }
+  });
+
+  it("records an exhausted Kimi 5h window as usedFraction 1", async () => {
+    await sync.recordUsageSnapshot({
+      connectionId: "kimi-1",
+      provider: "kimi",
+      usage: {
+        quotas: {
+          "5h": { used: 100, total: 100, remainingPercentage: 0, resetAt: RESET_AT },
+        },
+      },
+      source: "probe",
+    });
+
+    expect(store.getSnapshot("kimi-1").windows).toEqual([
+      expect.objectContaining({ kind: "5h", usedFraction: 1 }),
+    ]);
+  });
+
   it("builds ISO reset timestamps and effective-weight decomposition", () => {
     store.recordProbeWindows(
       "claude-view",
