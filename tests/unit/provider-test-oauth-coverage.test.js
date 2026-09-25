@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const originalFetch = global.fetch;
 
-async function testConnection(connection, fetchImpl = () => Promise.resolve(Response.json({}))) {
+async function testConnection(
+  connection,
+  fetchImpl = () => Promise.resolve(Response.json({})),
+  proxy = {},
+) {
   const updates = [];
   const fetchMock = vi.fn(fetchImpl);
   global.fetch = fetchMock;
@@ -11,7 +15,7 @@ async function testConnection(connection, fetchImpl = () => Promise.resolve(Resp
     updateProviderConnection: vi.fn(async (_id, data) => updates.push(data)),
   }));
   vi.doMock("@/lib/network/connectionProxy", () => ({
-    resolveConnectionProxyConfig: vi.fn(async () => ({})),
+    resolveConnectionProxyConfig: vi.fn(async () => proxy),
   }));
   const { testSingleConnection } = await import(
     "../../src/app/api/providers/[id]/test/testUtils.js"
@@ -80,26 +84,48 @@ describe("provider connection tests for OAuth and imported keys", () => {
     },
   );
 
+  it("sends the Zed probe through the connection's relay", async () => {
+    const { result, fetchMock } = await testConnection(
+      connection("zed"),
+      () => Promise.resolve(Response.json({ id: 1 })),
+      { vercelRelayUrl: "https://relay.example/" },
+    );
+    expect(result.valid).toBe(true);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://relay.example/");
+    expect(fetchMock.mock.calls[0][1].headers["x-relay-path"]).toBe("/client/users/me");
+  });
+
+  it("reports expired Trae tokens without a refresh attempt", async () => {
+    const { result, fetchMock } = await testConnection({
+      ...connection("trae"),
+      expiresAt: new Date(Date.now() - 60_000).toISOString(),
+    });
+    expect(result).toMatchObject({ valid: false, error: "Token expired" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("explains that ClinePass OAuth tokens cannot be used", async () => {
     const { result, fetchMock } = await testConnection(connection("clinepass"));
     expect(result).toMatchObject({ valid: false, error: expect.stringContaining("API key") });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("refreshes near-expiry codebuddy-intl tokens via the runtime refresher", async () => {
+  it.each([
+    [
+      "codebuddy-intl",
+      {
+        code: 0,
+        data: { accessToken: "new-access", refreshToken: "new-refresh", expiresIn: 3600 },
+      },
+    ],
+  ])("refreshes near-expiry %s tokens via the runtime refresher", async (provider, body) => {
     const { result, updates } = await testConnection(
       {
-        ...connection("codebuddy-intl"),
+        ...connection(provider),
         refreshToken: "old-refresh",
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
       },
-      () =>
-        Promise.resolve(
-          Response.json({
-            code: 0,
-            data: { accessToken: "new-access", refreshToken: "new-refresh", expiresIn: 3600 },
-          }),
-        ),
+      () => Promise.resolve(Response.json(body)),
     );
     expect(result).toMatchObject({ valid: true, refreshed: true });
     expect(updates[0]).toMatchObject({ testStatus: "active", accessToken: "new-access" });

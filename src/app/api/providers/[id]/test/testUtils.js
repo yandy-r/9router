@@ -119,7 +119,8 @@ const OAUTH_TEST_CONFIG = {
   },
   // Zed auth is "<userId> <token>"; probed via fetchZedAuthenticatedUser (branch below).
   zed: {},
-  trae: { checkExpiry: true, refreshable: true },
+  // Runtime Trae refresher has no configured endpoint; expired tokens require re-login.
+  trae: { checkExpiry: true },
   // ponytail: gRPC-only API, token presence only (like cursor); add a probe if one is exposed.
   windsurf: { tokenExists: true },
   kimchi: {
@@ -296,8 +297,7 @@ async function refreshOAuthToken(connection) {
       provider === "kiro" ||
       provider === "kimi" ||
       provider === "kimi-coding" ||
-      provider === "codebuddy-intl" ||
-      provider === "trae"
+      provider === "codebuddy-intl"
     ) {
       return await refreshProviderCredentials(provider, connection, console);
     }
@@ -420,9 +420,13 @@ async function testOAuthConnection(connection, effectiveProxy = null) {
       });
       return { valid: true, error: null, refreshed: false, newTokens: null };
     } catch (err) {
-      if (err.status === 401) return { valid: false, error: "Token invalid or revoked" };
-      if (err.status === 403) return { valid: false, error: "Access denied" };
-      return { valid: false, error: err.message };
+      const error =
+        err.status === 401
+          ? "Token invalid or revoked"
+          : err.status === 403
+            ? "Access denied"
+            : err.message;
+      return { valid: false, error, refreshed: false };
     }
   }
 
