@@ -1,3 +1,17 @@
+# v0.3.0 (2026-09-25)
+
+## Features
+- **Weighted routing**: combo models and provider accounts can now use quota-aware weights. Combo editor exposes weights; account strategies support per-plan and per-connection overrides (#116, #117).
+- **Quota visibility**: per-connection quota snapshots and plan-tier detection support weighted routing and usage views (#108).
+- **Meta Code**: native Muse Spark provider with OAuth or API-key connections and quota tracking (#101).
+
+## Fixes
+- **Client formats**: non-streaming Claude and Responses requests now receive bodies in their requested format, with reasoning, truncation and cache usage preserved (#93). Developer and system instructions survive translation (#115).
+- **Usage and costs**: record final upstream token usage, avoid double-counting cached/reasoning tokens, and apply partial pricing overrides correctly (#100).
+- **Ollama**: `/v1/api/chat` returns content and errors in Ollama format, preserving UTF-8, thinking and tool calls with one final stream line (#107).
+- **Reliability**: retry interrupted legacy database imports, handle large hosts files, reject malformed chat bodies, and read device-code token responses safely (#113).
+- **Combo editor**: clarify weights and make their disclosure collapsible.
+
 # v0.2.1 (2026-09-24)
 
 ## Security
