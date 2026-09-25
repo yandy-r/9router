@@ -155,6 +155,18 @@ export function isModelLockActive(connection, model) {
 }
 
 /**
+ * Expiry of the lock that actually blocks `model` (later of its own lock and the
+ * account-wide lock, active ones only). Null when not locked.
+ */
+export function getModelLockUntil(connection, model) {
+  const now = Date.now();
+  const active = [connection?.[getModelLockKey(model)], connection?.[MODEL_LOCK_ALL]]
+    .filter((v) => v && new Date(v).getTime() > now)
+    .map((v) => new Date(v).getTime());
+  return active.length ? new Date(Math.max(...active)).toISOString() : null;
+}
+
+/**
  * Get earliest active model lock expiry across all modelLock_* fields.
  * Used for UI cooldown display.
  */

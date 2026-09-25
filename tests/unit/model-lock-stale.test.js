@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getEarliestModelLockUntil,
+  getModelLockUntil,
   isModelLockActive,
   MODEL_LOCK_ALL,
 } from "../../open-sse/services/accountFallback.js";
@@ -19,6 +20,20 @@ describe("stale per-model lock vs active account-wide lock", () => {
 
   it("getEarliestModelLockUntil skips the expired lock", () => {
     expect(getEarliestModelLockUntil(connection)).toBe(future);
+  });
+
+  it("honours an active per-model lock next to an expired account-wide lock", () => {
+    expect(
+      isModelLockActive({ "modelLock_gpt-4o": future, [MODEL_LOCK_ALL]: past }, "gpt-4o"),
+    ).toBe(true);
+  });
+
+  it("getModelLockUntil reports the lock blocking the requested model", () => {
+    const soon = new Date(Date.now() + 10_000).toISOString();
+    const c = { "modelLock_gpt-4o": future, modelLock_other: soon };
+    expect(getModelLockUntil(c, "gpt-4o")).toBe(future);
+    expect(getModelLockUntil(connection, "gpt-4o")).toBe(future);
+    expect(getModelLockUntil({ "modelLock_gpt-4o": past }, "gpt-4o")).toBeNull();
   });
 
   it("is unlocked when every lock has expired", () => {
