@@ -248,6 +248,14 @@ describe("getProviderCredentials quota-exhausted skip", () => {
     });
   });
 
+  it("honors an explicit pin even when that account is exhausted", async () => {
+    mocks.getSettings.mockResolvedValue({});
+    exhaust("dry");
+    await expect(
+      getProviderCredentials("claude", null, null, { preferredConnectionId: "dry" }),
+    ).resolves.toMatchObject({ connectionId: "dry" });
+  });
+
   it("returns allRateLimited without an account when every account is exhausted", async () => {
     mocks.getSettings.mockResolvedValue({});
     exhaust("dry");

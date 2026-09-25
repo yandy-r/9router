@@ -205,5 +205,11 @@ describe("non-weighted combo members (YAN-384)", () => {
     ).resolves.toBeUndefined();
     // A transient combos read failure keeps the running scheduler.
     expect(vi.getTimerCount()).toBe(1);
+
+    // A settings read failure never throws into fire-and-forget callers.
+    await expect(
+      syncQuotaSnapshotPoller({ getSettings: () => Promise.reject(new Error("db down")) }),
+    ).resolves.toBeUndefined();
+    expect(vi.getTimerCount()).toBe(1);
   });
 });

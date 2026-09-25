@@ -305,7 +305,7 @@ export function getHeadroom(_provider, snapshot, model) {
   }
 }
 
-const SHORT_WINDOW_KINDS = new Set(["requests", "tokens", "input-tokens", "output-tokens"]);
+const SHORT_WINDOW_KINDS = new Set(QUOTA_SNAPSHOT.shortWindowKinds);
 
 /**
  * Epoch ms until which the snapshot shows the model's quota exhausted (0 = not

@@ -149,6 +149,9 @@ export async function getProviderCredentials(
         }
       }
       // After the Antigravity block so its exact resetAt wins for retry timing.
+      // An explicit x-connection-id pin (e.g. video job polling) is account-bound:
+      // skipping it would silently swap accounts, so the pin wins over quota.
+      if (c.id === preferredConnectionId) return true;
       const snapshot = getSnapshot(c.id);
       const quotaUntil =
         snapshot && resolveProviderId(snapshot.provider) === providerId
