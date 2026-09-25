@@ -15,7 +15,6 @@ import {
 import {
   GEMINI_CONFIG,
   ANTIGRAVITY_CONFIG,
-  KIRO_CONFIG,
   CLAUDE_CONFIG,
   CLINE_CONFIG,
   KILOCODE_CONFIG,
@@ -264,11 +263,16 @@ async function refreshOAuthToken(connection) {
       };
     }
 
+    // Runtime refreshers own endpoint selection (e.g. Kiro external_idp host allowlist)
+    // and the per-connection refresh lock; never duplicate them here.
     if (
       provider === "codex" ||
       provider === "grok-cli" ||
       provider === "meta-code" ||
-      provider === "xai"
+      provider === "xai" ||
+      provider === "kiro" ||
+      provider === "kimi" ||
+      provider === "kimi-coding"
     ) {
       return await refreshProviderCredentials(provider, connection, console);
     }
@@ -289,45 +293,6 @@ async function refreshOAuthToken(connection) {
         accessToken: data.access_token,
         expiresIn: data.expires_in,
         refreshToken: data.refresh_token || refreshToken,
-      };
-    }
-
-    if (provider === "kiro") {
-      const psd = connection.providerSpecificData || {};
-      const clientId = psd.clientId || connection.clientId;
-      const clientSecret = psd.clientSecret || connection.clientSecret;
-      const region = psd.region || connection.region;
-      if (clientId && clientSecret) {
-        const endpoint = `https://oidc.${region || "us-east-1"}.amazonaws.com/token`;
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clientId,
-            clientSecret,
-            refreshToken,
-            grantType: "refresh_token",
-          }),
-        });
-        if (!response.ok) return null;
-        const data = await response.json();
-        return {
-          accessToken: data.accessToken,
-          expiresIn: data.expiresIn || 3600,
-          refreshToken: data.refreshToken || refreshToken,
-        };
-      }
-      const response = await fetch(KIRO_CONFIG.socialRefreshUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "User-Agent": "kiro-cli/1.0.0" },
-        body: JSON.stringify({ refreshToken }),
-      });
-      if (!response.ok) return null;
-      const data = await response.json();
-      return {
-        accessToken: data.accessToken,
-        expiresIn: data.expiresIn || 3600,
-        refreshToken: data.refreshToken || refreshToken,
       };
     }
 
