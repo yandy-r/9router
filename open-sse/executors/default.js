@@ -339,7 +339,6 @@ export class DefaultExecutor extends BaseExecutor {
       clinepass: () => this.refreshCline(credentials.refreshToken, proxyOptions),
       kimi: () => this.refreshKimi(credentials, proxyOptions),
       "kimi-coding": () => this.refreshKimi(credentials, proxyOptions),
-      kilocode: () => this.refreshKilocode(credentials.refreshToken, proxyOptions),
       // No refresh grant: refreshToken is the `dca:` device token, re-mint the key.
       "meta-code": () => refreshMetaCodeToken(credentials.refreshToken, log),
     };
@@ -508,11 +507,6 @@ export class DefaultExecutor extends BaseExecutor {
       refreshToken: tokens.refresh_token || refreshToken,
       expiresIn: tokens.expires_in,
     };
-  }
-
-  async refreshKilocode(refreshToken, proxyOptions = null) {
-    // Kilocode uses device code flow, no refresh token support
-    return null;
   }
 }
 
