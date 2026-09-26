@@ -249,7 +249,7 @@ export default function ConsoleLogClient() {
         {!connected && visible.length > 0 ? <span>Reconnecting…</span> : null}
         <span className="ms-auto">
           Tip: turn on request details in{" "}
-          <Link href="/dashboard/profile" className="font-semibold text-coral-ink">
+          <Link href="/dashboard/settings#observability" className="font-semibold text-coral-ink">
             Settings → Observability
           </Link>{" "}
           to see full payloads in Usage.
