@@ -25,11 +25,15 @@ vi.mock("../../open-sse/utils/stream.js", () => ({
   createPassthroughStreamWithLogger: vi.fn(() => new TransformStream()),
 }));
 
-vi.mock("@/lib/usageDb.js", () => ({
-  trackPendingRequest: vi.fn(),
-  appendRequestLog: vi.fn(async () => {}),
-  saveRequestDetail: vi.fn(async () => {}),
-}));
+vi.mock("@/lib/usageDb.js", async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    trackPendingRequest: vi.fn(),
+    appendRequestLog: vi.fn(async () => {}),
+    saveRequestDetail: vi.fn(async () => {}),
+  };
+});
 
 const db = await import("@/lib/localDb.js");
 const { handleChat } = await import("../../src/sse/handlers/chat.js");
@@ -126,5 +130,52 @@ describe("probe API-key gate (merge gate)", () => {
       body: JSON.stringify({ model: "probe-gate", messages: [] }),
     });
     expect((await handleChat(withUrl)).status).toBe(401);
+  });
+});
+
+describe("probe live-routes exclusion", () => {
+  beforeEach(() => {
+    global._fallbackHops = [];
+  });
+
+  it("probe fallback hops never reach the fallback ring; real traffic still records", async () => {
+    const usageDb = await import("@/lib/usageDb.js");
+    const { handleComboChat } = await import("../../open-sse/services/combo.js");
+    const errResponse = (status, message) =>
+      new Response(JSON.stringify({ error: { message } }), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      });
+    const log = { info: () => {}, warn: () => {}, debug: () => {} };
+
+    // Probe-shaped call: onAttempt attached, no onFallback (as chat.js does).
+    const probeAttempts = [];
+    const res = await handleComboChat({
+      body: {},
+      models: ["p/a", "p/b"],
+      handleSingleModel: async (b, m) =>
+        m === "p/a" ? errResponse(429, "Rate limit exceeded") : okUpstream().response,
+      log,
+      comboName: "probe-gate",
+      onAttempt: (a) => probeAttempts.push(a),
+    });
+    expect(res.ok).toBe(true);
+    expect(probeAttempts).toHaveLength(2);
+    expect(global._fallbackHops.filter((h) => h.comboName === "probe-gate")).toHaveLength(0);
+
+    // Real-traffic shape: onFallback recorder attached (as chat.js does).
+    const { recordFallbackHop } = usageDb;
+    global._fallbackHops = [];
+    await handleComboChat({
+      body: {},
+      models: ["p/a", "p/b"],
+      handleSingleModel: async (b, m) =>
+        m === "p/a" ? errResponse(429, "Rate limit exceeded") : okUpstream().response,
+      log,
+      comboName: "probe-gate",
+      onFallback: async ({ model, status }) =>
+        recordFallbackHop({ comboName: "probe-gate", provider: "p", model, status }),
+    });
+    expect(global._fallbackHops.filter((h) => h.comboName === "probe-gate")).toHaveLength(1);
   });
 });
