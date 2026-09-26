@@ -30,6 +30,7 @@ export {
   updateApiKey,
   deleteApiKey,
   validateApiKey,
+  getApiKeyUsage,
   getCombos,
   getComboById,
   getComboByName,

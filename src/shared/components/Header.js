@@ -154,8 +154,8 @@ export const getPageInfo = (pathname) => {
     };
   if (pathname.includes("/endpoint"))
     return {
-      title: "Endpoint",
-      description: "API endpoint configuration",
+      title: "Endpoint & keys",
+      description: "Where your tools connect, and who is allowed in.",
       icon: "api",
       breadcrumbs: [],
     };

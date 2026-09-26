@@ -52,6 +52,9 @@ export {
   validateApiKey,
 } from "./repos/apiKeysRepo.js";
 
+// API key usage (from usageHistory)
+export { getApiKeyUsage } from "./repos/apiKeyUsageRepo.js";
+
 // Combos
 export {
   getCombos,
