@@ -82,9 +82,11 @@ const NON_SETTING_ROW_KEYS = new Set([
 
 /**
  * Settings keys the import accepts: schema defaults, keys already stored, and
- * every stored-setting row of the Settings registry. Env rows (UPPER_CASE or
- * tagged "env") and action rows are excluded. Keys added to the registry or
- * DEFAULT_SETTINGS later flow through with no change here.
+ * every stored-setting row of the Settings registry. UI action/pseudo rows
+ * and UPPER_CASE env pins are excluded; env-tagged rows (e.g. overridable
+ * runtime flags) stay importable via DEFAULT_SETTINGS — the env var still
+ * wins at read time. Keys added to the registry or DEFAULT_SETTINGS later
+ * flow through with no change here.
  * @param {{ defaults: object, stored: object, sections: Array<{rows: Array<{key: string, tags?: string[]}>}> }} sources
  * @returns {Set<string>}
  */
@@ -96,7 +98,10 @@ export function deriveKnownSettingKeys({ defaults, stored, sections }) {
       if (SECRET_SETTING_KEYS.has(row.key)) continue;
       if (MACHINE_LOCAL_SETTING_KEYS.has(row.key)) continue;
       if (READ_ONLY_SETTING_KEYS.has(row.key)) continue;
-      if (/^[A-Z0-9_]+$/.test(row.key) || row.tags?.includes("env")) continue;
+      // UPPER_CASE rows are env pins. Env-tagged rows (overridable runtime
+      // flags) stay importable via DEFAULT_SETTINGS — the env var still wins
+      // at read time.
+      if (/^[A-Z0-9_]+$/.test(row.key)) continue;
       keys.add(row.key);
     }
   }

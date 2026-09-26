@@ -60,13 +60,17 @@ describe("YAN-313 config doc pure logic", () => {
       sections: SETTINGS_SECTIONS,
     });
     // Registry rows flow through: YAN-311/312 keys are importable after rebase.
-    // Env-tagged rows (requestLogsEnabled/translatorEnabled: env-overridable)
-    // are deliberately excluded — the import never overrides an env var.
-    for (const key of ["fallbackStrategy", "tunnelEnabled", "startPage", "uiDensity"]) {
+    // Env-tagged rows (requestLogsEnabled/translatorEnabled) stay importable
+    // via DEFAULT_SETTINGS; resolveFlagSetting keeps the env var winning.
+    for (const key of [
+      "fallbackStrategy",
+      "tunnelEnabled",
+      "startPage",
+      "uiDensity",
+      "requestLogsEnabled",
+      "translatorEnabled",
+    ]) {
       expect(keys.has(key)).toBe(true);
-    }
-    for (const key of ["requestLogsEnabled", "translatorEnabled"]) {
-      expect(keys.has(key)).toBe(false);
     }
     // UI actions, pseudo-rows and env pins are not importable settings.
     for (const key of [
