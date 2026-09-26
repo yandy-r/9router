@@ -10,6 +10,7 @@ import GeneralSection from "./sections/GeneralSection";
 import SecuritySection from "./sections/SecuritySection";
 import SsoSection from "./sections/SsoSection";
 import RoutingSection from "./sections/RoutingSection";
+import ReliabilitySection from "./sections/ReliabilitySection";
 import NetworkSection from "./sections/NetworkSection";
 import TokenSaverSection from "./sections/TokenSaverSection";
 import ProvidersModelsSection from "./sections/ProvidersModelsSection";
@@ -197,6 +198,9 @@ export default function SettingsPage() {
           )}
           {visibleIds.has("routing") && (
             <RoutingSection settings={settings} onSettingsChange={onSettingsChange} />
+          )}
+          {visibleIds.has("reliability") && (
+            <ReliabilitySection settings={settings} onSettingsChange={onSettingsChange} />
           )}
           {visibleIds.has("network") && (
             <NetworkSection settings={settings} onSettingsChange={onSettingsChange} />

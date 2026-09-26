@@ -13,6 +13,7 @@ import { fetchImageAsBase64 } from "../translator/concerns/image.js";
 import { getModelUpstreamId } from "../config/providerModels.js";
 import { getThinkingLevels } from "../providers/thinkingLevels.js";
 import { DEFAULT_RETRY_CONFIG, HTTP_STATUS, resolveRetryEntry } from "../config/runtimeConfig.js";
+import { getActiveReliabilityPolicy, resolveRetryForStatus } from "../config/reliabilityPolicy.js";
 import { dbg } from "../utils/debugLog.js";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { stripCodexUnsupportedPatterns } from "../utils/codexToolSchema.js";
@@ -336,8 +337,12 @@ export class CodexExecutor extends BaseExecutor {
     }
 
     // Retry loop for SSE-level overloaded errors (200 OK body contains event: error)
-    // Reuses 503 retry config — same semantic: upstream temporarily unavailable
-    const retryConfig = { ...DEFAULT_RETRY_CONFIG, ...this.config.retry };
+    // Same semantic as the base executor's 503 path: temporarily unavailable.
+    const retryConfig = {
+      ...DEFAULT_RETRY_CONFIG,
+      ...getActiveReliabilityPolicy().retryPolicy,
+      ...this.config.retry,
+    };
     const { attempts, delayMs } = resolveRetryEntry(retryConfig[503]);
     let attempt = 0;
     while (true) {
