@@ -186,7 +186,7 @@ export default function PoolList({
       <div className="mt-3">
         <Callout variant="info">
           Assign a pool to any connection from its provider page. The global outbound proxy lives in{" "}
-          <Link href="/dashboard/settings">Settings → Network</Link>.
+          <Link href="/dashboard/profile">Settings → Network</Link>.
         </Callout>
       </div>
     </Card>
