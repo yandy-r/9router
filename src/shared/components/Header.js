@@ -112,8 +112,8 @@ export const getPageInfo = (pathname) => {
     };
   if (pathname.includes("/quota"))
     return {
-      title: "Quota Tracker",
-      description: "Track and manage your API quota limits",
+      title: "Quota",
+      description: "How much runway each account has left.",
       icon: "data_usage",
       breadcrumbs: [],
     };
