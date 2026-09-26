@@ -434,6 +434,7 @@ export default function ProviderDetailPage() {
         isFreeNoAuth={authFlags.isFreeNoAuth}
         connections={conn.connections}
         catalogModels={catalogModels}
+        staticModels={staticModels}
         liveError={liveError}
         refreshLive={refreshLive}
         models={models}
