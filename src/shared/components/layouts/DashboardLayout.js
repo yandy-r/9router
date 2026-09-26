@@ -7,6 +7,8 @@ import { useNotificationStore } from "@/store/notificationStore";
 import Sidebar from "../Sidebar";
 import Header from "../Header";
 import Drawer from "../Drawer";
+import CommandPalette from "../CommandPalette";
+import { CommandPaletteProvider } from "../CommandPaletteProvider";
 
 function getToastStyle(type) {
   if (type === "success") {
@@ -82,62 +84,69 @@ export default function DashboardLayout({ children }) {
   const isBasicChat = pathname === "/dashboard/basic-chat";
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-bg text-text">
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-[90] focus:rounded-lg focus:bg-panel focus:px-3 focus:py-2 focus:text-sm focus:shadow-card"
-      >
-        Skip to content
-      </a>
-
-      {/* Toasts — logical positioning (end-4), aria-live polite */}
-      <div
-        aria-live="polite"
-        className="fixed end-4 top-4 z-[80] flex w-[min(92vw,380px)] flex-col gap-2"
-      >
-        {notifications.map((n) => (
-          <Toast key={n.id} notification={n} onDismiss={() => removeNotification(n.id)} />
-        ))}
-      </div>
-
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex">
-        <Sidebar />
-      </div>
-
-      {/* Mobile sidebar drawer */}
-      <Drawer
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        side="start"
-        width="nav"
-        bare
-        title="Navigation"
-        id="mobile-sidebar-drawer"
-      >
-        <Sidebar inDrawer onClose={() => setSidebarOpen(false)} />
-      </Drawer>
-
-      {/* Main content */}
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="relative isolate flex h-full min-w-0 flex-1 flex-col"
-      >
-        <Header key={pathname} onMenuClick={() => setSidebarOpen(true)} sidebarOpen={sidebarOpen} />
-        <div
-          className={`custom-scrollbar flex-1 overflow-y-auto ${isBasicChat ? "flex flex-col overflow-hidden" : "p-4 lg:px-10 lg:pt-7 lg:pb-8"}`}
+    <CommandPaletteProvider>
+      <div className="flex h-screen w-full overflow-hidden bg-bg text-text">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:start-4 focus:top-4 focus:z-[90] focus:rounded-lg focus:bg-panel focus:px-3 focus:py-2 focus:text-sm focus:shadow-card"
         >
-          <div
-            className={
-              isBasicChat ? "flex h-full w-full flex-1 flex-col" : "mx-auto w-full max-w-7xl"
-            }
-          >
-            {children}
-          </div>
+          Skip to content
+        </a>
+
+        {/* Toasts — logical positioning (end-4), aria-live polite */}
+        <div
+          aria-live="polite"
+          className="fixed end-4 top-4 z-[80] flex w-[min(92vw,380px)] flex-col gap-2"
+        >
+          {notifications.map((n) => (
+            <Toast key={n.id} notification={n} onDismiss={() => removeNotification(n.id)} />
+          ))}
         </div>
-      </main>
-    </div>
+
+        {/* Desktop sidebar */}
+        <div className="hidden lg:flex">
+          <Sidebar />
+        </div>
+
+        {/* Mobile sidebar drawer */}
+        <Drawer
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          side="start"
+          width="nav"
+          bare
+          title="Navigation"
+          id="mobile-sidebar-drawer"
+        >
+          <Sidebar inDrawer onClose={() => setSidebarOpen(false)} />
+        </Drawer>
+
+        {/* Main content */}
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="relative isolate flex h-full min-w-0 flex-1 flex-col"
+        >
+          <Header
+            key={pathname}
+            onMenuClick={() => setSidebarOpen(true)}
+            sidebarOpen={sidebarOpen}
+          />
+          <div
+            className={`custom-scrollbar flex-1 overflow-y-auto ${isBasicChat ? "flex flex-col overflow-hidden" : "p-4 lg:px-10 lg:pt-7 lg:pb-8"}`}
+          >
+            <div
+              className={
+                isBasicChat ? "flex h-full w-full flex-1 flex-col" : "mx-auto w-full max-w-7xl"
+              }
+            >
+              {children}
+            </div>
+          </div>
+        </main>
+        <CommandPalette />
+      </div>
+    </CommandPaletteProvider>
   );
 }
 
