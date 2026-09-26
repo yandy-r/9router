@@ -105,6 +105,8 @@ export {
   getChartData,
   getUsageSavings,
   getHomeSummary,
+  getLiveRoutesFeed,
+  recordFallbackHop,
   appendRequestLog,
   getRecentLogs,
 } from "./repos/usageRepo.js";

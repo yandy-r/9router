@@ -5,6 +5,7 @@ import HomeHeader from "./HomeHeader";
 import { EndpointHeroCard } from "./EndpointHero";
 import { KeysSummaryCard } from "./KeysSummary";
 import HomeStats from "./HomeStats";
+import { LiveRoutesCard } from "./LiveRoutes";
 import { RecentRequestsCard } from "./RecentRequests";
 import { QuotaWatchCard } from "./QuotaWatch";
 import { CombosTopCard, comboUsageFromByEndpoint } from "./CombosTop";
@@ -13,6 +14,7 @@ import {
   useHomeChart,
   useHomeCombos,
   useHomeKeys,
+  useHomeLiveRoutes,
   useHomeProviders,
   useHomeQuota,
   useHomeRecentDetails,
@@ -23,10 +25,8 @@ import {
 } from "./useHomeData";
 
 /**
- * Home command center: endpoint hero, keys, 4 stat tiles, recent requests,
- * quota watch, top combos, provider health. The Live-routes slot from
- * Main.dc.html stays out of the markup until YAN-293 lands — recent requests
- * spans the row on its own instead of showing dead UI.
+ * Home command center: endpoint hero, keys, 4 stat tiles, live routes,
+ * recent requests, quota watch, top combos, provider health.
  */
 export default function HomePageClient() {
   const [period, setPeriod] = useState("today");
@@ -52,6 +52,7 @@ export default function HomePageClient() {
   const providers = useHomeProviders(refreshKey);
   const combos = useHomeCombos(refreshKey);
   const quota = useHomeQuota(refreshKey);
+  const liveRoutes = useHomeLiveRoutes(refreshKey);
   const recent = useHomeRecentDetails(refreshKey);
 
   const summaryCombos =
@@ -102,6 +103,12 @@ export default function HomePageClient() {
       </div>
 
       <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-3">
+        <LiveRoutesCard
+          routes={liveRoutes.routes}
+          loading={liveRoutes.loading}
+          error={liveRoutes.error}
+          onRetry={bump}
+        />
         <RecentRequestsCard
           details={recent.details}
           fallback={usage.current?.recentRequests}

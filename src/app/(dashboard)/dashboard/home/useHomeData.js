@@ -1,6 +1,10 @@
 "use client";
 
 import { useHomeResource } from "./useHomeResource";
+import { useHomePollingResource } from "./useHomePollingResource";
+
+/** Live-routes poll cadence: 60s, matching the quota snapshot poller tick. */
+export const LIVE_ROUTES_POLL_MS = 60_000;
 
 /**
  * Usage stats for a Home period (today/7d/30d).
@@ -148,6 +152,21 @@ export function useHomeQuota(refreshKey = 0) {
   const { data, loading, error } = useHomeResource("/api/home/quota", refreshKey);
   const accounts = Array.isArray(data?.accounts) ? data.accounts : [];
   return { accounts, loading, error };
+}
+
+/**
+ * Live routes flow model: polling at the quota cadence, paused when hidden.
+ * @param {number} [refreshKey] bump to re-read
+ * @returns {{ routes: object|null, loading: boolean, error: string|null }}
+ */
+export function useHomeLiveRoutes(refreshKey = 0) {
+  const { data, loading, error } = useHomePollingResource(
+    "/api/home/live-routes",
+    refreshKey,
+    LIVE_ROUTES_POLL_MS,
+  );
+  const valid = data && Array.isArray(data.clients) && Array.isArray(data.providers) ? data : null;
+  return { routes: valid, loading, error };
 }
 
 /**

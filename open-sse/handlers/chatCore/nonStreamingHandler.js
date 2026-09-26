@@ -340,6 +340,7 @@ export async function handleNonStreamingResponse({
     connectionId,
     apiKey,
     endpoint: clientRawRequest?.endpoint,
+    userAgent: clientRawRequest?.headers?.["user-agent"],
     savings,
     comboName,
     silent: true,

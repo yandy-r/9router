@@ -303,6 +303,7 @@ export function buildOnStreamComplete({
       connectionId,
       apiKey,
       endpoint: clientRawRequest?.endpoint,
+      userAgent: clientRawRequest?.headers?.["user-agent"],
       savings,
       comboName,
       label: "STREAM USAGE",
