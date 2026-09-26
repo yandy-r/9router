@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSettings, updateComboStrategies, updateSettings } from "@/lib/localDb";
 import { applyOutboundProxyEnv } from "@/lib/network/outboundProxy";
+import { resolveDensity, resolveFlagSetting, resolveStartPage } from "@/lib/settingsFlags";
 import { resetComboRotation } from "open-sse/services/combo.js";
 import { validateComboStrategySettings } from "open-sse/services/comboStrategy.js";
 import { validateSectionSettings } from "./validateSectionSettings.js";
@@ -25,6 +26,8 @@ function safeSettingsResponse(settings) {
     safeSettings.oidcClientId &&
     oidcClientSecret
   );
+  safeSettings.startPage = resolveStartPage(safeSettings.startPage);
+  safeSettings.uiDensity = resolveDensity(safeSettings.uiDensity);
   return NextResponse.json(safeSettings, { headers: SETTINGS_RESPONSE_HEADERS });
 }
 
@@ -127,6 +130,23 @@ function validSecuritySettings(body) {
       return `Invalid ${key}: must be a boolean`;
     }
   }
+  // YAN-312 runtime flags: stored preference only; the env var wins at read time.
+  for (const key of ["requestLogsEnabled", "translatorEnabled"]) {
+    if (Object.hasOwn(body, key) && typeof body[key] !== "boolean") {
+      return `Invalid ${key}: must be a boolean`;
+    }
+  }
+  if (Object.hasOwn(body, "startPage")) {
+    if (typeof body.startPage !== "string" || resolveStartPage(body.startPage) !== body.startPage) {
+      return "Invalid startPage: must be a dashboard route";
+    }
+  }
+  if (
+    Object.hasOwn(body, "uiDensity") &&
+    (typeof body.uiDensity !== "string" || resolveDensity(body.uiDensity) !== body.uiDensity)
+  ) {
+    return "Invalid uiDensity: must be comfortable or compact";
+  }
   if (Object.hasOwn(body, "authMode") && !AUTH_MODES.has(body.authMode)) {
     return "Invalid authMode";
   }
@@ -224,11 +244,13 @@ export async function GET() {
       oidcClientSecret
     );
 
-    const enableRequestLogs = process.env.ENABLE_REQUEST_LOGS === "true";
-    const enableTranslator = process.env.ENABLE_TRANSLATOR === "true";
+    const requestLogs = resolveFlagSetting(
+      "ENABLE_REQUEST_LOGS",
+      settings.requestLogsEnabled,
+      false,
+    );
+    const translator = resolveFlagSetting("ENABLE_TRANSLATOR", settings.translatorEnabled, false);
     // YAN-310 read-only env values: surfaced, never writable (PATCH rejects them).
-    // When ENABLE_REQUEST_LOGS is set at all, requestDetailsRepo ignores the
-    // stored enableObservability flag — the UI shows a notice instead of a dead toggle.
     const { CLAUDE_CLI_VERSION } = await import("open-sse/config/claudeCliFingerprint.js");
     const { CODEX_CLI_VERSION } = await import("open-sse/config/codexCliFingerprint.js");
     const { ZED_CLIENT_VERSION } = await import("open-sse/config/zedClientFingerprint.js");
@@ -236,12 +258,16 @@ export async function GET() {
     return NextResponse.json(
       {
         ...safeSettings,
-        enableRequestLogs,
-        enableTranslator,
+        enableRequestLogs: requestLogs.value,
+        enableTranslator: translator.value,
+        requestLogsOverridden: requestLogs.overridden,
+        translatorOverridden: translator.overridden,
+        startPage: resolveStartPage(settings.startPage),
+        uiDensity: resolveDensity(settings.uiDensity),
         hasPassword: !!password,
         searxngUrl: process.env.SEARXNG_URL?.trim() || "",
         headroomUrlFromEnv: !!process.env.HEADROOM_URL?.trim(),
-        requestLogEnvOverride: process.env.ENABLE_REQUEST_LOGS !== undefined,
+        requestLogEnvOverride: requestLogs.overridden,
         CLAUDE_CLI_VERSION,
         CODEX_CLI_VERSION,
         ZED_CLIENT_VERSION,
@@ -334,6 +360,15 @@ export async function PATCH(request) {
       Object.hasOwn(body, "outboundNoProxy")
     ) {
       applyOutboundProxyEnv(settings);
+    }
+
+    // Refresh the request-logger runtime gate (env var still wins when set).
+    if (Object.hasOwn(body, "requestLogsEnabled")) {
+      import("open-sse/utils/requestLogger.js")
+        .then(({ notifyRequestLogsEnabled }) =>
+          notifyRequestLogsEnabled(settings.requestLogsEnabled === true),
+        )
+        .catch((error) => console.warn("[RequestLogger] settings update failed:", error.message));
     }
 
     // Invalidate combo rotation state when strategy settings change

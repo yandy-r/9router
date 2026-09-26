@@ -20,6 +20,7 @@ describe("settings registry", () => {
       "logs",
       "pricing",
       "data",
+      "environment",
       "danger",
     ]);
     for (const section of SETTINGS_SECTIONS) {
@@ -78,5 +79,7 @@ describe("toCommandItems", () => {
       expect(item.keywords).toContain(item.label.split(" — ")[1]);
     }
     expect(items.some((i) => i.href === "/dashboard/settings#pricing")).toBe(true);
+    expect(items.some((i) => i.href === "/dashboard/settings#logs")).toBe(true);
+    expect(items.some((i) => i.href === "/dashboard/settings#environment")).toBe(true);
   });
 });
