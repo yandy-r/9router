@@ -5,6 +5,8 @@ import {
   resolvePlaygroundModel,
   buildPlaygroundBody,
   buildSttFormData,
+  createObjectUrlRegistry,
+  sttFormFields,
   playgroundHeaders,
   playgroundPreviews,
 } from "@/app/(dashboard)/dashboard/media-providers/components/playgroundLogic.js";
@@ -143,6 +145,103 @@ describe("buildSttFormData", () => {
     expect(fd.get("temperature")).toBe("0.1");
     expect(fd.get("response_format")).toBe("json");
     expect(fd.get("prompt")).toBe("ctx");
+  });
+});
+
+describe("sttFormFields", () => {
+  it("derives shared multipart fields and matches FormData", () => {
+    const file = new Blob(["audio"], { type: "audio/mpeg" });
+    file.name = "voice.mp3";
+    const fields = {
+      model: "m/s",
+      input: "ctx",
+      sttFile: file,
+      sttLanguage: "en",
+      sttTemp: "0.1",
+      sttFormat: "json",
+    };
+    expect(sttFormFields(fields)).toEqual({
+      fileName: "voice.mp3",
+      model: "m/s",
+      language: "en",
+      temperature: "0.1",
+      responseFormat: "json",
+      prompt: "ctx",
+    });
+    const fd = buildSttFormData(fields);
+    expect(fd.get("model")).toBe("m/s");
+    expect(fd.get("language")).toBe("en");
+    expect(fd.get("temperature")).toBe("0.1");
+    expect(fd.get("response_format")).toBe("json");
+    expect(fd.get("prompt")).toBe("ctx");
+  });
+
+  it("falls back to audio.mp3 when the file has no name", () => {
+    const fields = { model: "m/s", input: "", sttFile: new Blob(["x"]) };
+    expect(sttFormFields(fields).fileName).toBe("audio.mp3");
+  });
+
+  it("preview and run share the same -F field set", async () => {
+    const { buildPlaygroundCurl } = await import("@/shared/constants/mediaStatus.js");
+    const file = new Blob(["audio"], { type: "audio/mpeg" });
+    file.name = "voice.mp3";
+    const fields = {
+      model: "m/s",
+      input: "ctx",
+      sttFile: file,
+      sttLanguage: "en",
+      sttTemp: "0.1",
+      sttFormat: "json",
+    };
+    const shared = sttFormFields(fields);
+    const curl = buildPlaygroundCurl({
+      method: "POST",
+      url: "http://x/v1/audio/transcriptions",
+      form: shared,
+    });
+    const fd = buildSttFormData(fields);
+    for (const [key, value] of [
+      ["file", `@${shared.fileName}`],
+      ["model", shared.model],
+      ["language", shared.language],
+      ["temperature", shared.temperature],
+      ["response_format", shared.responseFormat],
+      ["prompt", shared.prompt],
+    ]) {
+      expect(curl).toContain(`-F "${key}=${value}"`);
+      // FormData file entry carries the blob; scalar entries match exactly.
+      if (key !== "file") expect(fd.get(key)).toBe(value);
+    }
+    expect(fd.get("file")).toBeInstanceOf(Blob);
+  });
+});
+
+describe("createObjectUrlRegistry", () => {
+  it("revokes replaced urls and revokes live urls on revokeAll", () => {
+    const revoked = [];
+    const ref = { current: { image: "", audio: "" } };
+    const registry = createObjectUrlRegistry(ref, (url) => revoked.push(url));
+
+    registry.setImage("blob:image-1");
+    registry.setAudio("blob:audio-1");
+    // Replacing revokes the previous live URL exactly once.
+    registry.setImage("blob:image-2");
+    expect(revoked).toEqual(["blob:image-1"]);
+
+    // Unmount cleanup revokes the currently live URLs even though the
+    // caller holds no fresh state — the ref is the source of truth.
+    registry.revokeAll();
+    expect(revoked).toEqual(["blob:image-1", "blob:image-2", "blob:audio-1"]);
+    expect(ref.current).toEqual({ image: "", audio: "" });
+  });
+
+  it("clear revokes live urls without throwing on revoke failures", () => {
+    const ref = { current: { image: "blob:i", audio: "blob:a" } };
+    const registry = createObjectUrlRegistry(ref, () => {
+      throw new Error("revoke failed");
+    });
+    expect(() => registry.clear()).not.toThrow();
+    expect(ref.current).toEqual({ image: "", audio: "" });
   });
 });
 

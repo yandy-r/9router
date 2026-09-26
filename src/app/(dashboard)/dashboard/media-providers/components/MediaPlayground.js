@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { Button, Card, Field, SegmentedControl, Select, Callout } from "@/shared/components";
 import { MEDIA_PROVIDER_KINDS, resolveProviderId } from "@/shared/constants/providers";
@@ -17,6 +17,8 @@ import {
   resolvePlaygroundModel,
   buildPlaygroundBody,
   buildSttFormData,
+  createObjectUrlRegistry,
+  sttFormFields,
   playgroundHeaders,
   playgroundPreviews,
 } from "./playgroundLogic";
@@ -59,8 +61,28 @@ export function MediaPlayground({ kind, connections = [], className = "" }) {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
-  const [imageUrl, setImageUrl] = useState("");
-  const [audioUrl, setAudioUrl] = useState("");
+  const [, forcePreviewRender] = useState(0);
+
+  // Ref-tracked object URLs: refs always hold the live URLs, so the unmount
+  // cleanup revokes the active blobs even though state is stale in closures.
+  // The registry mutates the ref directly; forcePreviewRender re-renders so
+  // the preview reads the live URLs. The registry is memoized so the unmount
+  // effect below runs exactly once.
+  const objectUrlsRef = useRef({ image: "", audio: "" });
+  const [objectUrls] = useState(() => createObjectUrlRegistry(objectUrlsRef));
+  const rerenderPreviews = () => forcePreviewRender((n) => n + 1);
+  const setTrackedImageUrl = (next) => {
+    objectUrls.setImage(next);
+    rerenderPreviews();
+  };
+  const setTrackedAudioUrl = (next) => {
+    objectUrls.setAudio(next);
+    rerenderPreviews();
+  };
+  const clearTrackedUrls = () => {
+    objectUrls.clear();
+    rerenderPreviews();
+  };
   const [latency, setLatency] = useState(null);
 
   const { copied: copiedCurl, copy: copyCurl } = useCopyToClipboard();
@@ -81,40 +103,14 @@ export function MediaPlayground({ kind, connections = [], className = "" }) {
   useEffect(() => {
     setInput(defaults.defaultInput);
     setResult(null);
-    setImageUrl((current) => {
-      if (current) {
-        try {
-          URL.revokeObjectURL(current);
-        } catch {}
-      }
-      return "";
-    });
-    setAudioUrl((current) => {
-      if (current) {
-        try {
-          URL.revokeObjectURL(current);
-        } catch {}
-      }
-      return "";
-    });
+    clearTrackedUrls();
     setError("");
     setLatency(null);
   }, [kind]);
 
-  // Revoke object URLs on unmount to avoid leaking blob memory.
-  useEffect(() => {
-    const urls = { imageUrl, audioUrl };
-    return () => {
-      for (const url of Object.values(urls)) {
-        if (url) {
-          try {
-            URL.revokeObjectURL(url);
-          } catch {}
-        }
-      }
-    };
-    // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup on unmount only
-  }, []);
+  // Revoke the live object URLs on unmount via the ref (state is stale here).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup on unmount only
+  useEffect(() => objectUrls.revokeAll, []);
 
   // Compute model choices for this kind
   const availableModels = playgroundModelOptions(kind);
@@ -150,14 +146,16 @@ export function MediaPlayground({ kind, connections = [], className = "" }) {
   };
   const requestBody = buildPlaygroundBody(fields);
   const apiEndpointUrl = `${localOrigin}${defaults.path}`;
+  // Preview never embeds the live key (always YOUR_KEY); the live key only
+  // travels in the fetch Authorization header at run time.
   const curlSnippet = buildPlaygroundCurl({
     method: "POST",
     url: apiEndpointUrl,
-    apiKey,
     pinnedConnectionId: connectionId,
     body: requestBody,
     isBinary: kind === "image" || kind === "tts",
     binaryFilename: kind === "image" ? "image.png" : "speech.mp3",
+    ...(kind === "stt" ? { form: sttFormFields({ ...fields, sttFile }) } : {}),
   });
 
   const handleRun = async () => {
@@ -169,18 +167,7 @@ export function MediaPlayground({ kind, connections = [], className = "" }) {
     setRunning(true);
     setError("");
     setResult(null);
-    if (imageUrl) {
-      try {
-        URL.revokeObjectURL(imageUrl);
-      } catch {}
-      setImageUrl("");
-    }
-    if (audioUrl) {
-      try {
-        URL.revokeObjectURL(audioUrl);
-      } catch {}
-      setAudioUrl("");
-    }
+    clearTrackedUrls();
     const start = Date.now();
     try {
       let res;
@@ -208,18 +195,18 @@ export function MediaPlayground({ kind, connections = [], className = "" }) {
 
       if (ctype.startsWith("image/")) {
         const blob = await res.blob();
-        setImageUrl(URL.createObjectURL(blob));
+        setTrackedImageUrl(URL.createObjectURL(blob));
         setResult({ type: "binary", size: blob.size });
       } else if (ctype.startsWith("audio/") || ctype === "application/octet-stream") {
         const blob = await res.blob();
-        setAudioUrl(URL.createObjectURL(blob));
+        setTrackedAudioUrl(URL.createObjectURL(blob));
         setResult({ type: "binary", size: blob.size });
       } else {
         const data = await res.json();
         setResult(data);
         const previews = playgroundPreviews(data);
-        if (previews.imageUrl) setImageUrl(previews.imageUrl);
-        if (previews.audioUrl) setAudioUrl(previews.audioUrl);
+        if (previews.imageUrl) setTrackedImageUrl(previews.imageUrl);
+        if (previews.audioUrl) setTrackedAudioUrl(previews.audioUrl);
       }
     } catch (e) {
       setError(e.message || "Network error");
@@ -350,10 +337,10 @@ export function MediaPlayground({ kind, connections = [], className = "" }) {
 
           {error && <Callout variant="err">{error}</Callout>}
 
-          {/* Result view */}
+          {/* Result view reads live URLs from the ref-backed registry */}
           <PlaygroundResult
-            imageUrl={imageUrl}
-            audioUrl={audioUrl}
+            imageUrl={objectUrlsRef.current.image}
+            audioUrl={objectUrlsRef.current.audio}
             imageAlt={`Generated output for ${input}`}
             result={result}
             latency={latency}

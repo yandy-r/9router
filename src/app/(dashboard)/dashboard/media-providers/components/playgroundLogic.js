@@ -140,19 +140,38 @@ export function buildPlaygroundBody(fields) {
 }
 
 /**
+ * Build the multipart field list for an STT playground run, shared by the
+ * FormData builder and the truthful -F cURL preview.
+ * @param {object} fields
+ * @returns {{ fileName: string, model: string, language: string, temperature: string, responseFormat: string, prompt: string }}
+ */
+export function sttFormFields(fields) {
+  const { model, input, sttFile, sttLanguage, sttTemp, sttFormat } = fields;
+  return {
+    fileName: sttFile?.name || "audio.mp3",
+    model: model || "",
+    language: sttLanguage || "",
+    temperature: sttTemp || "",
+    responseFormat: sttFormat || "",
+    prompt: (input || "").trim(),
+  };
+}
+
+/**
  * Build multipart form data for an STT playground run.
  * @param {object} fields
  * @returns {FormData}
  */
 export function buildSttFormData(fields) {
-  const { model, input, sttFile, sttLanguage, sttTemp, sttFormat } = fields;
+  const { sttFile } = fields;
+  const { model, language, temperature, responseFormat, prompt } = sttFormFields(fields);
   const fd = new FormData();
   fd.append("file", sttFile);
   fd.append("model", model);
-  if (sttLanguage) fd.append("language", sttLanguage);
-  if (sttTemp) fd.append("temperature", sttTemp);
-  if (sttFormat) fd.append("response_format", sttFormat);
-  if ((input || "").trim()) fd.append("prompt", input.trim());
+  if (language) fd.append("language", language);
+  if (temperature) fd.append("temperature", temperature);
+  if (responseFormat) fd.append("response_format", responseFormat);
+  if (prompt) fd.append("prompt", prompt);
   return fd;
 }
 
@@ -168,6 +187,43 @@ export function playgroundHeaders(apiKey, connectionId, json = true) {
   if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
   if (connectionId) headers["x-connection-id"] = connectionId;
   return headers;
+}
+
+/**
+ * Ref-tracked object-URL registry for the playground (YAN-305 merge-gate #4).
+ * A ref object holds the live blob URLs so unmount/kind-switch cleanup revokes
+ * the active URLs even though React state is stale inside cleanup closures.
+ * Pure and unit-testable: pass any { current } holder plus a revoke function.
+ */
+export function createObjectUrlRegistry(ref, revoke = (url) => URL.revokeObjectURL(url)) {
+  const current = () => ref.current || { image: "", audio: "" };
+  const set = (key, next) => {
+    const prev = current()[key];
+    if (prev && prev !== next) {
+      try {
+        revoke(prev);
+      } catch {}
+    }
+    ref.current = { ...current(), [key]: next };
+  };
+  return {
+    setImage: (next) => set("image", next),
+    setAudio: (next) => set("audio", next),
+    clear: () => {
+      set("image", "");
+      set("audio", "");
+    },
+    revokeAll: () => {
+      for (const url of Object.values(current())) {
+        if (url) {
+          try {
+            revoke(url);
+          } catch {}
+        }
+      }
+      ref.current = { image: "", audio: "" };
+    },
+  };
 }
 
 /**

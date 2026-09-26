@@ -14,7 +14,7 @@ import {
 } from "@/shared/components";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getProviderBrand } from "@/shared/constants/providerBrands";
-import { getMediaProviderStatus } from "@/shared/constants/mediaStatus";
+import { getMediaProviderStatus, resolveToggleAction } from "@/shared/constants/mediaStatus";
 
 /**
  * Media provider card with Signal styling: provider tile, name, status pill,
@@ -36,11 +36,20 @@ export function MediaProviderCard({ provider, kind, connections, isCustom = fals
   const allDisabled = total > 0 && providerConns.every((c) => c.isActive === false);
 
   const status = getMediaProviderStatus({ isNoAuth, connections: providerConns });
+  const toggleLabel = allDisabled ? `Enable ${provider.name}` : `Disable ${provider.name}`;
 
-  const handleToggleClick = (e) => {
-    e.preventDefault();
+  // Single semantic handler: the Toggle switch owns the click. The wrapper
+  // div only stops propagation so the card link does not navigate; keyboard
+  // and click activation both flow through the single Toggle onChange below.
+  // resolveToggleAction guarantees exactly one onToggle call per activation.
+  // (Same propagation-guard pattern as dashboard/providers ProviderCard.)
+  const handleToggle = (nextChecked) => {
+    const action = resolveToggleAction({ providerId: provider.id, allDisabled, nextChecked });
+    if (action) onToggle?.(action.providerId, action.newActive);
+  };
+
+  const handleToggleWrapperClick = (e) => {
     e.stopPropagation();
-    onToggle?.(provider.id, allDisabled);
   };
 
   return (
@@ -79,17 +88,17 @@ export function MediaProviderCard({ provider, kind, connections, isCustom = fals
             </div>
           </div>
           {total > 0 && (
-            <span
-              onClick={handleToggleClick}
+            <div
+              onClick={handleToggleWrapperClick}
               className="shrink-0 rounded-lg p-1 transition-opacity focus-visible:shadow-focus sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100"
             >
               <Toggle
                 size="sm"
                 checked={!allDisabled}
-                onChange={() => onToggle?.(provider.id, allDisabled)}
-                aria-label={allDisabled ? `Enable ${provider.name}` : `Disable ${provider.name}`}
+                onChange={handleToggle}
+                aria-label={toggleLabel}
               />
-            </span>
+            </div>
           )}
         </div>
         {/* Supported models in mono — parity from Media.dc.html */}
