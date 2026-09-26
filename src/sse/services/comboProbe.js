@@ -143,7 +143,10 @@ export async function runComboProbe({ comboId }) {
   };
 
   const t0 = Date.now();
-  const response = await handleChat(request, null, { onAttempt });
+  // Dashboard auth already enforced at the API route; the probe carries no
+  // client API key, so the engine gate is skipped via an explicit in-process
+  // option (unreachable from request content).
+  const response = await handleChat(request, null, { onAttempt, skipApiKeyCheck: true });
   const totalMs = Date.now() - t0;
 
   if (!response?.ok) {
