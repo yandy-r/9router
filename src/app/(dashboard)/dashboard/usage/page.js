@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CardSkeleton, EmptyState, SegmentedControl, Tabs } from "@/shared/components";
+import { Card, CardSkeleton, EmptyState, SegmentedControl, Tabs } from "@/shared/components";
 import useUsageStats from "./lib/useUsageStats";
 import useProviders from "./lib/useProviders";
 import UsageStatsCards from "./components/UsageStatsCards";
