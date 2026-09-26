@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import PropTypes from "prop-types";
 import {
   DndContext,
@@ -23,7 +23,14 @@ import IconButton from "@/shared/components/IconButton";
 import Input from "@/shared/components/Input";
 import ModelSelectModal from "@/shared/components/ModelSelectModal";
 import { ConfirmDialog } from "@/shared/components/Modal";
-import { roleLabel, weightShare, parseWeight, validateComboName } from "./comboBuilder";
+import {
+  roleLabel,
+  weightShare,
+  parseWeight,
+  validateComboName,
+  assignStepIds,
+  pruneKeys,
+} from "./comboBuilder";
 import StrategyPicker from "./StrategyPicker";
 import RouteStep from "./RouteStep";
 
@@ -61,6 +68,7 @@ export default function ComboEditor({
   const [drafts, setDrafts] = useState({});
   const [weightErrors, setWeightErrors] = useState({});
   const [announcement, setAnnouncement] = useState("");
+  const prevStepsRef = useRef([]);
 
   const models = combo.models || [];
   const isWeighted = strategy === "weighted";
@@ -69,13 +77,15 @@ export default function ComboEditor({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  const items = models.map((m) => ({ uid: m, model: m }));
+  const steps = assignStepIds(models, prevStepsRef.current);
+  prevStepsRef.current = steps;
+  const modelById = (id) => steps.find((s) => s.id === id)?.model;
   const shares = weightShare(
-    models.map((m) => {
-      const parsed = parseWeight(drafts[m]);
-      return parsed.ok ? parsed.value : (weights[m] ?? 1);
+    steps.map((s) => {
+      const parsed = parseWeight(drafts[s.id]);
+      return parsed.ok ? parsed.value : (weights[s.model] ?? 1);
     }),
-    models.map((m) => headroom[m]),
+    steps.map((s) => headroom[s.model]),
   );
 
   const commitRename = () => {
@@ -92,40 +102,43 @@ export default function ComboEditor({
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = items.findIndex((s) => s.uid === active.id);
-    const newIndex = items.findIndex((s) => s.uid === over.id);
+    const oldIndex = steps.findIndex((s) => s.id === active.id);
+    const newIndex = steps.findIndex((s) => s.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const next = arrayMove(models, oldIndex, newIndex);
+    const moved = steps[oldIndex];
+    const next = arrayMove(steps, oldIndex, newIndex).map((s) => s.model);
+    prevStepsRef.current = arrayMove(steps, oldIndex, newIndex);
     onModelsChange?.(next);
-    setAnnouncement(`Moved ${models[oldIndex]} to position ${newIndex + 1} of ${models.length}`);
+    setAnnouncement(`Moved ${moved.model} to position ${newIndex + 1} of ${steps.length}`);
   };
 
-  const saveWeight = (model) => {
-    if (!(model in drafts)) return;
+  const saveWeight = (stepId) => {
+    if (!(stepId in drafts)) return;
+    const model = modelById(stepId);
     const clearDraft = () =>
       setDrafts((prev) => {
-        const { [model]: _dropped, ...rest } = prev;
+        const { [stepId]: _dropped, ...rest } = prev;
         return rest;
       });
-    const parsed = parseWeight(drafts[model]);
+    const parsed = parseWeight(drafts[stepId]);
     if (!parsed.ok) {
-      setWeightErrors((prev) => ({ ...prev, [model]: parsed.error }));
+      setWeightErrors((prev) => ({ ...prev, [stepId]: parsed.error }));
       return;
     }
-    if (parsed.value === (weights[model] ?? 1)) {
+    if (model !== undefined && parsed.value === (weights[model] ?? 1)) {
       clearDraft();
       setWeightErrors((prev) => {
-        const { [model]: _dropped, ...rest } = prev;
+        const { [stepId]: _dropped, ...rest } = prev;
         return rest;
       });
       return;
     }
     setWeightErrors((prev) => {
-      const { [model]: _dropped, ...rest } = prev;
+      const { [stepId]: _dropped, ...rest } = prev;
       return rest;
     });
     clearDraft();
-    onWeightSave?.(model, parsed.value);
+    if (model !== undefined) onWeightSave?.(model, parsed.value);
   };
 
   return (
@@ -241,9 +254,9 @@ export default function ComboEditor({
             onDragEnd={handleDragEnd}
             modifiers={[restrictToVerticalAxis, restrictToParentElement]}
           >
-            <SortableContext items={items.map((s) => s.uid)} strategy={verticalListSortingStrategy}>
+            <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
               <ol className="m-0 list-none p-0">
-                {items.map(({ uid, model }, index) => {
+                {steps.map(({ id, model }, index) => {
                   const providerId = model.includes("/")
                     ? model.slice(0, model.indexOf("/"))
                     : model;
@@ -253,8 +266,8 @@ export default function ComboEditor({
                   };
                   return (
                     <RouteStep
-                      key={uid}
-                      uid={uid}
+                      key={id}
+                      uid={id}
                       index={index}
                       model={model}
                       providerLabel={providerLabelById?.[providerId] || providerId}
@@ -262,18 +275,23 @@ export default function ComboEditor({
                       health={health.label}
                       healthVariant={health.variant}
                       showWeight={isWeighted}
-                      weight={drafts[model] ?? String(weights[model] ?? 1)}
+                      weight={drafts[id] ?? String(weights[model] ?? 1)}
                       share={shares[index] ?? 0}
-                      weightError={weightErrors[model]}
+                      weightError={weightErrors[id]}
                       onWeightChange={(v) => {
-                        setDrafts((prev) => ({ ...prev, [model]: v }));
+                        setDrafts((prev) => ({ ...prev, [id]: v }));
                         setWeightErrors((prev) => {
-                          const { [model]: _dropped, ...rest } = prev;
+                          const { [id]: _dropped, ...rest } = prev;
                           return rest;
                         });
                       }}
-                      onWeightBlur={() => saveWeight(model)}
-                      onRemove={() => onModelsChange?.(models.filter((_, i) => i !== index))}
+                      onWeightBlur={() => saveWeight(id)}
+                      onRemove={() => {
+                        const valid = new Set(steps.map((s) => s.id).filter((x) => x !== id));
+                        setDrafts((prev) => pruneKeys(prev, valid));
+                        setWeightErrors((prev) => pruneKeys(prev, valid));
+                        onModelsChange?.(models.filter((_, i) => i !== index));
+                      }}
                     />
                   );
                 })}
@@ -314,9 +332,21 @@ export default function ComboEditor({
                 Reads every panel answer and returns the best one
               </p>
             </div>
-            <Button size="sm" variant="secondary" onClick={() => setShowJudgeSelect(true)}>
-              Change
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {judgeModel && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onJudgeChange?.("")}
+                  aria-label="Reset judge to Auto"
+                >
+                  Reset to Auto
+                </Button>
+              )}
+              <Button size="sm" variant="secondary" onClick={() => setShowJudgeSelect(true)}>
+                Change
+              </Button>
+            </div>
           </div>
         )}
       </div>

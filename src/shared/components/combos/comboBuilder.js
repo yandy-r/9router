@@ -147,6 +147,53 @@ export function isDirty(state) {
 }
 
 /**
+ * Stable per-instance step identities for the route track.
+ * The API allows duplicate models, so the model string alone cannot key
+ * React rows, dnd-kit sortables, or weight drafts. Reuses previous ids per
+ * model (queue order) so reorder/add/remove keep every surviving instance's
+ * id; fresh ids are `step-N` skipping taken ones. Pure and fixpoint-stable:
+ * `assignStepIds(models, assignStepIds(models, prev))` deep-equals the
+ * second call, so render-time derivation is StrictMode-safe.
+ * @param {string[]} models Current ordered model strings.
+ * @param {{ id: string, model: string }[]} [prevSteps] Previous steps.
+ * @returns {{ id: string, model: string }[]}
+ */
+export function assignStepIds(models, prevSteps = []) {
+  const queues = new Map();
+  for (const s of prevSteps || []) {
+    if (!s || typeof s.id !== "string" || typeof s.model !== "string") continue;
+    if (!queues.has(s.model)) queues.set(s.model, []);
+    queues.get(s.model).push(s);
+  }
+  const taken = new Set();
+  for (const s of prevSteps || []) if (s && typeof s.id === "string") taken.add(s.id);
+  let fresh = 0;
+  return (models || []).map((model) => {
+    const q = queues.get(model);
+    if (q && q.length > 0) return q.shift();
+    let id;
+    do {
+      fresh += 1;
+      id = `step-${fresh}`;
+    } while (taken.has(id));
+    taken.add(id);
+    return { id, model };
+  });
+}
+
+/**
+ * Drop keys not in `validIds` (weight drafts/errors for removed steps).
+ * @param {Record<string, unknown>} obj
+ * @param {Set<string> | string[]} validIds
+ */
+export function pruneKeys(obj, validIds) {
+  const valid = validIds instanceof Set ? validIds : new Set(validIds || []);
+  const next = {};
+  for (const [k, v] of Object.entries(obj || {})) if (valid.has(k)) next[k] = v;
+  return next;
+}
+
+/**
  * Sum of usage-today requests for a combo name and/or its member models from
  * `/api/usage/stats?period=today` byModel keys ("model (provider)").
  */

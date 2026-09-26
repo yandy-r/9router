@@ -11,6 +11,8 @@ import {
   applyEditorAction,
   isDirty,
   usageTodayForCombo,
+  assignStepIds,
+  pruneKeys,
 } from "../../src/shared/components/combos/comboBuilder.js";
 
 describe("roleLabel", () => {
@@ -244,5 +246,51 @@ describe("usageTodayForCombo", () => {
     expect(usageTodayForCombo(combo, null)).toBe(0);
     expect(usageTodayForCombo(combo, {})).toBe(0);
     expect(usageTodayForCombo({ name: "nope", models: [] }, byModel)).toBe(0);
+  });
+});
+
+describe("assignStepIds", () => {
+  it("assigns fresh ids on first load", () => {
+    const steps = assignStepIds(["a", "b"]);
+    expect(steps).toEqual([
+      { id: "step-1", model: "a" },
+      { id: "step-2", model: "b" },
+    ]);
+  });
+
+  it("gives duplicate models distinct ids", () => {
+    const steps = assignStepIds(["m", "m", "m"]);
+    expect(new Set(steps.map((s) => s.id)).size).toBe(3);
+    expect(steps.map((s) => s.model)).toEqual(["m", "m", "m"]);
+  });
+
+  it("preserves per-instance identity across reorder", () => {
+    const first = assignStepIds(["a", "b", "b"]);
+    const [idA, idB1, idB2] = first.map((s) => s.id);
+    const reordered = assignStepIds(["b", "a", "b"], first);
+    expect(reordered.map((s) => s.id)).toEqual([idB1, idA, idB2]);
+  });
+
+  it("drops removed ids and mints fresh ones for added models", () => {
+    const first = assignStepIds(["a", "b"]);
+    const next = assignStepIds(["a", "c"], first);
+    expect(next.map((s) => s.id)).toEqual(["step-1", "step-3"]);
+  });
+
+  it("is fixpoint-stable (StrictMode double render keeps ids)", () => {
+    const once = assignStepIds(["x", "x"], []);
+    const twice = assignStepIds(["x", "x"], once);
+    expect(twice).toEqual(once);
+  });
+});
+
+describe("pruneKeys", () => {
+  it("keeps only valid ids", () => {
+    expect(pruneKeys({ a: "1", b: "2", c: "3" }, ["a", "c"])).toEqual({ a: "1", c: "3" });
+  });
+
+  it("accepts a Set and tolerates missing input", () => {
+    expect(pruneKeys({ a: "1" }, new Set(["a"]))).toEqual({ a: "1" });
+    expect(pruneKeys(null, [])).toEqual({});
   });
 });
