@@ -131,21 +131,12 @@ export default function EndpointPageClient({ machineId: _machineId }) {
           installed: tunnel.tsInstalled,
         }}
         onEnableTunnel={() => guardTunnel(() => tunnel.setShowEnableTunnelModal(true))}
-        onStopTunnel={() => {
-          tunnel.setTunnelLoading(false);
-          tunnel.setTunnelProgress("");
-          tunnel.setTunnelChecking(false);
-        }}
+        onStopTunnel={tunnel.setTunnelLoading}
         onDisableTunnel={() => tunnel.setShowDisableTunnelModal(true)}
         onConnectTailscale={() => guardTailscale(tunnel.handleOpenTsModal)}
         onDisableTailscale={() => tunnel.setShowDisableTsModal(true)}
         onInstallTailscale={tunnel.handleOpenTsModal}
-        onStopTailscale={() => {
-          tunnel.setTsLoading(false);
-          tunnel.setTsConnecting(false);
-          tunnel.setTsProgress("");
-          tunnel.clearUserAuth();
-        }}
+        onStopTailscale={tunnel.setTsLoading}
       />
 
       {/* Pre-enable security gate (same warning as v1). */}
