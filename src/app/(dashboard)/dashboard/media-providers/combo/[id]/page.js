@@ -3,9 +3,19 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, notFound, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card, Button, Input, Toggle, ModelSelectModal } from "@/shared/components";
+import {
+  Card,
+  Button,
+  Input,
+  Toggle,
+  ModelSelectModal,
+  ConfirmDialog,
+  Callout,
+} from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
+import { previewAuthHeader } from "@/shared/constants/previewAuth";
+import { createObjectUrlRegistry } from "@/shared/constants/playgroundUrls";
 
 // Parse "providerId/model" or just "providerId" → { providerId, model }
 function parseModelEntry(entry) {
@@ -29,6 +39,9 @@ const EXAMPLE_PATHS = {
   webFetch: "/v1/web/fetch",
   image: "/v1/images/generations",
   tts: "/v1/audio/speech",
+  embedding: "/v1/embeddings",
+  video: "/v1/videos/generations",
+  stt: "/v1/audio/transcriptions",
 };
 
 const EXAMPLE_BODIES = {
@@ -41,6 +54,9 @@ const EXAMPLE_BODIES = {
   webFetch: (n) => ({ model: n, url: "https://example.com", format: "markdown" }),
   image: (n) => ({ model: n, prompt: "A cute cat playing piano", n: 1, size: "1024x1024" }),
   tts: (n) => ({ model: n, input: "Hello, this is a test.", voice: "alloy" }),
+  embedding: (n) => ({ model: n, input: "The quick brown fox jumps over the lazy dog" }),
+  video: (n) => ({ model: n, prompt: "A serene lake at sunset" }),
+  stt: (n) => ({ model: n, prompt: "Transcribe this audio" }),
 };
 
 // Map combo.kind → listing route to go back to
@@ -72,6 +88,17 @@ export default function ComboDetailPage() {
   const [connections, setConnections] = useState([]);
   const [modelAliases, setModelAliases] = useState({});
   const [origin, setOrigin] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  // Ref-tracked blob URLs: the unmount cleanup revokes the live URLs even
+  // though React state is stale inside cleanup closures.
+  const testUrlsRef = useRef({ image: "", audio: "" });
+  const [testUrls] = useState(() => createObjectUrlRegistry(testUrlsRef));
+
+  // Revoke live test blob URLs on unmount via the ref (state is stale here).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup on unmount only
+  useEffect(() => testUrls.revokeAll, []);
 
   const fetchAll = async () => {
     try {
@@ -134,10 +161,11 @@ export default function ComboDetailPage() {
       body: JSON.stringify(patch),
     });
     if (!res.ok) {
-      const err = await res.json();
-      alert(err.error || "Failed to save");
+      const err = await res.json().catch(() => ({}));
+      setSaveError(err.error || "Failed to save");
       return false;
     }
+    setSaveError("");
     return true;
   };
 
@@ -155,7 +183,7 @@ export default function ComboDetailPage() {
       if (nextName === comboNameRef.current) return;
       const ok = await saveCombo({ name: nextName });
       if (ok) await fetchAll();
-    }).catch(() => alert("Failed to save — network error"));
+    }).catch(() => setSaveError("Failed to save — network error"));
   };
 
   const handleAddModel = async (model) => {
@@ -236,32 +264,27 @@ export default function ComboDetailPage() {
     if (!error) {
       // A queued rename's fetchAll may have reset the toggle to pre-save server state.
       setRoundRobin(enabled);
+      setSaveError("");
       return;
     }
     if (!conflict) setRoundRobin(previous);
-    alert(error);
+    setSaveError(error);
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete combo "${combo.name}"?`)) return;
     const res = await fetch(`/api/combos/${id}`, { method: "DELETE" });
-    if (res.ok) router.push(getListingHref(combo.kind));
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error || `Delete failed (HTTP ${res.status})`);
+    }
+    router.push(getListingHref(combo.kind));
   };
 
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
     setTestError("");
-    if (testResult?.audioUrl) {
-      try {
-        URL.revokeObjectURL(testResult.audioUrl);
-      } catch {}
-    }
-    if (testResult?.imageUrl?.startsWith("blob:")) {
-      try {
-        URL.revokeObjectURL(testResult.imageUrl);
-      } catch {}
-    }
+    testUrls.clear();
     const start = Date.now();
     try {
       const path = EXAMPLE_PATHS[combo.kind];
@@ -281,16 +304,20 @@ export default function ComboDetailPage() {
         return;
       }
       const ctype = res.headers.get("content-type") || "";
-      // Binary image
+      // Binary image (registry revokes the previous URL on replace and on unmount)
       if (ctype.startsWith("image/")) {
         const blob = await res.blob();
-        setTestResult({ imageUrl: URL.createObjectURL(blob), latencyMs });
+        const nextUrl = URL.createObjectURL(blob);
+        testUrls.setImage(nextUrl);
+        setTestResult({ imageUrl: nextUrl, latencyMs });
         return;
       }
-      // Binary audio
+      // Binary audio (registry revokes the previous URL on replace and on unmount)
       if (ctype.startsWith("audio/") || ctype === "application/octet-stream") {
         const blob = await res.blob();
-        setTestResult({ audioUrl: URL.createObjectURL(blob), latencyMs });
+        const nextUrl = URL.createObjectURL(blob);
+        testUrls.setAudio(nextUrl);
+        setTestResult({ audioUrl: nextUrl, latencyMs });
         return;
       }
       // JSON — could be image (data[0].b64_json/url) or generic
@@ -330,14 +357,17 @@ export default function ComboDetailPage() {
   const examplePath = EXAMPLE_PATHS[combo.kind];
   const exampleBody =
     combo.kind && EXAMPLE_BODIES[combo.kind] ? EXAMPLE_BODIES[combo.kind](combo.name) : null;
+  // Preview-safe: rendered/copied cURL always shows Bearer YOUR_KEY.
+  // The live key is only sent in the fetch Authorization header below.
   const curlExample =
     examplePath && origin
-      ? `curl -X POST ${origin}${examplePath} \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${apiKey || "YOUR_KEY"}" \\\n  -d '${JSON.stringify(exampleBody)}'`
+      ? `curl -X POST ${origin}${examplePath} \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: ${previewAuthHeader(apiKey)}" \\\n  -d '${JSON.stringify(exampleBody)}'`
       : "";
   const backHref = getListingHref(combo.kind);
 
   return (
     <div className="flex flex-col gap-6">
+      {saveError && <Callout variant="err">{saveError}</Callout>}
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
@@ -352,12 +382,7 @@ export default function ComboDetailPage() {
             <code className="text-lg font-semibold font-mono">{combo.name}</code>
           </div>
         </div>
-        <Button
-          variant="outline"
-          icon="delete"
-          onClick={handleDelete}
-          className="text-red-500 border-red-200 hover:bg-red-50"
-        >
+        <Button variant="danger" icon="delete" onClick={() => setConfirmDelete(true)}>
           Delete
         </Button>
       </div>
@@ -566,6 +591,18 @@ export default function ComboDetailPage() {
           closeOnSelect={false}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={async () => {
+          await handleDelete();
+          setConfirmDelete(false);
+        }}
+        title="Delete combo"
+        message={`Delete combo "${combo.name}"?`}
+        confirmText="Delete"
+      />
     </div>
   );
 }
