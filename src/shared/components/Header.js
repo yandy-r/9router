@@ -11,7 +11,12 @@ import DonateModal from "@/shared/components/DonateModal";
 import IconButton from "@/shared/components/IconButton";
 import CommandPaletteTrigger from "@/shared/components/CommandPaletteTrigger";
 import { useHeaderSearchStore } from "@/store/headerSearchStore";
-import { OAUTH_PROVIDERS, APIKEY_PROVIDERS } from "@/shared/constants/config";
+import {
+  FREE_PROVIDERS,
+  FREE_TIER_PROVIDERS,
+  OAUTH_PROVIDERS,
+  APIKEY_PROVIDERS,
+} from "@/shared/constants/config";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS } from "@/shared/constants/providers";
 import { getProviderIconSrc } from "@/shared/utils/providerIcon";
 import { COMBINED_WEB_ITEM } from "@/shared/constants/navigation";
@@ -66,7 +71,11 @@ export const getPageInfo = (pathname) => {
   const providerMatch = pathname.match(/\/providers\/([^/]+)$/);
   if (providerMatch) {
     const providerId = providerMatch[1];
-    const providerInfo = OAUTH_PROVIDERS[providerId] || APIKEY_PROVIDERS[providerId];
+    const providerInfo =
+      OAUTH_PROVIDERS[providerId] ||
+      APIKEY_PROVIDERS[providerId] ||
+      FREE_PROVIDERS[providerId] ||
+      FREE_TIER_PROVIDERS[providerId];
     if (providerInfo) {
       return {
         title: providerInfo.name,
