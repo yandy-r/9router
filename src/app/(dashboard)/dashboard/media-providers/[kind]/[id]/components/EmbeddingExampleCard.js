@@ -13,6 +13,7 @@ import {
   eyebrowClass,
   tunnelToggleClass,
 } from "./exampleShared";
+import { previewAuthHeader } from "@/shared/constants/previewAuth";
 
 const DEFAULT_RESPONSE_EXAMPLE = `{
   "object": "list",
@@ -72,9 +73,11 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
     return body;
   };
 
+  // Preview-safe: rendered/copied cURL always shows Bearer YOUR_KEY.
+  // The live key is only sent in the fetch Authorization header below.
   const curlSnippet = `curl -X POST ${endpoint}/v1/embeddings \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer ${apiKey || "YOUR_KEY"}" \\
+  -H "Authorization: ${previewAuthHeader(apiKey)}" \\
   -d '${JSON.stringify(buildBody())}'`;
 
   const handleRun = async () => {

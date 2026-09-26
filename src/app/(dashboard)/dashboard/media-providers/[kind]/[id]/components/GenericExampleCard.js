@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Button, Card, Callout, IconButton } from "@/shared/components";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { createObjectUrlRegistry } from "../../components/playgroundLogic";
 import {
   Row,
   KIND_EXAMPLE_CONFIG,
@@ -18,6 +19,7 @@ import {
   eyebrowClass,
   tunnelToggleClass,
 } from "./exampleShared";
+import { previewAuthHeader } from "@/shared/constants/previewAuth";
 
 const CLOUDFLARE_TEST_IMAGE_URL = "https://pub-1fb693cb11cc46b2b2f656f51e015a2c.r2.dev/dog.png";
 const CLOUDFLARE_TEST_MASK_URL = "https://pub-1fb693cb11cc46b2b2f656f51e015a2c.r2.dev/dog-mask.png";
@@ -84,6 +86,15 @@ export function GenericExampleCard({ providerId, kind }) {
   const { copied: copiedCurl, copy: copyCurl } = useCopyToClipboard();
   const { copied: copiedRes, copy: copyRes } = useCopyToClipboard();
 
+  // Ref-tracked blob URL: the unmount cleanup revokes the live URL even
+  // though React state is stale inside cleanup closures.
+  const binaryUrlRef = useRef({ image: "", audio: "" });
+  const [binaryUrls] = useState(() => createObjectUrlRegistry(binaryUrlRef));
+
+  // Revoke the live blob URL on unmount via the ref (state is stale here).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup on unmount only
+  useEffect(() => binaryUrls.revokeAll, []);
+
   useEffect(() => {
     setLocalEndpoint(window.location.origin);
     fetch("/api/keys")
@@ -149,7 +160,9 @@ export function GenericExampleCard({ providerId, kind }) {
   const wantBinary = kind === "image" && imageOutputFormat === "binary";
   const useStreaming = kind === "image" && providerId === "codex" && !wantBinary;
   const apiPathWithQuery = `${apiPath}${wantBinary ? "?response_format=binary" : ""}`;
-  const headersPreview = `-H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${apiKey || "YOUR_KEY"}"${pinnedConnectionId ? ` \\\n  -H "x-connection-id: ${pinnedConnectionId}"` : ""}${useStreaming ? ` \\\n  -H "Accept: text/event-stream"` : ""}`;
+  // Preview-safe: rendered/copied cURL always shows Bearer YOUR_KEY.
+  // The live key is only sent in the fetch Authorization header below.
+  const headersPreview = `-H "Content-Type: application/json" \\\n  -H "Authorization: ${previewAuthHeader(apiKey)}"${pinnedConnectionId ? ` \\\n  -H "x-connection-id: ${pinnedConnectionId}"` : ""}${useStreaming ? ` \\\n  -H "Accept: text/event-stream"` : ""}`;
   const curlSnippet = `curl -X ${kindConfig.endpoint.method} ${endpoint}${apiPathWithQuery} \\
   ${headersPreview.replace(/\\\n {2}/g, "\\\n  ")} \\
   -d '${JSON.stringify(requestBody)}'${wantBinary ? " \\\n  --output image.png" : ""}`;
@@ -161,12 +174,7 @@ export function GenericExampleCard({ providerId, kind }) {
     setResult(null);
     setProgress(null);
     setPartialImage(null);
-    if (binaryImageUrl) {
-      try {
-        URL.revokeObjectURL(binaryImageUrl);
-      } catch {}
-      setBinaryImageUrl("");
-    }
+    binaryUrls.clear();
     const start = Date.now();
     try {
       const headers = { "Content-Type": "application/json" };
@@ -185,10 +193,11 @@ export function GenericExampleCard({ providerId, kind }) {
         return;
       }
       const ctype = res.headers.get("content-type") || "";
-      // Binary image response — convert to blob URL
+      // Binary image response — convert to blob URL (registry revokes on replace/unmount)
       if (ctype.startsWith("image/")) {
         const blob = await res.blob();
         const objUrl = URL.createObjectURL(blob);
+        binaryUrls.setImage(objUrl);
         setBinaryImageUrl(objUrl);
         setResult({
           data: { binary: true, mime: ctype, size: blob.size },
@@ -324,7 +333,7 @@ export function GenericExampleCard({ providerId, kind }) {
         <Row label="API Key">
           <span className={readonlyClass} dir="ltr">
             {apiKey ? (
-              `${apiKey.slice(0, 8)}${"\u2022".repeat(Math.min(20, Math.max(0, apiKey.length - 8)))}`
+              maskPreviewApiKey(apiKey)
             ) : (
               <span className="text-subtle italic">No key configured</span>
             )}

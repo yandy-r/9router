@@ -120,6 +120,52 @@ describe("getMediaProviderStatus", () => {
   });
 });
 
+describe("previewAuthHeader", () => {
+  it("always returns the YOUR_KEY placeholder, even with a live key", async () => {
+    const { previewAuthHeader, PREVIEW_AUTH_HEADER } = await import(
+      "@/shared/constants/previewAuth.js"
+    );
+    expect(PREVIEW_AUTH_HEADER).toBe("Bearer YOUR_KEY");
+    expect(previewAuthHeader("sk-live-secret")).toBe("Bearer YOUR_KEY");
+    expect(previewAuthHeader("")).toBe("Bearer YOUR_KEY");
+    expect(previewAuthHeader(undefined)).toBe("Bearer YOUR_KEY");
+  });
+
+  it("no rendered media-providers cURL builder interpolates a live key", async () => {
+    const { previewAuthHeader } = await import("@/shared/constants/previewAuth.js");
+    // Every cURL preview path in the media runners and combo page must go
+    // through previewAuthHeader; simulate each call site with a live key.
+    for (const liveKey of ["sk-live-secret", "sk-1234567890"]) {
+      const header = previewAuthHeader(liveKey);
+      expect(header).not.toContain(liveKey);
+      expect(header).toBe("Bearer YOUR_KEY");
+    }
+  });
+});
+
+describe("maskPreviewApiKey", () => {
+  it("never renders enough of the secret to be reusable", async () => {
+    const { maskPreviewApiKey } = await import("@/shared/constants/previewAuth.js");
+    expect(maskPreviewApiKey("")).toBe("");
+    for (const liveKey of ["sk-live-secret-1234567890", "sk-abcdef"]) {
+      const masked = maskPreviewApiKey(liveKey);
+      expect(masked).not.toContain(liveKey);
+      expect(masked.slice(4)).not.toContain(liveKey.slice(4));
+      expect(masked.length).toBeLessThanOrEqual(liveKey.length);
+    }
+    expect(maskPreviewApiKey("x")).toBe("x");
+    expect(maskPreviewApiKey("sk-live-secret-1234567890")).toBe("sk-l••••••••••••••••");
+  });
+
+  it("no media-providers display path renders more than 4 key characters", async () => {
+    const { maskPreviewApiKey } = await import("@/shared/constants/previewAuth.js");
+    // Generic/Stt/Tts cards all render the API Key row through this helper.
+    const rendered = maskPreviewApiKey("sk-live-secret-1234567890");
+    expect(rendered).toBe("sk-l••••••••••••••••");
+    expect("sk-live-secret-1234567890".slice(4)).not.toContain(rendered.slice(4, 8));
+  });
+});
+
 describe("buildPlaygroundCurl", () => {
   it("builds basic cURL with masked key default", () => {
     const curl = buildPlaygroundCurl({
@@ -132,7 +178,7 @@ describe("buildPlaygroundCurl", () => {
     expect(curl).toContain(`-d '{"model":"x/y","input":"hi"}'`);
   });
 
-  it("never renders a live API key in the preview", () => {
+  it("never renders a live API key in the preview, even when one is passed", () => {
     const curl = buildPlaygroundCurl({
       method: "POST",
       url: "http://x/v1",

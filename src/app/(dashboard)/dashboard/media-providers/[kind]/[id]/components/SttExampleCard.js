@@ -15,6 +15,7 @@ import {
   eyebrowClass,
   tunnelToggleClass,
 } from "./exampleShared";
+import { previewAuthHeader } from "@/shared/constants/previewAuth";
 
 export function SttExampleCard({ providerId }) {
   const providerAlias = getProviderAlias(providerId);
@@ -81,8 +82,10 @@ export function SttExampleCard({ providerId }) {
   const endpoint = useTunnel ? tunnelEndpoint : localEndpoint;
   const modelFull = selectedModel ? `${providerAlias}/${selectedModel}` : "";
 
+  // Preview-safe: rendered/copied cURL always shows Bearer YOUR_KEY.
+  // The live key is only sent in the fetch Authorization header below.
   const curlSnippet = `curl -X POST ${endpoint}/v1/audio/transcriptions \\
-  -H "Authorization: Bearer ${apiKey || "YOUR_KEY"}" \\
+  -H "Authorization: ${previewAuthHeader(apiKey)}" \\
   -F "file=@${audioFile?.name || "audio.mp3"}" \\
   -F "model=${modelFull}"${allowedParams.includes("language") && language ? ` \\\n  -F "language=${language}"` : ""}${allowedParams.includes("response_format") ? ` \\\n  -F "response_format=${responseFormat}"` : ""}${allowedParams.includes("temperature") && temperature ? ` \\\n  -F "temperature=${temperature}"` : ""}${allowedParams.includes("prompt") && prompt ? ` \\\n  -F "prompt=${prompt}"` : ""}`;
 
@@ -193,7 +196,7 @@ export function SttExampleCard({ providerId }) {
         <Row label="API Key">
           <span className={readonlyClass} dir="ltr">
             {apiKey ? (
-              `${apiKey.slice(0, 8)}${"\u2022".repeat(Math.min(20, Math.max(0, apiKey.length - 8)))}`
+              maskPreviewApiKey(apiKey)
             ) : (
               <span className="text-subtle italic">No key configured</span>
             )}

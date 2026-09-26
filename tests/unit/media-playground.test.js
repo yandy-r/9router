@@ -235,6 +235,34 @@ describe("createObjectUrlRegistry", () => {
     expect(ref.current).toEqual({ image: "", audio: "" });
   });
 
+  it("covers the Generic/Tts/combo blob lifecycles: replace, clear, unmount", () => {
+    const revoked = [];
+    const ref = { current: { image: "", audio: "" } };
+    const registry = createObjectUrlRegistry(ref, (url) => revoked.push(url));
+
+    // GenericExampleCard binary image replace (run twice).
+    registry.setImage("blob:generic-1");
+    registry.setImage("blob:generic-2");
+    // TtsExampleCard audio replace (mp3 run then json run).
+    registry.setAudio("blob:tts-1");
+    registry.setAudio("blob:tts-2");
+    // Combo page test URLs: image then audio, cleared before the next run.
+    registry.setImage("blob:combo-img");
+    registry.setAudio("blob:combo-aud");
+    registry.clear();
+    expect(ref.current).toEqual({ image: "", audio: "" });
+    // Unmount after clear revokes nothing new.
+    registry.revokeAll();
+    expect(revoked).toEqual([
+      "blob:generic-1",
+      "blob:tts-1",
+      "blob:generic-2",
+      "blob:tts-2",
+      "blob:combo-img",
+      "blob:combo-aud",
+    ]);
+  });
+
   it("clear revokes live urls without throwing on revoke failures", () => {
     const ref = { current: { image: "blob:i", audio: "blob:a" } };
     const registry = createObjectUrlRegistry(ref, () => {

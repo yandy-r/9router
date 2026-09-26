@@ -14,6 +14,8 @@ import {
 } from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
+import { previewAuthHeader } from "@/shared/constants/previewAuth";
+import { createObjectUrlRegistry } from "../components/playgroundLogic";
 
 // Parse "providerId/model" or just "providerId" → { providerId, model }
 function parseModelEntry(entry) {
@@ -88,6 +90,15 @@ export default function ComboDetailPage() {
   const [origin, setOrigin] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [saveError, setSaveError] = useState("");
+
+  // Ref-tracked blob URLs: the unmount cleanup revokes the live URLs even
+  // though React state is stale inside cleanup closures.
+  const testUrlsRef = useRef({ image: "", audio: "" });
+  const [testUrls] = useState(() => createObjectUrlRegistry(testUrlsRef));
+
+  // Revoke live test blob URLs on unmount via the ref (state is stale here).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup on unmount only
+  useEffect(() => testUrls.revokeAll, []);
 
   const fetchAll = async () => {
     try {
@@ -273,16 +284,7 @@ export default function ComboDetailPage() {
     setTesting(true);
     setTestResult(null);
     setTestError("");
-    if (testResult?.audioUrl) {
-      try {
-        URL.revokeObjectURL(testResult.audioUrl);
-      } catch {}
-    }
-    if (testResult?.imageUrl?.startsWith("blob:")) {
-      try {
-        URL.revokeObjectURL(testResult.imageUrl);
-      } catch {}
-    }
+    testUrls.clear();
     const start = Date.now();
     try {
       const path = EXAMPLE_PATHS[combo.kind];
@@ -302,16 +304,20 @@ export default function ComboDetailPage() {
         return;
       }
       const ctype = res.headers.get("content-type") || "";
-      // Binary image
+      // Binary image (registry revokes the previous URL on replace and on unmount)
       if (ctype.startsWith("image/")) {
         const blob = await res.blob();
-        setTestResult({ imageUrl: URL.createObjectURL(blob), latencyMs });
+        const nextUrl = URL.createObjectURL(blob);
+        testUrls.setImage(nextUrl);
+        setTestResult({ imageUrl: nextUrl, latencyMs });
         return;
       }
-      // Binary audio
+      // Binary audio (registry revokes the previous URL on replace and on unmount)
       if (ctype.startsWith("audio/") || ctype === "application/octet-stream") {
         const blob = await res.blob();
-        setTestResult({ audioUrl: URL.createObjectURL(blob), latencyMs });
+        const nextUrl = URL.createObjectURL(blob);
+        testUrls.setAudio(nextUrl);
+        setTestResult({ audioUrl: nextUrl, latencyMs });
         return;
       }
       // JSON — could be image (data[0].b64_json/url) or generic
@@ -351,9 +357,11 @@ export default function ComboDetailPage() {
   const examplePath = EXAMPLE_PATHS[combo.kind];
   const exampleBody =
     combo.kind && EXAMPLE_BODIES[combo.kind] ? EXAMPLE_BODIES[combo.kind](combo.name) : null;
+  // Preview-safe: rendered/copied cURL always shows Bearer YOUR_KEY.
+  // The live key is only sent in the fetch Authorization header below.
   const curlExample =
     examplePath && origin
-      ? `curl -X POST ${origin}${examplePath} \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer ${apiKey || "YOUR_KEY"}" \\\n  -d '${JSON.stringify(exampleBody)}'`
+      ? `curl -X POST ${origin}${examplePath} \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: ${previewAuthHeader(apiKey)}" \\\n  -d '${JSON.stringify(exampleBody)}'`
       : "";
   const backHref = getListingHref(combo.kind);
 

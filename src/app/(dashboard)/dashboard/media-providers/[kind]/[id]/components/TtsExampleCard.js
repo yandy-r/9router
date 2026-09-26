@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import { Button, Callout, Card, IconButton, Modal } from "@/shared/components";
 import { AI_PROVIDERS, getProviderAlias } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
+import { createObjectUrlRegistry } from "../../components/playgroundLogic";
 import { TTS_PROVIDER_CONFIG } from "@/shared/constants/ttsProviders";
 import { getTtsVoicesForModel } from "open-sse/config/ttsModels.js";
 import { GOOGLE_TTS_LANGUAGES } from "open-sse/config/googleTtsLanguages.js";
@@ -17,6 +18,7 @@ import {
   eyebrowClass,
   tunnelToggleClass,
 } from "./exampleShared";
+import { previewAuthHeader } from "@/shared/constants/previewAuth";
 
 const DEFAULT_TTS_RESPONSE_EXAMPLE = `// Audio will appear here after running.
 // Example JSON response (response_format=json):
@@ -71,6 +73,15 @@ export function TtsExampleCard({ providerId }) {
   const [languageHint, setLanguageHint] = useState("");
   // Number of stored provider connections (shown when no dashboard API key)
   const [connectionCount, setConnectionCount] = useState(0);
+
+  // Ref-tracked blob URL: the unmount cleanup revokes the live URL even
+  // though React state is stale inside cleanup closures.
+  const audioUrlRef = useRef({ image: "", audio: "" });
+  const [audioUrls] = useState(() => createObjectUrlRegistry(audioUrlRef));
+
+  // Revoke the live blob URL on unmount via the ref (state is stale here).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup on unmount only
+  useEffect(() => audioUrls.revokeAll, []);
 
   useEffect(() => {
     setLocalEndpoint(window.location.origin);
@@ -219,9 +230,11 @@ export function TtsExampleCard({ providerId }) {
     if (config.hasStyleInput && style.trim()) b.style = style.trim();
     return b;
   })();
+  // Preview-safe: rendered/copied cURL always shows Bearer YOUR_KEY.
+  // The live key is only sent in the fetch Authorization header below.
   const curlSnippet = `curl -X POST ${endpoint}/v1/audio/speech${responseFormat === "json" ? "?response_format=json" : ""} \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer ${apiKey || "YOUR_KEY"}" \\
+  -H "Authorization: ${previewAuthHeader(apiKey)}" \\
   -d '${JSON.stringify(ttsBody)}' \\
   ${responseFormat === "json" ? "" : "--output speech.mp3"}`;
 
@@ -229,6 +242,7 @@ export function TtsExampleCard({ providerId }) {
     if (!input.trim() || !modelFull) return;
     setRunning(true);
     setError("");
+    audioUrls.clear();
     setAudioUrl("");
     setJsonResponse(null);
     const start = Date.now();
@@ -255,10 +269,16 @@ export function TtsExampleCard({ providerId }) {
         const audioBlob = await fetch(`data:audio/${format};base64,${data.audio}`).then((r) =>
           r.blob(),
         );
-        setAudioUrl(URL.createObjectURL(audioBlob));
+        // Registry revokes the previous URL on replace and on unmount.
+        const nextUrl = URL.createObjectURL(audioBlob);
+        audioUrls.setAudio(nextUrl);
+        setAudioUrl(nextUrl);
       } else {
         const blob = await res.blob();
-        setAudioUrl(URL.createObjectURL(blob));
+        // Registry revokes the previous URL on replace and on unmount.
+        const nextUrl = URL.createObjectURL(blob);
+        audioUrls.setAudio(nextUrl);
+        setAudioUrl(nextUrl);
       }
     } catch (e) {
       setError(e.message || "Network error");
@@ -300,7 +320,7 @@ export function TtsExampleCard({ providerId }) {
           <Row label="API Key">
             <span className={readonlyClass} dir="ltr">
               {apiKey ? (
-                `${apiKey.slice(0, 8)}${"•".repeat(Math.min(20, Math.max(0, apiKey.length - 8)))}`
+                maskPreviewApiKey(apiKey)
               ) : connectionCount > 0 ? (
                 <span className="text-subtle italic">
                   Using stored key(s) · {connectionCount} connection{connectionCount > 1 ? "s" : ""}
