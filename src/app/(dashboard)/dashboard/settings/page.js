@@ -8,6 +8,11 @@ import Button from "@/shared/components/Button";
 import GeneralSection from "./sections/GeneralSection";
 import SecuritySection from "./sections/SecuritySection";
 import SsoSection from "./sections/SsoSection";
+import RoutingSection from "./sections/RoutingSection";
+import NetworkSection from "./sections/NetworkSection";
+import TokenSaverSection from "./sections/TokenSaverSection";
+import ProvidersModelsSection from "./sections/ProvidersModelsSection";
+import ObservabilitySection from "./sections/ObservabilitySection";
 import PricingSection from "./sections/PricingSection";
 import DataSection from "./sections/DataSection";
 import DangerSection from "./sections/DangerSection";
@@ -175,6 +180,21 @@ export default function SettingsPage() {
           )}
           {visibleIds.has("sso") && (
             <SsoSection settings={settings} onSettingsChange={onSettingsChange} />
+          )}
+          {visibleIds.has("routing") && (
+            <RoutingSection settings={settings} onSettingsChange={onSettingsChange} />
+          )}
+          {visibleIds.has("network") && (
+            <NetworkSection settings={settings} onSettingsChange={onSettingsChange} />
+          )}
+          {visibleIds.has("token-saver") && (
+            <TokenSaverSection settings={settings} onSettingsChange={onSettingsChange} />
+          )}
+          {visibleIds.has("providers") && (
+            <ProvidersModelsSection settings={settings} onSettingsChange={onSettingsChange} />
+          )}
+          {visibleIds.has("logs") && (
+            <ObservabilitySection settings={settings} onSettingsChange={onSettingsChange} />
           )}
           {visibleIds.has("pricing") && (
             <PricingSection modalOpen={pricingModalOpen} onModalChange={handlePricingModalChange} />

@@ -8,11 +8,16 @@ import {
 } from "@/app/(dashboard)/dashboard/settings/registry.js";
 
 describe("settings registry", () => {
-  it("declares six in-scope sections with id, title and icon", () => {
+  it("declares in-scope sections with id, title and icon", () => {
     expect(SETTINGS_SECTIONS.map((s) => s.id)).toEqual([
       "general",
       "security",
       "sso",
+      "routing",
+      "network",
+      "token-saver",
+      "providers",
+      "logs",
       "pricing",
       "data",
       "danger",
