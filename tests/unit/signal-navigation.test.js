@@ -27,10 +27,10 @@ describe("navigation data", () => {
     expect(route.find((i) => i.id === "endpoint").href).toBe("/dashboard/endpoint");
   });
 
-  it("Settings points to /dashboard/profile with match prefixes", () => {
+  it("Settings points to /dashboard/settings with match prefixes", () => {
     const tune = NAV_GROUPS.find((g) => g.id === "tune").items;
     const settings = tune.find((i) => i.id === "settings");
-    expect(settings.href).toBe("/dashboard/profile");
+    expect(settings.href).toBe("/dashboard/settings");
     expect(settings.matchPrefixes).toContain("/dashboard/profile");
     expect(settings.matchPrefixes).toContain("/dashboard/settings");
   });
@@ -57,8 +57,8 @@ describe("isActive", () => {
   const providers = { id: "providers", href: "/dashboard/providers" };
   const settings = {
     id: "settings",
-    href: "/dashboard/profile",
-    matchPrefixes: ["/dashboard/profile", "/dashboard/settings"],
+    href: "/dashboard/settings",
+    matchPrefixes: ["/dashboard/settings", "/dashboard/profile"],
   };
 
   it("Home is exact on /dashboard", () => {
@@ -77,9 +77,10 @@ describe("isActive", () => {
     expect(isActive("/dashboard/providersX", providers)).toBe(false);
   });
 
-  it("Settings matches /dashboard/profile and /dashboard/settings", () => {
+  it("Settings matches /dashboard/settings and legacy /dashboard/profile", () => {
+    expect(isActive("/dashboard/settings", settings)).toBe(true);
+    expect(isActive("/dashboard/settings#pricing", settings)).toBe(true);
     expect(isActive("/dashboard/profile", settings)).toBe(true);
-    expect(isActive("/dashboard/settings/pricing", settings)).toBe(true);
     expect(isActive("/dashboard/skills", settings)).toBe(false);
   });
 });

@@ -1065,7 +1065,7 @@ export default function APIPageClient({ machineId }) {
           <div className="mt-4">
             <SecurityWarning
               message={unsafeReason}
-              action={{ label: "Open settings", href: "/dashboard/profile" }}
+              action={{ label: "Open settings", href: "/dashboard/settings#security" }}
             />
           </div>
         )}
@@ -1088,7 +1088,7 @@ export default function APIPageClient({ machineId }) {
                 }
                 action={{
                   label: !requireLogin ? "Enable" : "Change password",
-                  href: "/dashboard/profile",
+                  href: "/dashboard/settings#security",
                 }}
               />
             )}

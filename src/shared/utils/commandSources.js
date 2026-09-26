@@ -2,6 +2,7 @@
 // Each source is (ctx) => commands[]; registrations happen at import time.
 
 import { MEDIA_TABS, visibleItems } from "@/shared/constants/navigation.js";
+import { toCommandItems } from "@/app/(dashboard)/dashboard/settings/registry.js";
 import { registerStaticSource } from "./commandPalette.js";
 
 function pageCommands() {
@@ -125,10 +126,10 @@ function actionCommands() {
       id: "action:open-settings",
       group: "Actions",
       label: "Open Settings",
-      hint: "Preferences",
+      hint: "Every knob in one place",
       keywords: "open settings preferences profile",
       icon: "settings",
-      run: { type: "navigate", href: "/dashboard/profile" },
+      run: { type: "navigate", href: "/dashboard/settings" },
     },
   ];
 }
@@ -138,6 +139,7 @@ registerStaticSource(actionCommands);
 registerStaticSource(providerCommands);
 registerStaticSource(comboCommands);
 registerStaticSource(modelCommands);
+registerStaticSource(() => toCommandItems());
 
 export const __test = {
   pageCommands,
@@ -145,4 +147,5 @@ export const __test = {
   comboCommands,
   modelCommands,
   actionCommands,
+  settingsCommands: () => toCommandItems(),
 };
