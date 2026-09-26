@@ -59,7 +59,7 @@ export default function Terminal({
   onOpenLine,
 }) {
   return (
-    <ol
+    <div
       ref={scrollRef}
       role="log"
       aria-label={label}
@@ -68,20 +68,22 @@ export default function Terminal({
       onScroll={onScroll}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: scrollable log region must be keyboard-focusable (WCAG 2.1.1).
       tabIndex={0}
-      className={`signal-terminal custom-scrollbar m-0 list-none overflow-auto rounded-2xl p-[18px_22px] text-start font-mono text-[13px] leading-[1.75] focus-visible:shadow-focus${className ? ` ${className}` : ""}`}
+      className={`signal-terminal custom-scrollbar m-0 overflow-auto rounded-2xl p-[18px_22px] text-start font-mono text-[13px] leading-[1.75] focus-visible:shadow-focus${className ? ` ${className}` : ""}`}
     >
-      {lines.map((line) => (
-        <TerminalRow key={line.id} line={line} onOpen={onOpenLine} />
-      ))}
-      {cursor && (
-        <li className="mt-0.5 flex gap-4 whitespace-nowrap" aria-hidden="true">
-          <span className="signal-terminal-time shrink-0">--:--:--</span>
-          <span className="signal-terminal-cursor w-[52px] shrink-0 animate-pulse font-semibold">
-            ▍
-          </span>
-        </li>
-      )}
-    </ol>
+      <ol className="m-0 list-none p-0">
+        {lines.map((line) => (
+          <TerminalRow key={line.id} line={line} onOpen={onOpenLine} />
+        ))}
+        {cursor && (
+          <li className="mt-0.5 flex gap-4 whitespace-nowrap" aria-hidden="true">
+            <span className="signal-terminal-time shrink-0">--:--:--</span>
+            <span className="signal-terminal-cursor w-[52px] shrink-0 animate-pulse font-semibold">
+              ▍
+            </span>
+          </li>
+        )}
+      </ol>
+    </div>
   );
 }
 

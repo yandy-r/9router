@@ -62,7 +62,7 @@ export default function PoolList({
 }) {
   if (loading) {
     return (
-      <Card padding="md" aria-busy="true" aria-label="Loading proxy pools">
+      <Card padding="md" role="status" aria-busy="true" aria-label="Loading proxy pools">
         <div className="flex flex-col gap-3">
           {["sk-1", "sk-2", "sk-3", "sk-4"].map((key) => (
             <Skeleton key={key} className="h-16 w-full" />

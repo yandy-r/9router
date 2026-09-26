@@ -24,9 +24,14 @@ export function TokenSaverHeader({ period, onPeriodChange }) {
         <p className="text-xs font-medium text-muted lg:text-sm">
           Send fewer tokens, get the same answers.
         </p>
-        <h1 className="font-display text-2xl font-bold tracking-[-0.02em] text-text lg:text-[42px] lg:leading-[1.05]">
+        {/* Shell Header renders the page h1; in-page title stays a paragraph
+            so the document keeps exactly one h1 (YAN-314). */}
+        <p
+          className="font-display text-2xl font-bold tracking-[-0.02em] text-text lg:text-[42px] lg:leading-[1.05]"
+          aria-hidden="true"
+        >
           Token saver
-        </h1>
+        </p>
       </div>
       <SegmentedControl
         aria-label="Savings period"

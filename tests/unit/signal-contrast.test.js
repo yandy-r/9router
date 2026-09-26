@@ -169,13 +169,8 @@ describe("signal token contrast", () => {
         expect(light["--signal-terminal-bg"]).not.toBe(props["--signal-panel"]);
       });
 
-      it("white text on legacy brand fills >= 4.5", () => {
-        for (const role of [
-          "--color-primary",
-          "--color-primary-hover",
-          "--color-brand-500",
-          "--color-brand-600",
-        ]) {
+      it("white text on legacy brand fills >= 4.5 (YAN-314)", () => {
+        for (const role of ["--color-primary-fill", "--color-brand-500", "--color-brand-600"]) {
           const direct = legacy[name][role];
           if (!direct) throw new Error(`signal-contrast: no ${name} ${role}`);
           const ratio = contrastRatio("#ffffff", resolveVar(direct, legacy[name], props));
@@ -183,6 +178,17 @@ describe("signal token contrast", () => {
             4.5,
           );
         }
+      });
+
+      it("legacy text roles track the signal coral ink (YAN-314)", () => {
+        // --color-primary doubles as text in legacy call sites; it must equal
+        // the coral ink so axe color-contrast passes on panel surfaces.
+        expect(resolveVar(legacy[name]["--color-primary"], legacy[name], props)).toBe(
+          props["--signal-coral-ink"],
+        );
+        expect(resolveVar(legacy[name]["--color-primary-hover"], legacy[name], props)).toBe(
+          props["--signal-coral-ink"],
+        );
       });
     });
   }

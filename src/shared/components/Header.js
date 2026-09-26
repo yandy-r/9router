@@ -39,8 +39,9 @@ export const getPageInfo = (pathname) => {
     const providerId = mediaDetailMatch[2];
     const kindConfig = MEDIA_PROVIDER_KINDS.find((k) => k.id === kindId);
     const provider = AI_PROVIDERS[providerId];
+    // Detail page renders its own in-page h1 (YAN-314); shell shows breadcrumb only.
     return {
-      title: provider?.name || providerId,
+      title: "",
       description: "",
       breadcrumbs: [
         { label: "Media Providers", href: `/dashboard/media-providers/${kindId}` },
@@ -71,6 +72,10 @@ export const getPageInfo = (pathname) => {
   const providerMatch = pathname.match(/\/providers\/([^/]+)$/);
   if (providerMatch) {
     const providerId = providerMatch[1];
+    // /dashboard/providers/new renders its own in-page h1 (YAN-314).
+    if (providerId === "new") {
+      return { title: "", description: "", breadcrumbs: [] };
+    }
     const providerInfo =
       OAUTH_PROVIDERS[providerId] ||
       APIKEY_PROVIDERS[providerId] ||
@@ -107,9 +112,10 @@ export const getPageInfo = (pathname) => {
     };
   if (pathname.includes("/usage"))
     return {
-      title: "Usage & Analytics",
-      description: "Monitor your API usage, token consumption, and request logs",
-      icon: "bar_chart",
+      // UsagePage renders its own in-page h1; the shell must stay h1-free
+      // so the document keeps exactly one h1 (YAN-314).
+      title: "",
+      description: "",
       breadcrumbs: [],
     };
   if (pathname.includes("/auth-files"))
@@ -168,13 +174,18 @@ export const getPageInfo = (pathname) => {
       icon: "api",
       breadcrumbs: [],
     };
-  if (pathname.includes("/settings") || pathname.includes("/profile"))
+  if (pathname.includes("/settings") || pathname.includes("/profile")) {
+    // /dashboard/settings renders its own in-page h1; /dashboard/profile is a
+    // redirect stub whose region violation is a stub artifact (YAN-314: keep
+    // the shell h1 there so the stub keeps one h1 + landmark coverage).
+    const isStub = pathname.includes("/profile");
     return {
-      title: "Settings",
-      description: "Every knob in one place",
-      icon: "settings",
+      title: isStub ? "Settings" : "",
+      description: isStub ? "Every knob in one place" : "",
+      icon: isStub ? "settings" : undefined,
       breadcrumbs: [],
     };
+  }
   if (pathname.includes("/translator"))
     return {
       title: "Translator",

@@ -31,8 +31,9 @@
   --signal-muted: #545968;
   --signal-subtle: #696d7c;
 
-  /* Coral: brand, links, focus, current selection */
-  --signal-coral: #cf4323;
+  /* Coral: brand, links, focus, current selection (YAN-314: link/text roles
+     use the ink so axe color-contrast passes on raised #f7f5ef). */
+  --signal-coral: #b93a1d;
   --signal-coral-ink: #b93a1d;
   --signal-coral-bg: rgba(207, 67, 35, 0.09);
   --signal-on-coral: #ffffff;
@@ -186,6 +187,8 @@
   --color-brand-700: var(--signal-coral-ink);
   --color-brand-800: var(--signal-coral-ink);
   --color-brand-900: var(--signal-coral-ink);
+  /* Solid brand fill that holds white text at >= 4.5:1 (YAN-314). */
+  --color-primary-fill: var(--signal-coral);
 
   --color-bg: var(--signal-bg);
   --color-bg-alt: var(--signal-raised);
@@ -228,9 +231,13 @@
 .dark {
   /* Legacy fills: Signal coral (#ff6a48) is 2.84:1 under white text.
      These stay in the coral family but hold white at >= 4.5:1.
-     --signal-coral / --signal-coral-ink stay the text/link colors. */
-  --color-primary: #cf4323;
-  --color-primary-hover: #b93a1d;
+     --signal-coral / --signal-coral-ink stay the text/link colors.
+     --color-primary doubles as text AND fill; YAN-314 keeps it on
+     --signal-coral-ink for text contrast (4.5:1) and uses
+     --color-primary-fill where a fill is needed. */
+  --color-primary: #ff8b70;
+  --color-primary-hover: #ff8b70;
+  --color-primary-fill: #cf4323;
   --color-brand-400: #cf4323;
   --color-brand-500: #cf4323;
   --color-brand-600: #b93a1d;

@@ -168,7 +168,12 @@ export default function RequestLog() {
           />
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <section
+              className="overflow-x-auto focus-visible:shadow-focus"
+              aria-label="Request log"
+              // biome-ignore lint/a11y/noNoninteractiveTabindex: scrollable table region is keyboard-focusable with a label (WCAG 2.1.1, YAN-314).
+              tabIndex={0}
+            >
               <table className="w-full min-w-[880px] text-sm">
                 <thead>
                   <tr className="border-b border-line text-left">
@@ -251,7 +256,7 @@ export default function RequestLog() {
                   ))}
                 </tbody>
               </table>
-            </div>
+            </section>
             <div className="border-t border-line">
               <Pagination
                 currentPage={pagination.page}

@@ -83,7 +83,7 @@ export default function Tabs({
             >
               {tab.label}
               {tab.count != null && (
-                <span className="ms-1.5 font-mono text-xs opacity-70">{tab.count}</span>
+                <span className="ms-1.5 font-mono text-xs text-muted">{tab.count}</span>
               )}
               <span
                 aria-hidden="true"

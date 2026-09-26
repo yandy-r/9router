@@ -162,7 +162,7 @@ export default function TokenSaverSection({ settings, onSettingsChange }) {
             )
           }
           settingKey="headroomUrl"
-          className={headroomOff ? "opacity-50" : undefined}
+          aria-disabled={headroomOff || undefined}
           control={
             <div className="w-full sm:min-w-72 sm:max-w-sm">
               <Input
@@ -188,7 +188,7 @@ export default function TokenSaverSection({ settings, onSettingsChange }) {
           label="Headroom timeout"
           description="Request timeout, in milliseconds."
           settingKey="headroomTimeoutMs"
-          className={headroomOff ? "opacity-50" : undefined}
+          aria-disabled={headroomOff || undefined}
           control={
             <div className="w-48">
               <NumberStepper
@@ -206,7 +206,7 @@ export default function TokenSaverSection({ settings, onSettingsChange }) {
           label="Compress user messages"
           description="Also compress user turns, not just tool output."
           settingKey="headroomCompressUserMessages"
-          className={headroomOff ? "opacity-50" : undefined}
+          aria-disabled={headroomOff || undefined}
           control={
             <Toggle
               checked={headroomCompress.value === true}
@@ -236,7 +236,7 @@ export default function TokenSaverSection({ settings, onSettingsChange }) {
           label="Caveman level"
           description={cavemanLevelDescription(safeCavemanLevel)}
           settingKey="cavemanLevel"
-          className={cavemanOff ? "opacity-50" : undefined}
+          aria-disabled={cavemanOff || undefined}
           control={
             <fieldset disabled={cavemanOff || cavemanLevel.saving}>
               <SegmentedControl
@@ -268,7 +268,7 @@ export default function TokenSaverSection({ settings, onSettingsChange }) {
           label="Ponytail level"
           description={ponytailLevelDescription(ponytailLevel.value)}
           settingKey="ponytailLevel"
-          className={ponytailOff ? "opacity-50" : undefined}
+          aria-disabled={ponytailOff || undefined}
           control={
             <fieldset disabled={ponytailOff || ponytailLevel.saving}>
               <SegmentedControl
@@ -307,7 +307,7 @@ export default function TokenSaverSection({ settings, onSettingsChange }) {
           label="Minimum prompt size"
           description="Requests smaller than this bypass PXPIPE as-is (chars)."
           settingKey="pxpipeMinChars"
-          className={pxpipeOff ? "opacity-50" : undefined}
+          aria-disabled={pxpipeOff || undefined}
           control={
             <div className="w-48">
               <NumberStepper
@@ -325,7 +325,7 @@ export default function TokenSaverSection({ settings, onSettingsChange }) {
           label="PXPIPE timeout"
           description="Request timeout, in milliseconds."
           settingKey="pxpipeTimeoutMs"
-          className={pxpipeOff ? "opacity-50" : undefined}
+          aria-disabled={pxpipeOff || undefined}
           control={
             <div className="w-48">
               <NumberStepper
@@ -343,7 +343,7 @@ export default function TokenSaverSection({ settings, onSettingsChange }) {
           label="Auto-install PXPIPE"
           description="Install the proxy package on first use when missing."
           settingKey="pxpipeAutoInstall"
-          className={pxpipeOff ? "opacity-50" : undefined}
+          aria-disabled={pxpipeOff || undefined}
           control={
             <Toggle
               checked={pxpipeAutoInstall.value === true}

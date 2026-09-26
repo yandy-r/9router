@@ -55,6 +55,7 @@ export function MediaProviderCard({ provider, kind, connections, isCustom = fals
   return (
     <Link
       href={`/dashboard/media-providers/${kind}/${provider.id}`}
+      aria-label={`${provider.name} (${status.label})`}
       className="group block rounded-2xl transition-all duration-150 focus-visible:outline-none focus-visible:shadow-focus"
     >
       <Card
@@ -70,7 +71,11 @@ export function MediaProviderCard({ provider, kind, connections, isCustom = fals
               status={status.variant === "ok" ? "ok" : status.variant === "err" ? "err" : undefined}
             />
             <div className="min-w-0 flex-1">
-              <h3 className="truncate text-[15px] font-semibold text-text">{provider.name}</h3>
+              {/* Card link gives the accessible name; the inner name is
+                  presentational so SR users hear it once (YAN-314). */}
+              <span className="truncate text-[15px] font-semibold text-text" aria-hidden="true">
+                {provider.name}
+              </span>
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 {isCustom && (
                   <StatusPill variant="neutral" size="sm">

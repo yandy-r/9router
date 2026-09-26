@@ -69,7 +69,11 @@ export default function SegmentedControl({
             </span>
           )}
           {option.label}
-          {option.count != null && <span className="font-mono opacity-70">{option.count}</span>}
+          {option.count != null && (
+            <span className={cn("font-mono", index === selected ? "text-bg/80" : "text-muted")}>
+              {option.count}
+            </span>
+          )}
         </button>
       ))}
     </div>

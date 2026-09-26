@@ -22,15 +22,20 @@ export default function Card({
   subtitle,
   icon,
   action,
+  as = "h2",
   padding = "md",
   hover = false,
   elev: _legacyElev = false,
   className,
+  role,
   ...props
 }) {
   if (PADDINGS[padding] === undefined) throw new Error(`Card: unknown padding "${padding}"`);
+  const resolvedRole =
+    role || (props["aria-label"] || props["aria-labelledby"] ? "region" : undefined);
   return (
     <div
+      role={resolvedRole}
       className={cn(
         "rounded-2xl border border-line bg-panel shadow-card",
         hover && "cursor-pointer transition-colors duration-150 hover:border-coral/40",
@@ -45,6 +50,7 @@ export default function Card({
           subtitle={subtitle}
           icon={icon}
           actions={action}
+          as={as}
           className="mb-4"
         />
       )}
@@ -59,10 +65,12 @@ Card.propTypes = {
   subtitle: PropTypes.node,
   icon: PropTypes.string,
   action: PropTypes.node,
+  as: PropTypes.oneOf(["h2", "h3", "h4"]),
   padding: PropTypes.oneOf(Object.keys(PADDINGS)),
   hover: PropTypes.bool,
   elev: PropTypes.bool,
   className: PropTypes.string,
+  role: PropTypes.string,
 };
 
 /** Card header: display title (+ subtitle, optional icon tile) with an actions slot. */
@@ -71,7 +79,7 @@ Card.Header = function CardHeader({
   subtitle,
   icon,
   actions,
-  as: Heading = "h3",
+  as: Heading = "h2",
   className,
 }) {
   return (
