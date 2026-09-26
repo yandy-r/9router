@@ -234,6 +234,19 @@ function validAccountSettings(body) {
   return true;
 }
 
+/**
+ * Every boundary check PATCH applies to a settings body, in PATCH order.
+ * Shared with config import so it can never store what PATCH would reject.
+ * @param {object} body Plain settings object.
+ * @returns {string} Error message, or "" when valid.
+ */
+export function validateSettingsBody(body) {
+  const comboStrategyError = validateComboStrategySettings(body);
+  if (comboStrategyError) return comboStrategyError;
+  if (!validAccountSettings(body)) return "Invalid account strategy settings";
+  return validSecuritySettings(body) || validateSectionSettings(body) || "";
+}
+
 export async function GET() {
   try {
     const settings = await getSettings();
@@ -301,20 +314,9 @@ export async function PATCH(request) {
       return await handleComboStrategyPatch(body);
     }
 
-    const comboStrategyError = validateComboStrategySettings(body);
-    if (comboStrategyError) {
-      return NextResponse.json({ error: comboStrategyError }, { status: 400 });
-    }
-    if (!validAccountSettings(body)) {
-      return NextResponse.json({ error: "Invalid account strategy settings" }, { status: 400 });
-    }
-    const securityError = validSecuritySettings(body);
-    if (securityError) {
-      return NextResponse.json({ error: securityError }, { status: 400 });
-    }
-    const sectionError = validateSectionSettings(body);
-    if (sectionError) {
-      return NextResponse.json({ error: sectionError }, { status: 400 });
+    const settingsError = validateSettingsBody(body);
+    if (settingsError) {
+      return NextResponse.json({ error: settingsError }, { status: 400 });
     }
 
     // Password updates hash into `password`; raw password keys must never persist (CWE-915).

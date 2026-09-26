@@ -47,6 +47,8 @@ export {
   setMitmAliasAll,
   getPricing,
   getPricingForModel,
+  getUserPricing,
+  invalidatePricingCache,
   updatePricing,
   resetPricing,
   resetAllPricing,

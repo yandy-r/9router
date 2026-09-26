@@ -5,6 +5,7 @@ import Input from "@/shared/components/Input";
 import EmptyState from "@/shared/components/EmptyState";
 import { Skeleton } from "@/shared/components/Loading";
 import Button from "@/shared/components/Button";
+import ConfigTransfer from "./sections/ConfigTransfer";
 import GeneralSection from "./sections/GeneralSection";
 import SecuritySection from "./sections/SecuritySection";
 import SsoSection from "./sections/SsoSection";
@@ -39,6 +40,7 @@ export default function SettingsPage() {
   const [query, setQuery] = useState("");
   const [locale, setLocale] = useState("en");
   const [savedTick, setSavedTick] = useState(0);
+  const [dataVersion, setDataVersion] = useState(0);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
@@ -90,6 +92,9 @@ export default function SettingsPage() {
     (patch) => {
       if (!patch) {
         loadSettings();
+        // An import may have changed pricing overrides or combos, which live
+        // outside the settings GET — bump the key so PricingSection reloads.
+        setDataVersion((v) => v + 1);
         return;
       }
       setSettings((prev) => ({ ...prev, ...patch }));
@@ -125,15 +130,18 @@ export default function SettingsPage() {
     <div className="mx-auto max-w-6xl space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4">
-        <div>
-          <p className="text-sm text-muted">Every knob in one place.</p>
-          <h1 className="font-display text-3xl font-bold text-text">Settings</h1>
-          <p className="text-sm text-muted">
-            Changes save instantly.{" "}
-            <span aria-live="polite" aria-atomic="true" className="font-medium text-ok">
-              {savedTick > 0 ? `All changes saved (${savedTick})` : " "}
-            </span>
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-sm text-muted">Every knob in one place.</p>
+            <h1 className="font-display text-3xl font-bold text-text">Settings</h1>
+            <p className="text-sm text-muted">
+              Changes save instantly.{" "}
+              <span aria-live="polite" aria-atomic="true" className="font-medium text-ok">
+                {savedTick > 0 ? `All changes saved (${savedTick})` : " "}
+              </span>
+            </p>
+          </div>
+          <ConfigTransfer onSettingsChange={onSettingsChange} />
         </div>
         <Input
           id="settings-search"
@@ -203,7 +211,11 @@ export default function SettingsPage() {
             <ObservabilitySection settings={settings} onSettingsChange={onSettingsChange} />
           )}
           {visibleIds.has("pricing") && (
-            <PricingSection modalOpen={pricingModalOpen} onModalChange={handlePricingModalChange} />
+            <PricingSection
+              key={`pricing-${dataVersion}`}
+              modalOpen={pricingModalOpen}
+              onModalChange={handlePricingModalChange}
+            />
           )}
           {visibleIds.has("data") && <DataSection onSettingsChange={onSettingsChange} />}
           {visibleIds.has("environment") && <EnvironmentSection />}
