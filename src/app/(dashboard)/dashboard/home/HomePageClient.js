@@ -5,7 +5,7 @@ import HomeHeader from "./HomeHeader";
 import { EndpointHeroCard } from "./EndpointHero";
 import { KeysSummaryCard } from "./KeysSummary";
 import HomeStats from "./HomeStats";
-import { LiveRoutesCard } from "./LiveRoutes";
+import { LiveRoutesCard } from "./LiveRoutesCard";
 import { RecentRequestsCard } from "./RecentRequests";
 import { QuotaWatchCard } from "./QuotaWatch";
 import { CombosTopCard, comboUsageFromByEndpoint } from "./CombosTop";
