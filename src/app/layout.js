@@ -3,6 +3,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import "material-symbols/outlined.css";
 import "./globals.css";
 import { ThemeProvider } from "@/shared/components/ThemeProvider";
+import DensityApplier from "@/shared/components/DensityApplier";
 import "@/lib/network/initOutboundProxy"; // Auto-initialize outbound proxy env
 import "@/shared/services/bootstrap"; // Auto-run initializeApp (watchdog, auto-resume tunnel)
 import { initConsoleLogCapture } from "@/lib/consoleLogBuffer";
@@ -74,8 +75,15 @@ export default function RootLayout({ children }) {
             __html: `var d=document,r=d.documentElement,f=function(){r.classList.add('fonts-loaded')};if(d.fonts&&d.fonts.load){d.fonts.load('24px "Material Symbols Outlined"').then(f).catch(f);setTimeout(f,3000)}else{f()}`,
           }}
         />
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: static no-flash density script, no user input
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|; )nr-density=([^;]*)/);if(m&&decodeURIComponent(m[1])==='compact'){document.documentElement.classList.add('compact-density')}}catch(e){}})();`,
+          }}
+        />
       </head>
       <body className="font-sans antialiased">
+        <DensityApplier />
         <ThemeProvider>
           <RuntimeI18nProvider>{children}</RuntimeI18nProvider>
         </ThemeProvider>

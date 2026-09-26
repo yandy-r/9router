@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import { useRef, useState } from "react";
 import SectionCard from "@/shared/components/SectionCard";
 import SettingRow from "@/shared/components/SettingRow";
+import Toggle from "@/shared/components/Toggle";
 import Button from "@/shared/components/Button";
 import Input from "@/shared/components/Input";
 import Modal from "@/shared/components/Modal";
@@ -12,7 +13,8 @@ import CopyField from "@/shared/components/CopyField";
 
 /**
  * Data & backup section: read-only DB location and password-gated
- * download/import backup actions (parity with the legacy profile page).
+ * download/import backup actions (parity with the legacy profile page),
+ * plus the honest cloud-sync readout (the sync worker is not in this repo).
  */
 export default function DataSection({ onSettingsChange }) {
   const [status, setStatus] = useState({ type: "", message: "" });
@@ -142,6 +144,25 @@ export default function DataSection({ onSettingsChange }) {
           {status.message && (
             <Callout variant={status.type === "ok" ? "ok" : "err"} title={status.message} />
           )}
+        </div>
+        <SettingRow
+          label="Cloud sync"
+          description="Keep settings and connections in sync across machines."
+          settingKey="cloudEnabled"
+          control={
+            <Toggle
+              checked={false}
+              onChange={() => {}}
+              disabled
+              aria-label="Cloud sync (unavailable)"
+            />
+          }
+        />
+        <div className="py-3">
+          <Callout variant="info" title="Cloud sync is not available in this build">
+            No sync worker ships with this repo, so the toggle stays off. Your data stays local; use
+            Download/Import backup to move it between machines.
+          </Callout>
         </div>
       </div>
 

@@ -15,6 +15,7 @@ import ProvidersModelsSection from "./sections/ProvidersModelsSection";
 import ObservabilitySection from "./sections/ObservabilitySection";
 import PricingSection from "./sections/PricingSection";
 import DataSection from "./sections/DataSection";
+import EnvironmentSection from "./sections/EnvironmentSection";
 import DangerSection from "./sections/DangerSection";
 import SettingsAnchorNav from "./SettingsAnchorNav";
 import { filterRows, sectionAnchors } from "./registry";
@@ -173,7 +174,12 @@ export default function SettingsPage() {
       ) : (
         <div className="columns-1 gap-6 xl:columns-2 [&>*]:mb-6 [&>*]:break-inside-avoid">
           {visibleIds.has("general") && (
-            <GeneralSection locale={locale} onLocaleChange={setLocale} />
+            <GeneralSection
+              settings={settings}
+              locale={locale}
+              onLocaleChange={setLocale}
+              onSettingsChange={onSettingsChange}
+            />
           )}
           {visibleIds.has("security") && (
             <SecuritySection settings={settings} onSettingsChange={onSettingsChange} />
@@ -200,6 +206,7 @@ export default function SettingsPage() {
             <PricingSection modalOpen={pricingModalOpen} onModalChange={handlePricingModalChange} />
           )}
           {visibleIds.has("data") && <DataSection onSettingsChange={onSettingsChange} />}
+          {visibleIds.has("environment") && <EnvironmentSection />}
           {visibleIds.has("danger") && <DangerSection />}
         </div>
       )}

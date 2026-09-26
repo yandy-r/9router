@@ -1,13 +1,14 @@
 "use client";
 
 import PropTypes from "prop-types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SectionCard from "@/shared/components/SectionCard";
 import SettingRow from "@/shared/components/SettingRow";
 import Toggle from "@/shared/components/Toggle";
 import Input from "@/shared/components/Input";
 import Button from "@/shared/components/Button";
 import Callout from "@/shared/components/Callout";
+import CopyField from "@/shared/components/CopyField";
 import { useSettingsField } from "../useSettingsField";
 
 /**
@@ -16,6 +17,7 @@ import { useSettingsField } from "../useSettingsField";
  * - password change: current/new/confirm with client & server validation
  * - requireApiKey: optimistic toggle
  * - tunnelDashboardAccess: optimistic toggle
+ * - secure session cookie: read-only AUTH_COOKIE_SECURE readout
  */
 export default function SecuritySection({ settings, onSettingsChange }) {
   // Report to the page only after the server accepted the value (drives "All changes saved").
@@ -31,6 +33,28 @@ export default function SecuritySection({ settings, onSettingsChange }) {
     settings.tunnelDashboardAccess !== false,
     { onSaved: onSaved("tunnelDashboardAccess") },
   );
+
+  const [cookieSecure, setCookieSecure] = useState(null);
+  const [cookieError, setCookieError] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/settings/environment", { cache: "no-store" });
+        if (!res.ok) {
+          if (!cancelled) setCookieError(true);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled) setCookieSecure(data.cookieSecure === true ? "on" : "off");
+      } catch {
+        if (!cancelled) setCookieError(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const [passwords, setPasswords] = useState({ current: "", next: "", confirm: "" });
   const [passStatus, setPassStatus] = useState({ type: "", message: "" });
@@ -197,6 +221,23 @@ export default function SecuritySection({ settings, onSettingsChange }) {
             {tunnelAccessField.error}
           </p>
         )}
+
+        <SettingRow
+          label="Secure session cookie"
+          description="HTTPS-only cookie for the login session."
+          settingKey="AUTH_COOKIE_SECURE"
+          control={
+            <div className="w-full sm:min-w-72 sm:max-w-sm">
+              {cookieSecure ? (
+                <CopyField value={cookieSecure} label="Copy secure cookie state" />
+              ) : (
+                <p className="text-sm text-muted" role={cookieError ? "alert" : "status"}>
+                  {cookieError ? "Could not load cookie state" : "Loading…"}
+                </p>
+              )}
+            </div>
+          }
+        />
       </div>
     </div>
   );

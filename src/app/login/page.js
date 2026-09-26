@@ -94,7 +94,7 @@ export default function LoginPage() {
           setMustChange(true);
           return;
         }
-        window.location.assign("/dashboard");
+        window.location.assign(data.startPage || "/dashboard");
       } else {
         const data = await res.json();
         setError(data.error || "Invalid password");
@@ -120,7 +120,9 @@ export default function LoginPage() {
         body: JSON.stringify({ currentPassword: password, newPassword }),
       });
       if (res.ok) {
-        window.location.assign("/dashboard");
+        // YAN-312: honor the configured start page after the forced reset too.
+        const data = await res.json().catch(() => ({}));
+        window.location.assign(data.startPage || "/dashboard");
       } else {
         const data = await res.json();
         setError(data.error || "Failed to set password");

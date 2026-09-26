@@ -108,4 +108,40 @@ describe("PATCH /api/settings validation for YAN-309 keys", () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it("accepts YAN-312 runtime flags, startPage and uiDensity", async () => {
+    const res = await settingsPatch({
+      requestLogsEnabled: true,
+      translatorEnabled: false,
+      startPage: "/dashboard/providers",
+      uiDensity: "compact",
+    });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.requestLogsEnabled).toBe(true);
+    expect(data.translatorEnabled).toBe(false);
+    expect(data.startPage).toBe("/dashboard/providers");
+    expect(data.uiDensity).toBe("compact");
+    await settingsPatch({
+      requestLogsEnabled: false,
+      translatorEnabled: false,
+      startPage: "/dashboard",
+      uiDensity: "comfortable",
+    });
+  });
+
+  it("rejects invalid YAN-312 flag, startPage and uiDensity values", async () => {
+    for (const body of [
+      { requestLogsEnabled: "yes" },
+      { translatorEnabled: 1 },
+      { startPage: "/login" },
+      { startPage: "/dashboard/nope" },
+      { uiDensity: "cozy" },
+      { uiDensity: 42 },
+    ]) {
+      const res = await settingsPatch(body);
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBeTruthy();
+    }
+  });
 });

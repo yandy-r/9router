@@ -443,6 +443,36 @@ select {
   }
 }
 
+/* Compact density (uiDensity setting): tighten spacing tokens + row heights
+   consistently. Applied via a root class so every page inherits it; set early
+   (layout no-flash script + DensityApplier) to avoid a flash on reload. */
+.compact-density {
+  --spacing: 0.225rem;
+}
+.compact-density .py-4 {
+  padding-block: calc(var(--spacing) * 3);
+}
+.compact-density .p-5 {
+  padding: calc(var(--spacing) * 3.5);
+}
+.compact-density .gap-6 {
+  gap: calc(var(--spacing) * 4);
+}
+.compact-density .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: calc(var(--spacing) * 4);
+}
+.compact-density .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: calc(var(--spacing) * 3);
+}
+.compact-density .h-11 {
+  height: calc(var(--spacing) * 9);
+  min-height: 2.25rem;
+}
+.compact-density .size-12 {
+  width: calc(var(--spacing) * 10);
+  height: calc(var(--spacing) * 10);
+}
+
 /* Terminal surface + line colors. Plain classes (not theme utilities) so the
    fixed-light text can never fall back to the inherited theme text color. */
 .signal-terminal {

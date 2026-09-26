@@ -21,9 +21,18 @@ function FieldError({ error }) {
 FieldError.propTypes = { error: PropTypes.string };
 
 /**
- * Observability & logs section. Max payload size is kilobytes in code
- * (requestDetailsRepo multiplies by 1024) — labeled as KB here. Config
- * cache refreshes within ~5s, so no restart is required.
+ * Observability & logs section (YAN-310 + YAN-312, one coherent section):
+ * - Record request details (enableObservability) + storage-limit numerics
+ *   (max records, batch size, flush interval, max payload KB).
+ * - Log every request file logs (requestLogsEnabled) + Translator page
+ *   visibility (translatorEnabled), each with env precedence: an explicit
+ *   env var wins and locks the toggle with a ".env overrides" pill.
+ * Single source of truth for the env override: `requestLogsOverridden` /
+ * `translatorOverridden` from GET /api/settings (`requestLogEnvOverride`
+ * kept as a legacy alias for the request-logs flag).
+ * Max payload size is kilobytes in code (requestDetailsRepo multiplies by
+ * 1024) — labeled as KB here. Config cache refreshes within ~5s, so no
+ * restart is required.
  */
 export default function ObservabilitySection({ settings, onSettingsChange }) {
   const onSaved = (key) => (value) => onSettingsChange?.({ [key]: value });
@@ -31,9 +40,11 @@ export default function ObservabilitySection({ settings, onSettingsChange }) {
   const enabled = useSettingsField("enableObservability", settings.enableObservability === true, {
     onSaved: onSaved("enableObservability"),
   });
-  // When ENABLE_REQUEST_LOGS is set in .env, the runtime ignores the stored
-  // flag (requestDetailsRepo): the toggle must not pretend to work.
-  const requestLogEnvForced = settings.requestLogEnvOverride === true;
+  // Env precedence (single source of truth): an explicit ENABLE_REQUEST_LOGS
+  // wins over every stored flag, so all recording toggles lock, not just one.
+  const requestLogsOverridden =
+    settings.requestLogsOverridden === true || settings.requestLogEnvOverride === true;
+  const translatorOverridden = settings.translatorOverridden === true;
   const maxRecords = useSettingsField(
     "observabilityMaxRecords",
     settings.observabilityMaxRecords ?? 1000,
@@ -54,8 +65,24 @@ export default function ObservabilitySection({ settings, onSettingsChange }) {
     settings.observabilityMaxJsonSize ?? 5,
     { debounced: true, onSaved: onSaved("observabilityMaxJsonSize") },
   );
+  const requestLogsField = useSettingsField(
+    "requestLogsEnabled",
+    settings.requestLogsEnabled === true,
+    { onSaved: onSaved("requestLogsEnabled") },
+  );
+  const translatorField = useSettingsField(
+    "translatorEnabled",
+    settings.translatorEnabled === true,
+    { onSaved: onSaved("translatorEnabled") },
+  );
 
   const off = !enabled.value;
+  const requestLogsChecked = requestLogsOverridden
+    ? settings.enableRequestLogs === true
+    : requestLogsField.value;
+  const translatorChecked = translatorOverridden
+    ? settings.enableTranslator === true
+    : translatorField.value;
 
   return (
     <div id="logs" className="scroll-mt-24 space-y-4">
@@ -68,7 +95,7 @@ export default function ObservabilitySection({ settings, onSettingsChange }) {
         <SettingRow
           label="Record request details"
           description={
-            requestLogEnvForced ? (
+            requestLogsOverridden ? (
               <>
                 Set by <code className="font-mono">ENABLE_REQUEST_LOGS</code> in .env — the env
                 wins, this toggle is read-only.
@@ -82,7 +109,7 @@ export default function ObservabilitySection({ settings, onSettingsChange }) {
             <Toggle
               checked={enabled.value === true}
               onChange={(next) => enabled.set(next)}
-              disabled={enabled.saving || requestLogEnvForced}
+              disabled={enabled.saving || requestLogsOverridden}
               aria-label="Record request details"
             />
           }
@@ -135,6 +162,65 @@ export default function ObservabilitySection({ settings, onSettingsChange }) {
             </Callout>
           </div>
         </div>
+
+        <SettingRow
+          label="Log every request to console"
+          description={
+            requestLogsOverridden
+              ? "Controlled by ENABLE_REQUEST_LOGS in .env — change it there and restart."
+              : "Writes request/response logs under logs/ for debugging."
+          }
+          settingKey="ENABLE_REQUEST_LOGS"
+          control={
+            <div className="flex items-center gap-2">
+              {requestLogsOverridden && (
+                <span className="rounded-full bg-raised px-2 py-0.5 font-mono text-[11px] text-muted">
+                  .env overrides
+                </span>
+              )}
+              <Toggle
+                checked={requestLogsChecked}
+                onChange={(next) => requestLogsField.set(next)}
+                disabled={requestLogsOverridden || requestLogsField.saving}
+                aria-label="Log every request to console"
+              />
+            </div>
+          }
+        />
+        {requestLogsField.error && (
+          <p className="py-2 text-xs text-err" role="alert">
+            {requestLogsField.error}
+          </p>
+        )}
+        <SettingRow
+          label="Show Translator page"
+          description={
+            translatorOverridden
+              ? "Controlled by ENABLE_TRANSLATOR in .env — change it there and restart."
+              : "Debug tool for format translation."
+          }
+          settingKey="ENABLE_TRANSLATOR"
+          control={
+            <div className="flex items-center gap-2">
+              {translatorOverridden && (
+                <span className="rounded-full bg-raised px-2 py-0.5 font-mono text-[11px] text-muted">
+                  .env overrides
+                </span>
+              )}
+              <Toggle
+                checked={translatorChecked}
+                onChange={(next) => translatorField.set(next)}
+                disabled={translatorOverridden || translatorField.saving}
+                aria-label="Show Translator page"
+              />
+            </div>
+          }
+        />
+        {translatorField.error && (
+          <p className="py-2 text-xs text-err" role="alert">
+            {translatorField.error}
+          </p>
+        )}
       </div>
     </div>
   );
