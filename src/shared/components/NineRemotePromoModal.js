@@ -34,7 +34,7 @@ export default function NineRemotePromoModal({ isOpen, onClose }) {
       size="sm"
       title={
         <span className="flex items-center gap-3">
-          <span className="flex size-7 items-center justify-center rounded-lg bg-primary">
+          <span className="flex size-7 items-center justify-center rounded-lg bg-primary-fill">
             <span className="material-symbols-outlined text-base text-on-coral" aria-hidden="true">
               terminal
             </span>
@@ -47,7 +47,7 @@ export default function NineRemotePromoModal({ isOpen, onClose }) {
     >
       <div className="flex flex-col gap-6">
         <div className="mt-2 flex flex-col items-center gap-2 text-center">
-          <div className="mb-1 flex size-14 items-center justify-center rounded-xl bg-primary shadow-card">
+          <div className="mb-1 flex size-14 items-center justify-center rounded-xl bg-primary-fill shadow-card">
             <span
               className="material-symbols-outlined text-[30px] text-on-coral"
               aria-hidden="true"

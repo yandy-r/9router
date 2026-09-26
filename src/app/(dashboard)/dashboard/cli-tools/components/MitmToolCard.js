@@ -141,15 +141,17 @@ export default function MitmToolCard({
   return (
     <>
       <Card padding="xs" className="overflow-hidden">
-        <div
-          className="flex items-start justify-between gap-3 hover:cursor-pointer sm:items-center"
+        <button
+          type="button"
+          aria-expanded={isExpanded}
           onClick={onToggle}
+          className="flex w-full items-start justify-between gap-3 text-start hover:cursor-pointer focus-visible:outline-none focus-visible:shadow-focus sm:items-center"
         >
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="size-8 flex items-center justify-center shrink-0">
+          <span className="flex min-w-0 items-center gap-3">
+            <span className="size-8 flex items-center justify-center shrink-0" aria-hidden="true">
               <Image
                 src={tool.image}
-                alt={tool.name}
+                alt=""
                 width={32}
                 height={32}
                 className="size-8 object-contain rounded-lg"
@@ -160,10 +162,10 @@ export default function MitmToolCard({
                 loading="lazy"
                 decoding="async"
               />
-            </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="font-medium text-sm">{tool.name}</h3>
+            </span>
+            <span className="min-w-0">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-sm">{tool.name}</span>
                 {!serverRunning ? (
                   <Badge variant="default" size="sm">
                     Server off
@@ -177,19 +179,19 @@ export default function MitmToolCard({
                     DNS off
                   </Badge>
                 )}
-              </div>
-              <p className="text-xs text-text-muted sm:truncate">
+              </span>
+              <span className="block text-xs text-text-muted sm:truncate">
                 Intercept {tool.name} requests via MITM proxy
-              </p>
-            </div>
-          </div>
+              </span>
+            </span>
+          </span>
           <span
             className={`material-symbols-outlined text-text-muted text-[20px] transition-transform ${isExpanded ? "rotate-180" : ""}`}
             aria-hidden="true"
           >
             expand_more
           </span>
-        </div>
+        </button>
 
         {isExpanded && (
           <div className="mt-4 pt-4 border-t border-border flex flex-col gap-4">
@@ -280,27 +282,27 @@ export default function MitmToolCard({
             {/* Start / Stop DNS button */}
             <div className="flex flex-col gap-2 sm:items-start">
               {dnsActive ? (
-                <button
+                <Button
+                  variant="danger"
+                  size="sm"
+                  icon="stop_circle"
                   onClick={handleDnsToggle}
                   disabled={!serverRunning || loading}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-medium text-red-500 transition-colors hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-1.5"
+                  className="w-full sm:w-auto"
                 >
-                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-                    stop_circle
-                  </span>
                   Stop DNS
-                </button>
+                </Button>
               ) : (
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon="play_circle"
                   onClick={handleDnsToggle}
                   disabled={!serverRunning || loading}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-1.5"
+                  className="w-full sm:w-auto"
                 >
-                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-                    play_circle
-                  </span>
                   Start DNS
-                </button>
+                </Button>
               )}
 
               {/* Warning below button */}

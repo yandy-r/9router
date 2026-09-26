@@ -5,6 +5,8 @@ import PropTypes from "prop-types";
 /**
  * Settings row: label, description + optional mono setting key on one side,
  * control on the other. Stacks vertically on narrow containers via flex-wrap.
+ * Pass `aria-disabled` for off-state rows: text keeps full contrast while
+ * assistive tech hears the state (YAN-314).
  */
 export default function SettingRow({ label, description, settingKey, control, className }) {
   return (

@@ -199,7 +199,12 @@ export default function PxpipeClient() {
       </Card>
 
       <Card title="History" padding="none">
-        <div className="overflow-x-auto">
+        <section
+          className="overflow-x-auto focus-visible:shadow-focus"
+          aria-label="PXPIPE history"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: scrollable table region is keyboard-focusable with a label (WCAG 2.1.1, YAN-314).
+          tabIndex={0}
+        >
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line text-start text-xs text-muted">
@@ -282,7 +287,7 @@ export default function PxpipeClient() {
               )}
             </tbody>
           </table>
-        </div>
+        </section>
       </Card>
 
       <Card title="PXPIPE logs" id="logs">

@@ -167,9 +167,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg p-4">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-bg p-4">
       <div className="relative z-10 w-full max-w-md">
         <div className="mb-8 text-center">
+          <h1 className="sr-only">Login to 9Router</h1>
           <Link
             href="/landing"
             className="inline-flex items-center gap-2.5 focus-visible:outline-none focus-visible:shadow-focus"
@@ -306,6 +307,6 @@ export default function LoginPage() {
           )}
         </Card>
       </div>
-    </div>
+    </main>
   );
 }

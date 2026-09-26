@@ -197,7 +197,12 @@ export default function UsageBreakdown({ stats }) {
       {!stats || groups.length === 0 ? (
         <EmptyState icon="table_rows" title={config.empty} />
       ) : (
-        <div className="overflow-x-auto">
+        <section
+          className="overflow-x-auto focus-visible:shadow-focus"
+          aria-label="Usage breakdown"
+          // biome-ignore lint/a11y/noNoninteractiveTabindex: scrollable table region is keyboard-focusable with a label (WCAG 2.1.1, YAN-314).
+          tabIndex={0}
+        >
           <table className="w-full text-left text-sm">
             <thead className="bg-raised/30 text-xs uppercase text-muted">
               <tr>
@@ -316,7 +321,7 @@ export default function UsageBreakdown({ stats }) {
               })}
             </tbody>
           </table>
-        </div>
+        </section>
       )}
     </Card>
   );

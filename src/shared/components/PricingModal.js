@@ -182,7 +182,12 @@ function ProviderPricingTable({ provider, models, onChange }) {
       <div className="bg-raised px-4 py-2 text-sm font-semibold text-text">
         {provider.toUpperCase()}
       </div>
-      <div className="overflow-x-auto">
+      <section
+        className="overflow-x-auto focus-visible:shadow-focus"
+        aria-label="Pricing table"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: scrollable table region is keyboard-focusable with a label (WCAG 2.1.1, YAN-314).
+        tabIndex={0}
+      >
         <table className="w-full text-sm">
           <thead className="bg-line/40 text-xs uppercase text-muted">
             <tr>
@@ -217,7 +222,7 @@ function ProviderPricingTable({ provider, models, onChange }) {
               ))}
           </tbody>
         </table>
-      </div>
+      </section>
     </div>
   );
 }

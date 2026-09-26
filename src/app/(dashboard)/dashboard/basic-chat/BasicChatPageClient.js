@@ -321,6 +321,7 @@ export default function BasicChatPageClient() {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-bg text-text">
+      <h1 className="sr-only">Basic chat</h1>
       <div className="relative mx-auto flex h-full min-h-0 w-full max-w-4xl flex-1 flex-col">
         <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3 lg:px-6">
           <ChatModelPicker

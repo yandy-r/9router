@@ -217,6 +217,13 @@ export default function Menu({
     }
   };
 
+  // Screen readers announce the menu via the trigger's accessible name.
+  const triggerAriaLabel = isValidElement(trigger)
+    ? (trigger.props["aria-label"] ??
+      trigger.props.label ??
+      (typeof trigger.props.children === "string" ? trigger.props.children : undefined))
+    : undefined;
+
   const triggerProps = {
     ref: triggerRef,
     "aria-haspopup": "menu",
@@ -258,6 +265,7 @@ export default function Menu({
             ref={setPanelNode}
             id={menuId}
             role="menu"
+            aria-label={triggerAriaLabel}
             aria-orientation="vertical"
             style={panelStyle ?? { visibility: "hidden" }}
             className={cn(

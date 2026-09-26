@@ -40,7 +40,12 @@ export default function SetupScaffold({
 }) {
   const brand = getToolBrand(tool);
   return (
-    <Card padding="md" className="flex flex-col gap-4 sm:gap-5" aria-label={`${tool.name} setup`}>
+    <Card
+      padding="md"
+      className="flex flex-col gap-4 sm:gap-5"
+      role="region"
+      aria-label={`${tool.name} setup`}
+    >
       <div className="flex items-start gap-3.5">
         <span
           aria-hidden="true"

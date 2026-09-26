@@ -23,7 +23,7 @@ export default function Avatar({ src, alt = "Avatar", name, size = "md", classNa
 
   // Generate color from name
   const getColorFromName = (name) => {
-    if (!name) return "bg-primary";
+    if (!name) return "bg-primary-fill";
     const colors = [
       "bg-red-500",
       "bg-orange-500",

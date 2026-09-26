@@ -475,7 +475,7 @@ export default function ProxyPoolsPage() {
       <div className="flex flex-col items-start gap-6 xl:flex-row">
         <div className="min-w-0 flex-1 self-stretch">
           {loading ? (
-            <Card padding="md" aria-busy="true" aria-label="Loading proxy pools">
+            <Card padding="md" role="status" aria-busy="true" aria-label="Loading proxy pools">
               <div className="flex flex-col gap-3">
                 {["sk-1", "sk-2", "sk-3", "sk-4"].map((key) => (
                   <Skeleton key={key} className="h-16 w-full" />

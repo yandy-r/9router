@@ -111,7 +111,7 @@ export default function MediaProviderDetailPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <nav aria-label="Breadcrumb">
+      <nav aria-label="Back to media providers">
         <Link
           href={`/dashboard/media-providers/${kind}`}
           className="inline-flex min-h-10 items-center gap-1.5 rounded-lg text-sm text-muted transition-colors hover:text-text focus-visible:shadow-focus"
