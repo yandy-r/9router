@@ -299,6 +299,7 @@ select {
   /* Legacy aliases (see the compatibility map above) */
   --color-primary: var(--color-primary);
   --color-primary-hover: var(--color-primary-hover);
+  --color-primary-fill: var(--color-primary-fill);
   --color-brand-50: var(--color-brand-50);
   --color-brand-100: var(--color-brand-100);
   --color-brand-200: var(--color-brand-200);

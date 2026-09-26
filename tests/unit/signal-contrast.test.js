@@ -214,3 +214,40 @@ describe("signal token contrast", () => {
   // Provider monogram contrast (white on every brand tile) lives in
   // signal-display-primitives.test.js next to the brand map (YAN-277).
 });
+
+describe("tailwind @theme utility contract (YAN-314 merge gate)", () => {
+  /** Every `--color-*` utility used in `src` must resolve to a token in the
+   * `@theme inline` block, or Tailwind generates no CSS for it. Scoped to
+   * known `@theme` tokens plus the project's semantic aliases so layout
+   * keywords (`bg-center`, `bg-cover`) and Tailwind palette utilities
+   * (`bg-red-500/10`) never pollute the check. */
+  it("every theme color utility in src exists in @theme inline", async () => {
+    const { execFileSync } = await import("node:child_process");
+    const { resolve } = await import("node:path");
+    const root = resolve(here, "..", "..");
+    const out = execFileSync(
+      "git",
+      [
+        "grep",
+        "-rhoE",
+        "(bg|text|border|ring)-(muted|subtle|line|panel|raised|bg|text|coral|coral-ink|coral-bg|on-coral|lime|lime-ink|lime-bg|on-lime|sky|sky-bg|ok|ok-bg|warn|warn-bg|err|err-bg|scrim|toggle-on|toggle-knob-on|terminal-bg|primary|primary-hover|primary-fill|accent|danger|success|warning|info|surface|surface-2|surface-3|sidebar|border|text-main|text-primary|text-muted|text-subtle)(/[0-9]+)?",
+        "--",
+        "src",
+      ],
+      { cwd: root, encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
+    );
+    const themeBlock = css.match(/@theme inline \{([\s\S]*?)\n\}/)?.[1] ?? "";
+    const declared = new Set([...themeBlock.matchAll(/--color-([\w-]+)\s*:/g)].map((m) => m[1]));
+    const missing = new Set();
+    for (const util of new Set(out.split("\n").filter(Boolean))) {
+      const token = util.replace(/^(bg|text|border|ring)-/, "").split("/")[0];
+      if (!declared.has(token)) missing.add(token);
+    }
+    expect(
+      [...missing],
+      `color utilities with no @theme token: ${[...missing].join(", ")}`,
+    ).toEqual([]);
+    // The gate that caught the merge issue: bg-primary-fill must resolve.
+    expect(declared.has("primary-fill"), "@theme inline declares --color-primary-fill").toBe(true);
+  });
+});
