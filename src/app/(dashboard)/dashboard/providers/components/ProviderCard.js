@@ -150,7 +150,7 @@ export default function ProviderCard({
             <Toggle
               size="sm"
               checked={!stats.allDisabled}
-              onChange={() => onToggle(!stats.allDisabled)}
+              onChange={(next) => onToggle(next)}
               title={stats.allDisabled ? "Enable provider" : "Disable provider"}
               aria-label={stats.allDisabled ? `Enable ${info.name}` : `Disable ${info.name}`}
             />

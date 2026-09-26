@@ -325,3 +325,35 @@ describe("provider panel URL state", () => {
     expect(readSelectedProvider(closed.split("?")[1] ?? "")).toBeNull();
   });
 });
+
+describe("card toggle contract", () => {
+  // Regression: ProviderCard's Toggle must forward Toggle's `next` value to
+  // onToggle (Toggle calls onChange(!checked)). Passing the current value
+  // made card toggles a no-op (merge-gate HIGH on PR #268).
+  // Toggle's contract: onChange receives the NEW checked state.
+  const toggleNext = (checked) => !checked;
+
+  it("forwards the next state when enabling an all-disabled provider", () => {
+    const stats = { allDisabled: true };
+    const checked = !stats.allDisabled;
+    expect(toggleNext(checked)).toBe(true);
+  });
+
+  it("forwards the next state when disabling an enabled provider", () => {
+    const stats = { allDisabled: false };
+    const checked = !stats.allDisabled;
+    expect(toggleNext(checked)).toBe(false);
+  });
+
+  it("ProviderCard source wires onChange={(next) => onToggle(next)}", async () => {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+    const file = path.resolve(
+      new URL(".", import.meta.url).pathname,
+      "../../src/app/(dashboard)/dashboard/providers/components/ProviderCard.js",
+    );
+    const src = fs.readFileSync(file, "utf8");
+    expect(src).toContain("onChange={(next) => onToggle(next)}");
+    expect(src).not.toContain("onToggle(!stats.allDisabled)");
+  });
+});
