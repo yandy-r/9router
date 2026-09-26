@@ -1052,7 +1052,7 @@ export async function getUsageSavings(period = "7d") {
   const { start, end } = savingsPeriodRange(period, now);
 
   const rows = db.all(
-    `SELECT timestamp, meta FROM usageHistory WHERE timestamp >= ? AND timestamp <= ?`,
+    `SELECT timestamp, provider, model, meta FROM usageHistory WHERE timestamp >= ? AND timestamp <= ?`,
     [start, end],
   );
 
@@ -1060,6 +1060,8 @@ export async function getUsageSavings(period = "7d") {
   let tokensSavedEst = 0;
   let tokensBeforeEst = 0;
   let requestsWithSavings = 0;
+  let costSavedEst = 0;
+  let pricedRequests = 0;
 
   for (const row of rows) {
     const meta = parseJson(row.meta, {});
@@ -1068,8 +1070,7 @@ export async function getUsageSavings(period = "7d") {
     // Guard against partially-shaped legacy rows
     const methods =
       savings.byMethod && typeof savings.byMethod === "object" ? savings.byMethod : {};
-    const methodNames = Object.keys(methods);
-    if (methodNames.length === 0) continue;
+    if (Object.keys(methods).length === 0) continue;
 
     let rowSaved = 0;
     for (const [method, m] of Object.entries(methods)) {
@@ -1084,10 +1085,15 @@ export async function getUsageSavings(period = "7d") {
       byMethod[method].requests += 1;
       rowSaved += saved;
     }
-    if (rowSaved > 0) {
-      tokensSavedEst += rowSaved;
-      tokensBeforeEst += Number(savings.tokensBeforeEst) || 0;
-      requestsWithSavings += 1;
+    if (rowSaved <= 0) continue;
+    tokensSavedEst += rowSaved;
+    tokensBeforeEst += Number(savings.tokensBeforeEst) || 0;
+    requestsWithSavings += 1;
+
+    const rowCost = await savedTokensCost(row.provider, row.model, rowSaved);
+    if (rowCost > 0) {
+      costSavedEst += rowCost;
+      pricedRequests += 1;
     }
   }
 
@@ -1102,9 +1108,37 @@ export async function getUsageSavings(period = "7d") {
     tokensBeforeEst,
     percentage,
     requestsWithSavings,
+    // $ at list prices: each request's saved tokens priced with its own model.
+    // null when no request in the period had resolvable pricing.
+    costSavedEst: pricedRequests > 0 ? +costSavedEst.toFixed(6) : null,
+    pricedRequests,
     methods,
     byMethod,
   };
+}
+
+/**
+ * List-price value of a request's saved tokens. Every counted saver (RTK,
+ * Headroom, PXPIPE) shrinks the prompt, so saved tokens are priced as
+ * uncached input for the request's own provider/model — the same pricing
+ * tables and math as usage cost. Unknown pricing returns 0 (never a guess).
+ * @param {string|null} provider
+ * @param {string|null} model
+ * @param {number} savedTokens
+ * @returns {Promise<number>} dollars
+ */
+async function savedTokensCost(provider, model, savedTokens) {
+  if (!model || !(savedTokens > 0)) return 0;
+  try {
+    const { getPricingForModel } = await import("./pricingRepo.js");
+    const pricing = await getPricingForModel(provider, model);
+    if (!pricing || !(Number(pricing.input) > 0)) return 0;
+    const { calculateCostFromTokens } = await import("open-sse/providers/pricing.js");
+    return calculateCostFromTokens({ prompt_tokens: savedTokens }, pricing);
+  } catch (e) {
+    console.error("[usageRepo] savings pricing failed:", e.message);
+    return 0;
+  }
 }
 
 /**

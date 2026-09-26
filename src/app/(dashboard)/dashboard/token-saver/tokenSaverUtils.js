@@ -47,19 +47,18 @@ export function savingsShare(savings) {
 }
 
 /**
- * Approximate $ value of saved tokens at list prices. Saved traffic is mostly
- * prompt-side compression, so blend input/output list rates instead of
- * assuming a single rate; callers pass resolved pricing (never hardcoded).
- * @param {number} tokensSavedEst
- * @param {{ input?: number, output?: number }|null|undefined} pricing $/1M tokens
- * @returns {number} dollars
+ * Hero "$" suffix from the aggregation's per-request priced `costSavedEst`.
+ * The backend prices each request's saved tokens with that request's own
+ * model pricing (same tables as usage cost), so the hero never invents a
+ * rate or hardcodes prices. Empty when no priced savings: no "$0.00" line.
+ * @param {{ costSavedEst?: number|null }|null|undefined} savings
+ * @param {(value: number) => string} formatMoney
+ * @returns {string}
  */
-export function estimateSavingsCost(tokensSavedEst, pricing) {
-  const saved = Number(tokensSavedEst) || 0;
-  const input = Number(pricing?.input);
-  const output = Number(pricing?.output);
-  if (saved <= 0 || !Number.isFinite(input) || !Number.isFinite(output)) return 0;
-  return (saved * ((input + output) / 2)) / 1_000_000;
+export function savingsDollarLine(savings, formatMoney) {
+  const cost = Number(savings?.costSavedEst);
+  if (!Number.isFinite(cost) || cost <= 0) return "";
+  return ` · about ${formatMoney(cost)} at list prices`;
 }
 
 /**

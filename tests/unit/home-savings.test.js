@@ -223,6 +223,31 @@ describe("recorded savings (saveRequestUsage -> getUsageSavings)", () => {
     expect(phantom).toBeNull();
   });
 
+  it("prices saved tokens per request model; unknown models price nothing", async () => {
+    // Realistic shapes: gh/tokenrouter-style provider keys with per-model
+    // input rates; gpt-5 + claude-opus-4-6 resolve from the real pricing tables.
+    const out = await db.getUsageSavings("7d");
+    expect(out.costSavedEst).toBeGreaterThan(0);
+    expect(out.pricedRequests).toBe(2);
+
+    await db.saveRequestUsage({
+      provider: "nope-provider",
+      model: "nope-model-xyz",
+      tokens: { prompt_tokens: 100, completion_tokens: 50 },
+      endpoint: "/v1/chat/completions",
+      status: "ok",
+      savings: buildSavingsEntry({
+        rtkStats: { bytesBefore: 4000, bytesAfter: 0, hits: [{ shape: "x" }] },
+      }),
+    });
+
+    const after = await db.getUsageSavings("7d");
+    expect(after.tokensSavedEst).toBe(out.tokensSavedEst + 1000);
+    expect(after.requestsWithSavings).toBe(out.requestsWithSavings + 1);
+    // Tokens count, dollars unchanged: unknown pricing is never invented.
+    expect(after.costSavedEst).toBe(out.costSavedEst);
+    expect(after.pricedRequests).toBe(out.pricedRequests);
+  });
   it("home summary: previous-period delta + top combos from recorded names", async () => {
     const summary = await db.getHomeSummary("7d");
     expect(summary.requests).toBeGreaterThanOrEqual(3);

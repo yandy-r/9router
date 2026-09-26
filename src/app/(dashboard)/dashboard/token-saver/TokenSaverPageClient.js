@@ -22,10 +22,15 @@ import {
   headroomPillProps,
 } from "./HeadroomControls";
 import { useHeadroomExtras } from "./useHeadroomExtras";
-import { PxpipeFields, PxpipeModal, usePxpipeStatus } from "./PxpipeControls";
 import { fetchJson } from "./tokenSaverApi";
 
 const RTK_CHIPS = ["git log", "git diff", "grep / rg", "ls / tree", "test output", "logs"];
+
+// YAN-303 spec: PXPIPE ("prompts as images") stays hidden on this page, as the
+// legacy UI hid it (`{false && ...}`), until a Settings experimental flag exists.
+// None exists, so the row is not rendered at all (no-dead-code rule); its
+// settings live in Settings → Token saver (YAN-310), and recorded PXPIPE
+// savings still count in the hero total and method breakdown.
 
 /**
  * Token saver page: lime savings hero (YAN-292 aggregation), four method
@@ -55,7 +60,6 @@ export default function TokenSaverPageClient() {
   );
 
   const [showHeadroomModal, setShowHeadroomModal] = useState(false);
-  const [showPxpipeModal, setShowPxpipeModal] = useState(false);
 
   const [locale, setLocale] = useState("en");
 
@@ -70,7 +74,6 @@ export default function TokenSaverPageClient() {
     : CAVEMAN_LEVELS.filter((lvl) => !lvl.wenyan);
 
   const extras = useHeadroomExtras(bump);
-  const { pxpipe, health: pxpipeHealth, recheck: recheckPxpipe } = usePxpipeStatus();
 
   useEffect(() => {
     let cancelled = false;
@@ -103,7 +106,6 @@ export default function TokenSaverPageClient() {
         if (cancelled) return;
         setSettings(data);
         extras.refresh();
-        recheckPxpipe();
       } catch {
         if (!cancelled) setSettings(null);
       } finally {
@@ -433,56 +435,13 @@ export default function TokenSaverPageClient() {
         </Card>
       </div>
 
-      <Card
-        title={
-          <span className="inline-flex flex-wrap items-center gap-2">
-            Compress huge prompts as images
-            <span className="rounded-full bg-warn-bg px-2.5 py-0.5 text-xs font-semibold text-warn">
-              Experimental
-            </span>
-          </span>
-        }
-        subtitle="Renders very long context as images for vision models. Only kicks in above the size limit."
-        icon="image"
-        action={
-          <Toggle
-            checked={!!settings.pxpipeEnabled}
-            disabled={!pxpipe.installed}
-            onChange={(value) => patchSetting({ pxpipeEnabled: value })}
-            aria-label="Compress prompts as images"
-          />
-        }
-      >
-        <PxpipeFields
-          pxpipe={pxpipe}
-          health={pxpipeHealth}
-          minChars={settings.pxpipeMinChars ?? 25000}
-          onMinCharsChange={(value) => setSettings((prev) => ({ ...prev, pxpipeMinChars: value }))}
-          onMinCharsBlur={(value) => {
-            const next = Math.max(0, Number(value) || 25000);
-            patchSetting({ pxpipeMinChars: next });
-          }}
-          timeoutMs={settings.pxpipeTimeoutMs ?? 15000}
-          onTimeoutChange={(value) => setSettings((prev) => ({ ...prev, pxpipeTimeoutMs: value }))}
-          onTimeoutBlur={(value) => {
-            const raw = Math.round(Number(value));
-            const next = Number.isFinite(raw) && raw > 0 ? raw : 15000;
-            patchSetting({ pxpipeTimeoutMs: next });
-          }}
-          onManage={() => setShowPxpipeModal(true)}
-        />
-        <MethodFooter
-          savings={savings}
-          method="pxpipe"
-          tag="PXPIPE"
-          offLabel="No PXPIPE savings recorded in this period"
-        />
-      </Card>
-
       <p className="text-xs text-muted">
         Every field writes through the same settings API as Settings → Token saver. Advanced
-        Headroom and PXPIPE options live there too:{" "}
-        <a href="/dashboard/settings" className="font-semibold text-coral-ink underline">
+        options, including experimental prompts-as-images, live there:{" "}
+        <a
+          href="/dashboard/settings#token-saver"
+          className="font-semibold text-coral-ink underline"
+        >
           Open Settings
         </a>
         .
@@ -495,13 +454,6 @@ export default function TokenSaverPageClient() {
         running={pill.running}
         label={pill.label}
         onRecheck={extras.refresh}
-      />
-      <PxpipeModal
-        open={showPxpipeModal}
-        onClose={() => setShowPxpipeModal(false)}
-        pxpipe={pxpipe}
-        health={pxpipeHealth}
-        onRecheck={recheckPxpipe}
       />
       {extras.confirmDialog}
     </div>

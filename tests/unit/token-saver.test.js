@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   headroomStatusLabel,
+  savingsDollarLine,
   savingsShare,
-  estimateSavingsCost,
 } from "../../src/app/(dashboard)/dashboard/token-saver/tokenSaverUtils.js";
 
 describe("headroomStatusLabel", () => {
@@ -61,14 +61,15 @@ describe("savingsShare", () => {
   });
 });
 
-describe("estimateSavingsCost", () => {
-  const pricing = { input: 3.0, output: 15.0 };
-  it("values saved tokens at blended list rates (no hardcoded prices)", () => {
-    expect(estimateSavingsCost(1_000_000, pricing)).toBeCloseTo(9.0, 6);
+describe("savingsDollarLine", () => {
+  const money = (value) => `$${value.toFixed(2)}`;
+  it("renders the priced $ suffix from the aggregation", () => {
+    expect(savingsDollarLine({ costSavedEst: 6.2 }, money)).toBe(" · about $6.20 at list prices");
   });
-  it("returns 0 for missing inputs", () => {
-    expect(estimateSavingsCost(0, pricing)).toBe(0);
-    expect(estimateSavingsCost(100, null)).toBe(0);
-    expect(estimateSavingsCost(100, {})).toBe(0);
+  it("renders no $ line when nothing was priced", () => {
+    expect(savingsDollarLine({ costSavedEst: null }, money)).toBe("");
+    expect(savingsDollarLine({ costSavedEst: 0 }, money)).toBe("");
+    expect(savingsDollarLine({}, money)).toBe("");
+    expect(savingsDollarLine(null, money)).toBe("");
   });
 });

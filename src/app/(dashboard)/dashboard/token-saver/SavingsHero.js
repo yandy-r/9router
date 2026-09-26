@@ -7,11 +7,9 @@ import {
   SAVINGS_METHOD_LABELS,
   SAVINGS_PERIODS,
   SAVINGS_SEGMENT_ORDER,
-  estimateSavingsCost,
+  savingsDollarLine,
   savingsShare,
 } from "./tokenSaverUtils";
-import { useEffect, useState } from "react";
-import { fetchJson } from "./tokenSaverApi";
 
 /**
  * Page header: subtitle line + H1 with the Today/7d/30d control.
@@ -50,8 +48,9 @@ const SEGMENT_OPACITY = ["bg-on-lime/90", "bg-on-lime/55", "bg-on-lime/30"];
 
 /**
  * Lime savings hero: total saved, % lighter, $ estimate at list prices and a
- * stacked bar by method. The $ rate resolves from /api/pricing at runtime
- * (open-sse pricing is not importable in the client bundle graph).
+ * stacked bar by method. The $ value arrives inside the aggregation
+ * (`costSavedEst`, priced server-side per request with its own model
+ * pricing) — the hero renders it and never resolves pricing itself.
  * @param {object} props
  * @param {object|null} props.savings YAN-292 aggregation
  * @param {boolean} props.loading
@@ -60,27 +59,6 @@ const SEGMENT_OPACITY = ["bg-on-lime/90", "bg-on-lime/55", "bg-on-lime/30"];
  * @param {() => void} props.onRetry
  */
 export function SavingsHero({ savings, loading, error, period, onRetry }) {
-  const [rate, setRate] = useState(null);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const pricing = await fetchJson("/api/pricing");
-        const openai = pricing?.openai && typeof pricing.openai === "object" ? pricing.openai : {};
-        const ref =
-          openai["gpt-4o"] ||
-          Object.values(openai).find((entry) => entry?.input != null && entry?.output != null) ||
-          null;
-        if (!cancelled && ref) setRate({ input: ref.input, output: ref.output });
-      } catch {
-        /* hero still shows token counts without the $ line */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const periodLabel = period === "today" ? "today" : `last ${period}`;
   if (loading) {
     return (
@@ -126,7 +104,6 @@ export function SavingsHero({ savings, loading, error, period, onRetry }) {
   }
   const share = savingsShare(savings);
   const segments = SAVINGS_SEGMENT_ORDER.filter((method) => (share[method] || 0) > 0);
-  const dollars = rate ? estimateSavingsCost(saved, rate) : null;
 
   return (
     <section
@@ -142,7 +119,7 @@ export function SavingsHero({ savings, loading, error, period, onRetry }) {
         </span>
         <span className="text-sm font-medium">
           {Math.round(Number(savings.percentage) || 0)}% lighter than raw requests
-          {dollars ? ` · about ${formatMoney(dollars)} at list prices` : ""}
+          {savingsDollarLine(savings, formatMoney)}
         </span>
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
