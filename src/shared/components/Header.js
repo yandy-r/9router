@@ -159,10 +159,10 @@ export const getPageInfo = (pathname) => {
       icon: "api",
       breadcrumbs: [],
     };
-  if (pathname.includes("/profile"))
+  if (pathname.includes("/settings") || pathname.includes("/profile"))
     return {
       title: "Settings",
-      description: "Manage your preferences",
+      description: "Every knob in one place",
       icon: "settings",
       breadcrumbs: [],
     };

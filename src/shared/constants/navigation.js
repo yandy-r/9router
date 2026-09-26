@@ -147,9 +147,8 @@ export const NAV_GROUPS = [
         id: "settings",
         label: "Settings",
         icon: "settings",
-        // Note: YAN-309 will build the real /dashboard/settings; currently points to /dashboard/profile
-        href: "/dashboard/profile",
-        matchPrefixes: ["/dashboard/profile", "/dashboard/settings"],
+        href: "/dashboard/settings",
+        matchPrefixes: ["/dashboard/settings", "/dashboard/profile"],
       },
     ],
   },

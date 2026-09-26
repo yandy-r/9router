@@ -87,10 +87,82 @@ async function handleComboStrategyPatch(body) {
 }
 
 const ACCOUNT_STRATEGIES = new Set(["fill-first", "round-robin", "weighted"]);
+const AUTH_MODES = new Set(["password", "sso", "both", "saml", "oidc"]);
+const SSO_TYPES = new Set(["oidc", "saml"]);
 const UNSAFE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+const MAX_TEXT_LEN = 256;
+const MAX_URL_LEN = 2048;
+const MAX_PASSWORD_LEN = 256;
+const MAX_CERT_LEN = 16384;
 
 function validStickyLimit(value) {
   return Number.isInteger(value) && value >= 1 && value <= 100;
+}
+
+function validText(value, max = MAX_TEXT_LEN) {
+  return typeof value === "string" && value.length <= max;
+}
+
+// Empty clears the value; otherwise require an http(s) URL.
+function validUrl(value) {
+  if (typeof value !== "string" || value.length > MAX_URL_LEN) return false;
+  if (!value.trim()) return true;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Boundary validation for keys touched by the YAN-309 Settings page:
+ * security toggles, auth mode/protocol, OIDC + SAML fields, passwords.
+ * Returns an error message string, or "" when valid.
+ */
+function validSecuritySettings(body) {
+  for (const key of ["requireLogin", "requireApiKey", "tunnelDashboardAccess"]) {
+    if (Object.hasOwn(body, key) && typeof body[key] !== "boolean") {
+      return `Invalid ${key}: must be a boolean`;
+    }
+  }
+  if (Object.hasOwn(body, "authMode") && !AUTH_MODES.has(body.authMode)) {
+    return "Invalid authMode";
+  }
+  if (Object.hasOwn(body, "ssoType") && !SSO_TYPES.has(body.ssoType)) {
+    return "Invalid ssoType";
+  }
+  for (const key of ["oidcClientId", "oidcScopes", "oidcLoginLabel"]) {
+    if (Object.hasOwn(body, key) && !validText(body[key])) {
+      return `Invalid ${key}`;
+    }
+  }
+  if (Object.hasOwn(body, "oidcIssuerUrl") && !validUrl(body.oidcIssuerUrl)) {
+    return "Invalid oidcIssuerUrl: must be an http(s) URL";
+  }
+  if (Object.hasOwn(body, "oidcClientSecret") && !validText(body.oidcClientSecret, MAX_URL_LEN)) {
+    return "Invalid oidcClientSecret";
+  }
+  if (Object.hasOwn(body, "samlEntryPoint") && !validUrl(body.samlEntryPoint)) {
+    return "Invalid samlEntryPoint: must be an http(s) URL";
+  }
+  for (const key of ["samlIssuer", "samlLoginLabel", "samlAttributeEmail", "samlAttributeName"]) {
+    if (Object.hasOwn(body, key) && !validText(body[key])) {
+      return `Invalid ${key}`;
+    }
+  }
+  if (Object.hasOwn(body, "samlCert") && !validText(body.samlCert, MAX_CERT_LEN)) {
+    return "Invalid samlCert";
+  }
+  for (const key of ["currentPassword", "newPassword"]) {
+    if (
+      Object.hasOwn(body, key) &&
+      (typeof body[key] !== "string" || body[key].length > MAX_PASSWORD_LEN)
+    ) {
+      return `Invalid ${key}`;
+    }
+  }
+  return "";
 }
 
 function isPlainObject(value) {
@@ -197,33 +269,37 @@ export async function PATCH(request) {
     if (!validAccountSettings(body)) {
       return NextResponse.json({ error: "Invalid account strategy settings" }, { status: 400 });
     }
+    const securityError = validSecuritySettings(body);
+    if (securityError) {
+      return NextResponse.json({ error: securityError }, { status: 400 });
+    }
 
-    // If updating password, hash it
-    if (body.newPassword) {
+    // Password updates hash into `password`; raw password keys must never persist (CWE-915).
+    // Raw password material for verification/hashing only; never persisted (CWE-915).
+    const rawNewPassword = typeof body.newPassword === "string" ? body.newPassword : "";
+    const attemptedCurrent = typeof body.currentPassword === "string" ? body.currentPassword : "";
+    delete body.newPassword;
+    delete body.currentPassword;
+    if (rawNewPassword) {
       const settings = await getSettings();
       const currentHash = settings.password;
 
       // Verify current password if it exists
       if (currentHash) {
-        if (!body.currentPassword) {
+        if (!attemptedCurrent) {
           return NextResponse.json({ error: "Current password required" }, { status: 400 });
         }
-        const isValid = await bcrypt.compare(body.currentPassword, currentHash);
+        const isValid = await bcrypt.compare(attemptedCurrent, currentHash);
         if (!isValid) {
           return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
         }
-      } else {
+      } else if (attemptedCurrent && attemptedCurrent !== "123456") {
         // First time setting password, no current password needed
-        // Allow empty currentPassword or default "123456"
-        if (body.currentPassword && body.currentPassword !== "123456") {
-          return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
-        }
+        return NextResponse.json({ error: "Invalid current password" }, { status: 401 });
       }
 
       const salt = await bcrypt.genSalt(10);
-      body.password = await bcrypt.hash(body.newPassword, salt);
-      delete body.newPassword;
-      delete body.currentPassword;
+      body.password = await bcrypt.hash(rawNewPassword, salt);
     }
 
     if (Object.hasOwn(body, "oidcClientSecret")) {
