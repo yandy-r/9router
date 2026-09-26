@@ -647,8 +647,8 @@ describe("component wiring", () => {
   for (const [file, needle] of [
     ["shared/components/ComboFormModal.js", 'if (e.key === "Escape") {\n      e.preventDefault();'],
     [
-      "app/(dashboard)/dashboard/combos/page.js",
-      'if (e.key === "Escape") {\n      e.preventDefault();',
+      "shared/components/combos/ComboEditor.js",
+      'if (e.key === "Escape") {\n                    // Claim Esc for the inline rename',
     ],
     [
       "app/(dashboard)/dashboard/providers/components/ConnectionsCard.js",
