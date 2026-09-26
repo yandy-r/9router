@@ -59,8 +59,15 @@ describe("YAN-313 config doc pure logic", () => {
       stored: { tunnelEnabled: false, storedExtra: 1 },
       sections: SETTINGS_SECTIONS,
     });
-    // Registry rows flow through: a future YAN-311/312 key is importable.
-    for (const key of ["fallbackStrategy", "tunnelEnabled"]) expect(keys.has(key)).toBe(true);
+    // Registry rows flow through: YAN-311/312 keys are importable after rebase.
+    // Env-tagged rows (requestLogsEnabled/translatorEnabled: env-overridable)
+    // are deliberately excluded — the import never overrides an env var.
+    for (const key of ["fallbackStrategy", "tunnelEnabled", "startPage", "uiDensity"]) {
+      expect(keys.has(key)).toBe(true);
+    }
+    for (const key of ["requestLogsEnabled", "translatorEnabled"]) {
+      expect(keys.has(key)).toBe(false);
+    }
     // UI actions, pseudo-rows and env pins are not importable settings.
     for (const key of [
       "theme",
