@@ -305,6 +305,8 @@ export async function saveRequestUsage(entry) {
     if (entry.savings) metaObj.savings = entry.savings;
     if (entry.comboName && typeof entry.comboName === "string")
       metaObj.comboName = entry.comboName.slice(0, 128);
+    if (entry.userAgent && typeof entry.userAgent === "string")
+      metaObj.userAgent = entry.userAgent.slice(0, 256);
 
     db.transaction(() => {
       db.run(
@@ -1145,6 +1147,90 @@ async function savedTokensCost(provider, model, savedTokens) {
  * Previous-period request counts + period buckets + top combo usage for the
  * Home command center. Combos come from meta.comboName recorded at save time.
  */
+// ponytail: fallback hops live in an in-memory ring (lost on restart, capped at
+// 200). Enough for the 5-minute live-routes window; persist to usageHistory
+// meta if a longer fallback history is ever needed.
+if (!global._fallbackHops) global._fallbackHops = [];
+const FALLBACK_RING_CAP = 200;
+
+/**
+ * Record one combo fallback hop (a step failed, the combo moved on).
+ * @param {{ comboName: string, provider: string, model: string, status: number|null }} hop
+ */
+export function recordFallbackHop(hop) {
+  if (!hop?.comboName || !hop?.provider) return;
+  global._fallbackHops.push({
+    timestamp: new Date().toISOString(),
+    comboName: String(hop.comboName).slice(0, 128),
+    provider: String(hop.provider).slice(0, 128),
+    model: hop.model ? String(hop.model).slice(0, 256) : null,
+    status: Number(hop.status) || null,
+  });
+  if (global._fallbackHops.length > FALLBACK_RING_CAP) {
+    global._fallbackHops.splice(0, global._fallbackHops.length - FALLBACK_RING_CAP);
+  }
+}
+
+/**
+ * Windowed live-routes feed for the Home map: successful requests from
+ * usageHistory, failed attempts from requestDetails, and recorded combo
+ * fallback hops, all inside the rolling window. Key names are resolved server-side (raw keys never leave);
+ * rows are capped so the response stays small.
+ * @param {object} [options]
+ * @param {number} [options.windowMs] rolling window, default 5 minutes
+ * @param {number} [options.limit] max rows per source, default 500
+ * @returns {Promise<{ usageRows: Array<object>, errorRows: Array<object>, fallbackHops: Array<object> }>}
+ */
+export async function getLiveRoutesFeed({ windowMs = 5 * 60 * 1000, limit = 500 } = {}) {
+  const db = await getAdapter();
+  const since = new Date(Date.now() - windowMs).toISOString();
+
+  const { getApiKeys } = await import("./apiKeysRepo.js");
+  const keyNames = {};
+  try {
+    const keys = await getApiKeys();
+    for (const key of keys || []) keyNames[key.key] = key.name || "Unnamed key";
+  } catch {}
+
+  const capped = Math.max(1, Math.min(Number(limit) || 500, 2000));
+  const usage = db.all(
+    `SELECT timestamp, provider, model, apiKey, meta FROM usageHistory WHERE timestamp > ? ORDER BY id DESC LIMIT ?`,
+    [since, capped],
+  );
+  // Failed attempts only reach requestDetails (usageHistory records successes);
+  // the upstream status code sits in the detail JSON (response.status).
+  const errors = db.all(
+    `SELECT timestamp, provider, model, data FROM requestDetails WHERE timestamp > ? AND status = 'error' ORDER BY timestamp DESC LIMIT ?`,
+    [since, capped],
+  );
+
+  const parseMeta = (raw) => parseJson(raw, {}) || {};
+  return {
+    usageRows: usage
+      .map((row) => {
+        const meta = parseMeta(row.meta);
+        return {
+          timestamp: row.timestamp,
+          provider: row.provider,
+          model: row.model,
+          keyName: keyNames[row.apiKey] || null,
+          userAgent: typeof meta.userAgent === "string" && meta.userAgent ? meta.userAgent : null,
+          comboName: typeof meta.comboName === "string" && meta.comboName ? meta.comboName : null,
+        };
+      })
+      .filter((row) => row.provider),
+    errorRows: errors
+      .map((row) => ({
+        timestamp: row.timestamp,
+        provider: row.provider,
+        model: row.model,
+        status: parseJson(row.data, {})?.response?.status ?? null,
+      }))
+      .filter((row) => row.provider),
+    fallbackHops: global._fallbackHops.filter((hop) => hop.timestamp > since),
+  };
+}
+
 export async function getHomeSummary(period = "7d") {
   if (!SAVINGS_PERIODS.includes(period)) throw new Error(`Invalid period: ${period}`);
   const db = await getAdapter();

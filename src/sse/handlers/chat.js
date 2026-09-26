@@ -12,6 +12,7 @@ import {
   clearAntigravityStrikes,
 } from "../services/antigravityQuota.js";
 import { getSettings } from "@/lib/localDb";
+import { recordFallbackHop } from "@/lib/usageDb.js";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
 import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
@@ -168,6 +169,7 @@ export async function handleChat(request, clientRawRequest = null) {
       comboStickyLimit,
       comboWeights,
       headroomFn,
+      onFallback: fallbackRecorder(modelStr),
     });
   }
 
@@ -198,6 +200,25 @@ export async function handleChat(request, clientRawRequest = null) {
   }
 
   return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey);
+}
+
+/**
+ * Build a combo onFallback hook that records the failed step for live routes.
+ * @param {string} comboName
+ * @returns {(hop: { model: string, status: number }) => Promise<void>}
+ */
+function fallbackRecorder(comboName) {
+  // Synchronous provider split keeps this off the failover hot path; a full
+  // model-info lookup would add DB reads between the failure and the retry.
+  return async ({ model: modelStr, status }) => {
+    const slash = modelStr.indexOf("/");
+    recordFallbackHop({
+      comboName,
+      provider: slash > 0 ? modelStr.slice(0, slash) : modelStr,
+      model: slash > 0 ? modelStr.slice(slash + 1) : modelStr,
+      status,
+    });
+  };
 }
 
 /**
@@ -289,6 +310,7 @@ async function handleSingleModelChat(
         comboStickyLimit,
         comboWeights,
         headroomFn,
+        onFallback: fallbackRecorder(modelStr),
       });
     }
     log.warn("CHAT", "Invalid model format", { model: modelStr });

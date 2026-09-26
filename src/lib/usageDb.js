@@ -9,6 +9,7 @@ export {
   getChartData,
   getUsageSavings,
   getHomeSummary,
+  recordFallbackHop,
   appendRequestLog,
   getRecentLogs,
   saveRequestDetail,

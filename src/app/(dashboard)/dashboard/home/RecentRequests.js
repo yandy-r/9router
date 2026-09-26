@@ -131,7 +131,7 @@ RecentRequests.propTypes = {
 export function RecentRequestsCard(props) {
   return (
     <Card
-      className="min-w-0 col-span-full"
+      className="min-w-0"
       action={
         <a
           href="/dashboard/usage"

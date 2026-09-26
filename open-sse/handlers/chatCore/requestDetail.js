@@ -1,4 +1,4 @@
-import { saveRequestUsage, appendRequestLog, saveRequestDetail } from "@/lib/usageDb.js";
+import { saveRequestUsage } from "@/lib/usageDb.js";
 import { COLORS } from "../../utils/stream.js";
 import { canonicalizeUsage } from "../../utils/usageTracking.js";
 import {
@@ -134,6 +134,7 @@ export function saveUsageStats({
   connectionId,
   apiKey,
   endpoint,
+  userAgent = null,
   savings = null,
   comboName = null,
   label = "USAGE",
@@ -174,6 +175,7 @@ export function saveUsageStats({
     connectionId: connectionId || undefined,
     apiKey: apiKey || undefined,
     endpoint: endpoint || null,
+    userAgent: userAgent || undefined,
     savings: savings || undefined,
     comboName: comboName || undefined,
   }).catch(() => {});

@@ -410,6 +410,7 @@ function retryAfterToIso(value) {
  * @param {number|string} [options.comboStickyLimit=1] - Requests per combo model before switching
  * @param {Object<string, number>} [options.comboWeights] - Per-model static weights (weighted strategy)
  * @param {Function} [options.headroomFn] - Live headroom lookup: (model) => number (weighted strategy)
+ * @param {Function} [options.onFallback] - Awaited before trying the next model: ({ model, status }) => void
  * @returns {Promise<Response>}
  */
 export async function handleComboChat({
@@ -423,6 +424,7 @@ export async function handleComboChat({
   comboWeights,
   headroomFn,
   autoSwitch = true,
+  onFallback,
 }) {
   // Apply rotation strategy if enabled
   let rotatedModels =
@@ -511,15 +513,26 @@ export async function handleComboChat({
         await new Promise((r) => setTimeout(r, cooldownMs));
       }
 
-      // Fallback to next model
+      // Fallback to next model. The recorder is fail-open and off the hot
+      // path: a throwing recorder must never corrupt lastError/lastStatus.
       lastError = errorText || String(result.status);
       lastStatus = result.status;
       log.warn("COMBO", `Model ${modelStr} failed, trying next`, { status: result.status });
+      if (onFallback) {
+        try {
+          await onFallback({ model: modelStr, status: result.status });
+        } catch {}
+      }
     } catch (error) {
       // Catch unexpected exceptions to ensure fallback continues
       lastError = error.message || String(error);
       lastStatus = 500;
       log.warn("COMBO", `Model ${modelStr} threw error, trying next`, { error: lastError });
+      if (onFallback) {
+        try {
+          await onFallback({ model: modelStr, status: 500 });
+        } catch {}
+      }
     }
   }
 
