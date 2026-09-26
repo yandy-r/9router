@@ -14,6 +14,7 @@ describe("settings registry", () => {
       "security",
       "sso",
       "routing",
+      "reliability",
       "network",
       "token-saver",
       "providers",

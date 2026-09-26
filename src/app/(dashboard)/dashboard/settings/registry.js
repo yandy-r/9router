@@ -202,6 +202,42 @@ export const SETTINGS_SECTIONS = [
     ],
   },
   {
+    id: "reliability",
+    title: "Reliability",
+    subtitle: "Retries, cooldowns and timeouts.",
+    icon: "restart_alt",
+    rows: [
+      {
+        key: "retryPolicy",
+        label: "Retries on upstream errors",
+        description: "Tries and delay per status. 429s never retry.",
+        keywords: "retry retries 502 503 504 tries delay backoff upstream errors",
+        tags: ["new"],
+      },
+      {
+        key: "cooldowns",
+        label: "Cooldowns",
+        description: "How long an account sits out after it fails.",
+        keywords: "cooldown rate limit transient long short account lockout",
+        tags: ["new"],
+      },
+      {
+        key: "backoff",
+        label: "Backoff",
+        description: "Grows with each repeated failure.",
+        keywords: "backoff exponential start max levels rate limit",
+        tags: ["new"],
+      },
+      {
+        key: "streamTimeouts",
+        label: "Stream timeouts",
+        description: "When to give up on a slow or stalled upstream.",
+        keywords: "timeout stream stall first chunk connect .env overrides",
+        tags: ["new"],
+      },
+    ],
+  },
+  {
     id: "network",
     title: "Network",
     subtitle: "How 9router reaches providers, and how you reach it.",

@@ -5,6 +5,12 @@ import { resolveDensity, resolveFlagSetting, resolveStartPage } from "@/lib/sett
 import { resetComboRotation } from "open-sse/services/combo.js";
 import { validateComboStrategySettings } from "open-sse/services/comboStrategy.js";
 import { validateSectionSettings } from "./validateSectionSettings.js";
+import {
+  RELIABILITY_KEYS,
+  mergeReliabilityPatch,
+  validateReliabilitySettings,
+} from "./validateReliabilitySettings.js";
+import { syncReliabilityAfterPatch } from "@/lib/reliability/initReliabilityPolicy";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -263,6 +269,22 @@ export async function GET() {
       false,
     );
     const translator = resolveFlagSetting("ENABLE_TRANSLATOR", settings.translatorEnabled, false);
+    // YAN-311 stream-timeout env precedence: an explicit env var wins over the
+    // stored setting; the UI shows ".env overrides" and disables the field.
+    // Only non-empty values count — envMs() falls back on garbage, matching
+    // streamEnvOverrides so the badge never lies about the effective value.
+    const hasEnv = (name) => {
+      const raw = process.env[name];
+      if (raw == null || raw === "") return false;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) && n > 0;
+    };
+    const streamEnvOverrides = {
+      ...(hasEnv("STREAM_FIRST_CHUNK_TIMEOUT_MS") ? { firstChunkMs: true } : {}),
+      ...(hasEnv("STREAM_STALL_TIMEOUT_MS") ? { stallMs: true } : {}),
+      ...(hasEnv("FETCH_CONNECT_TIMEOUT_MS") ? { connectMs: true } : {}),
+    };
+
     // YAN-310 read-only env values: surfaced, never writable (PATCH rejects them).
     const { CLAUDE_CLI_VERSION } = await import("open-sse/config/claudeCliFingerprint.js");
     const { CODEX_CLI_VERSION } = await import("open-sse/config/codexCliFingerprint.js");
@@ -281,6 +303,8 @@ export async function GET() {
         searxngUrl: process.env.SEARXNG_URL?.trim() || "",
         headroomUrlFromEnv: !!process.env.HEADROOM_URL?.trim(),
         requestLogEnvOverride: requestLogs.overridden,
+        streamEnvOverrides,
+
         CLAUDE_CLI_VERSION,
         CODEX_CLI_VERSION,
         ZED_CLIENT_VERSION,
@@ -318,6 +342,21 @@ export async function PATCH(request) {
     if (settingsError) {
       return NextResponse.json({ error: settingsError }, { status: 400 });
     }
+    // Reliability keys are nested objects; the store merges top-level only, so
+    // fold partial patches over the current value to keep every leaf.
+    // (Concurrent leaf PATCHes can still race; the store has no transaction —
+    // same as every other key on this route.)
+    const currentReliability = await getSettings();
+    const reliabilityError = validateReliabilitySettings(body, currentReliability);
+    if (reliabilityError) {
+      return NextResponse.json({ error: reliabilityError }, { status: 400 });
+    }
+    if (RELIABILITY_KEYS.some((key) => Object.hasOwn(body, key))) {
+      for (const key of RELIABILITY_KEYS) {
+        if (Object.hasOwn(body, key))
+          body[key] = mergeReliabilityPatch(currentReliability[key], body[key]);
+      }
+    }
 
     // Password updates hash into `password`; raw password keys must never persist (CWE-915).
     // Raw password material for verification/hashing only; never persisted (CWE-915).
@@ -354,6 +393,10 @@ export async function PATCH(request) {
     }
 
     const settings = await updateSettings(body);
+
+    // Full-object reliability edits (nested UI writes) re-resolve here; the
+    // sync is additive and never touches other keys.
+    syncReliabilityAfterPatch(body, settings);
 
     // Apply outbound proxy settings immediately (no restart required)
     if (
