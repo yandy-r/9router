@@ -33,6 +33,7 @@ import {
 } from "./comboBuilder";
 import StrategyPicker from "./StrategyPicker";
 import RouteStep from "./RouteStep";
+import RouteTestPanel from "./RouteTestPanel";
 
 /**
  * Combo editor card: header (rename, CopyField, Delete/Save), strategy
@@ -395,6 +396,7 @@ export default function ComboEditor({
         confirmText="Delete"
         variant="danger"
       />
+      <RouteTestPanel comboId={combo.id} />
     </section>
   );
 }

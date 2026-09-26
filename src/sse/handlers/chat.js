@@ -12,7 +12,6 @@ import {
   clearAntigravityStrikes,
 } from "../services/antigravityQuota.js";
 import { getSettings } from "@/lib/localDb";
-import { recordFallbackHop } from "@/lib/usageDb.js";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { handleChatCore } from "open-sse/handlers/chatCore.js";
 import { DEFAULT_HEADROOM_URL } from "@/lib/headroom/detect";
@@ -32,6 +31,7 @@ import {
   getActiveAdapterStrategy,
 } from "open-sse/services/capacityAdapter.js";
 import { handleBypassRequest } from "open-sse/utils/bypassHandler.js";
+import { recordFallbackHop } from "@/lib/usageDb.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { detectFormatByEndpoint } from "open-sse/translator/formats.js";
 import * as log from "../utils/logger.js";
@@ -44,8 +44,16 @@ import { ensureReliabilityPolicy } from "@/lib/reliability/initReliabilityPolicy
  * Handle chat completion request
  * Supports: OpenAI, Claude, Gemini, OpenAI Responses API formats
  * Format detection and translation handled by translator
+ * @param {object} request - Request object
+ * @param {object|null} clientRawRequest - Raw client request for logging
+ * @param {object} [options] - Extra options. `options.onAttempt` is a fail-open
+ *   attempt observer passed through to the combo fallback loop (probe path only).
+ *   `options.skipApiKeyCheck` bypasses the requireApiKey gate for the in-process
+ *   combo probe call only — it is a function argument, never read from request
+ *   content (headers/body/URL), so /v1 routes (which pass no options) always
+ *   enforce the gate.
  */
-export async function handleChat(request, clientRawRequest = null) {
+export async function handleChat(request, clientRawRequest = null, options = null) {
   // YAN-311 cold-boot guard: API-only /v1 traffic never renders layout.js, so
   // stored overrides must load before the first request. Fail-open (defaults).
   await ensureReliabilityPolicy(getSettings);
@@ -91,9 +99,12 @@ export async function handleChat(request, clientRawRequest = null) {
     log.debug("AUTH", "No API key provided (local mode)");
   }
 
-  // Enforce API key if enabled in settings
+  // Enforce API key if enabled in settings. The combo probe calls handleChat
+  // in-process (dashboard-authenticated at the API route) with an explicit
+  // skipApiKeyCheck option — never from request content — so probes run under
+  // default requireApiKey=true. /v1 routes pass no options and always enforce.
   const settings = await getSettings();
-  if (settings.requireApiKey) {
+  if (settings.requireApiKey && options?.skipApiKeyCheck !== true) {
     if (!apiKey) {
       log.warn("AUTH", "Missing API key (requireApiKey=true)");
       return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");
@@ -134,6 +145,13 @@ export async function handleChat(request, clientRawRequest = null) {
     );
     const adapterAdded = augmentedModels.filter((m) => !comboModels.includes(m));
 
+    // Probe runs (dry-run tests) reuse this exact path. options.onAttempt is a
+    // fail-open attempt observer: it only records, never alters routing. Step
+    // rows come from the combo loop itself (proves the real fallback ran).
+    // options is threaded into handleSingleModelChat so nested combos report
+    // their own steps (tagged nested/via) and also skip the fallback ring.
+    const comboObserver = probeObserverFor(options);
+
     if (comboStrategy === "fusion") {
       log.info("CHAT", `Combo "${modelStr}" with ${comboModels.length} models (strategy: fusion)`);
       return handleFusionChat({
@@ -145,12 +163,22 @@ export async function handleChat(request, clientRawRequest = null) {
             const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
             cleanRawReq = { ...clientRawRequest, body: cleanBody };
           }
-          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, [modelStr], modelStr);
+          return handleSingleModelChat(
+            b,
+            m,
+            cleanRawReq,
+            request,
+            apiKey,
+            [modelStr],
+            modelStr,
+            options,
+          );
         },
         log,
         comboName: modelStr,
         judgeModel,
         tuning: fusionTuning,
+        onAttempt: options?.onAttempt,
       });
     }
 
@@ -164,7 +192,16 @@ export async function handleChat(request, clientRawRequest = null) {
       models: augmentedModels,
       handleSingleModel: withCapacityAdapterStripping(
         (b, m) =>
-          handleSingleModelChat(b, m, clientRawRequest, request, apiKey, [modelStr], modelStr),
+          handleSingleModelChat(
+            b,
+            m,
+            clientRawRequest,
+            request,
+            apiKey,
+            [modelStr],
+            modelStr,
+            options,
+          ),
         adapterAdded,
       ),
       log,
@@ -173,7 +210,10 @@ export async function handleChat(request, clientRawRequest = null) {
       comboStickyLimit,
       comboWeights,
       headroomFn,
-      onFallback: fallbackRecorder(modelStr),
+      onAttempt: comboObserver,
+      // Probes must not pollute the live-routes fallback ring: pass the
+      // recorder only for real traffic (no probe observer attached).
+      ...(comboObserver ? {} : { onFallback: fallbackRecorder(modelStr) }),
     });
   }
 
@@ -186,6 +226,7 @@ export async function handleChat(request, clientRawRequest = null) {
   );
   if (soloAugmented.length > 1) {
     const adapterAdded = soloAugmented.filter((m) => m !== modelStr);
+    const adapterObserver = probeObserverFor(options);
     log.info(
       "CHAT",
       `Capacity adapter for [${[...requiredCapabilities].join(",")}] on "${modelStr}" → trying ${soloAugmented.join(", ")}`,
@@ -194,16 +235,19 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: soloAugmented,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey),
+        (b, m) =>
+          handleSingleModelChat(b, m, clientRawRequest, request, apiKey, [], null, options),
         adapterAdded,
       ),
       log,
       comboName: modelStr,
       comboStrategy: getActiveAdapterStrategy(requiredCapabilities, settings),
+      onAttempt: adapterObserver,
+      ...(adapterObserver ? {} : { onFallback: fallbackRecorder(modelStr) }),
     });
   }
 
-  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey);
+  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey, [], null, options);
 }
 
 /**
@@ -226,6 +270,32 @@ function fallbackRecorder(comboName) {
 }
 
 /**
+ * Wrap the probe's attempt observer (options.onAttempt) fail-open. Returns
+ * undefined for normal traffic so combo loops get no observer and keep the
+ * live-routes fallback recorder. `via` tags steps of a nested combo so the
+ * probe timeline shows them distinctly from the outer route's own steps.
+ * @param {object|null} options - handleChat options
+ * @param {string} [via] - Nested combo name (omit for the outermost route)
+ * @returns {((attempt: object) => void)|undefined}
+ */
+function probeObserverFor(options, via) {
+  const observer = typeof options?.onAttempt === "function" ? options.onAttempt : null;
+  if (!observer) return undefined;
+  return (attempt) => {
+    try {
+      observer({
+        role: via ? "nested" : "route",
+        account: null,
+        ...(via ? { via } : {}),
+        ...attempt,
+      });
+    } catch {
+      // observer must never break routing
+    }
+  };
+}
+
+/**
  * Handle single model chat request
  * @param {object} body - Request body
  * @param {string} modelStr - Model string
@@ -234,6 +304,8 @@ function fallbackRecorder(comboName) {
  * @param {string} apiKey - API key
  * @param {string[]} comboPath - Combo names already on the resolution stack (cycle guard)
  * @param {string|null} comboName - Innermost combo that resolved to this model (usage attribution)
+ * @param {object|null} options - handleChat options (probe observer); threaded so
+ *   nested combos observe their own steps and skip the live-routes fallback ring.
  */
 async function handleSingleModelChat(
   body,
@@ -243,6 +315,7 @@ async function handleSingleModelChat(
   apiKey = null,
   comboPath = [],
   comboName = null,
+  options = null,
 ) {
   const modelInfo = await getModelInfo(modelStr);
 
@@ -286,12 +359,22 @@ async function handleSingleModelChat(
               const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
               cleanRawReq = { ...clientRawRequest, body: cleanBody };
             }
-            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, nextPath, modelStr);
+            return handleSingleModelChat(
+              b,
+              m,
+              cleanRawReq,
+              request,
+              apiKey,
+              nextPath,
+              modelStr,
+              options,
+            );
           },
           log,
           comboName: modelStr,
           judgeModel,
           tuning: fusionTuning,
+          onAttempt: probeObserverFor(options, modelStr),
         });
       }
 
@@ -300,12 +383,22 @@ async function handleSingleModelChat(
         "CHAT",
         `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`,
       );
+      const nestedObserver = probeObserverFor(options, modelStr);
       return handleComboChat({
         body,
         models: augmentedModels,
         handleSingleModel: withCapacityAdapterStripping(
           (b, m) =>
-            handleSingleModelChat(b, m, clientRawRequest, request, apiKey, nextPath, modelStr),
+            handleSingleModelChat(
+              b,
+              m,
+              clientRawRequest,
+              request,
+              apiKey,
+              nextPath,
+              modelStr,
+              options,
+            ),
           adapterAdded,
         ),
         log,
@@ -314,7 +407,9 @@ async function handleSingleModelChat(
         comboStickyLimit,
         comboWeights,
         headroomFn,
-        onFallback: fallbackRecorder(modelStr),
+        onAttempt: nestedObserver,
+        // Real nested traffic records hops (YAN-293); probes never write the ring.
+        ...(nestedObserver ? {} : { onFallback: fallbackRecorder(modelStr) }),
       });
     }
     log.warn("CHAT", "Invalid model format", { model: modelStr });

@@ -1,6 +1,7 @@
 import { saveRequestUsage } from "@/lib/usageDb.js";
 import { COLORS } from "../../utils/stream.js";
 import { canonicalizeUsage } from "../../utils/usageTracking.js";
+import { COMBO_PROBE_ENDPOINT } from "../../config/runtimeConfig.js";
 import {
   geminiUsageCounts,
   reasoningInclusiveCompletion,
@@ -146,6 +147,11 @@ export function saveUsageStats({
   const outTokens = tokens.output_tokens ?? tokens.completion_tokens ?? 0;
 
   if (inTokens === 0 && outTokens === 0) return;
+
+  // Combo dry-run probes spend real quota but are excluded from usage/cost
+  // stats (YAN-299 decision: excluded, audit via request detail rows which
+  // keep the probe endpoint tag). Skip the write entirely.
+  if (endpoint === COMBO_PROBE_ENDPOINT) return;
 
   if (!silent) {
     const time = new Date().toLocaleTimeString("en-US", {
