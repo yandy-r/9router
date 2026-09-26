@@ -90,7 +90,7 @@ export function resolveRetryEntry(entry) {
   if (entry == null) return { attempts: 0, delayMs: RETRY_CONFIG.delayMs };
   if (typeof entry === "number") return { attempts: entry, delayMs: RETRY_CONFIG.delayMs };
   return {
-    attempts: entry.attempts || 0,
+    attempts: entry.attempts != null ? entry.attempts : entry.tries || 0,
     delayMs: entry.delayMs != null ? entry.delayMs : RETRY_CONFIG.delayMs,
   };
 }

@@ -338,9 +338,12 @@ export class CodexExecutor extends BaseExecutor {
 
     // Retry loop for SSE-level overloaded errors (200 OK body contains event: error)
     // Same semantic as the base executor's 503 path: temporarily unavailable.
+    // resolveRetryForStatus normalizes policy { tries, delayMs } to executor
+    // { attempts, delayMs } — raw policy entries must never hit resolveRetryEntry.
+    const policy503 = resolveRetryForStatus(getActiveReliabilityPolicy(), 503);
     const retryConfig = {
       ...DEFAULT_RETRY_CONFIG,
-      ...getActiveReliabilityPolicy().retryPolicy,
+      503: policy503,
       ...this.config.retry,
     };
     const { attempts, delayMs } = resolveRetryEntry(retryConfig[503]);

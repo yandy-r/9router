@@ -38,6 +38,7 @@ import * as log from "../utils/logger.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
 import { getProjectIdForConnection } from "open-sse/services/projectId.js";
 import { stripModelContextMarker } from "open-sse/utils/modelMarkers.js";
+import { ensureReliabilityPolicy } from "@/lib/reliability/initReliabilityPolicy.js";
 
 /**
  * Handle chat completion request
@@ -45,6 +46,9 @@ import { stripModelContextMarker } from "open-sse/utils/modelMarkers.js";
  * Format detection and translation handled by translator
  */
 export async function handleChat(request, clientRawRequest = null) {
+  // YAN-311 cold-boot guard: API-only /v1 traffic never renders layout.js, so
+  // stored overrides must load before the first request. Fail-open (defaults).
+  await ensureReliabilityPolicy(getSettings);
   let body;
   try {
     body = await request.json();

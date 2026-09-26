@@ -106,3 +106,51 @@ describe("YAN-311 resolved policy precedence", () => {
     expect(entry).toEqual({ attempts: 5, delayMs: 1000 });
   });
 });
+
+describe("YAN-311 retry shape consistency (tries/attempts)", () => {
+  it("default 503 resolves to 3 attempts for the Codex SSE path", async () => {
+    const { DEFAULT_RETRY_CONFIG, resolveRetryEntry } = await import(
+      "../../open-sse/config/runtimeConfig.js"
+    );
+    const { getActiveReliabilityPolicy, setReliabilityOverrides } = await import(
+      "../../open-sse/config/reliabilityPolicy.js"
+    );
+    setReliabilityOverrides(null);
+    try {
+      const policy503 = resolveRetryForStatus(getActiveReliabilityPolicy(), 503);
+      const retryConfig = { ...DEFAULT_RETRY_CONFIG, 503: policy503 };
+      expect(resolveRetryEntry(retryConfig[503])).toEqual({ attempts: 3, delayMs: 2000 });
+    } finally {
+      setReliabilityOverrides(null);
+    }
+  });
+
+  it("configured 503 tries are honored by the Codex SSE retry config", async () => {
+    const { DEFAULT_RETRY_CONFIG, resolveRetryEntry } = await import(
+      "../../open-sse/config/runtimeConfig.js"
+    );
+    const {
+      getActiveReliabilityPolicy,
+      resolveRetryForStatus: resolve,
+      setReliabilityOverrides,
+    } = await import("../../open-sse/config/reliabilityPolicy.js");
+    setReliabilityOverrides({ retryPolicy: { 503: { tries: 7, delayMs: 111 } } });
+    try {
+      const retryConfig = {
+        ...DEFAULT_RETRY_CONFIG,
+        503: resolve(getActiveReliabilityPolicy(), 503),
+      };
+      expect(resolveRetryEntry(retryConfig[503])).toEqual({ attempts: 7, delayMs: 111 });
+    } finally {
+      setReliabilityOverrides(null);
+    }
+  });
+
+  it("resolveRetryEntry tolerates raw policy { tries } entries", async () => {
+    const { resolveRetryEntry } = await import("../../open-sse/config/runtimeConfig.js");
+    expect(resolveRetryEntry({ tries: 3, delayMs: 2000 })).toEqual({
+      attempts: 3,
+      delayMs: 2000,
+    });
+  });
+});
