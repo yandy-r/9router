@@ -8,7 +8,13 @@ import {
   isAnthropicCompatibleProvider,
 } from "@/shared/constants/providers";
 import { MitmServerCard, MitmToolCard } from "@/app/(dashboard)/dashboard/cli-tools/components";
+import { Callout } from "@/shared/components";
 
+/**
+ * MITM setup page shell: page-owned risk warning plus the shared server card
+ * and per-tool DNS cards (owned by the CLI-tools redesign). Parity: provider,
+ * key, alias and settings fetches; running/cert/DNS status; one expanded tool.
+ */
 export default function MitmPageClient() {
   const [connections, setConnections] = useState([]);
   const [apiKeys, setApiKeys] = useState([]);
@@ -22,6 +28,8 @@ export default function MitmPageClient() {
     hasCachedPassword: false,
   });
 
+  // Fetch-once on mount by design.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchers are mount-only closures
   useEffect(() => {
     fetchConnections();
     fetchApiKeys();
@@ -92,17 +100,12 @@ export default function MitmPageClient() {
   const mitmTools = Object.entries(MITM_TOOLS);
 
   return (
-    <div className="flex w-full flex-col gap-6">
-      <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-        <span className="material-symbols-outlined text-[16px] text-yellow-500 mt-0.5 shrink-0">
-          warning
-        </span>
-        <p className="text-xs text-red-600 dark:text-yellow-400 leading-relaxed">
-          ⚠️ MITM intercepts HTTPS traffic of IDE tools (Antigravity, GitHub Copilot, Kiro) via local
-          CA to redirect requests to your providers. May violate ToS → account ban. Use at your own
-          risk.
-        </p>
-      </div>
+    <div className="flex w-full flex-col gap-5">
+      <Callout variant="warn" title="MITM intercepts HTTPS traffic of IDE tools">
+        Antigravity, GitHub Copilot and Kiro requests are redirected via a local CA to your
+        providers. This may violate their terms of service and risk an account ban. Use at your own
+        risk.
+      </Callout>
 
       {/* MITM Server Card */}
       <MitmServerCard
@@ -112,7 +115,7 @@ export default function MitmPageClient() {
       />
 
       {/* Tool Cards */}
-      <div className="grid gap-3 sm:gap-4">
+      <div className="grid gap-4">
         {mitmTools.map(([toolId, tool]) => (
           <MitmToolCard
             key={toolId}
