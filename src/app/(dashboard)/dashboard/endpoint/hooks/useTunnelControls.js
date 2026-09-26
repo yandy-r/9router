@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { isLoginUnsafe as unsafeLogin, canExposeRemote } from "../endpointLogic";
 import { readTunnelStatus } from "../remoteAccessLogic";
 import { useCloudflareTunnel } from "./useCloudflareTunnel";
@@ -15,6 +15,13 @@ import { useDegradedStatusPoll, useReachableSync } from "./useReachableSync";
  * settings + status load. Transport lifecycles live in `useCloudflareTunnel`
  * and `useTailscale`; this hook wires them together and preserves the exact
  * public shape the endpoint page consumes.
+ *
+ * Data discipline (fetch-storm guard): the initial load fires exactly once
+ * per mount (StrictMode dev double-invoke aside) — one `loadSettings` call
+ * that fetches settings + status in parallel. Afterwards only the documented
+ * degraded poll (`STATUS_POLL_FAST_MS`, transports enabled but unreachable)
+ * and the browser ping (`CLIENT_PING_FAST_MS`) hit the network. No polling
+ * loop and no effect re-fires while idle.
  *
  * Trust user intent (`settingsEnabled`): UI stays "enabled" while the
  * watchdog restarts the backend process.
@@ -31,6 +38,14 @@ export function useTunnelControls() {
   const tunnel = useCloudflareTunnel();
   const ts = useTailscale();
 
+  // Latest-value refs: effects below run once on mount / on primitive deps.
+  // Refs always point at the current closures so stable callbacks never go
+  // stale; no whole-object deps (new identity per render = fetch storm).
+  const tunnelRef = useRef(tunnel);
+  tunnelRef.current = tunnel;
+  const tsRef = useRef(ts);
+  tsRef.current = ts;
+
   // Security gate derivations (shared pure logic).
   const isLoginUnsafe = unsafeLogin({ requireLogin, hasPassword });
   const canEnableRemote = canExposeRemote({ requireLogin, hasPassword, requireApiKey });
@@ -41,23 +56,25 @@ export function useTunnelControls() {
 
   // Trust user intent (settingsEnabled): UI stays "enabled" while watchdog restarts process
   const syncTunnelStatus = useCallback(async () => {
+    const { tunnel: t, ts: s } = { tunnel: tunnelRef.current, ts: tsRef.current };
     try {
       const statusRes = await fetch("/api/tunnel/status", { cache: "no-store" });
       if (!statusRes.ok) return;
       const data = await statusRes.json();
       const parsed = readTunnelStatus(data);
-      tunnel.setUrl(parsed.tunnel.url);
-      tunnel.setPublicUrl(parsed.tunnel.publicUrl);
-      tunnel.setEnabled(parsed.tunnel.enabled);
-      ts.setUrl(parsed.tailscale.url);
-      ts.setEnabled(parsed.tailscale.enabled);
+      t.setUrl(parsed.tunnel.url);
+      t.setPublicUrl(parsed.tunnel.publicUrl);
+      t.setEnabled(parsed.tunnel.enabled);
+      s.setUrl(parsed.tailscale.url);
+      s.setEnabled(parsed.tailscale.enabled);
     } catch {
       /* ignore poll errors */
     }
-  }, [tunnel, ts]);
+  }, []);
 
   const loadSettings = useCallback(async () => {
-    tunnel.setChecking(true);
+    const { tunnel: t, ts: s } = { tunnel: tunnelRef.current, ts: tsRef.current };
+    t.setChecking(true);
     try {
       const [settingsRes, statusRes] = await Promise.all([
         fetch("/api/settings"),
@@ -73,24 +90,27 @@ export function useTunnelControls() {
       if (statusRes.ok) {
         const data = await statusRes.json();
         const parsed = readTunnelStatus(data);
-        tunnel.setUrl(parsed.tunnel.url);
-        tunnel.setPublicUrl(parsed.tunnel.publicUrl);
-        tunnel.setEnabled(parsed.tunnel.enabled);
-        ts.setUrl(parsed.tailscale.url);
-        ts.setEnabled(parsed.tailscale.enabled);
+        t.setUrl(parsed.tunnel.url);
+        t.setPublicUrl(parsed.tunnel.publicUrl);
+        t.setEnabled(parsed.tunnel.enabled);
+        s.setUrl(parsed.tailscale.url);
+        s.setEnabled(parsed.tailscale.enabled);
       }
     } catch (error) {
       console.log("Error loading settings:", error);
     } finally {
-      tunnel.setChecking(false);
+      t.setChecking(false);
     }
-  }, [tunnel, ts]);
+  }, []);
 
+  // Load once on mount (v1 behavior). No whole-object deps.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only by design; latest closures via refs.
   useEffect(() => {
     loadSettings();
-  }, [loadSettings]);
+  }, []);
 
   // Shared reachable tracking + browser ping (one tracker per transport).
+  // Stable patch callbacks → no interval resets from the coordinator.
   useReachableSync({
     tunnel: {
       enabled: tunnel.enabled,
@@ -103,7 +123,8 @@ export function useTunnelControls() {
     setTailscale: ts.applyReachablePatch,
   });
 
-  // Status poll only while degraded; stops once healthy.
+  // Status poll only while degraded; stops once healthy. syncTunnelStatus is
+  // stable (refs inside), so the interval survives re-renders.
   useDegradedStatusPoll({
     anyEnabled: tunnel.enabled || ts.enabled,
     allHealthy: (!tunnel.enabled || tunnel.reachable) && (!ts.enabled || ts.reachable),

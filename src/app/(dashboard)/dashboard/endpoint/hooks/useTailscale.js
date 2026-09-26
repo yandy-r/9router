@@ -39,14 +39,15 @@ export function useTailscale() {
 
   // Reachable flips arrive from the shared tracker via the coordinator
   // (`applyReachablePatch`); a `null` verdict keeps the current value.
-  const applyReachablePatch = (patch) => {
+  // Stable identity (used as effect deps in the coordinator) via useCallback.
+  const applyReachablePatch = useCallback((patch) => {
     if (patch && typeof patch === "object" && "reachable" in patch) {
       if (patch.reachable !== null) setReachable(patch.reachable);
       if (patch.everReachable) setEverReachable(true);
     } else {
       setReachable(patch);
     }
-  };
+  }, []);
 
   const pingTsHealth = makePingTsHealth(setProgress);
 
