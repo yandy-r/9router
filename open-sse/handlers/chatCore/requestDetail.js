@@ -134,6 +134,8 @@ export function saveUsageStats({
   connectionId,
   apiKey,
   endpoint,
+  savings = null,
+  comboName = null,
   label = "USAGE",
   silent = false,
 }) {
@@ -172,5 +174,7 @@ export function saveUsageStats({
     connectionId: connectionId || undefined,
     apiKey: apiKey || undefined,
     endpoint: endpoint || null,
+    savings: savings || undefined,
+    comboName: comboName || undefined,
   }).catch(() => {});
 }

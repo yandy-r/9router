@@ -259,6 +259,8 @@ export function buildOnStreamComplete({
   translatedBody,
   clientRawRequest,
   pxpipe,
+  savings,
+  comboName,
   reqTag,
   log,
 }) {
@@ -301,6 +303,8 @@ export function buildOnStreamComplete({
       connectionId,
       apiKey,
       endpoint: clientRawRequest?.endpoint,
+      savings,
+      comboName,
       label: "STREAM USAGE",
       silent: true,
     });

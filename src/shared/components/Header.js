@@ -180,13 +180,8 @@ export const getPageInfo = (pathname) => {
       icon: "monitor",
       breadcrumbs: [],
     };
-  if (pathname === "/dashboard")
-    return {
-      title: "Endpoint",
-      description: "API endpoint configuration",
-      icon: "api",
-      breadcrumbs: [],
-    };
+  // Home renders its own derived status line, H1 and period control in-page.
+  if (pathname === "/dashboard") return { title: "", description: "", breadcrumbs: [] };
   return { title: "", description: "", breadcrumbs: [] };
 };
 

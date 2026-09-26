@@ -181,8 +181,7 @@ function matchesPrefix(pathname, prefix) {
 
 /**
  * Pure isActive helper.
- * - Home: exact match on "/dashboard".
- * - Endpoint: active on "/dashboard" (today) AND "/dashboard/endpoint*".
+ * - Items with `exact` (Home): exact match on their href ("/dashboard").
  * - Items with matchPrefixes: match if pathname matches any prefix safely.
  * - Other items: segment-safe prefix of their href.
  *
@@ -192,11 +191,6 @@ function matchesPrefix(pathname, prefix) {
  */
 export function isActive(pathname, item) {
   if (!pathname || !item) return false;
-
-  // Today /dashboard renders endpoint content: both Home and Endpoint active on /dashboard
-  if (pathname === "/dashboard" && (item.id === "endpoint" || item.exact)) {
-    return true;
-  }
   if (item.exact) {
     return pathname === item.href;
   }
