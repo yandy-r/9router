@@ -15,7 +15,7 @@ import {
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 import { previewAuthHeader } from "@/shared/constants/previewAuth";
-import { createObjectUrlRegistry } from "../components/playgroundLogic";
+import { createObjectUrlRegistry } from "@/shared/constants/playgroundUrls";
 
 // Parse "providerId/model" or just "providerId" → { providerId, model }
 function parseModelEntry(entry) {

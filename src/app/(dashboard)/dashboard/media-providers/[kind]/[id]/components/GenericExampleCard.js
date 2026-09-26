@@ -10,7 +10,7 @@ import {
 } from "@/shared/constants/providers";
 import { getModelsByProviderId, getModelKind } from "@/shared/constants/models";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
-import { createObjectUrlRegistry } from "../../components/playgroundLogic";
+import { createObjectUrlRegistry } from "@/shared/constants/playgroundUrls";
 import {
   Row,
   KIND_EXAMPLE_CONFIG,

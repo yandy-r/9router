@@ -5,11 +5,11 @@ import {
   resolvePlaygroundModel,
   buildPlaygroundBody,
   buildSttFormData,
-  createObjectUrlRegistry,
   sttFormFields,
   playgroundHeaders,
   playgroundPreviews,
 } from "@/app/(dashboard)/dashboard/media-providers/components/playgroundLogic.js";
+import { createObjectUrlRegistry } from "@/shared/constants/playgroundUrls.js";
 
 describe("playgroundDefaults", () => {
   it("returns kind defaults and falls back to image", () => {

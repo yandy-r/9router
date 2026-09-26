@@ -6,6 +6,7 @@ import { Button, Card, Field, SegmentedControl, Select, Callout } from "@/shared
 import { MEDIA_PROVIDER_KINDS, resolveProviderId } from "@/shared/constants/providers";
 import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { buildPlaygroundCurl } from "@/shared/constants/mediaStatus";
+import { createObjectUrlRegistry } from "@/shared/constants/playgroundUrls";
 import {
   controlClass,
   codeBlockClass,
@@ -17,7 +18,6 @@ import {
   resolvePlaygroundModel,
   buildPlaygroundBody,
   buildSttFormData,
-  createObjectUrlRegistry,
   sttFormFields,
   playgroundHeaders,
   playgroundPreviews,
