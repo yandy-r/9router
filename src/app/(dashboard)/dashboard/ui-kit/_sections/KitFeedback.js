@@ -7,11 +7,21 @@ import { CardSkeleton, Skeleton, SkeletonText, Spinner } from "@/shared/componen
 import Terminal from "@/shared/components/Terminal";
 
 const LINES = [
-  { time: "14:02:11", level: "LOG", message: "Gateway listening on :20128" },
-  { time: "14:02:12", level: "INFO", message: "Loaded 14 provider connections" },
-  { time: "14:03:40", level: "WARN", message: "gemini-cli rate limited, cooling down 2m 14s" },
-  { time: "14:03:41", level: "ERROR", message: "kimi token refresh failed (401)" },
-  { time: "14:03:42", level: "DEBUG", message: "combo coder -> openrouter/qwen3-coder" },
+  { id: "kit-log-1", time: "14:02:11", level: "LOG", message: "Gateway listening on :20128" },
+  { id: "kit-log-2", time: "14:02:12", level: "INFO", message: "Loaded 14 provider connections" },
+  {
+    id: "kit-log-3",
+    time: "14:03:40",
+    level: "WARN",
+    message: "gemini-cli rate limited, cooling down 2m 14s",
+  },
+  { id: "kit-log-4", time: "14:03:41", level: "ERROR", message: "kimi token refresh failed (401)" },
+  {
+    id: "kit-log-5",
+    time: "14:03:42",
+    level: "DEBUG",
+    message: "combo coder -> openrouter/qwen3-coder",
+  },
 ];
 
 /** Kit section: callouts, empty state, skeletons and terminal. */

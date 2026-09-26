@@ -79,7 +79,28 @@ export function countConsoleLevels(lines) {
 }
 
 /**
+ * Assign stable, monotonically increasing ids to freshly ingested lines.
+ * Ids identify exact rows (including duplicates) and never change after head
+ * drops at the buffer cap.
+ * @param {object[]} lines
+ * @param {number} startId
+ * @returns {{ lines: object[], nextId: number }}
+ */
+export function tagConsoleLines(lines, startId) {
+  if (!Array.isArray(lines)) throw new Error("tagConsoleLines: expected an array of lines");
+  if (!Number.isInteger(startId) || startId < 0) {
+    throw new Error(`tagConsoleLines: expected a non-negative startId, got ${startId}`);
+  }
+  return {
+    lines: lines.map((line, index) => ({ ...line, id: startId + index })),
+    nextId: startId + lines.length,
+  };
+}
+
+/**
  * Cap a visible-lines array at maxLines, keeping the newest.
+ * Existing row objects are preserved by reference so memoized rows do not
+ * re-render merely because the buffer head dropped.
  * @param {object[]} visible
  * @param {object[]} lines
  * @param {number} maxLines
@@ -96,12 +117,19 @@ export function appendConsoleLines(visible, lines, maxLines) {
   return next.length > maxLines ? next.slice(-maxLines) : next;
 }
 
-export const initialConsoleBufferState = { paused: false, visible: [], pending: [], newCount: 0 };
+export const initialConsoleBufferState = {
+  paused: false,
+  visible: [],
+  pending: [],
+  newCount: 0,
+  /** Next stable row id for ingested lines. Monotonic per page lifetime. */
+  nextId: 0,
+};
 
 /**
  * Pause-buffer reducer: appends while live; buffers while paused; resume
  * flushes (capped); clear empties both lists.
- * @param {{ paused: boolean, visible: object[], pending: object[], newCount: number }} state
+ * @param {{ paused: boolean, visible: object[], pending: object[], newCount: number, nextId: number }} state
  * @param {{ type: string, lines?: object[], maxLines?: number }} action
  */
 function reducerMaxLines(action) {
@@ -117,25 +145,29 @@ export function pauseBufferReducer(state, action) {
       return { ...state, paused: true };
     case "resume": {
       const maxLines = reducerMaxLines(action);
+      const tagged = tagConsoleLines(state.pending, state.nextId);
       return {
         ...state,
         paused: false,
-        visible: appendConsoleLines(state.visible, state.pending, maxLines),
+        visible: appendConsoleLines(state.visible, tagged.lines, maxLines),
         pending: [],
         newCount: 0,
+        nextId: tagged.nextId,
       };
     }
     case "append": {
       if (!Array.isArray(action.lines)) throw new Error("pauseBufferReducer: append needs lines");
       const maxLines = reducerMaxLines(action);
+      const tagged = tagConsoleLines(action.lines, state.nextId);
       if (state.paused) {
         // Pending only needs the newest maxLines; the flush caps visible too.
-        const pending = [...state.pending, ...action.lines].slice(-maxLines);
-        return { ...state, pending, newCount: pending.length };
+        const pending = [...state.pending, ...tagged.lines].slice(-maxLines);
+        return { ...state, pending, newCount: pending.length, nextId: tagged.nextId };
       }
       return {
         ...state,
-        visible: appendConsoleLines(state.visible, action.lines, maxLines),
+        visible: appendConsoleLines(state.visible, tagged.lines, maxLines),
+        nextId: tagged.nextId,
       };
     }
     case "clear":

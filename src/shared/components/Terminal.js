@@ -31,6 +31,7 @@ const TerminalRow = memo(function TerminalRow({ line, onOpen }) {
 
 TerminalRow.propTypes = {
   line: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     time: PropTypes.string,
     level: PropTypes.oneOf(["LOG", "INFO", "WARN", "ERROR", "DEBUG"]).isRequired,
     message: PropTypes.string.isRequired,
@@ -69,14 +70,8 @@ export default function Terminal({
       tabIndex={0}
       className={`signal-terminal custom-scrollbar m-0 list-none overflow-auto rounded-2xl p-[18px_22px] text-start font-mono text-[13px] leading-[1.75] focus-visible:shadow-focus${className ? ` ${className}` : ""}`}
     >
-      {lines.map((line, index) => (
-        <TerminalRow
-          // Timestamps repeat; index only disambiguates duplicates.
-          // biome-ignore lint/suspicious/noArrayIndexKey: no stable row id exists.
-          key={`${line.time ?? ""}-${line.level}-${index}`}
-          line={line}
-          onOpen={onOpenLine}
-        />
+      {lines.map((line) => (
+        <TerminalRow key={line.id} line={line} onOpen={onOpenLine} />
       ))}
       {cursor && (
         <li className="mt-0.5 flex gap-4 whitespace-nowrap" aria-hidden="true">
@@ -93,6 +88,7 @@ export default function Terminal({
 Terminal.propTypes = {
   lines: PropTypes.arrayOf(
     PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
       time: PropTypes.string,
       level: PropTypes.oneOf(["LOG", "INFO", "WARN", "ERROR", "DEBUG"]).isRequired,
       message: PropTypes.string.isRequired,

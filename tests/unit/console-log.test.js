@@ -8,6 +8,7 @@ import {
   initialConsoleBufferState,
   parseConsoleLine,
   pauseBufferReducer,
+  tagConsoleLines,
 } from "../../src/shared/utils/consoleLog.js";
 
 const LINES = [
@@ -142,11 +143,50 @@ describe("pauseBufferReducer", () => {
     expect(state.newCount).toBe(0);
   });
 
+  it("keeps stable row ids for unchanged rows across a cap append", () => {
+    const seed = Array.from({ length: 200 }, (_, i) => ({ ...LINES[0], message: `v${i}` }));
+    let state = pauseBufferReducer(initialConsoleBufferState, {
+      type: "append",
+      lines: seed,
+      maxLines: 200,
+    });
+    const before = state.visible;
+    const kept = before.slice(10);
+    const keptIds = kept.map((line) => line.id);
+    expect(new Set(keptIds).size).toBe(190);
+
+    state = pauseBufferReducer(state, {
+      type: "append",
+      lines: Array.from({ length: 10 }, (_, i) => ({ ...LINES[0], message: `n${i}` })),
+      maxLines: 200,
+    });
+    expect(state.visible).toHaveLength(200);
+    // Surviving rows keep both object identity and id; only the 10 head
+    // rows dropped and 10 new rows took fresh ids.
+    expect(state.visible.slice(0, 190)).toEqual(kept);
+    expect(state.visible.slice(0, 190).map((line) => line.id)).toEqual(keptIds);
+    expect(state.visible.slice(0, 190).every((line, i) => line === kept[i])).toBe(true);
+  });
+
   it("throws on unknown actions", () => {
     expect(() => pauseBufferReducer(initialConsoleBufferState, { type: "nope" })).toThrow();
     expect(() =>
       pauseBufferReducer(initialConsoleBufferState, { type: "append", lines: [] }),
     ).toThrow();
+  });
+});
+
+describe("tagConsoleLines", () => {
+  it("assigns stable ids to duplicates and advances nextId", () => {
+    const { lines, nextId } = tagConsoleLines([LINES[0], LINES[0]], 5);
+    expect(lines.map((line) => line.id)).toEqual([5, 6]);
+    expect(nextId).toBe(7);
+    expect(lines[0]).not.toBe(LINES[0]);
+  });
+
+  it("throws on bad input", () => {
+    expect(() => tagConsoleLines(null, 0)).toThrow();
+    expect(() => tagConsoleLines([], -1)).toThrow();
   });
 });
 
