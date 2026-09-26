@@ -9,6 +9,7 @@ import HeaderMenu from "@/shared/components/HeaderMenu";
 import HeaderLanguage from "@/shared/components/HeaderLanguage";
 import DonateModal from "@/shared/components/DonateModal";
 import IconButton from "@/shared/components/IconButton";
+import CommandPaletteTrigger from "@/shared/components/CommandPaletteTrigger";
 import { useHeaderSearchStore } from "@/store/headerSearchStore";
 import { OAUTH_PROVIDERS, APIKEY_PROVIDERS } from "@/shared/constants/config";
 import { MEDIA_PROVIDER_KINDS, AI_PROVIDERS } from "@/shared/constants/providers";
@@ -337,6 +338,8 @@ export default function Header({
             </span>
           </div>
         )}
+
+        <CommandPaletteTrigger />
 
         <HeaderSearch />
 
