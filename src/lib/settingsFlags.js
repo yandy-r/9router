@@ -114,8 +114,14 @@ export function maskUrlCredentials(value) {
     // Schemeless userinfo (user:pass@host:port): no scheme for URL to parse.
     masked = masked.replace(/^([^/@:/?#]+:[^/@]*@)/, "***@");
   }
-  // Secret-looking query params: ?token=, &password=, api_key, api-key, secret.
-  return masked.replace(/([?&])(token|password|api[_-]?key|secret)=[^&]*/gi, "$1$2=***");
+  // Secret-looking query params: ?client_secret=, &access_token=, api_key,
+  // api-key, secret, password, token (YAN-313: config export must not leak
+  // secrets embedded in OIDC SSO URLs and similar).
+  const maskedQuery = masked.replace(
+    /([?&])((?:client[_-]?)?secret|(?:access[_-]?|refresh[_-]?)?token|password|api[_-]?key|private[_-]?key)=[^&#]*/gi,
+    "$1$2=***",
+  );
+  return maskedQuery;
 }
 
 /**
