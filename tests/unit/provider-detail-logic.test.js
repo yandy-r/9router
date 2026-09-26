@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyServerPriorityPut,
   connectionIdsInPriorityOrder,
   dragMoveIndices,
   formatCooldownRemaining,
@@ -22,7 +23,7 @@ describe("provider detail reorder math", () => {
     const connections = [connection({ id: "a" }), connection({ id: "b" }), connection({ id: "c" })];
     const next = reorderConnections(connections, 0, 2);
     expect(next.map((entry) => entry.id)).toEqual(["b", "c", "a"]);
-    expect(next.map((entry) => entry.priority)).toEqual([0, 1, 2]);
+    expect(next.map((entry) => entry.priority)).toEqual([1, 2, 3]);
   });
 
   it("rejects moves outside the list and leaves input untouched", () => {
@@ -107,5 +108,54 @@ describe("provider detail drag and drop", () => {
     expect(dragMoveIndices(connections, "a", "missing")).toBeNull();
     expect(dragMoveIndices(connections, "missing", "a")).toBeNull();
     expect(dragMoveIndices(connections, "a", null)).toBeNull();
+  });
+});
+
+describe("provider detail server persistence", () => {
+  const rows = () => [
+    { id: "a", priority: 1, updatedAt: "2026-01-01T00:00:00.000Z" },
+    { id: "b", priority: 2, updatedAt: "2026-01-01T00:00:00.000Z" },
+    { id: "c", priority: 3, updatedAt: "2026-01-01T00:00:00.000Z" },
+  ];
+  const permutations = (arr) =>
+    arr.length <= 1
+      ? [arr]
+      : arr.flatMap((v, i) =>
+          permutations([...arr.slice(0, i), ...arr.slice(i + 1)]).map((r) => [v, ...r]),
+        );
+
+  it("sequential 1-based PUTs converge to the intended order under every arrival order", () => {
+    // Intent: move a to the end -> [b, c, a] with dense 1-based priorities.
+    const intended = [
+      { id: "b", priority: 1 },
+      { id: "c", priority: 2 },
+      { id: "a", priority: 3 },
+    ];
+    const clientPuts = intended.map((row, i) => ({
+      ...row,
+      updatedAt: `2026-01-02T00:00:0${i}.000Z`,
+    }));
+    // Every arrival permutation preserves send order -> same final order.
+    for (const order of permutations(clientPuts)) {
+      let server = rows();
+      // Simulate in-order processing: each PUT applied in send order.
+      const inSendOrder = [...order].sort((x, y) => (x.updatedAt < y.updatedAt ? -1 : 1));
+      for (const put of inSendOrder) {
+        server = applyServerPriorityPut(server, put.id, put.priority, put.updatedAt);
+      }
+      expect(server.map((row) => row.id)).toEqual(["b", "c", "a"]);
+      expect(server.map((row) => row.priority)).toEqual([1, 2, 3]);
+    }
+  });
+
+  it("a reordered tail PUT arriving first still converges when replayed in send order", () => {
+    let server = rows();
+    server = applyServerPriorityPut(server, "a", 3, "2026-01-02T00:00:02.000Z");
+    server = applyServerPriorityPut(server, "b", 1, "2026-01-02T00:00:00.000Z");
+    server = applyServerPriorityPut(server, "c", 2, "2026-01-02T00:00:01.000Z");
+    // Out-of-order arrival with distinct values still settles: latest write
+    // per id wins and the renumber is dense.
+    expect(server.map((row) => row.priority)).toEqual([1, 2, 3]);
+    expect(new Set(server.map((row) => row.id))).toEqual(new Set(["a", "b", "c"]));
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { reorderConnections, selectionReducer } from "../detailUtils";
+import { reorderConnections, selectionReducer, sortByPriority } from "../detailUtils";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -48,8 +48,11 @@ export function useConnections({ providerId, notifyError }) {
     const connectionsData = await connectionsRes.json().catch(() => ({}));
     const proxyPoolsData = await proxyPoolsRes.json().catch(() => ({}));
     if (connectionsRes.ok) {
+      // Single ordering everywhere: rows, bubbles, DnD items, up/down and one-by-one.
       setConnections(
-        (connectionsData.connections || []).filter((entry) => entry.provider === providerId),
+        sortByPriority(
+          (connectionsData.connections || []).filter((entry) => entry.provider === providerId),
+        ),
       );
     }
     if (proxyPoolsRes.ok) setProxyPools(proxyPoolsData.proxyPools || []);
@@ -162,22 +165,24 @@ export function useConnections({ providerId, notifyError }) {
   const persistOrder = useCallback(
     async (next, previous) => {
       setConnections(next);
+      // Sequential 1-based PUTs: the server renumbers to dense 1..n with a
+      // newest-updated tie-break on every priority PUT, so concurrent writes
+      // can arrive out of order and scramble ties. Awaiting each PUT in the
+      // intended final order keeps the server result deterministic.
       try {
-        const changed = next.filter((entry, index) => entry.id !== previous[index]?.id);
-        const results = await Promise.all(
-          changed.map((entry) => {
-            const index = next.findIndex((item) => item.id === entry.id);
-            // Persist full renumbering so priorities stay dense 0..n-1.
-            return fetch(`/api/providers/${entry.id}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ priority: index }),
-            });
-          }),
-        );
-        if (results.some((res) => !res.ok)) {
-          fail("Failed to save new order.");
-          await fetchConnections();
+        const previousById = new Map(previous.map((entry) => [entry.id, entry.priority]));
+        for (const entry of next) {
+          if (previousById.get(entry.id) === entry.priority) continue;
+          const res = await fetch(`/api/providers/${entry.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ priority: entry.priority }),
+          });
+          if (!res.ok) {
+            fail("Failed to save new order.");
+            await fetchConnections();
+            return;
+          }
         }
       } catch (error) {
         fail("Failed to save new order.", error);
@@ -187,25 +192,14 @@ export function useConnections({ providerId, notifyError }) {
     [fail, fetchConnections],
   );
 
-  /** Fetch-order move (up/down fallback): indices into `connections`. */
+  /**
+   * Move within the priority-sorted list (shared by DnD and the up/down
+   * fallback). `connections` is always kept in priority order.
+   */
   const moveConnection = useCallback(
     async (fromIndex, toIndex) => {
       const next = reorderConnections(connections, fromIndex, toIndex);
       if (next === connections) return;
-      await persistOrder(next, connections);
-    },
-    [connections, persistOrder],
-  );
-
-  /** Priority-order move (drag-and-drop): positions in the sorted DnD list. */
-  const moveConnectionById = useCallback(
-    async (id, fromPriority, toPriority) => {
-      const ordered = [...connections].sort(
-        (a, b) => (a.priority ?? Number.MAX_SAFE_INTEGER) - (b.priority ?? Number.MAX_SAFE_INTEGER),
-      );
-      const fromIndex = fromPriority ?? ordered.findIndex((entry) => entry.id === id);
-      const next = reorderConnections(ordered, fromIndex, toPriority);
-      if (next === ordered) return;
       await persistOrder(next, connections);
     },
     [connections, persistOrder],
@@ -373,7 +367,6 @@ export function useConnections({ providerId, notifyError }) {
     updateProxy,
     applyProxyAssignments,
     moveConnection,
-    moveConnectionById,
     removeConnections,
     confirmDelete,
     confirmBulkDelete,

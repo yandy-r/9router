@@ -8,7 +8,9 @@
  */
 
 /**
- * Move the connection at `fromIndex` to `toIndex` and renumber priorities.
+ * Move the connection at `fromIndex` to `toIndex` and renumber priorities
+ * 1-based. The server (`reorderInTx`) renumbers to dense 1..n on every
+ * priority PUT, so the client must persist 1-based values to match.
  * Out-of-range moves return the original array unchanged.
  * @param {Array<object>} connections
  * @param {number} fromIndex
@@ -24,7 +26,29 @@ export function reorderConnections(connections, fromIndex, toIndex) {
   const next = [...connections];
   const [moved] = next.splice(fromIndex, 1);
   next.splice(toIndex, 0, moved);
-  return next.map((connection, index) => ({ ...connection, priority: index }));
+  return next.map((connection, index) => ({ ...connection, priority: index + 1 }));
+}
+
+/**
+ * Simulate the server renumber (`reorderInTx` in connectionsRepo.js) for one
+ * priority PUT: rows sort by (priority asc, updatedAt desc) and are renumbered
+ * dense 1..n. Processing PUTs strictly in send order (sequential persistence)
+ * makes the final server order deterministic; concurrent PUTs can arrive in
+ * any order and scramble ties, which is why the client must await each PUT.
+ * @param {Array<{id: string, priority: number, updatedAt?: string}>} rows
+ * @param {string} id
+ * @param {number} priority
+ * @param {string} updatedAt ISO timestamp of this PUT
+ * @returns {Array<{id: string, priority: number, updatedAt?: string}>}
+ */
+export function applyServerPriorityPut(rows, id, priority, updatedAt) {
+  const next = rows.map((row) => (row.id === id ? { ...row, priority, updatedAt } : row));
+  const sorted = [...next].sort((a, b) => {
+    const diff = (a.priority || 0) - (b.priority || 0);
+    if (diff !== 0) return diff;
+    return new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0);
+  });
+  return sorted.map((row, index) => ({ ...row, priority: index + 1 }));
 }
 
 /**

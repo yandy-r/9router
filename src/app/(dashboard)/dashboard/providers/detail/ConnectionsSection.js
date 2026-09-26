@@ -28,7 +28,7 @@ import {
   ConfirmDialog,
 } from "@/shared/components";
 import { ACCOUNT_STRATEGY_OPTIONS, OAUTH_STICKY_HINT } from "@/shared/constants/accountStrategies";
-import { connectionIdsInPriorityOrder, dragMoveIndices } from "../detailUtils";
+import { dragMoveIndices } from "../detailUtils";
 import SortableConnectionRow from "./SortableConnectionRow";
 
 const SUBSCRIPTION_PROVIDERS = [
@@ -129,7 +129,7 @@ export default function ConnectionsSection({
     const { active, over } = event;
     const move = dragMoveIndices(connections, active?.id, over?.id);
     if (!move) return;
-    conn.moveConnectionById(active.id, move.fromIndex, move.toIndex);
+    conn.moveConnection(move.fromIndex, move.toIndex);
     const moved = connections.find((entry) => entry.id === active.id);
     const name = moved?.name || moved?.email || "Connection";
     setAnnouncement(`Moved ${name} to position ${move.toIndex + 1} of ${connections.length}`);
@@ -317,7 +317,7 @@ export default function ConnectionsSection({
               onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={connectionIdsInPriorityOrder(connections)}
+                items={connections.map((entry) => entry.id)}
                 strategy={verticalListSortingStrategy}
               >
                 <ul className="flex min-w-0 flex-col gap-1">
