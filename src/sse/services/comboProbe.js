@@ -186,6 +186,9 @@ export async function runComboProbe({ comboId }) {
     errorType: a.errorType,
     outcome: a.outcome,
     role: a.role || undefined,
+    // Nested combo steps carry the inner combo name so the timeline can show
+    // them distinctly from the outer route's own steps.
+    via: a.via || undefined,
   }));
   const served = timeline.find((a) => a.outcome === "served") || null;
   return {

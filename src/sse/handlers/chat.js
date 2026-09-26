@@ -219,6 +219,8 @@ export async function handleChat(request, clientRawRequest = null, options = nul
 
   // Single model request — may still switch to a capacity-adapter model if the
   // target lacks a capability the request needs (e.g. no vision, request has an image).
+  // Probes take the same adapter loop with the observer attached and the
+  // fallback recorder omitted, so they never write the live-routes ring.
   const soloAugmented = augmentModelsWithCapacityAdapter(
     [modelStr],
     requiredCapabilities,
@@ -247,7 +249,16 @@ export async function handleChat(request, clientRawRequest = null, options = nul
     });
   }
 
-  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey, [], null, options);
+  return handleSingleModelChat(
+    body,
+    modelStr,
+    clientRawRequest,
+    request,
+    apiKey,
+    [],
+    null,
+    options,
+  );
 }
 
 /**
@@ -344,6 +355,7 @@ async function handleSingleModelChat(
         chatSettings,
       );
       const adapterAdded = augmentedModels.filter((m) => !comboModels.includes(m));
+      const nestedObserver = probeObserverFor(options, modelStr);
 
       if (comboStrategy === "fusion") {
         log.info(
@@ -374,7 +386,7 @@ async function handleSingleModelChat(
           comboName: modelStr,
           judgeModel,
           tuning: fusionTuning,
-          onAttempt: probeObserverFor(options, modelStr),
+          onAttempt: nestedObserver,
         });
       }
 
@@ -383,7 +395,6 @@ async function handleSingleModelChat(
         "CHAT",
         `Combo "${modelStr}" with ${augmentedModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`,
       );
-      const nestedObserver = probeObserverFor(options, modelStr);
       return handleComboChat({
         body,
         models: augmentedModels,

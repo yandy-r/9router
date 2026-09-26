@@ -54,18 +54,6 @@ function okUpstream() {
   };
 }
 
-function probeRequest(model) {
-  return {
-    url: "http://localhost/api/combos/probe",
-    headers: {
-      get: (name) =>
-        String(name).toLowerCase() === "user-agent" ? "9router-combo-probe/1.0" : null,
-      entries: () => [][Symbol.iterator](),
-    },
-    json: async () => ({ model, messages: [{ role: "user", content: "hi" }], stream: false }),
-  };
-}
-
 const v1Request = (body) =>
   new Request("http://localhost/v1/chat/completions", {
     method: "POST",
@@ -153,7 +141,7 @@ describe("probe live-routes exclusion", () => {
     const res = await handleComboChat({
       body: {},
       models: ["p/a", "p/b"],
-      handleSingleModel: async (b, m) =>
+      handleSingleModel: async (_b, m) =>
         m === "p/a" ? errResponse(429, "Rate limit exceeded") : okUpstream().response,
       log,
       comboName: "probe-gate",
@@ -169,7 +157,7 @@ describe("probe live-routes exclusion", () => {
     await handleComboChat({
       body: {},
       models: ["p/a", "p/b"],
-      handleSingleModel: async (b, m) =>
+      handleSingleModel: async (_b, m) =>
         m === "p/a" ? errResponse(429, "Rate limit exceeded") : okUpstream().response,
       log,
       comboName: "probe-gate",

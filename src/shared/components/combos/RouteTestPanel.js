@@ -122,6 +122,7 @@ export default function RouteTestPanel({ comboId }) {
                   {step.account ? ` · ${step.account}` : ""}
                   {step.role === "panel" ? " · panel" : ""}
                   {step.role === "judge" ? " · judge" : ""}
+                  {step.role === "nested" && step.via ? ` · via ${step.via}` : ""}
                 </span>
                 <span
                   className={`ms-auto shrink-0 font-semibold ${isServed ? "text-ok" : "text-muted"}`}
