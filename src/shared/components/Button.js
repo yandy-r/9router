@@ -61,7 +61,7 @@ export default function Button({
       ) : null}
       {children}
       {iconRight && !loading && (
-        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
+        <span className="material-symbols-outlined text-[18px] rtl:-scale-x-100" aria-hidden="true">
           {iconRight}
         </span>
       )}
@@ -70,6 +70,8 @@ export default function Button({
 
   // Links can't be disabled natively (middle-click/context menu still navigate),
   // so a disabled/loading href renders the disabled <button> below instead.
+  // Trailing directional icons (e.g. arrow_forward) mirror in RTL via
+  // rtl:-scale-x-100 on the iconRight span.
   if (href && !(disabled || loading)) {
     const { type: _type, ...linkProps } = props;
     linkProps.className = classes;

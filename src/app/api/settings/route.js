@@ -3,6 +3,7 @@ import { getSettings, updateComboStrategies, updateSettings } from "@/lib/localD
 import { applyOutboundProxyEnv } from "@/lib/network/outboundProxy";
 import { resetComboRotation } from "open-sse/services/combo.js";
 import { validateComboStrategySettings } from "open-sse/services/comboStrategy.js";
+import { validateSectionSettings } from "./validateSectionSettings.js";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -225,6 +226,12 @@ export async function GET() {
 
     const enableRequestLogs = process.env.ENABLE_REQUEST_LOGS === "true";
     const enableTranslator = process.env.ENABLE_TRANSLATOR === "true";
+    // YAN-310 read-only env values: surfaced, never writable (PATCH rejects them).
+    // When ENABLE_REQUEST_LOGS is set at all, requestDetailsRepo ignores the
+    // stored enableObservability flag — the UI shows a notice instead of a dead toggle.
+    const { CLAUDE_CLI_VERSION } = await import("open-sse/config/claudeCliFingerprint.js");
+    const { CODEX_CLI_VERSION } = await import("open-sse/config/codexCliFingerprint.js");
+    const { ZED_CLIENT_VERSION } = await import("open-sse/config/zedClientFingerprint.js");
 
     return NextResponse.json(
       {
@@ -232,6 +239,12 @@ export async function GET() {
         enableRequestLogs,
         enableTranslator,
         hasPassword: !!password,
+        searxngUrl: process.env.SEARXNG_URL?.trim() || "",
+        headroomUrlFromEnv: !!process.env.HEADROOM_URL?.trim(),
+        requestLogEnvOverride: process.env.ENABLE_REQUEST_LOGS !== undefined,
+        CLAUDE_CLI_VERSION,
+        CODEX_CLI_VERSION,
+        ZED_CLIENT_VERSION,
       },
       { headers: SETTINGS_RESPONSE_HEADERS },
     );
@@ -272,6 +285,10 @@ export async function PATCH(request) {
     const securityError = validSecuritySettings(body);
     if (securityError) {
       return NextResponse.json({ error: securityError }, { status: 400 });
+    }
+    const sectionError = validateSectionSettings(body);
+    if (sectionError) {
+      return NextResponse.json({ error: sectionError }, { status: 400 });
     }
 
     // Password updates hash into `password`; raw password keys must never persist (CWE-915).
