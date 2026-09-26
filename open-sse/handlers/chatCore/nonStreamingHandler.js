@@ -279,6 +279,8 @@ export async function handleNonStreamingResponse({
   trackDone,
   appendLog,
   pxpipe,
+  savings,
+  comboName,
   reqTag,
   log,
 }) {
@@ -338,6 +340,8 @@ export async function handleNonStreamingResponse({
     connectionId,
     apiKey,
     endpoint: clientRawRequest?.endpoint,
+    savings,
+    comboName,
     silent: true,
   });
   if (log?.line)

@@ -100,6 +100,8 @@ export {
   getUsageHistory,
   getUsageStats,
   getChartData,
+  getUsageSavings,
+  getHomeSummary,
   appendRequestLog,
   getRecentLogs,
 } from "./repos/usageRepo.js";

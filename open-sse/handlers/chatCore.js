@@ -41,6 +41,7 @@ import {
   isHeadroomPhantomSavings,
 } from "../rtk/headroom.js";
 import { compressWithPxpipe } from "../rtk/pxpipe.js";
+import { buildSavingsEntry } from "../rtk/savingsEstimate.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
 import { stripUnsupportedModalities } from "../translator/concerns/modality.js";
 import { prefetchRemoteImages } from "../translator/concerns/prefetch.js";
@@ -107,6 +108,7 @@ export async function handleChatCore({
   onPxpipeEvent,
   sourceFormatOverride,
   providerThinking,
+  comboName = null,
 }) {
   const { provider, model } = modelInfo;
   const requestStartTime = Date.now();
@@ -698,6 +700,9 @@ export async function handleChatCore({
     clientRawRequest,
     onRequestSuccess,
     pxpipe: pxpipeSummary,
+    // Measured token-saver deltas; persisted only by success-path saveUsageStats.
+    savings: buildSavingsEntry({ rtkStats, headroomStats, headroomDiagnostics, pxpipeSummary }),
+    comboName,
     reqTag,
     log,
   };

@@ -140,7 +140,7 @@ export async function handleChat(request, clientRawRequest = null) {
             const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
             cleanRawReq = { ...clientRawRequest, body: cleanBody };
           }
-          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, [modelStr]);
+          return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, [modelStr], modelStr);
         },
         log,
         comboName: modelStr,
@@ -158,7 +158,8 @@ export async function handleChat(request, clientRawRequest = null) {
       body,
       models: augmentedModels,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, [modelStr]),
+        (b, m) =>
+          handleSingleModelChat(b, m, clientRawRequest, request, apiKey, [modelStr], modelStr),
         adapterAdded,
       ),
       log,
@@ -207,6 +208,7 @@ export async function handleChat(request, clientRawRequest = null) {
  * @param {object} request - Request object
  * @param {string} apiKey - API key
  * @param {string[]} comboPath - Combo names already on the resolution stack (cycle guard)
+ * @param {string|null} comboName - Innermost combo that resolved to this model (usage attribution)
  */
 async function handleSingleModelChat(
   body,
@@ -215,6 +217,7 @@ async function handleSingleModelChat(
   request = null,
   apiKey = null,
   comboPath = [],
+  comboName = null,
 ) {
   const modelInfo = await getModelInfo(modelStr);
 
@@ -258,7 +261,7 @@ async function handleSingleModelChat(
               const { tools, tool_choice, ...cleanBody } = clientRawRequest.body || {};
               cleanRawReq = { ...clientRawRequest, body: cleanBody };
             }
-            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, nextPath);
+            return handleSingleModelChat(b, m, cleanRawReq, request, apiKey, nextPath, modelStr);
           },
           log,
           comboName: modelStr,
@@ -276,7 +279,8 @@ async function handleSingleModelChat(
         body,
         models: augmentedModels,
         handleSingleModel: withCapacityAdapterStripping(
-          (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, nextPath),
+          (b, m) =>
+            handleSingleModelChat(b, m, clientRawRequest, request, apiKey, nextPath, modelStr),
           adapterAdded,
         ),
         log,
@@ -381,6 +385,7 @@ async function handleSingleModelChat(
       // Lazily warms the in-process module on first use; null when not installed (fail-open)
       pxpipeTransform: chatSettings.pxpipeEnabled ? await getPxpipeTransform() : null,
       onPxpipeEvent: appendPxpipeEvent,
+      comboName,
       providerThinking,
       // Detect source format by endpoint + body
       sourceFormatOverride: request?.url

@@ -7,6 +7,8 @@ export {
   getUsageHistory,
   getUsageStats,
   getChartData,
+  getUsageSavings,
+  getHomeSummary,
   appendRequestLog,
   getRecentLogs,
   saveRequestDetail,

@@ -66,9 +66,16 @@ describe("isActive", () => {
     expect(isActive("/dashboard/endpoint", home)).toBe(false);
   });
 
-  it("Endpoint active on /dashboard and /dashboard/endpoint", () => {
-    expect(isActive("/dashboard", endpoint)).toBe(true);
+  it("Endpoint active only on /dashboard/endpoint (Home owns /dashboard)", () => {
+    expect(isActive("/dashboard", endpoint)).toBe(false);
     expect(isActive("/dashboard/endpoint", endpoint)).toBe(true);
+  });
+
+  it("the real nav config has Home exact and nothing else active on /dashboard", () => {
+    const active = visibleItems({ enableTranslator: true }).filter((i) =>
+      isActive("/dashboard", i),
+    );
+    expect(active.map((i) => i.id)).toEqual(["home"]);
   });
 
   it("segment-safe prefix: /dashboard/providers does not match /dashboard/providersX", () => {

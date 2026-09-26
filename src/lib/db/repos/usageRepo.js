@@ -301,6 +301,11 @@ export async function saveRequestUsage(entry) {
 
     // All 3 writes (history insert, daily upsert, lifetime counter) in ONE transaction.
     // better-sqlite3 is sync → no JS yield mid-transaction → no race in same process.
+    const metaObj = entry.meta && typeof entry.meta === "object" ? { ...entry.meta } : {};
+    if (entry.savings) metaObj.savings = entry.savings;
+    if (entry.comboName && typeof entry.comboName === "string")
+      metaObj.comboName = entry.comboName.slice(0, 128);
+
     db.transaction(() => {
       db.run(
         `INSERT INTO usageHistory(timestamp, provider, model, connectionId, apiKey, endpoint, promptTokens, completionTokens, cost, status, tokens, meta) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -316,7 +321,7 @@ export async function saveRequestUsage(entry) {
           entry.cost || 0,
           entry.status || "ok",
           stringifyJson(tokens),
-          stringifyJson({}),
+          stringifyJson(metaObj),
         ],
       );
 
@@ -381,7 +386,7 @@ export async function getUsageHistory(filter = {}) {
 
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
   const rows = db.all(
-    `SELECT timestamp, provider, model, connectionId, apiKey, endpoint, cost, status, tokens FROM usageHistory ${where} ORDER BY id ASC`,
+    `SELECT timestamp, provider, model, connectionId, apiKey, endpoint, cost, status, tokens, meta FROM usageHistory ${where} ORDER BY id ASC`,
     params,
   );
 
@@ -395,6 +400,8 @@ export async function getUsageHistory(filter = {}) {
     cost: r.cost,
     status: r.status,
     tokens: parseJson(r.tokens, {}),
+    savings: parseJson(r.meta, {})?.savings || null,
+    comboName: parseJson(r.meta, {})?.comboName || null,
   }));
 }
 
@@ -981,4 +988,139 @@ export async function getRecentLogs(limit = 200) {
     console.error("[usageRepo] getRecentLogs failed:", e.message);
     return [];
   }
+}
+
+export const SAVINGS_PERIODS = ["today", "7d", "30d"];
+
+const SAVINGS_DAY_MS = 24 * 60 * 60 * 1000;
+
+function savingsPeriodRange(period, now) {
+  if (period === "today") {
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    return { start: startOfToday.toISOString(), end: new Date(now).toISOString() };
+  }
+  const days = period === "30d" ? 30 : 7;
+  return {
+    start: new Date(now - days * SAVINGS_DAY_MS).toISOString(),
+    end: new Date(now).toISOString(),
+  };
+}
+
+/**
+ * Period savings from recorded per-request meta (usageHistory.meta.savings).
+ * Estimated only — RTK bytes/4, real Headroom tokens, PXPIPE estimates.
+ * PXPIPE uses the same meta source (recorded once per successful request),
+ * never the JSONL events file, so there is no double counting.
+ */
+export async function getUsageSavings(period = "7d") {
+  if (!SAVINGS_PERIODS.includes(period)) throw new Error(`Invalid period: ${period}`);
+  const db = await getAdapter();
+  const now = Date.now();
+  const { start, end } = savingsPeriodRange(period, now);
+
+  const rows = db.all(
+    `SELECT timestamp, meta FROM usageHistory WHERE timestamp >= ? AND timestamp <= ?`,
+    [start, end],
+  );
+
+  const byMethod = {};
+  let tokensSavedEst = 0;
+  let tokensBeforeEst = 0;
+  let requestsWithSavings = 0;
+
+  for (const row of rows) {
+    const meta = parseJson(row.meta, {});
+    const savings = meta?.savings;
+    if (!savings || typeof savings !== "object") continue;
+    // Guard against partially-shaped legacy rows
+    const methods =
+      savings.byMethod && typeof savings.byMethod === "object" ? savings.byMethod : {};
+    const methodNames = Object.keys(methods);
+    if (methodNames.length === 0) continue;
+
+    let rowSaved = 0;
+    for (const [method, m] of Object.entries(methods)) {
+      if (typeof m !== "object" || !m) continue;
+      const saved = Number(m.tokensSavedEst) || 0;
+      const before = Number(m.tokensBeforeEst) || 0;
+      if (saved <= 0) continue;
+      if (!byMethod[method])
+        byMethod[method] = { tokensSavedEst: 0, tokensBeforeEst: 0, requests: 0 };
+      byMethod[method].tokensSavedEst += saved;
+      byMethod[method].tokensBeforeEst += before;
+      byMethod[method].requests += 1;
+      rowSaved += saved;
+    }
+    if (rowSaved > 0) {
+      tokensSavedEst += rowSaved;
+      tokensBeforeEst += Number(savings.tokensBeforeEst) || 0;
+      requestsWithSavings += 1;
+    }
+  }
+
+  const methods = Object.keys(byMethod);
+  const percentage =
+    tokensBeforeEst > 0 ? +((tokensSavedEst / tokensBeforeEst) * 100).toFixed(2) : 0;
+
+  return {
+    period,
+    estimated: true,
+    tokensSavedEst,
+    tokensBeforeEst,
+    percentage,
+    requestsWithSavings,
+    methods,
+    byMethod,
+  };
+}
+
+/**
+ * Previous-period request counts + period buckets + top combo usage for the
+ * Home command center. Combos come from meta.comboName recorded at save time.
+ */
+export async function getHomeSummary(period = "7d") {
+  if (!SAVINGS_PERIODS.includes(period)) throw new Error(`Invalid period: ${period}`);
+  const db = await getAdapter();
+  const now = Date.now();
+
+  const current = savingsPeriodRange(period, now);
+  const spanMs = new Date(current.end).getTime() - new Date(current.start).getTime();
+  const prev = {
+    start: new Date(new Date(current.start).getTime() - spanMs).toISOString(),
+    end: current.start,
+  };
+
+  const countIn = (start, end) => {
+    const row = db.get(
+      `SELECT COUNT(*) AS n FROM usageHistory WHERE timestamp >= ? AND timestamp <= ?`,
+      [start, end],
+    );
+    return row?.n || 0;
+  };
+
+  const requests = countIn(current.start, current.end);
+  const previousRequests = countIn(prev.start, prev.end);
+
+  const rows = db.all(
+    `SELECT timestamp, meta FROM usageHistory WHERE timestamp >= ? AND timestamp <= ?`,
+    [current.start, current.end],
+  );
+  const comboCounts = {};
+  for (const row of rows) {
+    const meta = parseJson(row.meta, {});
+    const name = typeof meta?.comboName === "string" && meta.comboName ? meta.comboName : null;
+    if (name) comboCounts[name] = (comboCounts[name] || 0) + 1;
+  }
+  const topCombos = Object.entries(comboCounts)
+    .map(([name, count]) => ({ name, requests: count }))
+    .sort((a, b) => b.requests - a.requests)
+    .slice(0, 5);
+
+  return {
+    period,
+    requests,
+    previousRequests,
+    topCombos,
+  };
 }
