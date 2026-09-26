@@ -468,6 +468,14 @@ select {
 .signal-terminal-debug {
   color: var(--signal-terminal-debug);
 }
+.signal-terminal-cursor {
+  color: var(--signal-lime);
+}
+@media (prefers-reduced-motion: reduce) {
+  .signal-terminal-cursor {
+    animation: none;
+  }
+}
 
 /* Base */
 body {
