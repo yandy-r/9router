@@ -877,12 +877,15 @@ export async function getChartData(period = "7d") {
       });
     const buckets = Array.from({ length: bucketCount }, (_, i) => ({
       label: labelFn(startTime + i * bucketMs),
+      input: 0,
+      cached: 0,
+      output: 0,
       tokens: 0,
       cost: 0,
     }));
 
     const rows = db.all(
-      `SELECT timestamp, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ?`,
+      `SELECT timestamp, promptTokens, completionTokens, cost, tokens FROM usageHistory WHERE timestamp >= ?`,
       [new Date(startTime).toISOString()],
     );
     for (const r of rows) {
@@ -890,7 +893,17 @@ export async function getChartData(period = "7d") {
       if (t < startTime || t >= endTime) continue;
       const idx = Math.floor((t - startTime) / bucketMs);
       if (idx >= 0 && idx < bucketCount) {
-        buckets[idx].tokens += (r.promptTokens || 0) + (r.completionTokens || 0);
+        const tk = parseJson(r.tokens, {}) || {};
+        const input = Math.max(
+          tk.prompt_tokens || tk.input_tokens || r.promptTokens || 0,
+          tk.cached_tokens || tk.cache_read_input_tokens || 0,
+        );
+        const cached = tk.cached_tokens || tk.cache_read_input_tokens || 0;
+        const output = tk.completion_tokens || tk.output_tokens || r.completionTokens || 0;
+        buckets[idx].input += input;
+        buckets[idx].cached += cached;
+        buckets[idx].output += output;
+        buckets[idx].tokens += input + output;
         buckets[idx].cost += r.cost || 0;
       }
     }
@@ -909,19 +922,32 @@ export async function getChartData(period = "7d") {
     const startTime = now - bucketCount * bucketMs;
     const buckets = Array.from({ length: bucketCount }, (_, i) => ({
       label: labelFn(startTime + i * bucketMs),
+      input: 0,
+      cached: 0,
+      output: 0,
       tokens: 0,
       cost: 0,
     }));
 
     const rows = db.all(
-      `SELECT timestamp, promptTokens, completionTokens, cost FROM usageHistory WHERE timestamp >= ?`,
+      `SELECT timestamp, promptTokens, completionTokens, cost, tokens FROM usageHistory WHERE timestamp >= ?`,
       [new Date(startTime).toISOString()],
     );
     for (const r of rows) {
       const t = new Date(r.timestamp).getTime();
       if (t < startTime || t > now) continue;
       const idx = Math.min(Math.floor((t - startTime) / bucketMs), bucketCount - 1);
-      buckets[idx].tokens += (r.promptTokens || 0) + (r.completionTokens || 0);
+      const tk = parseJson(r.tokens, {}) || {};
+      const input = Math.max(
+        tk.prompt_tokens || tk.input_tokens || r.promptTokens || 0,
+        tk.cached_tokens || tk.cache_read_input_tokens || 0,
+      );
+      const cached = tk.cached_tokens || tk.cache_read_input_tokens || 0;
+      const output = tk.completion_tokens || tk.output_tokens || r.completionTokens || 0;
+      buckets[idx].input += input;
+      buckets[idx].cached += cached;
+      buckets[idx].output += output;
+      buckets[idx].tokens += input + output;
       buckets[idx].cost += r.cost || 0;
     }
     return buckets;
@@ -941,9 +967,15 @@ export async function getChartData(period = "7d") {
     d.setDate(d.getDate() - (bucketCount - 1 - i));
     const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const dayData = dayMap[dateKey];
+    const input = dayData ? Math.max(dayData.promptTokens || 0, dayData.cachedTokens || 0) : 0;
+    const cached = dayData ? dayData.cachedTokens || 0 : 0;
+    const output = dayData ? dayData.completionTokens || 0 : 0;
     return {
       label: labelFn(d),
-      tokens: dayData ? (dayData.promptTokens || 0) + (dayData.completionTokens || 0) : 0,
+      input,
+      cached,
+      output,
+      tokens: input + output,
       cost: dayData ? dayData.cost || 0 : 0,
     };
   });
