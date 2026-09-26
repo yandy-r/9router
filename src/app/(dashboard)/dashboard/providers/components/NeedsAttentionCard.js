@@ -43,7 +43,14 @@ function shorten(message) {
   return clean.length > 90 ? `${clean.slice(0, 90)}…` : clean;
 }
 
-export default function NeedsAttentionCard({ entry, connections, testing, onRetry, onOpen }) {
+export default function NeedsAttentionCard({
+  entry,
+  connections,
+  testing,
+  onRetry,
+  onOpen,
+  onReconnect,
+}) {
   const cooldownConn = connections.find((c) => getCooldownUntil(c));
   const errorConn = [...connections].sort(
     (a, b) => new Date(b.lastErrorAt || 0) - new Date(a.lastErrorAt || 0),
@@ -59,6 +66,7 @@ export default function NeedsAttentionCard({ entry, connections, testing, onRetr
       ? shorten(errorConn.lastError)
       : "Requests are skipping this provider";
   const actionLabel = cooldownConn ? "Retry now" : isAuth ? "Reconnect" : "Retry now";
+  const showReconnect = isAuth && !cooldownConn;
 
   return (
     <div
@@ -83,10 +91,10 @@ export default function NeedsAttentionCard({ entry, connections, testing, onRetr
       </div>
       <Button
         size="sm"
-        variant={isAuth && !cooldownConn ? "primary" : "secondary"}
+        variant={showReconnect ? "primary" : "secondary"}
         loading={testing}
         disabled={testing}
-        onClick={onRetry}
+        onClick={showReconnect ? onReconnect : onRetry}
       >
         {testing ? "Retrying…" : actionLabel}
       </Button>
@@ -99,5 +107,6 @@ NeedsAttentionCard.propTypes = {
   connections: PropTypes.array.isRequired,
   testing: PropTypes.bool,
   onRetry: PropTypes.func.isRequired,
+  onReconnect: PropTypes.func.isRequired,
   onOpen: PropTypes.func.isRequired,
 };

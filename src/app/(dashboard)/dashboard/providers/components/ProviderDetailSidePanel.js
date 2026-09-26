@@ -112,7 +112,7 @@ function AccountItem({ connection, index, quotaSnapshot, onToggle, onClearCooldo
         <Toggle
           size="sm"
           checked={!disabled}
-          onChange={() => onToggle(!disabled)}
+          onChange={(next) => onToggle(next)}
           aria-label={`${displayName} enabled`}
         />
       </div>

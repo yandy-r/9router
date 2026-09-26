@@ -10,6 +10,8 @@ import {
   matchesProviderListFilter,
   buildProviderListFilterCounts,
   countNeedsAttention,
+  readSelectedProvider,
+  writeSelectedProvider,
 } from "@/app/(dashboard)/dashboard/providers/utils";
 
 const conn = (over = {}) => ({
@@ -53,6 +55,9 @@ describe("getConnectionErrorTag", () => {
   it("detects AUTH/RUNTIME from message keywords", () => {
     expect(getConnectionErrorTag({ lastError: "Invalid API key" })).toBe("AUTH");
     expect(getConnectionErrorTag({ lastError: "token invalid" })).toBe("AUTH");
+    expect(getConnectionErrorTag({ lastError: "No access token" })).toBe("AUTH");
+    expect(getConnectionErrorTag({ lastError: "auth expired, please reconnect" })).toBe("AUTH");
+    expect(getConnectionErrorTag({ lastError: "session expired" })).toBe("AUTH");
     expect(getConnectionErrorTag({ lastError: "runtime not runnable" })).toBe("RUNTIME");
   });
 });
@@ -216,6 +221,33 @@ describe("matchesProviderListFilter / counts", () => {
     expect(matchesProviderListFilter("needs-attention", error, true)).toBe(false);
   });
 
+  it("needs-attention matches cooldown-only providers via stats.hasCooldown", () => {
+    const cooldownOnly = make({ connected: 1, error: 0, total: 1, hasCooldown: true });
+    expect(matchesProviderListFilter("needs-attention", cooldownOnly)).toBe(true);
+    expect(matchesProviderListFilter("needs-attention", cooldownOnly, true)).toBe(false);
+  });
+
+  it("getProviderStats reports hasCooldown for active model locks", () => {
+    const future = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const stats = getProviderStats(
+      [conn({ id: "a", testStatus: "unavailable", modelLock_x: future })],
+      "claude",
+      "oauth",
+    );
+    expect(stats.hasCooldown).toBe(true);
+    const calm = getProviderStats([conn({ id: "b" })], "claude", "oauth");
+    expect(calm.hasCooldown).toBe(false);
+  });
+
+  it("buildProviderListFilterCounts counts cooldown-only entries as needing attention", () => {
+    const cooldownOnly = make({ connected: 1, error: 0, total: 1, hasCooldown: true });
+    const counts = buildProviderListFilterCounts([
+      { stats: active, authGroup: "oauth" },
+      { stats: cooldownOnly, authGroup: "oauth" },
+    ]);
+    expect(counts["needs-attention"]).toBe(1);
+  });
+
   it("auth-group filters match by auth group", () => {
     expect(matchesProviderListFilter("oauth", active, false, "oauth")).toBe(true);
     expect(matchesProviderListFilter("oauth", active, false, "apikey")).toBe(false);
@@ -264,5 +296,32 @@ describe("countNeedsAttention", () => {
       { stats: { error: 0 }, hasCooldown: false },
     ];
     expect(countNeedsAttention(entries)).toBe(3);
+  });
+});
+
+describe("provider panel URL state", () => {
+  it("reads ?provider=<id> and tolerates missing/empty params", () => {
+    expect(readSelectedProvider("provider=claude")).toBe("claude");
+    expect(readSelectedProvider("")).toBeNull();
+    expect(readSelectedProvider("tab=logs")).toBeNull();
+    expect(readSelectedProvider(null)).toBeNull();
+  });
+
+  it("writes ?provider=<id> preserving other params, removes it on close", () => {
+    expect(writeSelectedProvider("", "claude")).toBe("/dashboard/providers?provider=claude");
+    expect(writeSelectedProvider("tab=logs", "kimi")).toBe(
+      "/dashboard/providers?tab=logs&provider=kimi",
+    );
+    expect(writeSelectedProvider("provider=claude", null)).toBe("/dashboard/providers");
+    expect(writeSelectedProvider("tab=logs&provider=claude", null)).toBe(
+      "/dashboard/providers?tab=logs",
+    );
+  });
+
+  it("round-trips open then close", () => {
+    const opened = writeSelectedProvider("", "kimi");
+    expect(readSelectedProvider(opened.split("?")[1])).toBe("kimi");
+    const closed = writeSelectedProvider(opened.split("?")[1], null);
+    expect(readSelectedProvider(closed.split("?")[1] ?? "")).toBeNull();
   });
 });

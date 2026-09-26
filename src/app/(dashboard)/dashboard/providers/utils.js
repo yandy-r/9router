@@ -67,7 +67,13 @@ export function getConnectionErrorTag(connection) {
     msg.includes("invalid api key") ||
     msg.includes("token invalid") ||
     msg.includes("revoked") ||
-    msg.includes("unauthorized")
+    msg.includes("unauthorized") ||
+    msg.includes("no access token") ||
+    msg.includes("missing access token") ||
+    msg.includes("auth") ||
+    msg.includes("sign in") ||
+    msg.includes("signin") ||
+    msg.includes("expired")
   )
     return "AUTH";
 
@@ -117,6 +123,7 @@ export function getProviderStats(connections, providerId, authType) {
   const error = errorConns.length;
   const total = providerConnections.length;
   const allDisabled = total > 0 && providerConnections.every((c) => c.isActive === false);
+  const hasCooldown = providerConnections.some((c) => Boolean(getCooldownUntil(c)));
 
   const latestError = errorConns.sort(
     (a, b) => new Date(b.lastErrorAt || 0) - new Date(a.lastErrorAt || 0),
@@ -124,7 +131,7 @@ export function getProviderStats(connections, providerId, authType) {
   const errorCode = latestError ? getConnectionErrorTag(latestError) : null;
   const errorTime = latestError?.lastErrorAt ? getRelativeTime(latestError.lastErrorAt) : null;
 
-  return { connected, error, total, errorCode, errorTime, allDisabled };
+  return { connected, error, total, errorCode, errorTime, allDisabled, hasCooldown };
 }
 
 export function getAccountSegments(providerConnections) {
@@ -148,6 +155,25 @@ export function getAccountSegments(providerConnections) {
   });
 }
 
+/**
+ * Pure URL-state helpers for the linkable ?provider=<id> panel.
+ * Kept pure (no router) so they are unit-testable; the shell wires them
+ * to router.push/replace and syncs state from searchParams on popstate.
+ */
+export function readSelectedProvider(searchParamsString) {
+  const params = new URLSearchParams(searchParamsString || "");
+  const provider = params.get("provider");
+  return provider || null;
+}
+
+export function writeSelectedProvider(searchParamsString, providerId) {
+  const params = new URLSearchParams(searchParamsString || "");
+  if (providerId) params.set("provider", providerId);
+  else params.delete("provider");
+  const qs = params.toString();
+  return qs ? `/dashboard/providers?${qs}` : "/dashboard/providers";
+}
+
 export function matchesProviderListFilter(filter, stats, isNoAuth = false, authGroup = null) {
   if (filter === LIST_FILTERS.ALL) return true;
   if (filter === LIST_FILTERS.CONNECTED) {
@@ -156,7 +182,7 @@ export function matchesProviderListFilter(filter, stats, isNoAuth = false, authG
   }
   if (filter === LIST_FILTERS.NEEDS_ATTENTION) {
     if (isNoAuth) return false;
-    return (stats?.error || 0) > 0;
+    return (stats?.error || 0) > 0 || stats?.hasCooldown === true;
   }
   if (filter === LIST_FILTERS.OAUTH) return authGroup === "oauth";
   if (filter === LIST_FILTERS.FREE) return authGroup === "free";
@@ -175,11 +201,12 @@ export function buildProviderListFilterCounts(entries) {
   };
 
   for (const entry of entries) {
-    const { stats, isNoAuth, authGroup, hasCooldown } = entry;
+    const { stats, isNoAuth, authGroup } = entry;
+    const entryCooldown = entry.hasCooldown ?? stats?.hasCooldown;
     if (isNoAuth || (stats?.connected || 0) > 0) {
       counts[LIST_FILTERS.CONNECTED] += 1;
     }
-    if (!isNoAuth && ((stats?.error || 0) > 0 || hasCooldown)) {
+    if (!isNoAuth && ((stats?.error || 0) > 0 || entryCooldown)) {
       counts[LIST_FILTERS.NEEDS_ATTENTION] += 1;
     }
     if (authGroup === "oauth") counts[LIST_FILTERS.OAUTH] += 1;

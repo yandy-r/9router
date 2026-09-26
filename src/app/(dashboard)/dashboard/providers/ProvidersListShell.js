@@ -19,10 +19,11 @@ import { getModelsByProviderId } from "@/shared/constants/models";
 import {
   LIST_FILTERS,
   PROVIDER_LIST_FILTERS,
-  getCooldownUntil,
   getProviderStats,
   matchesProviderListFilter,
   buildProviderListFilterCounts,
+  readSelectedProvider,
+  writeSelectedProvider,
 } from "./utils";
 import { PROVIDER_SECTIONS } from "./sections";
 import ProviderCard from "./components/ProviderCard";
@@ -142,7 +143,6 @@ function ProvidersListShell({ initialProviderId = null }) {
     stats: entry.stats,
     isNoAuth: entry.isNoAuth,
     authGroup: entry.authGroup,
-    hasCooldown: entryConnections(entry, connections).some((c) => getCooldownUntil(c)),
   }));
   const filterCounts = buildProviderListFilterCounts(filterEntriesForCounts);
 
@@ -159,10 +159,7 @@ function ProvidersListShell({ initialProviderId = null }) {
 
   const needsAttention = allEntries
     .filter(
-      (entry) =>
-        !entry.isNoAuth &&
-        (entry.stats.error > 0 ||
-          entryConnections(entry, connections).some((c) => getCooldownUntil(c))),
+      (entry) => !entry.isNoAuth && (entry.stats.error > 0 || entry.stats.hasCooldown === true),
     )
     .slice(0, 6);
 
@@ -171,24 +168,23 @@ function ProvidersListShell({ initialProviderId = null }) {
   const attentionTotal = filterCounts[LIST_FILTERS.NEEDS_ATTENTION];
   const isApikeySearching = !!query || filter !== LIST_FILTERS.ALL;
 
+  // Keep panel selection in sync with the URL on Back/Forward.
+  const searchParamsString = searchParams?.toString() ?? "";
+  useEffect(() => {
+    setSelectedProvider(readSelectedProvider(searchParamsString));
+  }, [searchParamsString]);
+
   const openProvider = useCallback(
     (entry) => {
       setSelectedProvider(entry.id);
-      const params = new URLSearchParams(searchParams?.toString() || "");
-      params.set("provider", entry.id);
-      router.replace(`/dashboard/providers?${params.toString()}`, { scroll: false });
+      router.push(writeSelectedProvider(searchParams?.toString(), entry.id), { scroll: false });
     },
     [router, searchParams],
   );
 
   const closeProvider = useCallback(() => {
     setSelectedProvider(null);
-    const params = new URLSearchParams(searchParams?.toString() || "");
-    params.delete("provider");
-    const qs = params.toString();
-    router.replace(qs ? `/dashboard/providers?${qs}` : "/dashboard/providers", {
-      scroll: false,
-    });
+    router.push(writeSelectedProvider(searchParams?.toString(), null), { scroll: false });
   }, [router, searchParams]);
 
   const handleToggleProvider = async (providerId, authType, newActive) => {
@@ -391,6 +387,10 @@ function ProvidersListShell({ initialProviderId = null }) {
               connections={entryConnections(entry, connections)}
               testing={testingMode === entry.id}
               onRetry={() => handleBatchTest("provider", entry.id)}
+              onReconnect={() => {
+                setAddConnectionError("");
+                setAddAccountEntry(entry);
+              }}
               onOpen={() => openProvider(entry)}
             />
           ))}
