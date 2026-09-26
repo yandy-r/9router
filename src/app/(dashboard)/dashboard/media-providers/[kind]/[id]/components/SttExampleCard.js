@@ -15,7 +15,7 @@ import {
   eyebrowClass,
   tunnelToggleClass,
 } from "./exampleShared";
-import { previewAuthHeader } from "@/shared/constants/previewAuth";
+import { maskPreviewApiKey, previewAuthHeader } from "@/shared/constants/previewAuth";
 
 export function SttExampleCard({ providerId }) {
   const providerAlias = getProviderAlias(providerId);

@@ -13,7 +13,7 @@ import {
   eyebrowClass,
   tunnelToggleClass,
 } from "./exampleShared";
-import { previewAuthHeader } from "@/shared/constants/previewAuth";
+import { maskPreviewApiKey, previewAuthHeader } from "@/shared/constants/previewAuth";
 
 const DEFAULT_RESPONSE_EXAMPLE = `{
   "object": "list",
@@ -36,7 +36,10 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
   const [selectedModel, setSelectedModel] = useState(embeddingModels[0]?.id ?? "");
   const [input, setInput] = useState("The quick brown fox jumps over the lazy dog");
   const [dimensions, setDimensions] = useState("");
-  const [apiKey, setApiKey] = useState("");
+  // Loaded key never enters the DOM: the input only holds a manual override.
+  const [loadedKey, setLoadedKey] = useState("");
+  const [keyOverride, setKeyOverride] = useState("");
+  const apiKey = keyOverride || loadedKey;
   const [useTunnel, setUseTunnel] = useState(false);
   const [localEndpoint, setLocalEndpoint] = useState("");
   const [tunnelEndpoint, setTunnelEndpoint] = useState("");
@@ -51,7 +54,7 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
     fetch("/api/keys")
       .then((r) => r.json())
       .then((d) => {
-        setApiKey((d.keys || []).find((k) => k.isActive !== false)?.key || "");
+        setLoadedKey((d.keys || []).find((k) => k.isActive !== false)?.key || "");
       })
       .catch(() => {});
     fetch("/api/tunnel/status")
@@ -192,9 +195,9 @@ export function EmbeddingExampleCard({ providerId, customAlias }) {
         <Row label="API Key">
           <input
             type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-..."
+            value={keyOverride}
+            onChange={(e) => setKeyOverride(e.target.value)}
+            placeholder={loadedKey ? maskPreviewApiKey(loadedKey) : "sk-..."}
             aria-label="API Key"
             autoComplete="off"
             className={`${controlClass} font-mono`}

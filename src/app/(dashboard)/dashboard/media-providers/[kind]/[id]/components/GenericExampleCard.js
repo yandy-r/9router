@@ -16,10 +16,11 @@ import {
   KIND_EXAMPLE_CONFIG,
   controlClass,
   readonlyClass,
+  codeBlockClass,
   eyebrowClass,
   tunnelToggleClass,
 } from "./exampleShared";
-import { previewAuthHeader } from "@/shared/constants/previewAuth";
+import { maskPreviewApiKey, previewAuthHeader } from "@/shared/constants/previewAuth";
 
 const CLOUDFLARE_TEST_IMAGE_URL = "https://pub-1fb693cb11cc46b2b2f656f51e015a2c.r2.dev/dog.png";
 const CLOUDFLARE_TEST_MASK_URL = "https://pub-1fb693cb11cc46b2b2f656f51e015a2c.r2.dev/dog-mask.png";

@@ -18,7 +18,7 @@ import {
   eyebrowClass,
   tunnelToggleClass,
 } from "./exampleShared";
-import { previewAuthHeader } from "@/shared/constants/previewAuth";
+import { maskPreviewApiKey, previewAuthHeader } from "@/shared/constants/previewAuth";
 
 const DEFAULT_TTS_RESPONSE_EXAMPLE = `// Audio will appear here after running.
 // Example JSON response (response_format=json):
