@@ -70,6 +70,27 @@ describe("YAN-313 config export/import routes", () => {
     expect(again.diff.settings.changed).toBe(0);
   });
 
+  it("preserves stored credentials on URL round trip", async () => {
+    // A credential-laden URL in storage: export masks it, import skips
+    // tombstones (with warning), so the stored URL is never lost.
+    const storedUrl = "http://alice:hunter2@proxy.corp:8080/path";
+    const { updateSettings } = await import("@/lib/localDb");
+    await updateSettings({ outboundProxyUrl: storedUrl });
+
+    const doc = await (await exportConfig()).json();
+    expect(doc.settings.outboundProxyUrl).toBe("http://***@proxy.corp:8080/path");
+    expect(doc.redactedSettings).toContain("outboundProxyUrl");
+
+    const preview = await importConfig(doc, { mode: "preview" });
+    const previewJson = await preview.json();
+    expect(previewJson.valid).toBe(true);
+    expect(previewJson.warnings.some((w) => w.includes("outboundProxyUrl"))).toBe(true);
+
+    const applied = await importConfig(doc, { mode: "apply" });
+    expect(applied.status).toBe(200);
+    expect((await readStored()).outboundProxyUrl).toBe(storedUrl);
+  });
+
   it("requires password, rejects secrets, versions and sizes", async () => {
     const noAuth = await import("@/app/api/settings/config/export/route.js").then(({ GET }) =>
       GET(new Request("http://localhost/api/settings/config/export")),

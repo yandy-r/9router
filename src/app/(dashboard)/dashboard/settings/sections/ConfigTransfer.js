@@ -16,7 +16,7 @@ const GROUPS = [
   ["pricing", "Pricing overrides"],
 ];
 const SCOPE_NOTE =
-  "Configuration only: settings, combos and pricing overrides. Passwords, secrets and provider accounts are never included. For a full backup, use Data & backup.";
+  "Configuration only: settings, combos and pricing overrides. Passwords, secrets and provider accounts are never included. URL credentials are redacted; masked URL settings keep their current values on import. For a full backup, use Data & backup.";
 
 async function postImport(body) {
   const res = await fetch("/api/settings/config/import", {
@@ -303,6 +303,14 @@ export default function ConfigTransfer({ onSettingsChange }) {
         {preview && (
           <div className="space-y-3">
             <p className="text-sm text-muted">{SCOPE_NOTE}</p>
+            {preview.redactedSettings?.length > 0 && (
+              <Callout variant="info" title="URLs with credentials were masked on export">
+                <p>
+                  {preview.redactedSettings.join(", ")}: these keep their current values unless you
+                  re-enter the full URL before applying.
+                </p>
+              </Callout>
+            )}
             {preview.warnings?.length > 0 && (
               <Callout variant="warn" title="Some entries will be skipped">
                 <ul className="list-disc ps-5">

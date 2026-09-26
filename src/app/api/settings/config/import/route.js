@@ -127,6 +127,7 @@ export async function POST(request) {
       return NextResponse.json({
         valid: true,
         warnings: checked.warnings,
+        redactedSettings: checked.redactedSettings,
         diff,
         restartRequired: diff.restartRequired,
       });
@@ -169,6 +170,7 @@ export async function POST(request) {
     return NextResponse.json({
       valid: true,
       warnings: checked.warnings,
+      redactedSettings: checked.redactedSettings,
       diff: after,
       restartRequired: restartRequired || after.restartRequired,
       exportedAt: (await exportConfig()).exportedAt,

@@ -102,6 +102,71 @@ describe("YAN-313 config doc pure logic", () => {
     expect(checked.warnings).toEqual(['Unknown setting "bogus" ignored']);
   });
 
+  it("redacts credentials from all URL keys and records redactedSettings", () => {
+    const doc = buildConfigDocument({
+      settings: {
+        outboundProxyUrl: "http://alice:secret123@proxy.corp:8080",
+        headroomUrl: "http://bot:token999@localhost:8787/v1",
+        oidcIssuerUrl: "https://idp.corp/auth?client_secret=shh&access_token=tok123",
+        samlEntryPoint: "https://idp.corp/sso?api_key=key123&password=pass",
+        mitmRouterBaseUrl: "http://mitm:secret@localhost:20128",
+        safeUrl: "https://safe.example.com/endpoint?search=term",
+      },
+      combos: [],
+      pricingOverrides: {},
+      version: "0.4.0",
+    });
+    // None of the exported URLs may carry real userinfo or secret params.
+    for (const val of Object.values(doc.settings)) {
+      expect(val).not.toContain("alice");
+      expect(val).not.toContain("secret123");
+      expect(val).not.toContain("token999");
+      expect(val).not.toContain("shh");
+      expect(val).not.toContain("tok123");
+      expect(val).not.toContain("key123");
+    }
+    expect(doc.settings.outboundProxyUrl).toBe("http://***@proxy.corp:8080");
+    expect(doc.settings.headroomUrl).toBe("http://***@localhost:8787/v1");
+    expect(doc.settings.oidcIssuerUrl).toBe(
+      "https://idp.corp/auth?client_secret=***&access_token=***",
+    );
+    expect(doc.settings.samlEntryPoint).toBe("https://idp.corp/sso?api_key=***&password=***");
+    expect(doc.settings.mitmRouterBaseUrl).toBe("http://***@localhost:20128");
+    expect(doc.settings.safeUrl).toBe("https://safe.example.com/endpoint?search=term");
+    expect(doc.redactedSettings).toEqual([
+      "headroomUrl",
+      "mitmRouterBaseUrl",
+      "oidcIssuerUrl",
+      "outboundProxyUrl",
+      "samlEntryPoint",
+    ]);
+  });
+
+  it("round-trips masked URLs without diff or losing credentials", () => {
+    const live = {
+      settings: {
+        outboundProxyUrl: "http://alice:secret123@proxy.corp:8080",
+        oidcIssuerUrl: "https://idp.corp/auth?client_secret=shh",
+      },
+      combos: [],
+      pricingOverrides: {},
+    };
+    const exported = buildConfigDocument({ ...live, version: "0.4.0" });
+    const validated = validateConfigDocument(
+      exported,
+      new Set(["outboundProxyUrl", "oidcIssuerUrl"]),
+    );
+    expect(validated.valid).toBe(true);
+    expect(validated.warnings).toHaveLength(2);
+    // Tombstoned URLs keep the stored value: skipped on import, so the
+    // validated doc carries no settings entries at all.
+    expect(validated.doc.settings).toEqual({});
+    // And the exported (masked) document diffs cleanly against stored values.
+    const diff = diffConfig(exported, live);
+    expect(diff.settings.changed).toBe(0);
+    expect(diff.settings.unchanged).toBe(2);
+  });
+
   it("rejects secrets, versions, shapes; warns unknown and machine-local", () => {
     for (const secret of ["password", "oidcClientSecret"]) {
       const bad = validateConfigDocument(

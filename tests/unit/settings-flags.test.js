@@ -120,6 +120,17 @@ describe("environment readout", () => {
     expect(maskUrlCredentials("http://proxy:8080/path?next=1&api_key=abc")).toBe(
       "http://proxy:8080/path?next=1&api_key=***",
     );
+    // YAN-313: secret-bearing auth params used in real SSO/redirect URLs.
+    expect(
+      maskUrlCredentials(
+        "https://issuer.example/authorize?client_id=cid&client_secret=shh&redirect_uri=https%3A%2F%2Fapp",
+      ),
+    ).toBe(
+      "https://issuer.example/authorize?client_id=cid&client_secret=***&redirect_uri=https%3A%2F%2Fapp",
+    );
+    expect(maskUrlCredentials("https://idp.example/cb?access_token=abc&code=xyz")).toBe(
+      "https://idp.example/cb?access_token=***&code=xyz",
+    );
     expect(maskUrlCredentials("user:pass@host:3128")).toBe("***@host:3128");
   });
 });

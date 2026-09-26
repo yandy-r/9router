@@ -1,19 +1,55 @@
 /**
- * YAN-313 configuration export/import: pure document logic (no imports).
+ * YAN-313 configuration export/import: pure document logic.
  *
  * Document: { schemaVersion, exportedAt, app: { version }, settings,
- *   combos, pricingOverrides }.
+ *   redactedSettings, combos, pricingOverrides }.
  *
  * The settings subset is derived, not listed: export takes every stored
  * setting minus the denylists below, and import accepts every key the
  * settings schema knows (DEFAULT_SETTINGS keys plus keys already stored).
  * New settings keys ship through export/import with no change here.
+ *
+ * Embedded credentials: every string in exported settings (nested too) goes
+ * through maskUrlCredentials, so URL userinfo becomes `***@` and secret query
+ * params become `=***`. Keys that changed are listed in `redactedSettings`.
+ * The `***` marker is a tombstone: import skips any setting that still
+ * contains one and keeps the stored value, so a round trip never overwrites
+ * stored credentials with the placeholder.
  */
+
+import { maskUrlCredentials } from "./settingsFlags.js";
 
 export const CONFIG_SCHEMA_VERSION = 1;
 
 /** Max raw import body, in bytes. */
 export const MAX_CONFIG_BYTES = 1024 * 1024;
+
+// Exactly the two shapes maskUrlCredentials emits: "***@" and "=***".
+const TOMBSTONE = /\*\*\*@|=\*\*\*(?:[&#]|$)/;
+
+/** Deep-apply maskUrlCredentials to every string in a settings value. */
+function scrubValue(value) {
+  if (typeof value === "string") return maskUrlCredentials(value);
+  if (Array.isArray(value)) return value.map(scrubValue);
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, scrubValue(v)]));
+  }
+  return value;
+}
+
+/**
+ * True when a settings value (at any depth) still carries a scrub tombstone.
+ * @param {unknown} value Import candidate.
+ * @returns {boolean}
+ */
+export function hasScrubTombstone(value) {
+  if (typeof value === "string") return TOMBSTONE.test(value);
+  if (Array.isArray(value)) return value.some(hasScrubTombstone);
+  if (value !== null && typeof value === "object") {
+    return Object.values(value).some(hasScrubTombstone);
+  }
+  return false;
+}
 
 /**
  * Credentials: never exported, and an import file containing one is rejected.
@@ -157,20 +193,25 @@ function portableCombo(combo) {
 
 /**
  * Build the export document. Secrets, machine-local and read-only keys are
- * stripped here even if the caller already removed them.
+ * stripped; every exported string is scrubbed of embedded URL credentials.
  * @param {{ settings: object, combos: Array, pricingOverrides: object, version: string }} state
  * @returns {object} Versioned config document.
  */
 export function buildConfigDocument({ settings, combos, pricingOverrides, version }) {
   const portable = {};
+  const redactedSettings = [];
   for (const [key, value] of Object.entries(settings ?? {})) {
-    if (isExportableKey(key) && value !== undefined) portable[key] = value;
+    if (!isExportableKey(key) || value === undefined) continue;
+    const scrubbed = scrubValue(value);
+    portable[key] = scrubbed;
+    if (!sameJson(value, scrubbed)) redactedSettings.push(key);
   }
   return {
     schemaVersion: CONFIG_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
     app: { version: version || "unknown" },
     settings: portable,
+    redactedSettings: redactedSettings.sort(),
     combos: (combos ?? []).map(portableCombo),
     pricingOverrides: isPlainObject(pricingOverrides) ? pricingOverrides : {},
   };
@@ -259,6 +300,8 @@ export function validateConfigDocument(doc, knownKeys) {
 
   const settingKeys = Object.keys(doc.settings);
   if (settingKeys.length > MAX_SETTINGS_KEYS) errors.push("Too many settings");
+  // Tombstoned settings keep their stored value on import (round trip must
+  // not overwrite real credentials with "***"): drop with a warning.
   const settings = {};
   for (const key of settingKeys) {
     if (UNSAFE_KEYS.has(key)) errors.push(`Invalid setting "${key}"`);
@@ -267,7 +310,9 @@ export function validateConfigDocument(doc, knownKeys) {
     else if (MACHINE_LOCAL_SETTING_KEYS.has(key)) {
       warnings.push(`Machine-specific setting "${key}" ignored`);
     } else if (!knownKeys.has(key)) warnings.push(`Unknown setting "${key}" ignored`);
-    else settings[key] = doc.settings[key];
+    else if (hasScrubTombstone(doc.settings[key])) {
+      warnings.push(`Setting "${key}" kept: re-enter its credentials to change it`);
+    } else settings[key] = doc.settings[key];
   }
 
   const combos = doc.combos ?? [];
@@ -285,10 +330,14 @@ export function validateConfigDocument(doc, knownKeys) {
   if (pricingProblem) errors.push(pricingProblem);
 
   if (errors.length > 0) return fail();
+  const redactedSettings = Array.isArray(doc.redactedSettings)
+    ? doc.redactedSettings.filter((k) => typeof k === "string")
+    : [];
   return {
     valid: true,
     errors,
     warnings,
+    redactedSettings,
     doc: { settings, combos: combos.map(portableCombo), pricingOverrides },
   };
 }
@@ -311,14 +360,18 @@ function summarize(entries) {
 /**
  * Preview diff of a validated import against current state. Import only adds
  * and updates; nothing is ever removed, so there is no "removed" group.
- * @param {{ settings: object, combos: Array, pricingOverrides: object }} next Validated doc.
+ * Masked `***` tombstones are normalized through scrubValue on both sides,
+ * so an exported doc diffs to zero changes against the stored credentials it
+ * came from.
+ * @param {{ settings: object, combos: Array, pricingOverrides: object }} next Validated doc or raw export.
  * @param {{ settings: object, combos: Array, pricingOverrides: object }} current Live state.
  * @returns {{ settings: object, combos: object, pricing: object, restartRequired: boolean }}
  */
 export function diffConfig(next, current) {
   const settings = Object.entries(next.settings).map(([key, value]) => {
     const exists = Object.hasOwn(current.settings, key);
-    const status = statusOf(exists, exists && sameJson(current.settings[key], value));
+    const same = exists && sameJson(scrubValue(current.settings[key]), scrubValue(value));
+    const status = statusOf(exists, same);
     return {
       key,
       status,
