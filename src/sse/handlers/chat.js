@@ -237,8 +237,7 @@ export async function handleChat(request, clientRawRequest = null, options = nul
       body,
       models: soloAugmented,
       handleSingleModel: withCapacityAdapterStripping(
-        (b, m) =>
-          handleSingleModelChat(b, m, clientRawRequest, request, apiKey, [], null, options),
+        (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey, [], null, options),
         adapterAdded,
       ),
       log,
