@@ -14,7 +14,6 @@ import TokenSaverSection from "./sections/TokenSaverSection";
 import ProvidersModelsSection from "./sections/ProvidersModelsSection";
 import ObservabilitySection from "./sections/ObservabilitySection";
 import PricingSection from "./sections/PricingSection";
-import ObservabilitySection from "./sections/ObservabilitySection";
 import DataSection from "./sections/DataSection";
 import EnvironmentSection from "./sections/EnvironmentSection";
 import DangerSection from "./sections/DangerSection";

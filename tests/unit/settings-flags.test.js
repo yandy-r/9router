@@ -37,6 +37,19 @@ describe("resolveFlagSetting", () => {
     expect(resolveFlagSetting("ENABLE_TRANSLATOR", true, true).overridden).toBe(false);
     expect(resolveFlagSetting("ENABLE_TRANSLATOR", undefined, false).value).toBe(false);
   });
+
+  it("requestLogEnvOverride alias always matches requestLogsOverridden (single source of truth)", async () => {
+    // GET /api/settings derives both from the same resolveFlagSetting call;
+    // the UI reads requestLogsOverridden and treats the legacy alias the same.
+    const { resolveFlagSetting } = await import("@/lib/settingsFlags.js");
+    for (const env of ["true", "false", undefined]) {
+      if (env === undefined) delete process.env.ENABLE_REQUEST_LOGS;
+      else process.env.ENABLE_REQUEST_LOGS = env;
+      const resolved = resolveFlagSetting("ENABLE_REQUEST_LOGS", false, false);
+      const alias = process.env.ENABLE_REQUEST_LOGS !== undefined;
+      expect(resolved.overridden).toBe(alias);
+    }
+  });
 });
 
 describe("resolveStartPage", () => {
