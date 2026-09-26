@@ -11,6 +11,7 @@ import {
   cycleTabFocus,
   drawerSideClass,
   drawerWidthClass,
+  menuPosition,
   firstEnabledIndex,
   floatingPosition,
   isElementVisible,
@@ -227,6 +228,49 @@ describe("typeaheadStep", () => {
   });
 });
 
+describe("menuPosition", () => {
+  const viewport = { width: 800, height: 600 };
+
+  it("opens below the anchor with a gap", () => {
+    const anchor = { top: 100, bottom: 140, left: 100, right: 144, width: 44, height: 40 };
+    const pos = menuPosition(anchor, { width: 200, height: 150 }, "end", false, viewport);
+    expect(pos.placement).toBe("bottom");
+    expect(pos.top).toBe(144);
+  });
+
+  it("flips above when the panel would cover the trigger", () => {
+    const anchor = { top: 500, bottom: 544, left: 100, right: 144, width: 44, height: 44 };
+    const pos = menuPosition(anchor, { width: 200, height: 150 }, "end", false, viewport);
+    expect(pos.placement).toBe("top");
+    expect(pos.top + 150).toBeLessThan(anchor.top);
+    expect(pos.top + 150).toBeLessThanOrEqual(anchor.top - 4);
+  });
+
+  it("stays below when it fits", () => {
+    const anchor = { top: 300, bottom: 344, left: 100, right: 144, width: 44, height: 44 };
+    const pos = menuPosition(anchor, { width: 200, height: 100 }, "end", false, viewport);
+    expect(pos.placement).toBe("bottom");
+  });
+
+  it("never overlaps the anchor vertically", () => {
+    const anchor = { top: 550, bottom: 590, left: 100, right: 144, width: 44, height: 40 };
+    const panel = { width: 200, height: 200 };
+    const pos = menuPosition(anchor, panel, "end", false, viewport);
+    const panelBottom = pos.top + panel.height;
+    const panelTop = pos.top;
+    const overlaps = panelBottom > anchor.top && panelTop < anchor.bottom;
+    expect(overlaps).toBe(false);
+  });
+
+  it("aligns end horizontally (start for rtl)", () => {
+    const anchor = { top: 100, bottom: 140, left: 300, right: 344, width: 44, height: 40 };
+    expect(menuPosition(anchor, { width: 200, height: 100 }, "end", false, viewport).left).toBe(
+      144,
+    );
+    expect(menuPosition(anchor, { width: 200, height: 100 }, "end", true, viewport).left).toBe(300);
+  });
+});
+
 describe("class maps", () => {
   it("resolves modal sizes and drawer widths, failing fast on typos", () => {
     expect(modalSizeClass("sm")).toBe("max-w-sm");
@@ -234,6 +278,7 @@ describe("class maps", () => {
     expect(() => modalSizeClass("xxl")).toThrow();
     expect(drawerWidthClass("lg")).toBe("w-[600px] max-w-full");
     expect(drawerWidthClass("full")).toBe("w-full");
+    expect(drawerWidthClass("nav")).toBe("w-[280px] max-w-[85vw]");
     expect(() => drawerWidthClass("huge")).toThrow();
   });
 

@@ -15,7 +15,7 @@ import { cn } from "@/shared/utils/cn";
 import { isRovingKey, nextRovingIndex } from "./formPrimitives";
 import {
   firstEnabledIndex,
-  matchMenuTypeahead,
+  menuPosition,
   nextEnabledIndex,
   typeaheadStep,
 } from "./overlayPrimitives";
@@ -112,9 +112,13 @@ export default function Menu({
   useEffect(() => {
     if (!open) return undefined;
     const onPointerDown = (event) => {
-      if (panelRef.current?.contains(event.target) || triggerRef.current?.contains(event.target)) {
-        return;
-      }
+      // Ignore presses inside the panel or on the trigger: a click on the
+      // trigger toggles via onClick; closing here on pointerdown would close
+      // the menu under the click and reopen immediately (or close a sidebar's
+      // drawer mid-navigation, cancelling the click). True outside presses
+      // close on pointerup/click so a straydown doesn't kill the menu.
+      if (panelRef.current?.contains(event.target)) return;
+      if (triggerRef.current?.contains(event.target)) return;
       close();
     };
     document.addEventListener("pointerdown", onPointerDown);
@@ -146,17 +150,11 @@ export default function Menu({
     const place = () => {
       const trigger = triggerRef.current;
       if (!trigger) return;
-      const rect = trigger.getBoundingClientRect();
+      const anchor = trigger.getBoundingClientRect();
+      const panel = { width: panelEl.offsetWidth, height: panelEl.offsetHeight };
       const rtl = getComputedStyle(trigger).direction === "rtl";
-      const top = Math.max(
-        8,
-        Math.min(rect.bottom + 4, window.innerHeight - panelEl.offsetHeight - 8),
-      );
-      let left;
-      if (align === "start") left = rtl ? rect.right - panelEl.offsetWidth : rect.left;
-      else left = rtl ? rect.left : rect.right - panelEl.offsetWidth;
-      left = Math.max(8, Math.min(left, window.innerWidth - panelEl.offsetWidth - 8));
-      setPanelStyle({ top, left });
+      const pos = menuPosition(anchor, panel, align, rtl);
+      setPanelStyle({ top: pos.top, left: pos.left });
     };
     place();
     window.addEventListener("resize", place);
@@ -224,7 +222,10 @@ export default function Menu({
     "aria-haspopup": "menu",
     "aria-expanded": open,
     "aria-controls": open ? menuId : undefined,
-    onClick: () => (open ? close() : openAndFocus(0)),
+    onClick: () => {
+      if (open) close();
+      else openAndFocus(0);
+    },
     onKeyDown: onTriggerKeyDown,
   };
 

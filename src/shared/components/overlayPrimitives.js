@@ -228,6 +228,7 @@ export const DRAWER_WIDTHS = {
   lg: "w-[600px] max-w-full",
   xl: "w-[800px] max-w-full",
   full: "w-full",
+  nav: "w-[280px] max-w-[85vw]",
 };
 
 /** @param {string} [width="md"] */
@@ -328,5 +329,41 @@ export function floatingPosition(anchor, panel, placement, rtl, viewport) {
   return {
     top: Math.max(FLOAT_MARGIN, Math.min(top, maxTop)),
     left: Math.max(FLOAT_MARGIN, Math.min(left, maxLeft)),
+  };
+}
+
+const MENU_GAP = 4;
+
+/**
+ * Menu panel position. Defaults to below the anchor; flips above when the
+ * panel would not fit below and there is more room above, so the panel never
+ * covers its trigger. Horizontal aligns the requested inline edge.
+ * @param {{top:number,left:number,right:number,bottom:number,width:number,height:number}} anchor
+ * @param {{width: number, height: number}} panel
+ * @param {"start"|"end"} align
+ * @param {boolean} rtl
+ * @param {{width: number, height: number}} [viewport]
+ * @returns {{top: number, left: number, placement: "top"|"bottom"}}
+ */
+export function menuPosition(anchor, panel, align, rtl, viewport) {
+  const view =
+    viewport ??
+    (typeof window !== "undefined"
+      ? { width: window.innerWidth, height: window.innerHeight }
+      : null);
+  if (!view) throw new Error("menuPosition: viewport required outside the browser");
+  const spaceBelow = view.height - anchor.bottom;
+  const spaceAbove = anchor.top;
+  const placement =
+    spaceBelow < panel.height + MENU_GAP && spaceAbove > spaceBelow ? "top" : "bottom";
+  const top = placement === "top" ? anchor.top - panel.height - MENU_GAP : anchor.bottom + MENU_GAP;
+  let left;
+  if (align === "start") left = rtl ? anchor.right - panel.width : anchor.left;
+  else left = rtl ? anchor.left : anchor.right - panel.width;
+  const maxLeft = view.width - panel.width - FLOAT_MARGIN;
+  return {
+    top: Math.max(FLOAT_MARGIN, Math.min(top, view.height - panel.height - FLOAT_MARGIN)),
+    left: Math.max(FLOAT_MARGIN, Math.min(left, maxLeft)),
+    placement,
   };
 }
