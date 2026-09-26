@@ -22,6 +22,11 @@ const PUBLIC_API_PATHS = [
 // Keep root-level rewrites here too: middleware runs before Next.js rewrites.
 const PUBLIC_PREFIXES = ["/v1", "/v1beta", "/api/v1", "/api/v1beta", "/codex", "/responses"];
 
+// Skill markdown reads: static content any network peer may fetch (the URL is
+// pasted to AI agents), so /skills never requires auth or an API key. Still
+// only exact allowlisted ids resolve; traversal/unknown ids 404 in the route.
+const PUBLIC_PAGE_PREFIXES = ["/skills"];
+
 // Always require JWT token regardless of requireLogin setting
 const ALWAYS_PROTECTED = [
   "/api/shutdown",
@@ -178,8 +183,14 @@ export const __test__ = {
   canAccessLocalOnlyRoute,
 };
 
+function isPublicPage(pathname) {
+  return PUBLIC_PAGE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 export async function proxy(request) {
   const { pathname } = request.nextUrl;
+
+  if (isPublicPage(pathname)) return NextResponse.next();
 
   // Local-only gate for spawn-capable / host-secret routes.
   if (LOCAL_ONLY_PATHS.some((p) => pathname.startsWith(p))) {

@@ -67,6 +67,15 @@ describe("dashboard guard public LLM API access", () => {
     mocks.verifyDashboardAuthToken.mockResolvedValue(false);
   });
 
+  it("allows public skill markdown on remote hosts without an API key", async () => {
+    const response = await proxy(
+      request("/skills/9router/SKILL.md", { host: "router.example.com" }),
+    );
+
+    expect(response).toBe(mocks.nextResponse);
+    expect(mocks.validateApiKey).not.toHaveBeenCalled();
+  });
+
   it("allows loopback public LLM API without API key", async () => {
     const response = await proxy(localRequest("/v1/chat/completions", { host: "localhost:20128" }));
 

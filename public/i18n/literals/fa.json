@@ -1405,5 +1405,6 @@
   "Keep legacy password login.": "حفظ ورود با نام کاربری و رمز عبور قدیمی",
   "Require SSO for dashboard access.": "برای دسترسی به داشبورد نیاز به SSO دارد.",
   "Allow password or SSO login.": "اجازه ورود با رمز عبور یا ورود یک‌بار مصرف (SSO)",
-  "Save OIDC settings": "ذخیره تنظیمات OIDC"
+  "Save OIDC settings": "ذخیره تنظیمات OIDC",
+  "Teach any AI agent to use your 9router with one line.": "یک لینک کپی کرده و به هوش مصنوعی خود بچسبانید تا از 9Router استفاده کنید — نیازی به نصب نیست"
 }

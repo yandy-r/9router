@@ -147,8 +147,8 @@ export const getPageInfo = (pathname) => {
     };
   if (pathname.includes("/skills"))
     return {
-      title: "Agent Skills",
-      description: "Copy a link and paste to your AI to use 9Router — no install needed",
+      title: "Skills",
+      description: "Teach any AI agent to use your 9router with one line.",
       icon: "extension",
       breadcrumbs: [],
     };
