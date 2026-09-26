@@ -3,7 +3,15 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, notFound, useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card, Button, Input, Toggle, ModelSelectModal } from "@/shared/components";
+import {
+  Card,
+  Button,
+  Input,
+  Toggle,
+  ModelSelectModal,
+  ConfirmDialog,
+  Callout,
+} from "@/shared/components";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { AI_PROVIDERS, MEDIA_PROVIDER_KINDS } from "@/shared/constants/providers";
 
@@ -29,6 +37,9 @@ const EXAMPLE_PATHS = {
   webFetch: "/v1/web/fetch",
   image: "/v1/images/generations",
   tts: "/v1/audio/speech",
+  embedding: "/v1/embeddings",
+  video: "/v1/videos/generations",
+  stt: "/v1/audio/transcriptions",
 };
 
 const EXAMPLE_BODIES = {
@@ -41,6 +52,9 @@ const EXAMPLE_BODIES = {
   webFetch: (n) => ({ model: n, url: "https://example.com", format: "markdown" }),
   image: (n) => ({ model: n, prompt: "A cute cat playing piano", n: 1, size: "1024x1024" }),
   tts: (n) => ({ model: n, input: "Hello, this is a test.", voice: "alloy" }),
+  embedding: (n) => ({ model: n, input: "The quick brown fox jumps over the lazy dog" }),
+  video: (n) => ({ model: n, prompt: "A serene lake at sunset" }),
+  stt: (n) => ({ model: n, prompt: "Transcribe this audio" }),
 };
 
 // Map combo.kind → listing route to go back to
@@ -72,6 +86,8 @@ export default function ComboDetailPage() {
   const [connections, setConnections] = useState([]);
   const [modelAliases, setModelAliases] = useState({});
   const [origin, setOrigin] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const fetchAll = async () => {
     try {
@@ -134,10 +150,11 @@ export default function ComboDetailPage() {
       body: JSON.stringify(patch),
     });
     if (!res.ok) {
-      const err = await res.json();
-      alert(err.error || "Failed to save");
+      const err = await res.json().catch(() => ({}));
+      setSaveError(err.error || "Failed to save");
       return false;
     }
+    setSaveError("");
     return true;
   };
 
@@ -155,7 +172,7 @@ export default function ComboDetailPage() {
       if (nextName === comboNameRef.current) return;
       const ok = await saveCombo({ name: nextName });
       if (ok) await fetchAll();
-    }).catch(() => alert("Failed to save — network error"));
+    }).catch(() => setSaveError("Failed to save — network error"));
   };
 
   const handleAddModel = async (model) => {
@@ -236,16 +253,20 @@ export default function ComboDetailPage() {
     if (!error) {
       // A queued rename's fetchAll may have reset the toggle to pre-save server state.
       setRoundRobin(enabled);
+      setSaveError("");
       return;
     }
     if (!conflict) setRoundRobin(previous);
-    alert(error);
+    setSaveError(error);
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete combo "${combo.name}"?`)) return;
     const res = await fetch(`/api/combos/${id}`, { method: "DELETE" });
-    if (res.ok) router.push(getListingHref(combo.kind));
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data?.error || `Delete failed (HTTP ${res.status})`);
+    }
+    router.push(getListingHref(combo.kind));
   };
 
   const handleTest = async () => {
@@ -338,6 +359,7 @@ export default function ComboDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {saveError && <Callout variant="err">{saveError}</Callout>}
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
@@ -352,12 +374,7 @@ export default function ComboDetailPage() {
             <code className="text-lg font-semibold font-mono">{combo.name}</code>
           </div>
         </div>
-        <Button
-          variant="outline"
-          icon="delete"
-          onClick={handleDelete}
-          className="text-red-500 border-red-200 hover:bg-red-50"
-        >
+        <Button variant="danger" icon="delete" onClick={() => setConfirmDelete(true)}>
           Delete
         </Button>
       </div>
@@ -566,6 +583,18 @@ export default function ComboDetailPage() {
           closeOnSelect={false}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={async () => {
+          await handleDelete();
+          setConfirmDelete(false);
+        }}
+        title="Delete combo"
+        message={`Delete combo "${combo.name}"?`}
+        confirmText="Delete"
+      />
     </div>
   );
 }
